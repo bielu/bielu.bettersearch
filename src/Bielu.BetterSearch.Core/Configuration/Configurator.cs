@@ -1,6 +1,11 @@
-﻿namespace Bielu.BetterSearch.Configuration;
+﻿using Microsoft.Extensions.DependencyInjection;
 
-public class Configurator
+namespace Bielu.BetterSearch.Configuration;
+
+public class Configurator(IServiceCollection services)
 {
-    
+    public IServiceCollection Services => services;
+
+    public SearchApplicationConfiguration Configuration { get; } = SearchApplicationConfiguration.CurrentInstance;
+
 }

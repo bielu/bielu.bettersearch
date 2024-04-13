@@ -1,9 +1,9 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Services;
 
-public interface IIndexingService : IObservable<SearchDocument>,IObservable<DeleteDocumentRequest>,IObservable<DeleteAllDocumentsRequest>
+public interface IIndexingProvider
 {
     void IndexDocument(SearchDocument document);
     void IndexMultipleDocuments(IEnumerable<SearchDocument> document);
-    void RemoveDocument(DeleteDocumentRequest document);
+    void RemoveDocument(string id, string type);
     void RemoveAllDocuments();
 }
