@@ -2,15 +2,20 @@
 
 public class IndexingService(IIndexingProvider indexingProvider,IDocumentValidator documentValidator) : IIndexingService
 {
-    List<IObserver<SearchDocument>> _indexingObservers = new();
-    List<IObserver<DeleteDocumentRequest>> _deleteDocumentObservers = new();
-    List<IObserver<DeleteAllDocumentsRequest>> _deleteAllDocumentsObservers = new();
+    // ReSharper disable once FieldCanBeMadeReadOnly.Local
+    private List<IObserver<SearchDocument>> _indexingObservers = new();
+    // ReSharper disable once FieldCanBeMadeReadOnly.Local
+    private List<IObserver<DeleteDocumentRequest>> _deleteDocumentObservers = new();
+    // ReSharper disable once FieldCanBeMadeReadOnly.Local
+    private List<IObserver<DeleteAllDocumentsRequest>> _deleteAllDocumentsObservers = new();
 
 
     public IDisposable Subscribe(IObserver<SearchDocument> observer)
     {
         if (!_indexingObservers.Contains(observer))
+        {
             _indexingObservers.Add(observer);
+        }
 
         return new Unsubscriber<SearchDocument>(_indexingObservers, observer);
     }
@@ -69,7 +74,9 @@ public class IndexingService(IIndexingProvider indexingProvider,IDocumentValidat
     public IDisposable Subscribe(IObserver<DeleteDocumentRequest> observer)
     {
         if (!_deleteDocumentObservers.Contains(observer))
+        {
             _deleteDocumentObservers.Add(observer);
+        }
 
         return new Unsubscriber<DeleteDocumentRequest>(_deleteDocumentObservers, observer);
     }
@@ -77,7 +84,9 @@ public class IndexingService(IIndexingProvider indexingProvider,IDocumentValidat
     public IDisposable Subscribe(IObserver<DeleteAllDocumentsRequest> observer)
     {
         if (!_deleteAllDocumentsObservers.Contains(observer))
+        {
             _deleteAllDocumentsObservers.Add(observer);
+        }
 
         return new Unsubscriber<DeleteAllDocumentsRequest>(_deleteAllDocumentsObservers, observer);
     }

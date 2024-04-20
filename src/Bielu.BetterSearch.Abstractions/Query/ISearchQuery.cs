@@ -16,6 +16,7 @@ public interface ISearchQuery<T> :  ICreatableSearchQuery<Occurance, ISearchSubQ
     public string Index { get; set; }
     public DateTime? PreviewAt { get; set; }
     void Add(Occurance queryOccurance, ISearchSubQuery booleanQueryQuery);
+    public IEnumerable<string> Properties { get; set; }
 }
 
 public interface ISearchQuery
