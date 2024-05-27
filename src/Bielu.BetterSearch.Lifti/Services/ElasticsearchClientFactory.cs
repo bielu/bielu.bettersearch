@@ -1,9 +1,9 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
 using Lifti;
 
-namespace Bielu.BetterSearch.ElasticSearch.Services;
+namespace Bielu.BetterSearch.Lifti.Services;
 
-public class ElasticsearchClientFactory : IClientFactory<IFullTextIndex<string>>
+public class ElasticsearchClientFactoryAsync : IClientFactoryAsync<IFullTextIndex<string>>
 {
-    public IFullTextIndex<string> GetOrCreateClient() => throw new NotImplementedException();
+    public Task<IFullTextIndex<string>> GetOrCreateClientAsync() => throw new NotImplementedException();
 }

@@ -3,7 +3,7 @@ using Elastic.Clients.Elasticsearch;
 
 namespace Bielu.BetterSearch.ElasticSearch.Services;
 
-public class ElasticsearchClientFactory : IClientFactory<ElasticsearchClient>
+public class ElasticsearchClientFactory : IClientFactoryAsync<ElasticsearchClient>
 {
-    public ElasticsearchClient GetOrCreateClient() => throw new NotImplementedException();
+    public Task<ElasticsearchClient> GetOrCreateClientAsync() => throw new NotImplementedException();
 }

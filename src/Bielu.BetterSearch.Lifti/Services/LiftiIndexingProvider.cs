@@ -1,14 +1,17 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Lifti.Extensions;
+using Lifti;
 
-namespace Bielu.BetterSearch.ElasticSearch.Services;
+namespace Bielu.BetterSearch.Lifti.Services;
 
-public class LiftiIndexingProvider : IIndexingProvider
+public class LiftiIndexingProviderAsync(IClientFactoryAsync<IFullTextIndex<string>> clientFactory) : IIndexingProviderAsync
 {
-    public void IndexDocument(SearchDocument document) => throw new NotImplementedException();
+    public async Task IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) => (await clientFactory.GetOrCreateClientAsync()).AddAsync(document,cancellationToken);
 
-    public void IndexMultipleDocuments(IEnumerable<SearchDocument> document) => throw new NotImplementedException();
 
-    public void RemoveDocument(string id, string type) => throw new NotImplementedException();
+    public async Task IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document, CancellationToken cancellationToken = default) => throw new NotImplementedException();
 
-    public void RemoveAllDocuments() => throw new NotImplementedException();
+    public async Task RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) => throw new NotImplementedException();
+
+    public async Task RemoveAllDocumentsAsync(CancellationToken cancellationToken = default) => throw new NotImplementedException();
 }

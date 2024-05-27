@@ -1,6 +1,6 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Services;
 
-public class IndexingService(IIndexingProvider indexingProvider,IDocumentValidator documentValidator) : IIndexingService
+public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider,IDocumentValidatorAsync documentValidator) : IIndexingServiceAsync
 {
     // ReSharper disable once FieldCanBeMadeReadOnly.Local
     private List<IObserver<SearchDocument>> _indexingObservers = new();
@@ -20,9 +20,9 @@ public class IndexingService(IIndexingProvider indexingProvider,IDocumentValidat
         return new Unsubscriber<SearchDocument>(_indexingObservers, observer);
     }
 
-    public void IndexDocument(SearchDocument document)
+    public async Task IndexDocumentAsync(SearchDocument document)
     {
-        if (!documentValidator.ValidateDocument(document))
+        if (!(await documentValidator.ValidateDocumentAsync(document)))
         {
             //not valid to do it in checks
             //indexing finished
@@ -38,9 +38,9 @@ public class IndexingService(IIndexingProvider indexingProvider,IDocumentValidat
 
     }
 
-    public void IndexMultipleDocuments(IEnumerable<SearchDocument> document) => throw new NotImplementedException();
+    public Task<int> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document) => throw new NotImplementedException();
 
-    public void RemoveDocument(DeleteDocumentRequest document)
+    public async Task RemoveDocumentAsync(DeleteDocumentRequest document)
     {
         foreach (var observer in _deleteDocumentObservers)
         {
@@ -56,7 +56,7 @@ public class IndexingService(IIndexingProvider indexingProvider,IDocumentValidat
 
 
 
-    public void RemoveAllDocuments()
+    public async Task<int> RemoveAllDocumentsAsync()
     {
         var deleteAllDocumentsRequest = new DeleteAllDocumentsRequest();
         foreach (var observer in _deleteAllDocumentsObservers)
@@ -69,6 +69,8 @@ public class IndexingService(IIndexingProvider indexingProvider,IDocumentValidat
         {
             observer.OnCompleted();
         }
+
+        return 0;
     }
 
     public IDisposable Subscribe(IObserver<DeleteDocumentRequest> observer)

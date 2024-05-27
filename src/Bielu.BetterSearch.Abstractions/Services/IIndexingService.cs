@@ -1,9 +1,9 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Services;
 
-public interface IIndexingService : IObservable<SearchDocument>,IObservable<DeleteDocumentRequest>,IObservable<DeleteAllDocumentsRequest>
+public interface IIndexingServiceAsync : IObservable<SearchDocument>,IObservable<DeleteDocumentRequest>,IObservable<DeleteAllDocumentsRequest>
 {
-    void IndexDocument(SearchDocument document);
-    void IndexMultipleDocuments(IEnumerable<SearchDocument> document);
-    void RemoveDocument(DeleteDocumentRequest document);
-    void RemoveAllDocuments();
+    Task IndexDocumentAsync(SearchDocument document);
+    Task<int> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document);
+    Task RemoveDocumentAsync(DeleteDocumentRequest document);
+    Task<int> RemoveAllDocumentsAsync();
 }

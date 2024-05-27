@@ -1,6 +1,6 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Services;
 
-public interface IDocumentValidator
+public interface IDocumentValidatorAsync
 {
-    bool ValidateDocument(SearchDocument document);
+    Task<bool> ValidateDocumentAsync(SearchDocument document);
 }

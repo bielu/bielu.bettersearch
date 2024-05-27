@@ -1,9 +1,9 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Services;
 
-public interface IIndexingProvider
+public interface IIndexingProviderAsync
 {
-    void IndexDocument(SearchDocument document);
-    void IndexMultipleDocuments(IEnumerable<SearchDocument> document);
-    void RemoveDocument(string id, string type);
-    void RemoveAllDocuments();
+    Task IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default);
+    Task IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document, CancellationToken cancellationToken = default);
+    Task RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default);
+    Task RemoveAllDocumentsAsync(CancellationToken cancellationToken = default);
 }

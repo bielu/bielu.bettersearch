@@ -11,8 +11,8 @@ public static class RegisterSearchExtension
         var configurator = new Configurator(services);
         configure(configurator);
         services.AddSingleton(configurator.Configuration);
-        services.AddSingleton(typeof(IDocumentValidator) ,configurator.Configuration.DocumentValidatorType);
-        services.AddSingleton(typeof(IIndexingService), configurator.Configuration.IndexingServiceType);
+        services.AddSingleton(typeof(IDocumentValidatorAsync) ,configurator.Configuration.DocumentValidatorType);
+        services.AddSingleton(typeof(IIndexingServiceAsync), configurator.Configuration.IndexingServiceType);
         return services;
     }
 }

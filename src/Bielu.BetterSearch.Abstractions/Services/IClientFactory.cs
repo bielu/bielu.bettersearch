@@ -1,6 +1,6 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Services;
 
-public interface IClientFactory<TClient>
+public interface IClientFactoryAsync<TClient>
 {
-    TClient GetOrCreateClient();
+    Task<TClient> GetOrCreateClientAsync();
 }
