@@ -2,24 +2,16 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent.Aggregations
 {
-    public class TermAggregationQueryConfigurator
+    public class TermAggregationQueryConfigurator(TermAggregation query)
     {
-        public TermAggregation Query;
-        public TermAggregationQueryConfigurator()
-        {
-            Query = new TermAggregation();
-        }
-
-
-
         public TermAggregationQueryConfigurator WithName(string name)
         {
-            Query.AggregationName = name;
+            query.AggregationName = name;
             return this;
         }
         public TermAggregationQueryConfigurator WithField(string name)
         {
-            Query.TermFieldName = name;
+            query.TermFieldName = name;
             return this;
         }
     }

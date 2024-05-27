@@ -3,31 +3,24 @@ using SImpl.SearchModule.Abstraction.Results;
 
 namespace Bielu.BetterSearch.FluentApi;
 
-public class FluentApiSearchQueryCreator : IFluentApiSearchQueryCreator
+public class FluentApiSearchQueryCreator(ISearchQuery<IQueryResult> baseQuery) : IFluentApiSearchQueryCreator
 {
-    private  ISearchQuery<IQueryResult> _baseQuery { get; set; }
-
-    public FluentApiSearchQueryCreator(ISearchQuery<IQueryResult> baseQuery)
-    {
-        _baseQuery = baseQuery;
-    }
-    public FluentApiSearchQueryCreator()
-    {
-
-    }
-
     public FluentApiSearchQueryCreator WithSearchQuery(Action<QueryCreatorConfigurator> configurator)
     {
         var query = new QueryCreatorConfigurator(new SearchQuery());
         configurator.Invoke(query);
-        _baseQuery =   query.Query;
+        baseQuery =   query.Query;
         return this;
     }
     public ISearchQuery<IQueryResult> CreateSearchQuery(Action<IBaseQueryConfigurator> configurator)
     {
-        var newQuery = new FluentQueryConfigurator(_baseQuery);
+        var newQuery = new FluentQueryConfigurator(baseQuery);
         newQuery.Occurance = Occurance.Must;
         configurator.Invoke(newQuery);
-        return (ISearchQuery<IQueryResult>)newQuery.Query;
+        return newQuery.Query;
+    }
+    public static FluentApiSearchQueryCreator Create()
+    {
+        return new FluentApiSearchQueryCreator(new SearchQuery());
     }
 }

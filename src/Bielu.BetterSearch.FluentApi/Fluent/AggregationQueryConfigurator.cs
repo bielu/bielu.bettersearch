@@ -22,16 +22,18 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
         }
         public AggregationQueryConfigurator CreateTermQuery(Action<TermAggregationQueryConfigurator> query)
         {
-            var configurator = new TermAggregationQueryConfigurator();
+            var termAggregation = new TermAggregation();
+            var configurator = new TermAggregationQueryConfigurator(termAggregation);
             query.Invoke(configurator);
-            _configuratorQuery.FacetQueries.Add(configurator.Query);
+            _configuratorQuery.FacetQueries.Add(termAggregation);
             return this;
         }
-        public AggregationQueryConfigurator CreateMultiTermQuery(Action<TermAggregationQueryConfigurator> query)
+        public AggregationQueryConfigurator CreateMultiTermQuery(Action<MultiTermAggregationQueryConfigurator> query)
         {
-            var configurator = new TermAggregationQueryConfigurator();
+            var termAggregation = new MultiTermAggreation();
+            var configurator = new MultiTermAggregationQueryConfigurator(termAggregation);
             query.Invoke(configurator);
-            _configuratorQuery.FacetQueries.Add(configurator.Query);
+            _configuratorQuery.FacetQueries.Add(termAggregation);
             return this;
         }
 
