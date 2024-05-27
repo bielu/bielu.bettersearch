@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using Bielu.BetterSearch.Abstractions.Fields;
-using Bielu.BetterSearch.Abstractions.Query;
+﻿using Bielu.BetterSearch.Abstractions.Fields;
 using Bielu.BetterSearch.Abstractions.Query.Aggregations;
 using Bielu.BetterSearch.Abstractions.Query.Highlighter;
-using SImpl.SearchModule.Abstraction.Results;
+using Bielu.BetterSearch.Abstractions.Results;
 
-namespace SImpl.SearchModule.Abstraction.Queries
+namespace Bielu.BetterSearch.Abstractions.Query
 {
     public class SearchQuery : ISearchQuery<IQueryResult>
     {

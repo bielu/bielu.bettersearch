@@ -8,9 +8,4 @@
 
 
     }
-
-    public class SimpleTerm
-    {
-        public string TermFieldName { get; set; }
-    }
 }

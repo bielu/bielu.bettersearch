@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using Bielu.BetterSearch.Abstractions.Query;
-
-namespace SImpl.SearchModule.Abstraction.Queries
+﻿namespace Bielu.BetterSearch.Abstractions.Query
 {
     public class SearchSubQuery(List<ISearchSubQuery> nestedQueries) : ISearchSubQuery
     {

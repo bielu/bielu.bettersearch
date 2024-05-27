@@ -1,7 +1,6 @@
-﻿using System.Collections.Generic;
-using Bielu.BetterSearch.Abstractions.Models;
+﻿using Bielu.BetterSearch.Abstractions.Models;
 
-namespace SImpl.SearchModule.Abstraction.Results
+namespace Bielu.BetterSearch.Abstractions.Results
 {
     public interface IQueryResult
     {

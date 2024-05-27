@@ -1,4 +1,4 @@
-﻿using SImpl.SearchModule.Abstraction.Results;
+﻿using Bielu.BetterSearch.Abstractions.Results;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {

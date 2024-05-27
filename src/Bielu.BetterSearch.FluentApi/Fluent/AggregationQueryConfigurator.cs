@@ -1,6 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query.Aggregations;
+using Bielu.BetterSearch.Abstractions.Results;
 using Bielu.BetterSearch.FluentApi.Fluent.Aggregations;
-using SImpl.SearchModule.Abstraction.Results;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {

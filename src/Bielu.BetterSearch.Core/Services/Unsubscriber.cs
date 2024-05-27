@@ -1,4 +1,4 @@
-﻿namespace Bielu.BetterSearch.Abstractions.Services;
+﻿namespace Bielu.BetterSearch.Services;
 
 public class Unsubscriber<T>(List<IObserver<T>>? observers, IObserver<T>? observer) : IDisposable
 {

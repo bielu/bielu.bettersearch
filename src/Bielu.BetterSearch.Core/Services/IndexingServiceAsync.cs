@@ -1,4 +1,6 @@
-﻿namespace Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Services;
+
+namespace Bielu.BetterSearch.Services;
 
 public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider,IDocumentValidatorAsync documentValidator) : IIndexingServiceAsync
 {
