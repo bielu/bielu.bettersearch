@@ -2,5 +2,5 @@
 
 public interface IClientFactoryAsync<TClient>
 {
-    Task<TClient> GetOrCreateClientAsync();
+    Task<TClient> GetOrCreateClientAsync(string indexName);
 }

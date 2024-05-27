@@ -1,4 +1,7 @@
-﻿namespace Bielu.BetterSearch.Configuration;
+﻿using Bielu.BetterSearch.Abstractions.Services.NullImplementations;
+using Bielu.BetterSearch.Services;
+
+namespace Bielu.BetterSearch.Configuration;
 
 public class SearchApplicationConfiguration
 {
@@ -14,6 +17,11 @@ public class SearchApplicationConfiguration
             return _currentInstance;
         }
     }
-    public Type DocumentValidatorType { get; set; }
-    public Type IndexingServiceType { get; set; }
+
+    public Type DocumentValidatorType { get; set; } = typeof(DummyDocumentValidatorAsync);
+    public Type IndexingServiceType { get; set; } = typeof(IndexingServiceAsync);
+
+    public Type  SearchServiceType{ get; set; } = typeof(DummySearchServiceAsync);
+    public Type IndexingProviderType { get; set; } = typeof(DummyIndexingProviderAsync);
+    public Type SearchProviderType { get; set; } = typeof(DummySearchProviderAsync);
 }
