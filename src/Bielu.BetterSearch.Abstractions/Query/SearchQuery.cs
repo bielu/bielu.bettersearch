@@ -1,11 +1,11 @@
 ﻿using Bielu.BetterSearch.Abstractions.Fields;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query.Aggregations;
 using Bielu.BetterSearch.Abstractions.Query.Highlighter;
-using Bielu.BetterSearch.Abstractions.Results;
 
 namespace Bielu.BetterSearch.Abstractions.Query
 {
-    public class SearchQuery : ISearchQuery<IQueryResult>
+    public class SearchQuery : ISearchQuery<ISearchResult<ISearchModel>>
     {
         public int Page { get; set; }
         public int PageSize { get; set; }
@@ -20,7 +20,7 @@ namespace Bielu.BetterSearch.Abstractions.Query
         public string Index { get; set; }
         public DateTime? PreviewAt { get; set; }
 
-        void ISearchQuery<IQueryResult>.Add(Occurance queryOccurance, ISearchSubQuery booleanQueryQuery)
+        void ISearchQuery<ISearchResult<ISearchModel>>.Add(Occurance queryOccurance, ISearchSubQuery booleanQueryQuery)
         {
             Query.Add(queryOccurance, booleanQueryQuery);
         }

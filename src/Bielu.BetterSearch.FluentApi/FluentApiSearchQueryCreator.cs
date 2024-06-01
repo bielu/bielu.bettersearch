@@ -1,8 +1,9 @@
-﻿using Bielu.BetterSearch.Abstractions.Results;
+﻿
+using Bielu.BetterSearch.Abstractions.Models;
 
 namespace Bielu.BetterSearch.FluentApi;
 
-public class FluentApiSearchQueryCreator(ISearchQuery<IQueryResult> baseQuery) : IFluentApiSearchQueryCreator
+public class FluentApiSearchQueryCreator(ISearchQuery<ISearchResult<ISearchModel>> baseQuery) : IFluentApiSearchQueryCreator
 {
     public FluentApiSearchQueryCreator WithSearchQuery(Action<QueryCreatorConfigurator> configurator)
     {
@@ -11,7 +12,7 @@ public class FluentApiSearchQueryCreator(ISearchQuery<IQueryResult> baseQuery) :
         baseQuery =   query.Query;
         return this;
     }
-    public ISearchQuery<IQueryResult> CreateSearchQuery(Action<IBaseQueryConfigurator> configurator)
+    public ISearchQuery<ISearchResult<ISearchModel>> CreateSearchQuery(Action<IBaseQueryConfigurator> configurator)
     {
         var newQuery = new FluentQueryConfigurator(baseQuery);
         newQuery.Occurance = Occurance.MUST;

@@ -6,15 +6,15 @@ using FluentResults;
 
 namespace Bielu.BetterSearch.ElasticSearch.Services;
 
-public class ElasticSearchQueryTranslateService : IQueryTranslateServiceAsync<BoolQueryDescriptor>
+public class ElasticSearchQueryTranslateService: IQueryTranslateServiceAsync<BoolQueryDescriptor<SearchDocument>>
 {
-    public async Task<Result<BoolQueryDescriptor>> TranslateMainQuery(ISearchQuery<ISearchModel> query)
-    {
-        var elasticQuery = new BoolQueryDescriptor().MustNot();
+    public async Task<Result<BoolQueryDescriptor<SearchDocument>>> TranslateMainQuery(ISearchQuery<ISearchModel> query) {
+        var elasticQuery = new BoolQueryDescriptor<SearchDocument>().MustNot();
         return query switch
         {
             SearchQuery searchQuery => Result.Ok(elasticQuery),
             _ => Result.Fail("Query type not supported")
         };
     }
+}
 }
