@@ -3,7 +3,7 @@ using Lifti;
 
 namespace Bielu.BetterSearch.Lifti.Services;
 
-public class ElasticsearchClientFactoryAsync(ILiftiIndexManager indexManager)
+public class LiftiClientFactoryAsync(ILiftiIndexManager indexManager)
     : IClientFactoryAsync<IFullTextIndex<string>>
 {
     public Task<IFullTextIndex<string>> GetOrCreateClientAsync(string indexName) =>
