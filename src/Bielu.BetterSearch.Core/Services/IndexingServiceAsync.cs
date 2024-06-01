@@ -26,9 +26,14 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
         return new Unsubscriber<SearchDocument>(_indexingObservers, observer);
     }
 
-    public async Task<Result> IndexDocumentAsync(SearchDocument document)
+    public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
     {
-        if (!(await documentValidator.ValidateDocumentAsync(document)))
+        var validationResult = await documentValidator.ValidateDocumentAsync(document);
+        if (validationResult.IsFailed)
+        {
+            return Result.Fail("Validation failed");
+        }
+        if (validationResult.Value == false)
         {
             //not valid to do it in checks
             //indexing finished
@@ -45,13 +50,13 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
             observer.OnNext(document);
         }
 
-        return Result.Ok();
+        return await indexingProvider.IndexDocumentAsync(document, cancellationToken);
     }
 
-    public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document) =>
+    public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document, CancellationToken cancellationToken = default) =>
         throw new NotImplementedException();
 
-    public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document)
+    public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document, CancellationToken cancellationToken = default)
     {
         foreach (var observer in _deleteDocumentObservers)
         {
@@ -69,7 +74,7 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
     }
 
 
-    public async Task<Result<int>> RemoveAllDocumentsAsync()
+    public async Task<Result<int>> RemoveAllDocumentsAsync(CancellationToken cancellationToken = default)
     {
         var deleteAllDocumentsRequest = new DeleteAllDocumentsRequest();
         foreach (var observer in _deleteAllDocumentsObservers)

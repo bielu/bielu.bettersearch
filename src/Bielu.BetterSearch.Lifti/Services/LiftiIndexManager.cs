@@ -11,11 +11,8 @@ public class LiftiIndexManager : ILiftiIndexManager
         {
             return index;
         }
-        else
-        {
-            index = new FullTextIndexBuilder<string>().Build();;
-            _indices.Add(key, index);
-            return index;
-        }
+        index = new FullTextIndexBuilder<string>().Build();;
+        _indices.Add(key, index);
+        return index;
     }
 }

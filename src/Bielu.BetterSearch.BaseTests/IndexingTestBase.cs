@@ -3,9 +3,54 @@ using FluentAssertions;
 
 namespace Bielu.BetterSearch.Tests;
 
-public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync)
+public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IIndexingProviderAsync indexingProviderAsync)
 {
-    //test to check if single document is index
+    [Fact]
+    public async Task CanCreateIndexAsyncTest()
+    {
+        //Arrange
+        var index = "test-index-1";
+
+        //Act
+        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.Should().Be(true);
+    }
+    [Fact]
+    public async Task CanDeleteIndexAsyncTest()
+    {
+        //Arrange
+        var index = "test-index-1";
+        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.Should().Be(true);
+
+        //Act
+        (await indexingProviderAsync.DeleteIndexAsync()).IsSuccess.Should().Be(true);
+    }
+    [Fact]
+    public async Task CanCheckIfIndexExistsAsyncTest()
+    {
+        //Arrange
+        var index = "test-index-1";
+        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.Should().Be(true);
+
+        //Act
+        (await indexingProviderAsync.IndexExistsAsync()).IsSuccess.Should().Be(true);
+    }
+    [Fact]
+    public async Task EnsureIndexWorksWhenIndexExistsAsyncTest()
+    {
+        //Arrange
+        var index = "test-index-1";
+
+        //Act
+        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.Should().Be(true);
+        (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.Should().Be(true);
+    }
+    [Fact]
+    public async Task EnsureIndexWorksWhenIndexNotExistsAsyncTest()
+    {
+        //Arrange
+        var index = "test-index-1";
+        (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.Should().Be(true);
+    }
     [Fact]
     public async Task IndexDocumentAsyncTest()
     {

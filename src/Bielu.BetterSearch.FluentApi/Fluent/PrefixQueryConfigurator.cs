@@ -6,23 +6,23 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
     {
         public PrefixQueryConfigurator Must()
             {
-                Query.Occurance = Occurance.Must;
+                Query.Occurance = Occurance.MUST;
                 return this;
             }
             public PrefixQueryConfigurator MustNot()
             {
-                Query.Occurance = Occurance.MustNot;
+                Query.Occurance = Occurance.MUSTNOT;
                 return this;
             }
             public PrefixQueryConfigurator Should()
             {
-                Query.Occurance = Occurance.Should;
+                Query.Occurance = Occurance.SHOULD;
                 return this;
             }
 
             public PrefixQueryConfigurator Filter()
             {
-                Query.Occurance = Occurance.Filter;
+                Query.Occurance = Occurance.FILTER;
                 return this;
             }
 

@@ -2,8 +2,8 @@
 
 public enum Occurance
 {
-    Must = 1,
-    Should = 2,
-    MustNot = 3,
-    Filter = 4
+    MUST = 1,
+    SHOULD = 2,
+    MUSTNOT = 3,
+    FILTER = 4
 }

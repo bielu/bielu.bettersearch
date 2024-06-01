@@ -2,7 +2,7 @@
 {
     public class SearchSubQuery(List<ISearchSubQuery> nestedQueries) : ISearchSubQuery
     {
-        public Occurance Occurance { get; set; } = Occurance.Must;
+        public Occurance Occurance { get; set; } = Occurance.MUST;
         public string Field { get; set; }
         public int BoostValue { get; set; } = 1;
         public List<ISearchSubQuery> NestedQueries { get; set; } = nestedQueries;

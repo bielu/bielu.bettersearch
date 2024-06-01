@@ -11,7 +11,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Aggregations
         {
             FilterAggregationQuery = filterAggregationQuery;
             Query = new BoolSearchSubQuery();
-            FilterAggregationQuery.Queries.Add(Occurance.Must,Query);
+            FilterAggregationQuery.Queries.Add(Occurance.MUST,Query);
         }
 
 

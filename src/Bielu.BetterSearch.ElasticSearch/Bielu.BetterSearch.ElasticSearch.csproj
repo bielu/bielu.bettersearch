@@ -8,10 +8,17 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Bielu.BetterSearch.Abstractions\Bielu.BetterSearch.Abstractions.csproj" />
+      <ProjectReference Include="..\Bielu.BetterSearch.Core\Bielu.BetterSearch.Core.csproj" />
     </ItemGroup>
 
     <ItemGroup>
       <PackageReference Include="Elastic.Clients.Elasticsearch" Version="8.13.5" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Reference Include="Microsoft.Extensions.Options">
+        <HintPath>C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\8.0.2\Microsoft.Extensions.Options.dll</HintPath>
+      </Reference>
     </ItemGroup>
 
 </Project>

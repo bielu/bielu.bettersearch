@@ -6,23 +6,23 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
     {
         public BooleanQueryConfigurator Must()
         {
-            Occurance = Occurance.Must;
+            Occurance = Occurance.MUST;
             return this;
         }
         public BooleanQueryConfigurator MustNot()
         {
-            Occurance = Occurance.MustNot;
+            Occurance = Occurance.MUSTNOT;
             return this;
         }
         public BooleanQueryConfigurator Should()
         {
-            Occurance = Occurance.Should;
+            Occurance = Occurance.SHOULD;
             return this;
         }
 
         public BooleanQueryConfigurator Filter()
         {
-            Occurance = Occurance.Filter;
+            Occurance = Occurance.FILTER;
             return this;
         }
         public INestableQuery Query { get; set; } = new BoolSearchSubQuery();

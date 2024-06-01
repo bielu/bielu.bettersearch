@@ -2,9 +2,10 @@
 
 public enum FilterType
 {
-    Checkbox = 0,
-    DateRange = 1,
-    LongRange = 2,
-    Hidden = 3,
-    Custom = 99
+    CHECKBOX = 0,
+    DATERANGE = 1,
+    LONGRANGE = 2,
+    HIDDEN = 3,
+    SPATIAL = 4,
+    CUSTOM = 99
 }

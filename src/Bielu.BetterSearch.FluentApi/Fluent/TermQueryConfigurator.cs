@@ -12,23 +12,23 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
 
             public TermQueryConfigurator Must()
             {
-               Occurance = Occurance.Must;
+               Occurance = Occurance.MUST;
                 return this;
             }
             public TermQueryConfigurator MustNot()
             {
-                Occurance = Occurance.MustNot;
+                Occurance = Occurance.MUSTNOT;
                 return this;
             }
             public TermQueryConfigurator Should()
             {
-                Occurance = Occurance.Should;
+                Occurance = Occurance.SHOULD;
                 return this;
             }
 
             public TermQueryConfigurator Filter()
             {
-               Occurance = Occurance.Filter;
+               Occurance = Occurance.FILTER;
                 return this;
             }
 

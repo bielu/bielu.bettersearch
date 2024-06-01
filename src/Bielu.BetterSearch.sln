@@ -28,6 +28,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bielu.BetterSearch.Lifti.Te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bielu.BetterSearch.EndpointApi", "Bielu.BetterSearch.EndpointApi\Bielu.BetterSearch.EndpointApi.csproj", "{1A912DAB-B887-4245-94CB-F2FD98577136}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bielu.BetterSearch.IntegrationTests", "Bielu.BetterSearch.IntegrationTests\Bielu.BetterSearch.IntegrationTests.csproj", "{FFD966AE-7ADB-416A-BE90-BBF9CA1CA97E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -78,6 +80,10 @@ Global
 		{1A912DAB-B887-4245-94CB-F2FD98577136}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1A912DAB-B887-4245-94CB-F2FD98577136}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1A912DAB-B887-4245-94CB-F2FD98577136}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FFD966AE-7ADB-416A-BE90-BBF9CA1CA97E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FFD966AE-7ADB-416A-BE90-BBF9CA1CA97E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FFD966AE-7ADB-416A-BE90-BBF9CA1CA97E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FFD966AE-7ADB-416A-BE90-BBF9CA1CA97E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{0FFFD635-5F7B-4DEA-8617-D28DEFC2D090} = {0F1CC831-4A28-4B01-86DC-D6446D08586C}
@@ -87,5 +93,6 @@ Global
 		{C2B3F11A-3FD3-46E7-A50A-0772A18774EA} = {7E1C1605-3F49-4DF6-ACCF-644C88579121}
 		{2AEC6A6B-AC97-4BBC-BA4A-AB09DA0070B2} = {C2B3F11A-3FD3-46E7-A50A-0772A18774EA}
 		{05697E2B-31D0-4284-9FC9-0D34707CA489} = {C2B3F11A-3FD3-46E7-A50A-0772A18774EA}
+		{FFD966AE-7ADB-416A-BE90-BBF9CA1CA97E} = {C2B3F11A-3FD3-46E7-A50A-0772A18774EA}
 	EndGlobalSection
 EndGlobal

@@ -11,23 +11,23 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
 
         public SpatialQueryConfigurator Must()
         {
-            Occurance = Occurance.Must;
+            Occurance = Occurance.MUST;
             return this;
         }
         public SpatialQueryConfigurator MustNot()
         {
-            Occurance = Occurance.MustNot;
+            Occurance = Occurance.MUSTNOT;
             return this;
         }
         public SpatialQueryConfigurator Should()
         {
-            Occurance = Occurance.Should;
+            Occurance = Occurance.SHOULD;
             return this;
         }
 
         public SpatialQueryConfigurator Filter()
         {
-            Occurance = Occurance.Filter;
+            Occurance = Occurance.FILTER;
             return this;
         }
 
