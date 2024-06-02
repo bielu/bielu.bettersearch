@@ -30,4 +30,13 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType,TSearchClient
 
     [Fact]
     public void QueryTranslateServiceShouldBeRegistered() => ServiceShouldBeRegistered(typeof(IQueryTranslateServiceAsync<TQueryType>));
+
+    [Fact]
+    public void SearchServiceShouldBeRegistered() => ServiceShouldBeRegistered(typeof(ISearchServiceAsync));
+
+    [Fact]
+    public void SearchProviderShouldBeRegistered() => ServiceShouldBeRegistered(typeof(ISearchProviderAsync));
+
+
+
 }

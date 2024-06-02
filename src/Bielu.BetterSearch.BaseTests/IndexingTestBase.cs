@@ -22,7 +22,7 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.Should().Be(true);
 
         //Act
-        (await indexingProviderAsync.DeleteIndexAsync()).IsSuccess.Should().Be(true);
+        (await indexingProviderAsync.DeleteIndexAsync(index)).IsSuccess.Should().Be(true);
     }
     [Fact]
     public async Task CanCheckIfIndexExistsAsyncTest()
@@ -32,7 +32,7 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.Should().Be(true);
 
         //Act
-        (await indexingProviderAsync.IndexExistsAsync()).IsSuccess.Should().Be(true);
+        (await indexingProviderAsync.IndexExistsAsync(index)).IsSuccess.Should().Be(true);
     }
     [Fact]
     public async Task EnsureIndexWorksWhenIndexExistsAsyncTest()

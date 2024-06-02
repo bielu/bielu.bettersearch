@@ -1,11 +1,11 @@
-﻿using Bielu.BetterSearch.Abstractions.Query.Highlighter;
-using Bielu.BetterSearch.Abstractions.Results;
+﻿using Bielu.BetterSearch.Abstractions.Models;
+using Bielu.BetterSearch.Abstractions.Query.Highlighter;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
     public class HighLighterConfigurator
     {
-        public HighLighterConfigurator(ISearchQuery<IQueryResult> searchSubQueries)
+        public HighLighterConfigurator(ISearchQuery<ISearchResult<ISearchModel>> searchSubQueries)
         {
             searchSubQueries  .HighlightQueries.Add(this.Query);
             this.Query = new BaseHighlightQuery();

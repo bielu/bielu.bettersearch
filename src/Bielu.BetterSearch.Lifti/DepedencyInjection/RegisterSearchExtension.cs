@@ -17,7 +17,7 @@ public static class RegisterSearchExtension
             .SetIndexingProviderType<LiftiIndexingProviderAsync>();
         configurator.Services.AddScoped(typeof(IIndexingServiceAsync), configurator.Configuration.IndexingServiceType);
         configurator.Services.AddScoped(typeof(IClientFactoryAsync<IFullTextIndex<string>>),
-            typeof(ElasticsearchClientFactoryAsync));
+            typeof(LiftiClientFactoryAsync));
         configurator.Services.AddScoped(typeof(ISearchServiceAsync), configurator.Configuration.SearchServiceType);
         return configurator;
     }
