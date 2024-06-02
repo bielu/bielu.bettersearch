@@ -15,8 +15,4 @@
       <ProjectReference Include="..\Bielu.BetterSearch.Core\Bielu.BetterSearch.Core.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Services\Queries\" />
-    </ItemGroup>
-
 </Project>
