@@ -7,16 +7,16 @@ public class LiftiIndexManager : ILiftiIndexManager
 {
     Dictionary<string, IFullTextIndex<string>> _indices = new();
 
-    public IFullTextIndex<string> GetOrCreateIndexAsync(string key)
+    public async Task<Result<IFullTextIndex<string>>> GetOrCreateIndexAsync(string key)
     {
         if (_indices.TryGetValue(key, out var index))
         {
-            return index;
+            return Result.Ok(index);
         }
-        return CreateIndexAsync(key);
+        return await CreateIndexAsync(key);
     }
 
-    public IFullTextIndex<string> CreateIndexAsync(string key)  {
+    public async Task<Result<IFullTextIndex<string>?>> CreateIndexAsync(string key)  {
         if (_indices.TryGetValue(key, out var index))
         {
           _indices.Remove(key);
@@ -33,7 +33,7 @@ public class LiftiIndexManager : ILiftiIndexManager
         ).Build();
         ;
         _indices.Add(key, index);
-        return index;
+        return Result.Ok(index)!;
     }
 
     public Task<Result<bool>> ExistsAsync(string name) => Task.FromResult(Result.Ok(_indices.ContainsKey(name)));

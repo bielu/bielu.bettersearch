@@ -6,5 +6,5 @@ namespace Bielu.BetterSearch.Abstractions.Services;
 
 public interface ISearchProviderAsync
 {
-    Task<Result<ISearchResult<ISearchModel>>> SearchAsync(ISearchQuery<ISearchModel> query);
+    Task<Result<ISearchResult<ISearchModel>>> SearchAsync(ISearchQuery<ISearchResult<ISearchModel>> query);
 }

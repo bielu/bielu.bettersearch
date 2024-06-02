@@ -9,11 +9,5 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 
 public class ElasticSearchSearchProviderAsync(IQueryTranslateServiceAsync<BoolQueryDescriptor<SearchDocument>> queryTranslateServiceAsync, IClientFactoryAsync<ElasticsearchClient> clientFactoryAsync) : ISearchProviderAsync
 {
-    public async Task<Result<ISearchResult<ISearchModel>>> SearchAsync(ISearchQuery<ISearchModel> query)
-    {
-        var client = clientFactoryAsync.GetOrCreateClientAsync(query.Index);
-        var elasticQuery = await client.Result.SearchAsync<SearchDocument>(
-            x=> x.Query(
-                (await queryTranslateServiceAsync.TranslateMainQuery(query)).Value));
-    }
+    public Task<Result<ISearchResult<ISearchModel>>> SearchAsync(ISearchQuery<ISearchResult<ISearchModel>> query) => throw new NotImplementedException();
 }

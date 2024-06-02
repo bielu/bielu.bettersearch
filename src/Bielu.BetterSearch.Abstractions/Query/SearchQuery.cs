@@ -20,12 +20,8 @@ namespace Bielu.BetterSearch.Abstractions.Query
         public string Index { get; set; }
         public DateTime? PreviewAt { get; set; }
 
-        void ISearchQuery<ISearchResult<ISearchModel>>.Add(Occurance queryOccurance, ISearchSubQuery booleanQueryQuery)
-        {
-            Query.Add(queryOccurance, booleanQueryQuery);
-        }
 
         public IEnumerable<string> Properties { get; set; }
-        void ICreatableSearchQuery<Occurance, ISearchSubQuery>.Add(Occurance key, ISearchSubQuery value) =>  Query.Add(key, value);
+        public void Add(Occurance key, ISearchSubQuery value) =>  Query.Add(key, value);
     }
 }

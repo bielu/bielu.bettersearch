@@ -31,29 +31,36 @@ public class LiftiIndexingProviderAsync(
         RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken) =>
         throw new NotImplementedException();
 
-    Task<Result<int>> IIndexingProviderAsync.RemoveAllDocumentsAsync(CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+    public Task<Result<int>> RemoveAllDocumentsAsync(CancellationToken cancellationToken = default) => throw new NotImplementedException();
+
+    async Task<Result<int>> IIndexingProviderAsync.RemoveAllDocumentsAsync(string index, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var count= (await clientFactory.GetOrCreateClientAsync(index)).Count;
+            await liftiIndexManager.DeleteIndexAsync(index);
+            await liftiIndexManager.CreateIndexAsync(index);
+            return Result.Ok();
+        }
+        catch (Exception e)
+        {
+            return Result.Fail(e.Message);
+        }
+    }
 
     public async Task<Result<bool>>
         EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default) =>
         (await clientFactory.GetOrCreateClientAsync(index)) != null;
 
-    public Task<Result<bool>> DeleteIndexAsync(CancellationToken cancellationToken = default) =>
-        liftiIndexManager.DeleteIndexAsync("default");
+    public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) =>
+        liftiIndexManager.DeleteIndexAsync(index);
 
-    public Task<Result<bool>> IndexExistsAsync(CancellationToken cancellationToken = default) =>
-        liftiIndexManager.ExistsAsync("default");
+    public Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default) =>
+        liftiIndexManager.ExistsAsync(index);
 
-    public async Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default) =>
-        liftiIndexManager.CreateIndexAsync("default") != null;
+    public async Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default) {
+        var result = await liftiIndexManager.CreateIndexAsync(index);
+        return result.IsSuccess ? Result.Ok() : Result.Fail(result.Errors.First().Message);
+    }
 
-
-    public async Task IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
-        CancellationToken cancellationToken = default) => throw new NotImplementedException();
-
-    public async Task RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
-
-    public async Task RemoveAllDocumentsAsync(CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
 }

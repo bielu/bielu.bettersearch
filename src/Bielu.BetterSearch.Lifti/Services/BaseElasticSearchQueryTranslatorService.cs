@@ -14,7 +14,7 @@ namespace SImpl.SearchModule.ElasticSearch.Application.Services
 {
     public class BaseLiftiQueryTranslatorService : IQueryTranslateServiceAsync<IQuery>
     {
-        public async Task<Result<IQuery>> TranslateMainQuery(ISearchQuery<ISearchModel> query) =>
+        public async Task<Result<IQuery>> TranslateMainQuery(ISearchQuery<ISearchResult<ISearchModel>> query) =>
             throw new NotImplementedException();
     }
 }

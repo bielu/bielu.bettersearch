@@ -6,5 +6,5 @@ namespace Bielu.BetterSearch.Abstractions.Services;
 
 public interface IQueryTranslateServiceAsync<T>
 {
-    Task<Result<T>> TranslateMainQuery(ISearchQuery<ISearchModel> query);
+    Task<Result<T>> TranslateMainQuery(ISearchQuery<ISearchResult<ISearchModel>> query);
 }

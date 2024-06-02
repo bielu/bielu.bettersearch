@@ -19,7 +19,7 @@ public class SearchServiceAsync(ISearchProviderAsync providerAsync) : ISearchSer
         return new Unsubscriber<ISearchModel>(_indexingObservers, observer);
     }
 
-    public async Task<Result<ISearchResult<ISearchModel>>> SearchAsync(ISearchQuery<ISearchModel> query)
+    public async Task<Result<ISearchResult<ISearchModel>>> SearchAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
     {
         var result = await providerAsync.SearchAsync(query);
         foreach (var document in result.Value.Items)
