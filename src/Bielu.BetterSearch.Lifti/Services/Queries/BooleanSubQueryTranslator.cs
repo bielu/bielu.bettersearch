@@ -7,7 +7,7 @@ using Lifti.Querying;
 
 namespace Bielu.BetterSearch.Lifti.Services.Queries;
 
-public class BooleanSubQueryTranslator : ISubQueryTranslator<BoolSearchSubQuery,IQuery>
+public class BooleanSubQueryTranslator : ISubQueryTranslator<IQuery>
 {
 #pragma warning disable CA1822
     public bool CanTranslate(ISearchSubQuery query) => query is BoolSearchSubQuery;
@@ -22,6 +22,12 @@ public class BooleanSubQueryTranslator : ISubQueryTranslator<BoolSearchSubQuery,
 
         var subQueries = boolQuery.NestedQueries.Select(subQuery => subQueryTranslators.First(translator => translator.CanTranslate(subQuery)).TranslateAsync(subQuery, subQueryTranslators)).ToList();
 
+        Task.WaitAll(subQueries.ToArray());
+        var results = subQueries.Select(subQuery => subQuery.Result).ToList();
+        if(results.Any(x=>x.IsFailed))  {
+            return Task.FromResult(Result.Fail<IQuery>("Query translation failed"));
+        }
 
+        return new Query();
     }
 }

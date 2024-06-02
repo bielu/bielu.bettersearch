@@ -3,10 +3,6 @@ using FluentResults;
 
 namespace Bielu.BetterSearch.Abstractions.Services;
 
-public interface ISubQueryTranslator<T,TQuery> : ISubQueryTranslator<TQuery> where T : class, ISearchSubQuery
-{
-
-}
 
 public interface ISubQueryTranslator<TQuery>
 {
