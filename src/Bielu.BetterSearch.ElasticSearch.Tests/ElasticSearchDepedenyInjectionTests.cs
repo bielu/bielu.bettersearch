@@ -6,7 +6,7 @@ using Testcontainers.Elasticsearch;
 
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
 
-public class UnitTest1(IServiceProvider collection) : DepedenyInjectionTestBase<ElasticSearchIndexingProviderAsync,ElasticsearchClient,Query>(collection)
+public class ElasticSearchDepedenyInjectionTests(IServiceProvider collection) : DepedenyInjectionTestBase<ElasticSearchIndexingProviderAsync,ElasticsearchClient,BoolQueryDescriptor<SearchDocument>>(collection)
 {
     private readonly ElasticsearchContainer _elasticsearch
         = new ElasticsearchBuilder().Build();

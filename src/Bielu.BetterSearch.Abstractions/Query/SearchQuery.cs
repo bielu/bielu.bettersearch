@@ -13,8 +13,8 @@ namespace Bielu.BetterSearch.Abstractions.Query
         public List<IAggregationQuery> FacetQueries { get; set; } = new List<IAggregationQuery>();
         public List<IHighlightQuery> HighlightQueries { get; set; } = new List<IHighlightQuery>();
 
-        public IDictionary<Occurance, List<ISearchSubQuery>> PostFilterQuery { get; set; } =
-            new Dictionary<Occurance, List<ISearchSubQuery>>();
+        public IDictionary<Occurance, List<INestableQuery>> PostFilterQuery { get; set; } =
+            new Dictionary<Occurance, List<INestableQuery>>();
 
         public IDictionary<Occurance, List<ISearchSubQuery>> Query { get; set; }
         public string Index { get; set; }

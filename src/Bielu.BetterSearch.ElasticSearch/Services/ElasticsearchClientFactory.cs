@@ -10,8 +10,8 @@ public class ElasticsearchClientFactory(IElasticSearchClientSettingsManager sear
     public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName)
     {
         var defaultSettings = searchClientSettingsManager.GetOrCreateClientSettings("default");
-        if (!optionsMonitor.CurrentValue.Indexes.TryGetValue(indexName, out var indexSettings) ||
-            !indexSettings.CustomConnectionString)
+        if (optionsMonitor.CurrentValue.Indexes == null || !optionsMonitor.CurrentValue.Indexes.TryGetValue(indexName, out var indexSettings) ||
+            string.IsNullOrWhiteSpace(indexSettings.ConnectionString))
         {
             return Task.FromResult(new ElasticsearchClient(defaultSettings));
         }

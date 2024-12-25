@@ -5,7 +5,7 @@ using FluentAssertions;
 
 namespace Bielu.BetterSearch.Tests;
 
-public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTranslator<ISearchSubQuery, T>> translators)
+public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTranslator<ISearchSubQuery>> translators)
 {
     private async Task SubQueryShouldBeTranslatable(ISearchSubQuery subQuery)
     {
@@ -13,7 +13,7 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
         canTranslate.Should().BeTrue($"because a translator should be able to translate {subQuery.GetType().Name}");
 
         var translator = translators.First(t => t.CanTranslate(subQuery));
-        var result = await translator.TranslateAsync(subQuery);
+        var result = await translator.TranslateAsync(subQuery,translators);
         result.IsSuccess.Should().BeTrue($"because translation of {subQuery.GetType().Name} should be successful");
     }
 

@@ -4,7 +4,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
 {
     public static class CreateQueryHelper
     {
-       
+
         public static IQueryConfigurator CreateTermQuery(this IQueryConfigurator configurator,
             Action<TermQueryConfigurator> query)
         {
@@ -23,7 +23,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
             configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
             return configurator;
         }
-       
+
         public static IQueryConfigurator CreateFuzzyQuery(this IQueryConfigurator configurator, Action<FuzzyQueryConfigurator> query)
         {
             var booleanQuery = new FuzzyQueryConfigurator();
@@ -116,15 +116,6 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
             booleanQuery.Occurance = configurator.Occurance;
             query.Invoke(booleanQuery);
             configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
-            return configurator;
-        }
-        public static IBaseQueryConfigurator CreatePostFilterQuery(this IBaseQueryConfigurator configurator,
-            Action<BooleanQueryConfigurator> query)
-        {
-            var booleanQuery = new BooleanQueryConfigurator();
-            booleanQuery.Occurance = configurator.Occurance;
-            query.Invoke(booleanQuery);
-            configurator.Query.PostFilterQuery.Add(configurator.Occurance, booleanQuery.Query);
             return configurator;
         }
     }

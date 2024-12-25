@@ -1,10 +1,12 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Configuration;
+using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
 using Bielu.BetterSearch.Lifti.Services;
 using Elastic.Clients.Elasticsearch;
+using Elastic.Clients.Elasticsearch.QueryDsl;
 using Microsoft.Extensions.DependencyInjection;
-
+using Microsoft.Extensions.Options;
 namespace Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
 
 public static class RegisterSearchExtension
@@ -20,6 +22,11 @@ public static class RegisterSearchExtension
         configurator.Services.AddScoped(typeof(IIndexingServiceAsync), configurator.Configuration.IndexingServiceType);
 
         configurator.Services.AddScoped(typeof(ISearchServiceAsync), configurator.Configuration.SearchServiceType);
+        configurator.Services
+            .AddScoped<IQueryTranslateServiceAsync<BoolQueryDescriptor<SearchDocument>>,
+                ElasticSearchQueryTranslateService>();
+        configurator.Services.Configure<ElasticSearchOptions>(
+            configurator.AppConfiguration.GetSection(ElasticSearchOptions.ElasticSearchOptionsKey));
         return configurator;
     }
 }
