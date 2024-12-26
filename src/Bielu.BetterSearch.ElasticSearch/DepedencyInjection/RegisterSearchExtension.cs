@@ -2,7 +2,6 @@
 using Bielu.BetterSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
-using Bielu.BetterSearch.Lifti.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,4 +1,4 @@
-using Bielu.BetterSearch.Lifti.Services;
+using Bielu.BetterSearch.ElasticSearch.Services;
 using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.QueryDsl;

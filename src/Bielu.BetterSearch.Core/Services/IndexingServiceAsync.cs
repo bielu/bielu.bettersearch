@@ -33,6 +33,7 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
         {
             return Result.Fail("Validation failed");
         }
+
         if (validationResult.Value == false)
         {
             //not valid to do it in checks
@@ -53,43 +54,44 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
         return await indexingProvider.IndexDocumentAsync(document, cancellationToken);
     }
 
-    public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document, CancellationToken cancellationToken = default) =>
+    public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
+        CancellationToken cancellationToken = default) =>
         throw new NotImplementedException();
 
-    public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document, CancellationToken cancellationToken = default)
+    public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
+        CancellationToken cancellationToken = default)
     {
         foreach (var observer in _deleteDocumentObservers)
         {
             observer.OnNext(document);
         }
 
-        //not valid to do it in checks
+        var result = await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken);
         //indexing finished
         foreach (var observer in _deleteDocumentObservers)
         {
             observer.OnCompleted();
         }
 
-        return Result.Ok();
+        return result;
     }
 
 
-    public async Task<Result<int>> RemoveAllDocumentsAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<int>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request,CancellationToken cancellationToken = default)
     {
-        var deleteAllDocumentsRequest = new DeleteAllDocumentsRequest();
         foreach (var observer in _deleteAllDocumentsObservers)
         {
-            observer.OnNext(deleteAllDocumentsRequest);
+            observer.OnNext(request);
         }
 
-        //not valid to do it in checks
+       var result = await indexingProvider.RemoveAllDocumentsAsync(request,cancellationToken);
         //indexing finished
         foreach (var observer in _deleteAllDocumentsObservers)
         {
             observer.OnCompleted();
         }
 
-        return 0;
+        return result.ToResult();
     }
 
     public IDisposable Subscribe(IObserver<DeleteDocumentRequest> observer)

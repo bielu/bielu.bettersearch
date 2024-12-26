@@ -24,7 +24,7 @@ public class LiftiIndexingProviderAsync(
 
     }
 
-    Task<Result<int>> IIndexingProviderAsync.IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
+    Task<Result<int>> IIndexingProviderAsync.IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents,
         CancellationToken cancellationToken) => throw new NotImplementedException();
 
     Task<Result> IIndexingProviderAsync.
@@ -33,13 +33,14 @@ public class LiftiIndexingProviderAsync(
 
     public Task<Result<int>> RemoveAllDocumentsAsync(CancellationToken cancellationToken = default) => throw new NotImplementedException();
 
-    async Task<Result<int>> IIndexingProviderAsync.RemoveAllDocumentsAsync(string index, CancellationToken cancellationToken)
+    async Task<Result<long?>> IIndexingProviderAsync.RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var count= (await clientFactory.GetOrCreateClientAsync(index)).Count;
-            await liftiIndexManager.DeleteIndexAsync(index);
-            await liftiIndexManager.CreateIndexAsync(index);
+            var count= (await clientFactory.GetOrCreateClientAsync(index.IndexName)).Count;
+            await liftiIndexManager.DeleteIndexAsync(index.IndexName);
+            await liftiIndexManager.CreateIndexAsync(index.IndexName);
             return Result.Ok();
         }
         catch (Exception e)

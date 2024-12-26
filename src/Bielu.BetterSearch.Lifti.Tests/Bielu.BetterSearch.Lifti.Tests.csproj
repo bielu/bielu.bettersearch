@@ -27,4 +27,11 @@
       <ProjectReference Include="..\Bielu.BetterSearch.Lifti\Bielu.BetterSearch.Lifti.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Compile Remove="QueryTranslationUnitTests.cs" />
+      <Content Include="QueryTranslationUnitTests.cs" />
+      <Compile Remove="Startup.cs" />
+      <Content Include="Startup.cs" />
+    </ItemGroup>
+
 </Project>

@@ -60,5 +60,31 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         //Act
         (await serviceAsync.IndexDocumentAsync(document)).IsSuccess.Should().Be(true);
     }
+    [Fact]
+    public async Task IndexDocumentsAsyncTest()
+    {
+        //Arrange
+        var documents = new List<SearchDocument>
+        {
+            new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index-1", },
+            new SearchDocument { Id = "2", Type = "TestDocument", Index = "test-index-1", },
+        };
 
+        //Act
+        (await serviceAsync.IndexMultipleDocumentsAsync(documents)).IsSuccess.Should().Be(true);
+    }
+    [Fact]
+    public async Task DeleteDocumentAsyncTest()
+    {
+        //Arrange
+        var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index-1", };
+        (await serviceAsync.IndexDocumentAsync(document)).IsSuccess.Should().Be(true);
+
+        //Act
+        (await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
+        {
+            Id = document.Id,
+            Type = document.Index,
+        })).IsSuccess.Should().Be(true);
+    }
 }

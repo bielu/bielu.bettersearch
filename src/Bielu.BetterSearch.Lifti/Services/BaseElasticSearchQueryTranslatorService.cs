@@ -31,35 +31,39 @@ namespace SImpl.SearchModule.ElasticSearch.Application.Services
             var subQueries = new Dictionary<Occurance, IQuery>();
             foreach (var subQuery in query.Query.GroupBy(x => x.Key))
             {
-                var subQueryTranslator = subQueryTranslators.FirstOrDefault(t => t.CanTranslate(subQuery));
-                if (subQueryTranslator == null)
+                foreach (var subqueryValue in subQuery.SelectMany(x => x.Value))
                 {
-                    return Result.Fail<IQuery>($"No translator found for subquery {subQuery.GetType().Name}");
-                }
-
-                foreach (var queryValue in subQuery.SelectMany(x => x.Value))
-                {
-                    var result = await subQueryTranslator.TranslateAsync(queryValue, subQueryTranslators);
-                    if (result.IsFailed)
+                    var subQueryTranslator = subQueryTranslators.FirstOrDefault(t => t.CanTranslate(subqueryValue));
+                    if (subQueryTranslator == null)
                     {
-                        return Result.Fail<IQuery>(result.Errors.First().Message);
+                        return Result.Fail<IQuery>($"No translator found for subquery {subQuery.GetType().Name}");
                     }
 
-                    subQueries.Add(subQuery.Key, result.Value);
+                    foreach (var queryValue in subQuery.SelectMany(x => x.Value))
+                    {
+                        var result = await subQueryTranslator.TranslateAsync(queryValue, subQueryTranslators);
+                        if (result.IsFailed)
+                        {
+                            return Result.Fail<IQuery>(result.Errors.First().Message);
+                        }
+
+                        subQueries.Add(subQuery.Key, result.Value);
+                    }
                 }
             }
 
-            var finalQuery = liftiQuery.InField("Index", f=>f.ExactMatch(query.Index));
+            var finalQuery = liftiQuery.InField("Index", f => f.ExactMatch(query.Index));
             foreach (var translatedQuery in subQueries)
+            {
+                finalQuery = translatedQuery.Key switch
                 {
-                    finalQuery = translatedQuery.Key switch
-                    {
-                        Occurance.MUST => finalQuery.And.Query(translatedQuery.Value),
-                        Occurance.MUSTNOT => finalQuery.AndNot.Query(translatedQuery.Value),
-                        Occurance.SHOULD => finalQuery.Or.Query(translatedQuery.Value),
-                        Occurance.FILTER => throw new NotSupportedException("Lifti not supports filter queries"),
-                    };
-                }
+                    // Occurance.MUST => finalQuery.And.Query(translatedQuery.Value),
+                    // Occurance.MUSTNOT => finalQuery.AndNot.Query(translatedQuery.Value),
+                    // Occurance.SHOULD => finalQuery.Or.Query(translatedQuery.Value),
+                    Occurance.FILTER => throw new NotSupportedException("Lifti not supports filter queries"),
+                    _=> throw new NotSupportedException("Lifti provider not supports this type of query yet"),
+                };
+            }
 
             return Result.Ok(finalQuery.Build());
         }

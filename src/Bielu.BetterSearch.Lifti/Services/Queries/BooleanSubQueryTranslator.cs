@@ -4,6 +4,7 @@ using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
 using Lifti.Querying;
+using Lifti.Querying.QueryParts;
 
 namespace Bielu.BetterSearch.Lifti.Services.Queries;
 
@@ -20,14 +21,14 @@ public class BooleanSubQueryTranslator : ISubQueryTranslator<IQuery>
             return Task.FromResult(Result.Fail<IQuery>("Query is not a boolean query"));
         }
 
-        var subQueries = boolQuery.NestedQueries.Select(subQuery => subQueryTranslators.First(translator => translator.CanTranslate(subQuery)).TranslateAsync(subQuery, subQueryTranslators)).ToList();
+        // var subQueries = boolQuery.NestedQueries.Select((IGrouping<Occurance, KeyValuePair<Occurance, List<ISearchSubQuery>>> subQuery) => subQueryTranslators.First(translator => translator.CanTranslate(subQuery)).TranslateAsync(subQuery, subQueryTranslators)).ToList();
+        //
+        // Task.WaitAll(subQueries.ToArray());
+        // var results = subQueries.Select(subQuery => subQuery.Result).ToList();
+        // if(results.Any(x=>x.IsFailed))  {
+        //     return Task.FromResult(Result.Fail<IQuery>("Query translation failed"));
+        // }
 
-        Task.WaitAll(subQueries.ToArray());
-        var results = subQueries.Select(subQuery => subQuery.Result).ToList();
-        if(results.Any(x=>x.IsFailed))  {
-            return Task.FromResult(Result.Fail<IQuery>("Query translation failed"));
-        }
-
-        return new Query();
+        return Task.FromResult<Result<IQuery>>(new Query(new AndQueryOperator(new ExactWordQueryPart("test"),new ExactWordQueryPart("test"))));
     }
 }
