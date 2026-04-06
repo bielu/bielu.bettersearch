@@ -1,14 +1,15 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bielu.BetterSearch.DepedencyInjection;
 
 public static class RegisterSearchExtension
 {
-    public static IServiceCollection AddBetterSearch(this IServiceCollection services, Action<Configurator> configure)
+    public static IServiceCollection AddBetterSearch(this IServiceCollection services, IConfiguration configuration, Action<Configurator> configure)
     {
-        var configurator = new Configurator(services);
+        var configurator = new Configurator(services, configuration);
         configure(configurator);
         services.AddSingleton(configurator.Configuration);
         services.AddScoped(typeof(IDocumentValidatorAsync) ,configurator.Configuration.DocumentValidatorType);
@@ -17,5 +18,11 @@ public static class RegisterSearchExtension
         services.AddScoped(typeof(IIndexingProviderAsync), configurator.Configuration.IndexingProviderType);
         services.AddScoped(typeof(ISearchServiceAsync), configurator.Configuration.SearchServiceType);
         return services;
+    }
+
+    public static IServiceCollection AddBetterSearch(this IServiceCollection services, Action<Configurator> configure)
+    {
+        var emptyConfiguration = new ConfigurationBuilder().Build();
+        return services.AddBetterSearch(emptyConfiguration, configure);
     }
 }

@@ -7,4 +7,5 @@ public class IndexSettings
     public string TypeName { get; set; }
     public bool AliasingEnabled { get; set; }
     public bool IndexingEnabled { get; set; }
+    public bool DevMode { get; set; }
 }

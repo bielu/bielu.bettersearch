@@ -1,6 +1,6 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Query.SubQueries
 {
-    public class BoolSearchSubQuery : INestableQuery
+    public class BoolSearchSubQuery : ISearchSubQuery, INestableQuery
     {
         public Occurance Occurance { get; set; } = Occurance.MUST;
         public string? Field { get; set; }

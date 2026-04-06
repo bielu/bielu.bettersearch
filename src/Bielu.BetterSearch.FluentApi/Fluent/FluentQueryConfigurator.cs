@@ -1,15 +1,16 @@
-﻿using Bielu.BetterSearch.Abstractions.Results;
+﻿
+using Bielu.BetterSearch.Abstractions.Models;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
     public class FluentQueryConfigurator : IBaseQueryConfigurator
     {
-        public FluentQueryConfigurator(ISearchQuery<IQueryResult> baseQuery)
+        public FluentQueryConfigurator(ISearchQuery<ISearchResult<ISearchModel>> baseQuery)
         {
             Query = baseQuery;
         }
 
-        public ISearchQuery<IQueryResult> Query { get; set; }
+        public ISearchQuery<ISearchResult<ISearchModel>> Query { get; set; }
 
         public IDictionary<Occurance, ISearchSubQuery> PostFilterQuery { get; set; } =
             new Dictionary<Occurance, ISearchSubQuery>();

@@ -1,14 +1,14 @@
-﻿using Bielu.BetterSearch.Abstractions.Query.Aggregations;
-using Bielu.BetterSearch.Abstractions.Results;
+﻿using Bielu.BetterSearch.Abstractions.Models;
+using Bielu.BetterSearch.Abstractions.Query.Aggregations;
 using Bielu.BetterSearch.FluentApi.Fluent.Aggregations;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
     public class AggregationQueryConfigurator
     {
-        private readonly ISearchQuery<IQueryResult> _configuratorQuery;
+        private readonly ISearchQuery<ISearchResult<ISearchModel>> _configuratorQuery;
 
-        public AggregationQueryConfigurator(ISearchQuery<IQueryResult> configuratorQuery)
+        public AggregationQueryConfigurator(ISearchQuery<ISearchResult<ISearchModel>> configuratorQuery)
         {
             _configuratorQuery = configuratorQuery;
         }

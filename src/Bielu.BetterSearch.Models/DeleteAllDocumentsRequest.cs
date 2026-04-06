@@ -2,5 +2,5 @@
 
 public class DeleteAllDocumentsRequest
 {
-    
+    public string IndexName { get; set; }
 }

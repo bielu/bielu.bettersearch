@@ -1,11 +1,13 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bielu.BetterSearch.Configuration;
 
-public class Configurator(IServiceCollection services)
+public class Configurator(IServiceCollection services,IConfiguration configuration)
 {
     public IServiceCollection Services => services;
+    public IConfiguration AppConfiguration => configuration;
 
     public SearchApplicationConfiguration Configuration { get; } = SearchApplicationConfiguration.CurrentInstance;
     public Configurator SetSearchServiceType<T>() where T : class, ISearchServiceAsync

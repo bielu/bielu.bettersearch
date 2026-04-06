@@ -1,11 +1,11 @@
 ﻿using Bielu.BetterSearch.Abstractions.Fields;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query.Aggregations;
 using Bielu.BetterSearch.Abstractions.Query.Highlighter;
-using Bielu.BetterSearch.Abstractions.Results;
 
 namespace Bielu.BetterSearch.Abstractions.Query
 {
-    public class SearchQuery : ISearchQuery<IQueryResult>
+    public class SearchQuery : ISearchQuery<ISearchResult<ISearchModel>>
     {
         public int Page { get; set; }
         public int PageSize { get; set; }
@@ -13,19 +13,25 @@ namespace Bielu.BetterSearch.Abstractions.Query
         public List<IAggregationQuery> FacetQueries { get; set; } = new List<IAggregationQuery>();
         public List<IHighlightQuery> HighlightQueries { get; set; } = new List<IHighlightQuery>();
 
-        public IDictionary<Occurance, ISearchSubQuery> PostFilterQuery { get; set; } =
-            new Dictionary<Occurance, ISearchSubQuery>();
+        public IDictionary<Occurance, List<INestableQuery>> PostFilterQuery { get; set; } =
+            new Dictionary<Occurance, List<INestableQuery>>();
 
-        public IDictionary<Occurance, ISearchSubQuery> Query { get; set; }
+        public IDictionary<Occurance, List<ISearchSubQuery>> Query { get; set; } = new Dictionary<Occurance, List<ISearchSubQuery>>();
         public string Index { get; set; }
         public DateTime? PreviewAt { get; set; }
 
-        void ISearchQuery<IQueryResult>.Add(Occurance queryOccurance, ISearchSubQuery booleanQueryQuery)
-        {
-            Query.Add(queryOccurance, booleanQueryQuery);
-        }
 
         public IEnumerable<string> Properties { get; set; }
-        void ICreatableSearchQuery<Occurance, ISearchSubQuery>.Add(Occurance key, ISearchSubQuery value) =>  Query.Add(key, value);
+
+        public void Add(Occurance key, ISearchSubQuery value)
+        {
+            if (!Query.TryGetValue(key, out var queries))
+            {
+                queries = new List<ISearchSubQuery>();
+                Query.Add(key, queries);
+            }
+
+            queries.Add(value);
+        }
     }
 }
