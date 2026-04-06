@@ -15,6 +15,7 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
             new SearchDocument()
             {
                 Id = "1",
+                Index = index,
                 Fields = new Dictionary<string, IList<object>>()
                 {
                     { "Name", ["Jane Doe"] },
@@ -24,6 +25,7 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
             new SearchDocument()
             {
                 Id = "2",
+                Index = index,
                 Fields = new Dictionary<string, IList<object>>()
                 {
                     { "Name", ["John Doe 2"] },
@@ -33,6 +35,7 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
             new SearchDocument()
             {
                 Id = "3",
+                Index = index,
                 Fields = new Dictionary<string, IList<object>>()
                 {
                     { "Name", ["John Doe 3"] },

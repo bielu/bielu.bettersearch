@@ -5,7 +5,7 @@ using FluentAssertions;
 
 namespace Bielu.BetterSearch.Tests;
 
-public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTranslator<ISearchSubQuery>> translators)
+public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTranslator<T>> translators)
 {
     private async Task SubQueryShouldBeTranslatable(ISearchSubQuery subQuery)
     {
@@ -17,85 +17,97 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
         result.IsSuccess.Should().BeTrue($"because translation of {subQuery.GetType().Name} should be successful");
     }
 
-    [Fact]
-    public async Task BoolSearchQueryShouldBeTranslatable()
+    protected async Task SubQueryTranslationShouldFail(ISearchSubQuery subQuery)
     {
-        var subQuery = new BoolSearchSubQuery(); // Replace with an actual instance of your subquery
+        var canTranslate = translators.Any(t => t.CanTranslate(subQuery));
+        canTranslate.Should().BeTrue($"because a translator should exist for {subQuery.GetType().Name} even if unsupported");
+
+        var translator = translators.First(t => t.CanTranslate(subQuery));
+        var result = await translator.TranslateAsync(subQuery, translators);
+        result.IsFailed.Should().BeTrue($"because {subQuery.GetType().Name} is not supported by this provider");
+    }
+
+    [Fact]
+    public virtual async Task BoolSearchQueryShouldBeTranslatable()
+    {
+        var subQuery = new BoolSearchSubQuery();
         await SubQueryShouldBeTranslatable(subQuery);
     }
 
     [Fact]
-    public async Task DateRangeQueryShouldBeTranslatable()
+    public virtual async Task DateRangeQueryShouldBeTranslatable()
     {
-        var subQuery = new DateRangeQuery(); // Replace with an actual instance of your subquery
+        var subQuery = new DateRangeQuery();
         await SubQueryShouldBeTranslatable(subQuery);
     }
+
     [Fact]
-        public async Task FuzzyQueryShouldBeTranslatable()
-        {
-            var subQuery = new FuzzyQuery(); // Replace with an actual instance of your subquery
-            await SubQueryShouldBeTranslatable(subQuery);
-        }
+    public virtual async Task FuzzyQueryShouldBeTranslatable()
+    {
+        var subQuery = new FuzzyQuery();
+        await SubQueryShouldBeTranslatable(subQuery);
+    }
 
-        [Fact]
-        public async Task LongRangeShouldBeTranslatable()
-        {
-            var subQuery = new LongRange(); // Replace with an actual instance of your subquery
-            await SubQueryShouldBeTranslatable(subQuery);
-        }
+    [Fact]
+    public virtual async Task LongRangeShouldBeTranslatable()
+    {
+        var subQuery = new LongRange();
+        await SubQueryShouldBeTranslatable(subQuery);
+    }
 
-        [Fact]
-        public async Task NumericRangeShouldBeTranslatable()
-        {
-            var subQuery = new NumericRange(); // Replace with an actual instance of your subquery
-            await SubQueryShouldBeTranslatable(subQuery);
-        }
+    [Fact]
+    public virtual async Task NumericRangeShouldBeTranslatable()
+    {
+        var subQuery = new NumericRange();
+        await SubQueryShouldBeTranslatable(subQuery);
+    }
 
-        [Fact]
-        public async Task PrefixPhraseSubQueryShouldBeTranslatable()
-        {
-            var subQuery = new PrefixPhraseSubQuery(); // Replace with an actual instance of your subquery
-            await SubQueryShouldBeTranslatable(subQuery);
-        }
+    [Fact]
+    public virtual async Task PrefixPhraseSubQueryShouldBeTranslatable()
+    {
+        var subQuery = new PrefixPhraseSubQuery();
+        await SubQueryShouldBeTranslatable(subQuery);
+    }
 
-        [Fact]
-        public async Task PrefixSubQueryShouldBeTranslatable()
-        {
-            var subQuery = new PrefixSubQuery(); // Replace with an actual instance of your subquery
-            await SubQueryShouldBeTranslatable(subQuery);
-        }
+    [Fact]
+    public virtual async Task PrefixSubQueryShouldBeTranslatable()
+    {
+        var subQuery = new PrefixSubQuery();
+        await SubQueryShouldBeTranslatable(subQuery);
+    }
 
-        [Fact]
-        public async Task SpatialSearchQueryShouldBeTranslatable()
-        {
-            var subQuery = new SpatialSearchQuery(); // Replace with an actual instance of your subquery
-            await SubQueryShouldBeTranslatable(subQuery);
-        }
+    [Fact]
+    public virtual async Task SpatialSearchQueryShouldBeTranslatable()
+    {
+        var subQuery = new SpatialSearchQuery();
+        await SubQueryShouldBeTranslatable(subQuery);
+    }
 
-        [Fact]
-        public async Task StringRangeShouldBeTranslatable()
-        {
-            var subQuery = new StringRange(); // Replace with an actual instance of your subquery
-            await SubQueryShouldBeTranslatable(subQuery);
-        }
+    [Fact]
+    public virtual async Task StringRangeShouldBeTranslatable()
+    {
+        var subQuery = new StringRange();
+        await SubQueryShouldBeTranslatable(subQuery);
+    }
 
-        [Fact]
-        public async Task TermsSubQueryShouldBeTranslatable()
-        {
-            var subQuery = new TermsSubQuery(); // Replace with an actual instance of your subquery
-            await SubQueryShouldBeTranslatable(subQuery);
-        }
+    [Fact]
+    public virtual async Task TermsSubQueryShouldBeTranslatable()
+    {
+        var subQuery = new TermsSubQuery();
+        await SubQueryShouldBeTranslatable(subQuery);
+    }
 
-        [Fact]
-        public async Task TermSubQueryShouldBeTranslatable()
-        {
-            var subQuery = new TermSubQuery(); // Replace with an actual instance of your subquery
-            await SubQueryShouldBeTranslatable(subQuery);
-        }
-        [Fact]
-        public async Task LuceneSubQueryShouldBeTranslatable()
-        {
-            var subQuery = new LuceneSubQuery(); // Replace with an actual instance of your subquery
-            await SubQueryShouldBeTranslatable(subQuery);
-        }
+    [Fact]
+    public virtual async Task TermSubQueryShouldBeTranslatable()
+    {
+        var subQuery = new TermSubQuery();
+        await SubQueryShouldBeTranslatable(subQuery);
+    }
+
+    [Fact]
+    public virtual async Task LuceneSubQueryShouldBeTranslatable()
+    {
+        var subQuery = new LuceneSubQuery();
+        await SubQueryShouldBeTranslatable(subQuery);
+    }
 }

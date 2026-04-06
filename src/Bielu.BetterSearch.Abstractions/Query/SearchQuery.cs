@@ -16,7 +16,7 @@ namespace Bielu.BetterSearch.Abstractions.Query
         public IDictionary<Occurance, List<INestableQuery>> PostFilterQuery { get; set; } =
             new Dictionary<Occurance, List<INestableQuery>>();
 
-        public IDictionary<Occurance, List<ISearchSubQuery>> Query { get; set; }
+        public IDictionary<Occurance, List<ISearchSubQuery>> Query { get; set; } = new Dictionary<Occurance, List<ISearchSubQuery>>();
         public string Index { get; set; }
         public DateTime? PreviewAt { get; set; }
 
@@ -27,12 +27,11 @@ namespace Bielu.BetterSearch.Abstractions.Query
         {
             if (!Query.TryGetValue(key, out var queries))
             {
-                queries = new List<ISearchSubQuery> { value };
+                queries = new List<ISearchSubQuery>();
                 Query.Add(key, queries);
-                return;
             }
 
-            queries.ToList().Add(value);
+            queries.Add(value);
         }
     }
 }

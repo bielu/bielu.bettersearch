@@ -14,21 +14,50 @@ public class BooleanSubQueryTranslator : ISubQueryTranslator<IQuery>
     public bool CanTranslate(ISearchSubQuery query) => query is BoolSearchSubQuery;
 #pragma warning restore CA1822
 
-    public Task<Result<IQuery>> TranslateAsync(ISearchSubQuery query, IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators)
+    public async Task<Result<IQuery>> TranslateAsync(ISearchSubQuery query, IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators)
     {
         if (query is not BoolSearchSubQuery boolQuery)
         {
-            return Task.FromResult(Result.Fail<IQuery>("Query is not a boolean query"));
+            return Task.FromResult(Result.Fail<IQuery>("Query is not a boolean query")).Result;
         }
 
-        // var subQueries = boolQuery.NestedQueries.Select((IGrouping<Occurance, KeyValuePair<Occurance, List<ISearchSubQuery>>> subQuery) => subQueryTranslators.First(translator => translator.CanTranslate(subQuery)).TranslateAsync(subQuery, subQueryTranslators)).ToList();
-        //
-        // Task.WaitAll(subQueries.ToArray());
-        // var results = subQueries.Select(subQuery => subQuery.Result).ToList();
-        // if(results.Any(x=>x.IsFailed))  {
-        //     return Task.FromResult(Result.Fail<IQuery>("Query translation failed"));
-        // }
+        if (boolQuery.NestedQueries.Count == 0)
+        {
+            return Result.Ok<IQuery>(new Query(EmptyQueryPart.Instance));
+        }
 
-        return Task.FromResult<Result<IQuery>>(new Query(new AndQueryOperator(new ExactWordQueryPart("test"),new ExactWordQueryPart("test"))));
+        IQueryPart? combined = null;
+        foreach (var nested in boolQuery.NestedQueries)
+        {
+            var translator = subQueryTranslators.FirstOrDefault(t => t.CanTranslate(nested));
+            if (translator == null)
+            {
+                return Result.Fail<IQuery>($"No translator found for nested query type {nested.GetType().Name}");
+            }
+
+            var result = await translator.TranslateAsync(nested, subQueryTranslators);
+            if (result.IsFailed)
+            {
+                return result;
+            }
+
+            var part = result.Value.Root;
+            if (combined == null)
+            {
+                combined = part;
+            }
+            else
+            {
+                combined = nested.Occurance switch
+                {
+                    Occurance.MUST => new AndQueryOperator(combined, part),
+                    Occurance.MUSTNOT => new AndNotQueryOperator(combined, part),
+                    Occurance.SHOULD => new OrQueryOperator(combined, part),
+                    _ => new AndQueryOperator(combined, part)
+                };
+            }
+        }
+
+        return Result.Ok<IQuery>(new Query(combined));
     }
 }

@@ -19,4 +19,10 @@ public static class RegisterSearchExtension
         services.AddScoped(typeof(ISearchServiceAsync), configurator.Configuration.SearchServiceType);
         return services;
     }
+
+    public static IServiceCollection AddBetterSearch(this IServiceCollection services, Action<Configurator> configure)
+    {
+        var emptyConfiguration = new ConfigurationBuilder().Build();
+        return services.AddBetterSearch(emptyConfiguration, configure);
+    }
 }

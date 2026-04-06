@@ -54,9 +54,20 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
         return await indexingProvider.IndexDocumentAsync(document, cancellationToken);
     }
 
-    public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
-        CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+    public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
+        CancellationToken cancellationToken = default)
+    {
+        var documents = document.ToList();
+        foreach (var doc in documents)
+        {
+            var result = await IndexDocumentAsync(doc, cancellationToken);
+            if (result.IsFailed)
+            {
+                return Result.Fail<int>(result.Errors);
+            }
+        }
+        return Result.Ok(documents.Count);
+    }
 
     public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
         CancellationToken cancellationToken = default)

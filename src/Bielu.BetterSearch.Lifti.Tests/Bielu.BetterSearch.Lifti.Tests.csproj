@@ -10,10 +10,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="coverlet.collector" Version="6.0.0"/>
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0"/>
-        <PackageReference Include="xunit" Version="2.5.3"/>
-        <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3"/>
+        <PackageReference Include="coverlet.collector" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="xunit" />
+        <PackageReference Include="xunit.runner.visualstudio" />
+        <PackageReference Include="Xunit.DependencyInjection" />
+        <PackageReference Include="Xunit.DependencyInjection.AspNetCoreTesting" />
+        <PackageReference Include="Xunit.DependencyInjection.Logging" />
     </ItemGroup>
 
     <ItemGroup>
@@ -25,13 +28,6 @@
       <ProjectReference Include="..\Bielu.BetterSearch.BaseTests\Bielu.BetterSearch.BaseTests.csproj" />
       <ProjectReference Include="..\Bielu.BetterSearch.Core\Bielu.BetterSearch.Core.csproj" />
       <ProjectReference Include="..\Bielu.BetterSearch.Lifti\Bielu.BetterSearch.Lifti.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Compile Remove="QueryTranslationUnitTests.cs" />
-      <Content Include="QueryTranslationUnitTests.cs" />
-      <Compile Remove="Startup.cs" />
-      <Content Include="Startup.cs" />
     </ItemGroup>
 
 </Project>
