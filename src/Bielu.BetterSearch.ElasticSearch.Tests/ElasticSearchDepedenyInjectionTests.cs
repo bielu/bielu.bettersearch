@@ -2,17 +2,8 @@
 using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.QueryDsl;
-using Testcontainers.Elasticsearch;
 
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
 
-public class ElasticSearchDepedenyInjectionTests(IServiceProvider collection) : DepedenyInjectionTestBase<ElasticSearchIndexingProviderAsync, ElasticsearchClient, BoolQueryDescriptor<SearchDocument>>(collection)
-{
-    private readonly ElasticsearchContainer _elasticsearch
-        = new ElasticsearchBuilder().Build();
-    [Fact]
-    public void Test1()
-    {
-    }
-
-}
+public class ElasticSearchDepedenyInjectionTests(IServiceProvider collection)
+    : DepedenyInjectionTestBase<ElasticSearchIndexingProviderAsync, ElasticsearchClient, BoolQueryDescriptor<SearchDocument>>(collection);

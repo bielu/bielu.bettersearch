@@ -1,0 +1,14 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.4">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+        <UserSecretsId>bf5b8b67-2f5c-40c9-a5bf-c10d4d915a05</UserSecretsId>
+    </PropertyGroup>
+
+    <!-- Referenced by the integration tests; coverage should only count library code. -->
+    <ItemGroup>
+        <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
+    </ItemGroup>
+
+</Project>
