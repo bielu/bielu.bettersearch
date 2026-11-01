@@ -14,7 +14,7 @@ public class LiftiIndexManager : ILiftiIndexManager
         {
             return Result.Ok(index);
         }
-        return await CreateIndexAsync(key);
+        return await CreateIndexAsync(key).ConfigureAwait(false);
     }
 
     public Task<Result<IFullTextIndex<string>?>> CreateIndexAsync(string key)

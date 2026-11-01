@@ -12,7 +12,7 @@ public class LiftiIndexingProviderAsync(
     {
         try
         {
-            await (await clientFactory.GetOrCreateClientAsync(document.Index)).AddAsync(document, cancellationToken);
+            await (await clientFactory.GetOrCreateClientAsync(document.Index).ConfigureAwait(false)).AddAsync(document, cancellationToken).ConfigureAwait(false);
             return Result.Ok();
         }
         catch (Exception e)
@@ -29,10 +29,10 @@ public class LiftiIndexingProviderAsync(
             var searchDocuments = documents.ToList();
             foreach (var documentGroup in searchDocuments.GroupBy(d => d.Index))
             {
-                var index = await clientFactory.GetOrCreateClientAsync(documentGroup.Key);
+                var index = await clientFactory.GetOrCreateClientAsync(documentGroup.Key).ConfigureAwait(false);
                 foreach (var document in documentGroup)
                 {
-                    await index.AddAsync(document, cancellationToken);
+                    await index.AddAsync(document, cancellationToken).ConfigureAwait(false);
                 }
             }
             return Result.Ok(searchDocuments.Count);
@@ -47,8 +47,8 @@ public class LiftiIndexingProviderAsync(
     {
         try
         {
-            var index = await clientFactory.GetOrCreateClientAsync(type);
-            await index.RemoveAsync(id, cancellationToken);
+            var index = await clientFactory.GetOrCreateClientAsync(type).ConfigureAwait(false);
+            await index.RemoveAsync(id, cancellationToken).ConfigureAwait(false);
             return Result.Ok();
         }
         catch (Exception e)
@@ -62,9 +62,9 @@ public class LiftiIndexingProviderAsync(
     {
         try
         {
-            var count = (await clientFactory.GetOrCreateClientAsync(index.IndexName)).Count;
-            await liftiIndexManager.DeleteIndexAsync(index.IndexName);
-            await liftiIndexManager.CreateIndexAsync(index.IndexName);
+            var count = (await clientFactory.GetOrCreateClientAsync(index.IndexName).ConfigureAwait(false)).Count;
+            await liftiIndexManager.DeleteIndexAsync(index.IndexName).ConfigureAwait(false);
+            await liftiIndexManager.CreateIndexAsync(index.IndexName).ConfigureAwait(false);
             return Result.Ok((long?)count);
         }
         catch (Exception e)
@@ -80,7 +80,7 @@ public class LiftiIndexingProviderAsync(
     {
         try
         {
-            await clientFactory.GetOrCreateClientAsync(index);
+            await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
             return Result.Ok(true);
         }
         catch (Exception e)
@@ -97,7 +97,7 @@ public class LiftiIndexingProviderAsync(
 
     public async Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default)
     {
-        var result = await liftiIndexManager.CreateIndexAsync(index);
+        var result = await liftiIndexManager.CreateIndexAsync(index).ConfigureAwait(false);
         return result.IsSuccess ? Result.Ok(true) : Result.Fail(result.Errors[0].Message);
     }
 }

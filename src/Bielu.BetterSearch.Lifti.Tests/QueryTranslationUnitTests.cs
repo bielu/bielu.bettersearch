@@ -10,25 +10,25 @@ public class QueryTranslationUnitTests(IEnumerable<ISubQueryTranslator<IQuery>> 
 {
     [Fact]
     public override async Task DateRangeQueryShouldBeTranslatable()
-        => await SubQueryTranslationShouldFail(new DateRangeQuery());
+        => await SubQueryTranslationShouldFailAsync(new DateRangeQuery());
 
     [Fact]
     public override async Task LongRangeShouldBeTranslatable()
-        => await SubQueryTranslationShouldFail(new LongRange());
+        => await SubQueryTranslationShouldFailAsync(new LongRange());
 
     [Fact]
     public override async Task NumericRangeShouldBeTranslatable()
-        => await SubQueryTranslationShouldFail(new NumericRange());
+        => await SubQueryTranslationShouldFailAsync(new NumericRange());
 
     [Fact]
     public override async Task SpatialSearchQueryShouldBeTranslatable()
-        => await SubQueryTranslationShouldFail(new SpatialSearchQuery());
+        => await SubQueryTranslationShouldFailAsync(new SpatialSearchQuery());
 
     [Fact]
     public override async Task StringRangeShouldBeTranslatable()
-        => await SubQueryTranslationShouldFail(new StringRange());
+        => await SubQueryTranslationShouldFailAsync(new StringRange());
 
     [Fact]
     public override async Task LuceneSubQueryShouldBeTranslatable()
-        => await SubQueryTranslationShouldFail(new LuceneSubQuery());
+        => await SubQueryTranslationShouldFailAsync(new LuceneSubQuery());
 }

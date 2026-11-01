@@ -4,20 +4,13 @@ using Bielu.BetterSearch.FluentApi.Fluent.Aggregations;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
-    public class AggregationQueryConfigurator
+    public class AggregationQueryConfigurator(ISearchQuery<ISearchResult<ISearchModel>> configuratorQuery)
     {
-        private readonly ISearchQuery<ISearchResult<ISearchModel>> _configuratorQuery;
-
-        public AggregationQueryConfigurator(ISearchQuery<ISearchResult<ISearchModel>> configuratorQuery)
-        {
-            _configuratorQuery = configuratorQuery;
-        }
-
         public AggregationQueryConfigurator CreateFilterQuery(Action<FilterAggregationQueryConfigurator> query)
         {
             var configurator = new FilterAggregationQueryConfigurator(new FilterAggregationQuery());
             query.Invoke(configurator);
-            _configuratorQuery.FacetQueries.Add(configurator.FilterAggregationQuery);
+            configuratorQuery.FacetQueries.Add(configurator.FilterAggregationQuery);
             return this;
         }
         public AggregationQueryConfigurator CreateTermQuery(Action<TermAggregationQueryConfigurator> query)
@@ -25,7 +18,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
             var termAggregation = new TermAggregation();
             var configurator = new TermAggregationQueryConfigurator(termAggregation);
             query.Invoke(configurator);
-            _configuratorQuery.FacetQueries.Add(termAggregation);
+            configuratorQuery.FacetQueries.Add(termAggregation);
             return this;
         }
         public AggregationQueryConfigurator CreateMultiTermQuery(Action<MultiTermAggregationQueryConfigurator> query)
@@ -33,7 +26,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
             var termAggregation = new MultiTermAggreation();
             var configurator = new MultiTermAggregationQueryConfigurator(termAggregation);
             query.Invoke(configurator);
-            _configuratorQuery.FacetQueries.Add(termAggregation);
+            configuratorQuery.FacetQueries.Add(termAggregation);
             return this;
         }
 

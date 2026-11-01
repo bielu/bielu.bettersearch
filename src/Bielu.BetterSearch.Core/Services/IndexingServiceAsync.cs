@@ -28,7 +28,7 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
 
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
     {
-        var validationResult = await documentValidator.ValidateDocumentAsync(document);
+        var validationResult = await documentValidator.ValidateDocumentAsync(document).ConfigureAwait(false);
         if (validationResult.IsFailed)
         {
             return Result.Fail("Validation failed");
@@ -51,7 +51,7 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
             observer.OnNext(document);
         }
 
-        return await indexingProvider.IndexDocumentAsync(document, cancellationToken);
+        return await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
@@ -60,7 +60,7 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
         var documents = document.ToList();
         foreach (var doc in documents)
         {
-            var result = await IndexDocumentAsync(doc, cancellationToken);
+            var result = await IndexDocumentAsync(doc, cancellationToken).ConfigureAwait(false);
             if (result.IsFailed)
             {
                 return Result.Fail<int>(result.Errors);
@@ -77,7 +77,7 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
             observer.OnNext(document);
         }
 
-        var result = await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken);
+        var result = await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken).ConfigureAwait(false);
         //indexing finished
         foreach (var observer in _deleteDocumentObservers)
         {
@@ -95,7 +95,7 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
             observer.OnNext(request);
         }
 
-        var result = await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken);
+        var result = await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken).ConfigureAwait(false);
         //indexing finished
         foreach (var observer in _deleteAllDocumentsObservers)
         {
