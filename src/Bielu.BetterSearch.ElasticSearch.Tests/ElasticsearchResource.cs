@@ -16,8 +16,8 @@ public sealed class ElasticsearchResource : IHostedService
 
     private DistributedApplication? _app;
 
-    /// <summary>The HTTP endpoint of the running server, once started.</summary>
-    public Uri? Endpoint { get; private set; }
+    /// <summary>The connection string the Aspire integration reports, once started.</summary>
+    public Uri? ConnectionString { get; private set; }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -30,7 +30,9 @@ public sealed class ElasticsearchResource : IHostedService
         await _app.StartAsync(timeout.Token);
         await _app.ResourceNotifications.WaitForResourceHealthyAsync(ResourceName, timeout.Token);
 
-        Endpoint = _app.GetEndpoint(ResourceName, "http");
+        var connectionString = await _app.GetConnectionStringAsync(ResourceName, timeout.Token)
+            ?? throw new InvalidOperationException("The Elasticsearch resource did not report a connection string.");
+        ConnectionString = new Uri(connectionString);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
