@@ -14,25 +14,15 @@ public class Startup
             .AddBetterSearch(x => x.AddElasticSearch());
 
         // The host starts hosted services before any test runs, and options are bound on first use,
-        // so the connection string is known by the time a test asks for a client.
+        // so the endpoint is known by the time a test asks for a client.
         services.AddSingleton<ElasticsearchResource>();
         services.AddHostedService(sp => sp.GetRequiredService<ElasticsearchResource>());
         services.AddOptions<ElasticSearchOptions>()
             .Configure<ElasticsearchResource>((options, elasticsearch) =>
-            {
-                // Aspire reports http://elastic:password@host:port.
-                var uri = elasticsearch.ConnectionString!;
-                var credentials = uri.UserInfo.Split(':', 2);
                 options.SharedIndexSettings = new ElasticSearchIndexSettings
                 {
-                    ConnectionString = uri.GetLeftPart(UriPartial.Authority).Replace(uri.UserInfo + "@", string.Empty, StringComparison.Ordinal),
-                    AuthenticationType = AuthenticationType.PASSWORD,
-                    AuthenticationDetails = new AuthenticationDetails
-                    {
-                        Username = Uri.UnescapeDataString(credentials[0]),
-                        Password = Uri.UnescapeDataString(credentials[1]),
-                    },
-                };
-            });
+                    ConnectionString = elasticsearch.Endpoint!.ToString(),
+                    AuthenticationType = AuthenticationType.NONE,
+                });
     }
 }

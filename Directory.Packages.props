@@ -21,7 +21,6 @@
     <PackageVersion Include="Xunit.DependencyInjection" Version="12.0.1" />
     <PackageVersion Include="Xunit.DependencyInjection.Logging" Version="12.0.0" />
     <!-- Integration test infrastructure -->
-    <PackageVersion Include="Aspire.Hosting.Elasticsearch" Version="13.3.0" />
     <PackageVersion Include="Aspire.Hosting.Testing" Version="13.6.4" />
     <!-- Static Analysis -->
     <PackageVersion Include="Bielu.StaticCode.Analyzers" Version="1.0.0-beta.639117906913283672" />
