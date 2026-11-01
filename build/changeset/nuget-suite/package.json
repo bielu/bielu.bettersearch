@@ -1,0 +1,6 @@
+{
+  "name": "bielu-bettersearch",
+  "version": "1.0.0-beta.2",
+  "private": true,
+  "description": "Placeholder package representing the shared version of every Bielu.BetterSearch NuGet package. Bump this in a changeset for any NuGet change; scripts/apply-nuget-version.mjs projects its version onto version.props. Not published anywhere. The repository is in changesets pre mode (.changeset/pre.json) so releases stay on the beta line until ROADMAP.md says it is ready to exit."
+}

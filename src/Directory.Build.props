@@ -1,9 +1,53 @@
 <Project>
 
+    <Import Project="../version.props" />
+
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
     </PropertyGroup>
+
+    <PropertyGroup>
+        <Title>$(MSBuildProjectName)</Title>
+        <AssemblyName>$(MSBuildProjectName)</AssemblyName>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <Authors>bielu</Authors>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <!-- Applies to every shipping package: a published NuGet version is immutable, so a package
+             without a license can never be corrected. -->
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <Copyright>Copyright (c) 2024 Arkadiusz Biel</Copyright>
+        <RepositoryUrl>https://github.com/bielu/bielu.bettersearch</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageProjectUrl>https://github.com/bielu/bielu.bettersearch</PackageProjectUrl>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <!-- Ship the XML docs that exist in source. CS1591 stays off until the public API settles:
+             documenting members the stabilization roadmap is about to rename would be wasted work. -->
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);CS1591</NoWarn>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <!-- Symbols + Source Link, so consumers can step into the packages. The SourceLink GitHub
+             provider ships in the .NET SDK, so no PackageReference is needed. -->
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+        <!-- Normalizes embedded paths so CI-produced packages are byte-reproducible. -->
+        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="/" Visible="false" />
+    </ItemGroup>
 
 </Project>
