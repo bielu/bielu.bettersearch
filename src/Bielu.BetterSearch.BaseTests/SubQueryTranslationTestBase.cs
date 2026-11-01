@@ -1,4 +1,4 @@
-using Bielu.BetterSearch.Abstractions.Query;
+﻿using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Shouldly;
@@ -13,7 +13,7 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
         canTranslate.ShouldBeTrue($"because a translator should be able to translate {subQuery.GetType().Name}");
 
         var translator = translators.First(t => t.CanTranslate(subQuery));
-        var result = await translator.TranslateAsync(subQuery,translators);
+        var result = await translator.TranslateAsync(subQuery, translators);
         result.IsSuccess.ShouldBeTrue($"because translation of {subQuery.GetType().Name} should be successful");
     }
 

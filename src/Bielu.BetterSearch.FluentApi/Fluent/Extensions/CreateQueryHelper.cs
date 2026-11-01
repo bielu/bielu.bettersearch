@@ -60,14 +60,16 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
             query.Invoke(booleanQuery);
             configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
             return configurator;
-        }  public static IQueryConfigurator CreateStringRangeQuery(this IQueryConfigurator configurator,
+        }
+        public static IQueryConfigurator CreateStringRangeQuery(this IQueryConfigurator configurator,
             Action<StringRangeQueryConfigurator> query)
         {
             var booleanQuery = new StringRangeQueryConfigurator();
             query.Invoke(booleanQuery);
             configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
             return configurator;
-        }  public static IQueryConfigurator CreateDateRangeQuery(this IQueryConfigurator configurator,
+        }
+        public static IQueryConfigurator CreateDateRangeQuery(this IQueryConfigurator configurator,
             Action<DateRangeQueryConfigurator> query)
         {
             var booleanQuery = new DateRangeQueryConfigurator();

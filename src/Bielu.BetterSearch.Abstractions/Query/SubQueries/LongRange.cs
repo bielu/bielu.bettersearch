@@ -1,4 +1,4 @@
-namespace Bielu.BetterSearch.Abstractions.Query.SubQueries
+﻿namespace Bielu.BetterSearch.Abstractions.Query.SubQueries
 {
     public class LongRange : BaseRangeQuery
     {

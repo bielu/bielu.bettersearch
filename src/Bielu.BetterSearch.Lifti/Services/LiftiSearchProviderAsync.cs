@@ -15,7 +15,7 @@ public class LiftiSearchProviderAsync(
     public async Task<Result<ISearchResult<ISearchModel>>> SearchAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
     {
         var indexResult = await manager.GetOrCreateIndexAsync(query.Index);
-        if(indexResult.IsFailed)
+        if (indexResult.IsFailed)
         {
             return Result.Fail<ISearchResult<ISearchModel>>(indexResult.Errors);
         }

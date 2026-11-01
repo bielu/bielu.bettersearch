@@ -1,4 +1,4 @@
-using Bielu.BetterSearch.DepedencyInjection;
+﻿using Bielu.BetterSearch.DepedencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.DependencyInjection.Logging;
 

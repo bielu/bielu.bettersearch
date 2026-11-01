@@ -43,7 +43,7 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
         var settings = new ElasticsearchClientSettings(GetNodePool(finalSearchIndexSettings));
         if (finalSearchIndexSettings.AuthenticationType == AuthenticationType.PASSWORD)
         {
-            if(finalSearchIndexSettings.AuthenticationDetails == null)
+            if (finalSearchIndexSettings.AuthenticationDetails == null)
             {
                 throw new ArgumentException("Authentication details are missing");
             }
@@ -58,7 +58,7 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
         connectionString.AuthenticationType switch
         {
             AuthenticationType.NONE => new SingleNodePool(new Uri(connectionString.ConnectionString)),
-            AuthenticationType.PASSWORD => new (new Uri(connectionString.ConnectionString)),
+            AuthenticationType.PASSWORD => new(new Uri(connectionString.ConnectionString)),
             AuthenticationType.CLOUD => connectionString.AuthenticationDetails != null
                 ? new CloudNodePool(connectionString.AuthenticationDetails.Id,
                     new BasicAuthentication(connectionString.AuthenticationDetails!.Username,

@@ -1,4 +1,4 @@
-using Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Lifti.Services;
 using Bielu.BetterSearch.Tests;
 using Shouldly;
@@ -7,7 +7,7 @@ using Lifti.Querying;
 
 namespace Bielu.BetterSearch.Lifti.Tests;
 
-public class DepedencyInjection(IServiceProvider collection) : DepedenyInjectionTestBase<LiftiIndexingProviderAsync,IFullTextIndex<string>,IQuery>(collection)
+public class DepedencyInjection(IServiceProvider collection) : DepedenyInjectionTestBase<LiftiIndexingProviderAsync, IFullTextIndex<string>, IQuery>(collection)
 {
     [Fact]
     public void LiftiIndexManagerShouldBeRegistered() => ServiceShouldBeRegistered(typeof(ILiftiIndexManager));

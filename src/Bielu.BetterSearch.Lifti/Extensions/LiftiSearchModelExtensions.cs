@@ -4,5 +4,5 @@ namespace Bielu.BetterSearch.Lifti.Extensions;
 
 public static class LiftiSearchModelExtensions
 {
-    
+
 }

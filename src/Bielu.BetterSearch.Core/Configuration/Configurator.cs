@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Bielu.BetterSearch.Configuration;
 
-public class Configurator(IServiceCollection services,IConfiguration configuration)
+public class Configurator(IServiceCollection services, IConfiguration configuration)
 {
     public IServiceCollection Services => services;
     public IConfiguration AppConfiguration => configuration;

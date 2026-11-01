@@ -1,6 +1,6 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Query.SubQueries
 {
-    public class PrefixSubQuery: ISearchSubQuery
+    public class PrefixSubQuery : ISearchSubQuery
     {
         public Occurance Occurance { get; set; }
         public int BoostValue { get; set; } = 1;

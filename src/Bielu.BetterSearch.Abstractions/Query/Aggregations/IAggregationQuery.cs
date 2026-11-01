@@ -3,5 +3,5 @@
 public interface IAggregationQuery
 {
     string AggregationName { get; set; }
-    public List<IAggregationQuery> NestedAggregations{ get; set; }
+    public List<IAggregationQuery> NestedAggregations { get; set; }
 }

@@ -6,7 +6,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
     {
         //todo: better dsl coverage
         public static IBaseQueryConfigurator CreateHighlighterQuery<T>(this IBaseQueryConfigurator configurator,
-            Action<T> query) where T :  IHighlightQuery, new()
+            Action<T> query) where T : IHighlightQuery, new()
         {
             var booleanQuery = new T();
             query.Invoke(booleanQuery);
@@ -15,7 +15,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         }
         //todo: better dsl coverage
         public static IBaseQueryConfigurator CreateHighlighterQuery<T>(this IBaseQueryConfigurator configurator,
-            Action<HighLighterConfigurator> query) where T :  IHighlightQuery, new()
+            Action<HighLighterConfigurator> query) where T : IHighlightQuery, new()
         {
             var booleanQuery = new HighLighterConfigurator(configurator.Query);
             query.Invoke(booleanQuery);

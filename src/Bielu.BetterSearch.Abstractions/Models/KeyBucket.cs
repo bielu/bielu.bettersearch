@@ -1,4 +1,4 @@
-namespace Bielu.BetterSearch.Abstractions.Models
+﻿namespace Bielu.BetterSearch.Abstractions.Models
 {
     public class KeyBucket : IBucket
     {

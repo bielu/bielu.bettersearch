@@ -24,10 +24,10 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
         //implement bulk indexing
         var searchDocuments = documents.ToList();
         var results = new List<Result>();
-        foreach (var indexGroup in searchDocuments.GroupBy(x=>x.Index))
+        foreach (var indexGroup in searchDocuments.GroupBy(x => x.Index))
         {
             var client = await clientFactory.GetOrCreateClientAsync(indexGroup.Key);
-            var bulkResponse = await client.BulkAsync(b => b.IndexMany(indexGroup.Select(x=>x), (descriptor, _) => descriptor.Index(indexGroup.Key)), cancellationToken);
+            var bulkResponse = await client.BulkAsync(b => b.IndexMany(indexGroup.Select(x => x), (descriptor, _) => descriptor.Index(indexGroup.Key)), cancellationToken);
             results.Add(bulkResponse.IsSuccess() ? Result.Ok() : Result.Fail(new Error(bulkResponse.DebugInformation)));
         }
 
@@ -71,7 +71,7 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
     {
         try
         {
-            var result= await (await clientFactory.GetOrCreateClientAsync(index)).Indices.ExistsAsync(new ExistsRequest(Indices.Index(index)), cancellationToken);
+            var result = await (await clientFactory.GetOrCreateClientAsync(index)).Indices.ExistsAsync(new ExistsRequest(Indices.Index(index)), cancellationToken);
             return result.Exists;
         }
         catch (Exception e)
@@ -81,10 +81,11 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
 
     }
 
-    public async Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default)  {
+    public async Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default)
+    {
         try
         {
-            var result= await (await clientFactory.GetOrCreateClientAsync(index)).Indices.CreateAsync(new CreateIndexRequest(Indices.Index(index)), cancellationToken);
+            var result = await (await clientFactory.GetOrCreateClientAsync(index)).Indices.CreateAsync(new CreateIndexRequest(Indices.Index(index)), cancellationToken);
             if (!result.IsSuccess())
             {
                 logger.LogError("Indexing failed: {Error}", result.DebugInformation);

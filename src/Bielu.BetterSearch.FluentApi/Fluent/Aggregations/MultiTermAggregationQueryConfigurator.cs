@@ -1,4 +1,4 @@
-using Bielu.BetterSearch.Abstractions.Query.Aggregations;
+﻿using Bielu.BetterSearch.Abstractions.Query.Aggregations;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent.Aggregations;
 
@@ -24,7 +24,7 @@ public class MultiTermAggregationQueryConfigurator
     }
     public MultiTermAggregationQueryConfigurator WithTerms(params string[] fieldsNames)
     {
-        _query.Terms = fieldsNames.Select(x=>new SimpleTerm(){TermFieldName = x}).ToList();
+        _query.Terms = fieldsNames.Select(x => new SimpleTerm() { TermFieldName = x }).ToList();
         return this;
     }
 }
