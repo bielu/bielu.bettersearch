@@ -4,25 +4,25 @@
     <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="coverlet.collector" Version="6.0.0" />
-    <PackageVersion Include="Elastic.Clients.Elasticsearch" Version="9.3.4" />
-    <PackageVersion Include="FluentAssertions" Version="7.0.0-alpha.3" />
-    <PackageVersion Include="FluentResults" Version="3.15.2" />
-    <PackageVersion Include="FluentResults.Extensions.FluentAssertions" Version="2.1.1" />
+    <!-- Core dependencies -->
+    <PackageVersion Include="FluentResults" Version="4.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.14" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
-    <PackageVersion Include="NSubstitute" Version="5.1.0" />
+    <!-- Providers -->
+    <PackageVersion Include="Elastic.Clients.Elasticsearch" Version="9.5.3" />
     <PackageVersion Include="Lifti.Core" Version="7.0.2" />
-    <PackageVersion Include="Testcontainers" Version="4.11.0" />
-    <PackageVersion Include="Testcontainers.Elasticsearch" Version="4.11.0" />
-    <PackageVersion Include="xunit" Version="2.5.3" />
-    <PackageVersion Include="Xunit.DependencyInjection" Version="9.3.0" />
-    <PackageVersion Include="Xunit.DependencyInjection.AspNetCoreTesting" Version="9.0.0" />
-    <PackageVersion Include="Xunit.DependencyInjection.Logging" Version="9.0.0" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <!-- Test frameworks -->
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
+    <PackageVersion Include="xunit.v3.extensibility.core" Version="4.0.2" />
+    <PackageVersion Include="Xunit.DependencyInjection" Version="12.0.1" />
+    <PackageVersion Include="Xunit.DependencyInjection.Logging" Version="12.0.0" />
+    <!-- Integration test infrastructure -->
+    <PackageVersion Include="Testcontainers.Elasticsearch" Version="4.16.0" />
+    <!-- Code Coverage -->
+    <PackageVersion Include="coverlet.MTP" Version="10.1.0" />
   </ItemGroup>
 </Project>

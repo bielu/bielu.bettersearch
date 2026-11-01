@@ -1,5 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Services;
-using FluentAssertions;
+using Bielu.BetterSearch.Abstractions.Services;
+using Shouldly;
 
 namespace Bielu.BetterSearch.Tests;
 
@@ -12,27 +12,27 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         var index = "test-index-1";
 
         //Act
-        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.Should().Be(true);
+        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
     }
     [Fact]
     public async Task CanDeleteIndexAsyncTest()
     {
         //Arrange
         var index = "test-index-1";
-        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.Should().Be(true);
+        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
 
         //Act
-        (await indexingProviderAsync.DeleteIndexAsync(index)).IsSuccess.Should().Be(true);
+        (await indexingProviderAsync.DeleteIndexAsync(index)).IsSuccess.ShouldBeTrue();
     }
     [Fact]
     public async Task CanCheckIfIndexExistsAsyncTest()
     {
         //Arrange
         var index = "test-index-1";
-        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.Should().Be(true);
+        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
 
         //Act
-        (await indexingProviderAsync.IndexExistsAsync(index)).IsSuccess.Should().Be(true);
+        (await indexingProviderAsync.IndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
     }
     [Fact]
     public async Task EnsureIndexWorksWhenIndexExistsAsyncTest()
@@ -41,15 +41,15 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         var index = "test-index-1";
 
         //Act
-        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.Should().Be(true);
-        (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.Should().Be(true);
+        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
+        (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
     }
     [Fact]
     public async Task EnsureIndexWorksWhenIndexNotExistsAsyncTest()
     {
         //Arrange
         var index = "test-index-1";
-        (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.Should().Be(true);
+        (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
     }
     [Fact]
     public async Task IndexDocumentAsyncTest()
@@ -58,7 +58,7 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index-1", };
 
         //Act
-        (await serviceAsync.IndexDocumentAsync(document)).IsSuccess.Should().Be(true);
+        (await serviceAsync.IndexDocumentAsync(document)).IsSuccess.ShouldBeTrue();
     }
     [Fact]
     public async Task IndexDocumentsAsyncTest()
@@ -71,20 +71,20 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         };
 
         //Act
-        (await serviceAsync.IndexMultipleDocumentsAsync(documents)).IsSuccess.Should().Be(true);
+        (await serviceAsync.IndexMultipleDocumentsAsync(documents)).IsSuccess.ShouldBeTrue();
     }
     [Fact]
     public async Task DeleteDocumentAsyncTest()
     {
         //Arrange
         var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index-1", };
-        (await serviceAsync.IndexDocumentAsync(document)).IsSuccess.Should().Be(true);
+        (await serviceAsync.IndexDocumentAsync(document)).IsSuccess.ShouldBeTrue();
 
         //Act
         (await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
         {
             Id = document.Id,
             Type = document.Index,
-        })).IsSuccess.Should().Be(true);
+        })).IsSuccess.ShouldBeTrue();
     }
 }
