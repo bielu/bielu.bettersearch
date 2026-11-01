@@ -13,8 +13,8 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
 {
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
     {
-        var indexResult = await (await clientFactory.GetOrCreateClientAsync(document.Index)).IndexAsync(document,
-            cancellationToken);
+        var indexResult = await (await clientFactory.GetOrCreateClientAsync(document.Index).ConfigureAwait(false)).IndexAsync(document,
+            cancellationToken).ConfigureAwait(false);
         return indexResult.IsSuccess() ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
     }
 
@@ -26,8 +26,8 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
         var results = new List<Result>();
         foreach (var indexGroup in searchDocuments.GroupBy(x => x.Index))
         {
-            var client = await clientFactory.GetOrCreateClientAsync(indexGroup.Key);
-            var bulkResponse = await client.BulkAsync(b => b.IndexMany(indexGroup.Select(x => x), (descriptor, _) => descriptor.Index(indexGroup.Key)), cancellationToken);
+            var client = await clientFactory.GetOrCreateClientAsync(indexGroup.Key).ConfigureAwait(false);
+            var bulkResponse = await client.BulkAsync(b => b.IndexMany(indexGroup.Select(x => x), (descriptor, _) => descriptor.Index(indexGroup.Key)), cancellationToken).ConfigureAwait(false);
             results.Add(bulkResponse.IsSuccess() ? Result.Ok() : Result.Fail(new Error(bulkResponse.DebugInformation)));
         }
 
@@ -36,7 +36,7 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
 
     public async Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default)
     {
-        var indexResult = await (await clientFactory.GetOrCreateClientAsync(type)).DeleteAsync(new DeleteRequest(type, id), cancellationToken);
+        var indexResult = await (await clientFactory.GetOrCreateClientAsync(type).ConfigureAwait(false)).DeleteAsync(new DeleteRequest(type, id), cancellationToken).ConfigureAwait(false);
         return indexResult.IsSuccess() ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
     }
 
@@ -45,25 +45,25 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
     {
         var request = new DeleteByQueryRequest(Indices.Index(index.IndexName));
         request.Query = new MatchAllQuery();
-        var indexResult = await (await clientFactory.GetOrCreateClientAsync(index.IndexName)).DeleteByQueryAsync(request,
-            cancellationToken);
+        var indexResult = await (await clientFactory.GetOrCreateClientAsync(index.IndexName).ConfigureAwait(false)).DeleteByQueryAsync(request,
+            cancellationToken).ConfigureAwait(false);
         return indexResult.IsSuccess() ? Result.Ok(indexResult.Deleted) : Result.Fail(new Error(indexResult.DebugInformation));
     }
 
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {
-        var exist = await IndexExistsAsync(index, cancellationToken);
+        var exist = await IndexExistsAsync(index, cancellationToken).ConfigureAwait(false);
         if (exist is { IsSuccess: true, Value: true })
         {
             return Result.Ok();
         }
 
-        return await CreateIndexAsync(index, cancellationToken);
+        return await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default)
     {
-        var indexResult = await (await clientFactory.GetOrCreateClientAsync(index)).Indices.DeleteAsync(new DeleteIndexRequest(Indices.Index(index)), cancellationToken);
+        var indexResult = await (await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false)).Indices.DeleteAsync(new DeleteIndexRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
         return indexResult.IsSuccess() ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
     }
 
@@ -71,7 +71,7 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
     {
         try
         {
-            var result = await (await clientFactory.GetOrCreateClientAsync(index)).Indices.ExistsAsync(new ExistsRequest(Indices.Index(index)), cancellationToken);
+            var result = await (await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false)).Indices.ExistsAsync(new ExistsRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
             return result.Exists;
         }
         catch (Exception e)
@@ -85,7 +85,7 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
     {
         try
         {
-            var result = await (await clientFactory.GetOrCreateClientAsync(index)).Indices.CreateAsync(new CreateIndexRequest(Indices.Index(index)), cancellationToken);
+            var result = await (await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false)).Indices.CreateAsync(new CreateIndexRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess())
             {
                 logger.LogError("Indexing failed: {Error}", result.DebugInformation);

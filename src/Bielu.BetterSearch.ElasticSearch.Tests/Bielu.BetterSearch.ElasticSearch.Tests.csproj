@@ -3,6 +3,8 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <IsPackable>false</IsPackable>
+        <!-- BIELU008 (ConfigureAwait) conflicts with xUnit1030 in test code. -->
+        <NoWarn>$(NoWarn);BIELU008</NoWarn>
         <IsTestProject>true</IsTestProject>
     </PropertyGroup>
 

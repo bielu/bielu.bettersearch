@@ -35,7 +35,7 @@ public class BooleanSubQueryTranslator : ISubQueryTranslator<IQuery>
                 return Result.Fail<IQuery>($"No translator found for nested query type {nested.GetType().Name}");
             }
 
-            var result = await translator.TranslateAsync(nested, subQueryTranslators);
+            var result = await translator.TranslateAsync(nested, subQueryTranslators).ConfigureAwait(false);
             if (result.IsFailed)
             {
                 return result;

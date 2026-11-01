@@ -14,13 +14,13 @@ public class LiftiSearchProviderAsync(
 {
     public async Task<Result<ISearchResult<ISearchModel>>> SearchAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
     {
-        var indexResult = await manager.GetOrCreateIndexAsync(query.Index);
+        var indexResult = await manager.GetOrCreateIndexAsync(query.Index).ConfigureAwait(false);
         if (indexResult.IsFailed)
         {
             return Result.Fail<ISearchResult<ISearchModel>>(indexResult.Errors);
         }
         var index = indexResult.Value;
-        var translateMainQuery = await queryTranslateServiceAsync.TranslateMainQuery(query);
+        var translateMainQuery = await queryTranslateServiceAsync.TranslateMainQueryAsync(query).ConfigureAwait(false);
         if (translateMainQuery.IsFailed)
         {
             return Result.Fail<ISearchResult<ISearchModel>>(translateMainQuery.Errors);

@@ -8,7 +8,7 @@ namespace Bielu.BetterSearch.Tests;
 
 public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIndexingServiceAsync indexingServiceAsync)
 {
-    private async Task CreateExampleDocuments(string index)
+    private async Task CreateExampleDocumentsAsync(string index)
     {
         var documents = new List<SearchDocument>
         {
@@ -54,7 +54,7 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
     public async Task CanSearchWithPrefixQueryAsyncTest()
     {
         var index = "test-index-1";
-        await CreateExampleDocuments(index);
+        await CreateExampleDocumentsAsync(index);
         //Arrange
         var query = new SearchQuery();
         query.Index = index;

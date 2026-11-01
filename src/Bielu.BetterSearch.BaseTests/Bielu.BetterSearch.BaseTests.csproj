@@ -3,6 +3,8 @@
     <!-- Shared test bases: a plain library, so it references the xunit.v3 attributes without being an executable test host. -->
     <PropertyGroup>
         <IsPackable>false</IsPackable>
+        <!-- BIELU008 (ConfigureAwait) conflicts with xUnit1030 in test code. -->
+        <NoWarn>$(NoWarn);BIELU008</NoWarn>
         <IsTestProject>false</IsTestProject>
         <RootNamespace>Bielu.BetterSearch.Tests</RootNamespace>
     </PropertyGroup>

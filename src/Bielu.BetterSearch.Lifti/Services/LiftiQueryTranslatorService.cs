@@ -10,7 +10,7 @@ namespace Bielu.BetterSearch.Lifti.Services;
 public class LiftiQueryTranslatorService(
     IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators) : IQueryTranslateServiceAsync<IQuery>
 {
-    public async Task<Result<IQuery>> TranslateMainQuery(ISearchQuery<ISearchResult<ISearchModel>> query)
+    public async Task<Result<IQuery>> TranslateMainQueryAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
     {
         if (query.Query == null || query.Query.Count == 0)
         {
@@ -30,7 +30,7 @@ public class LiftiQueryTranslatorService(
                     return Result.Fail<IQuery>($"No translator found for subquery type {subQuery.GetType().Name}");
                 }
 
-                var translationResult = await translator.TranslateAsync(subQuery, subQueryTranslators);
+                var translationResult = await translator.TranslateAsync(subQuery, subQueryTranslators).ConfigureAwait(false);
                 if (translationResult.IsFailed)
                 {
                     return Result.Fail<IQuery>(translationResult.Errors);

@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Bielu.BetterSearch.DepedencyInjection;
 
-public static class RegisterSearchExtension
+public static class BetterSearchServiceCollectionExtensions
 {
     public static IServiceCollection AddBetterSearch(this IServiceCollection services, IConfiguration configuration, Action<Configurator> configure)
     {
