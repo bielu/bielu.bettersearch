@@ -4,7 +4,7 @@ namespace Bielu.BetterSearch.Abstractions.Models
 {
     public interface ISearchModel : IEntity<string>
     {
-        string Key { get; set; }        
+        string Key { get; set; }
         string Url { get; set; }
 
         DateTime? IndexedAt { get; set; }
@@ -15,7 +15,7 @@ namespace Bielu.BetterSearch.Abstractions.Models
         IList<string> Tags { get; set; }
         string ContentType { get; set; }
         Type ViewModelType { get; set; }
-        IDictionary<string, List<object>> CustomProperties { get; set; } 
+        IDictionary<string, List<object>> CustomProperties { get; set; }
         public string Facet { get; set; }
         List<string> AdditionalKeys { get; set; }
     }

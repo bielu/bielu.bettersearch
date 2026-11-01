@@ -2,6 +2,6 @@
 {
     public class HighLighter : Dictionary<string, List<object>>
     {
-        
+
     }
 }

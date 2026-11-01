@@ -1,4 +1,4 @@
-using Bielu.BetterSearch.Abstractions.Models;
+﻿using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;

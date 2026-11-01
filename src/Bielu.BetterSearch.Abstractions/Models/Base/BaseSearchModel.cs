@@ -2,7 +2,7 @@
 
 namespace Bielu.BetterSearch.Abstractions.Models
 {
-    public class BaseSearchModel: ISearchModel
+    public class BaseSearchModel : ISearchModel
     {
         public string Key { get; set; }
         public string Url { get; set; }
@@ -13,7 +13,7 @@ namespace Bielu.BetterSearch.Abstractions.Models
         {
             get
             {
-              return  Culture.IetfLanguageTag.ToLowerInvariant().Replace("-","");
+                return Culture.IetfLanguageTag.ToLowerInvariant().Replace("-", "");
             }
             set { }
         }

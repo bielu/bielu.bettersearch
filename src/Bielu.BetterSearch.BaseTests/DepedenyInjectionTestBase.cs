@@ -1,10 +1,10 @@
-using Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Services;
 using Shouldly;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bielu.BetterSearch.Tests;
 
-public abstract class DepedenyInjectionTestBase<TSearchServiceType,TSearchClient, TQueryType>(IServiceProvider collection)
+public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClient, TQueryType>(IServiceProvider collection)
 {
     public void ServiceShouldBeRegistered(Type serviceType)
     {

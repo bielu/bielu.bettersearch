@@ -12,7 +12,7 @@ public static class RegisterSearchExtension
         var configurator = new Configurator(services, configuration);
         configure(configurator);
         services.AddSingleton(configurator.Configuration);
-        services.AddScoped(typeof(IDocumentValidatorAsync) ,configurator.Configuration.DocumentValidatorType);
+        services.AddScoped(typeof(IDocumentValidatorAsync), configurator.Configuration.DocumentValidatorType);
         services.AddScoped(typeof(IIndexingServiceAsync), configurator.Configuration.IndexingServiceType);
         services.AddScoped(typeof(ISearchProviderAsync), configurator.Configuration.SearchProviderType);
         services.AddScoped(typeof(IIndexingProviderAsync), configurator.Configuration.IndexingProviderType);

@@ -6,7 +6,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
     {
         //todo: better dsl coverage
         public static IBaseQueryConfigurator CreateAggregationQuery<T>(this IBaseQueryConfigurator configurator,
-            Action<T> query) where T :  IAggregationQuery, new()
+            Action<T> query) where T : IAggregationQuery, new()
         {
             var booleanQuery = new T();
             query.Invoke(booleanQuery);
@@ -22,7 +22,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
             return configurator;
         }
         public static IAggregationConfigurator CreateSubAggregationQuery<T>(this IAggregationConfigurator configurator,
-            Action<T> query) where T :  IAggregationQuery, new()
+            Action<T> query) where T : IAggregationQuery, new()
         {
             var booleanQuery = new T();
             query.Invoke(booleanQuery);

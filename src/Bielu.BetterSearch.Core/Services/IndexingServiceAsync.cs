@@ -88,14 +88,14 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
     }
 
 
-    public async Task<Result<int>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request,CancellationToken cancellationToken = default)
+    public async Task<Result<int>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
     {
         foreach (var observer in _deleteAllDocumentsObservers)
         {
             observer.OnNext(request);
         }
 
-       var result = await indexingProvider.RemoveAllDocumentsAsync(request,cancellationToken);
+        var result = await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken);
         //indexing finished
         foreach (var observer in _deleteAllDocumentsObservers)
         {

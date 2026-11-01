@@ -1,4 +1,4 @@
-using Bielu.BetterSearch.DepedencyInjection;
+﻿using Bielu.BetterSearch.DepedencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
 using Microsoft.Extensions.Configuration;

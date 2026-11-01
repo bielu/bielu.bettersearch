@@ -9,7 +9,7 @@ public class LiftiClientFactoryAsync(ILiftiIndexManager indexManager)
     public async Task<IFullTextIndex<string>> GetOrCreateClientAsync(string indexName)
     {
         var index = await indexManager.GetOrCreateIndexAsync(indexName);
-        if(index.IsSuccess)
+        if (index.IsSuccess)
         {
             return index.Value;
         }

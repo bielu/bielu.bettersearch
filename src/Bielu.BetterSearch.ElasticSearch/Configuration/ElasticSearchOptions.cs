@@ -4,7 +4,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Configuration;
 
 public class ElasticSearchOptions
 {
-    public static string ElasticSearchOptionsKey { get; }= "Bielu:BetterSearch:ElasticSearch";
+    public static string ElasticSearchOptionsKey { get; } = "Bielu:BetterSearch:ElasticSearch";
     public ElasticSearchIndexSettings SharedIndexSettings { get; set; }
     public Dictionary<string, ElasticSearchIndexSettings>? Indexes { get; set; }
 

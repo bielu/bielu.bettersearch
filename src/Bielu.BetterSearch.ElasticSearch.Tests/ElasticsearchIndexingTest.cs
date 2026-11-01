@@ -1,4 +1,4 @@
-using Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Tests;
 using Testcontainers.Elasticsearch;
 
@@ -9,7 +9,7 @@ public sealed class ElasticsearchIndexingTest(IIndexingServiceAsync serviceAsync
 {
     private readonly ElasticsearchContainer _elasticsearch
         = new ElasticsearchBuilder().WithPortBinding(9200, 9200)
-            .WithPortBinding(9300, 9300)    .WithEnvironment("xpack.security.transport.ssl.enabled", "false")
+            .WithPortBinding(9300, 9300).WithEnvironment("xpack.security.transport.ssl.enabled", "false")
             .WithEnvironment("xpack.security.http.ssl.enabled", "false").Build();
 
     public async ValueTask InitializeAsync()

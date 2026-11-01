@@ -9,7 +9,7 @@ public class FluentApiSearchQueryCreator(ISearchQuery<ISearchResult<ISearchModel
     {
         var query = new QueryCreatorConfigurator(new SearchQuery());
         configurator.Invoke(query);
-        baseQuery =   query.Query;
+        baseQuery = query.Query;
         return this;
     }
     public ISearchQuery<ISearchResult<ISearchModel>> CreateSearchQuery(Action<IBaseQueryConfigurator> configurator)

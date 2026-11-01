@@ -1,4 +1,4 @@
-using Bielu.BetterSearch.Abstractions.Query.SubQueries;
+﻿using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
