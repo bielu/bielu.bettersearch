@@ -3,9 +3,9 @@ name: CI
 on:
   push:
     branches: [ $default-branch ]
+  # No branch filter: the previous filter named `master`, which does not exist here, so pull requests
+  # never ran CI. Leaving it open also gives stacked pull requests (based on another branch) a run.
   pull_request:
-    branches: 
-      - master
 
   workflow_dispatch:
 
@@ -14,7 +14,10 @@ jobs:
       # Runs a single command using the runners shell
   buildPr:
     if: github.event_name == 'pull_request'
-    uses: bielu/bielu.GithubActions.Templates/.github/workflows/ci.yml@main
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: bielu/bielu.GithubActions.Templates/.github/workflows/ciNoSchema.yml@main
     with:
       suffix: "pr"
 
