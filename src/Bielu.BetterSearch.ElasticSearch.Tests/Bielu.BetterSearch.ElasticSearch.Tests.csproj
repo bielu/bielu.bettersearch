@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
+        <OutputType>Exe</OutputType>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
     </PropertyGroup>
@@ -8,25 +9,30 @@
     <ItemGroup>
         <PackageReference Include="coverlet.collector" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="Microsoft.Extensions.Configuration" />
+        <PackageReference Include="Shouldly" />
         <PackageReference Include="Testcontainers.Elasticsearch" />
-        <PackageReference Include="xunit" />
+        <PackageReference Include="xunit.v3.mtp-off" />
         <PackageReference Include="xunit.runner.visualstudio" />
+        <PackageReference Include="Xunit.DependencyInjection" />
+        <PackageReference Include="Xunit.DependencyInjection.Logging" />
     </ItemGroup>
 
-  <ItemGroup>
-    <Using Include="Xunit" />
-  </ItemGroup>
+    <ItemGroup>
+        <Using Include="Xunit" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Bielu.BetterSearch.BaseTests\Bielu.BetterSearch.BaseTests.csproj" />
-    <ProjectReference Include="..\Bielu.BetterSearch.Core\Bielu.BetterSearch.Core.csproj" />
-    <ProjectReference Include="..\Bielu.BetterSearch.ElasticSearch\Bielu.BetterSearch.ElasticSearch.csproj" />
-    <ProjectReference Include="..\Bielu.BetterSearch.FluentApi\Bielu.BetterSearch.FluentApi.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\Bielu.BetterSearch.BaseTests\Bielu.BetterSearch.BaseTests.csproj" />
+      <ProjectReference Include="..\Bielu.BetterSearch.Core\Bielu.BetterSearch.Core.csproj" />
+      <ProjectReference Include="..\Bielu.BetterSearch.ElasticSearch\Bielu.BetterSearch.ElasticSearch.csproj" />
+      <ProjectReference Include="..\Bielu.BetterSearch.FluentApi\Bielu.BetterSearch.FluentApi.csproj" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <None Update="appsettings.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+    <ItemGroup>
+      <None Update="appsettings.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>

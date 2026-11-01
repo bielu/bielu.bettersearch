@@ -1,7 +1,7 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
-using FluentAssertions;
+using Shouldly;
 
 namespace Bielu.BetterSearch.Tests;
 
@@ -10,21 +10,21 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
     private async Task SubQueryShouldBeTranslatable(ISearchSubQuery subQuery)
     {
         var canTranslate = translators.Any(t => t.CanTranslate(subQuery));
-        canTranslate.Should().BeTrue($"because a translator should be able to translate {subQuery.GetType().Name}");
+        canTranslate.ShouldBeTrue($"because a translator should be able to translate {subQuery.GetType().Name}");
 
         var translator = translators.First(t => t.CanTranslate(subQuery));
         var result = await translator.TranslateAsync(subQuery,translators);
-        result.IsSuccess.Should().BeTrue($"because translation of {subQuery.GetType().Name} should be successful");
+        result.IsSuccess.ShouldBeTrue($"because translation of {subQuery.GetType().Name} should be successful");
     }
 
     protected async Task SubQueryTranslationShouldFail(ISearchSubQuery subQuery)
     {
         var canTranslate = translators.Any(t => t.CanTranslate(subQuery));
-        canTranslate.Should().BeTrue($"because a translator should exist for {subQuery.GetType().Name} even if unsupported");
+        canTranslate.ShouldBeTrue($"because a translator should exist for {subQuery.GetType().Name} even if unsupported");
 
         var translator = translators.First(t => t.CanTranslate(subQuery));
         var result = await translator.TranslateAsync(subQuery, translators);
-        result.IsFailed.Should().BeTrue($"because {subQuery.GetType().Name} is not supported by this provider");
+        result.IsFailed.ShouldBeTrue($"because {subQuery.GetType().Name} is not supported by this provider");
     }
 
     [Fact]

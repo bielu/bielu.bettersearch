@@ -1,5 +1,5 @@
 using Bielu.BetterSearch.Abstractions.Services;
-using FluentAssertions;
+using Shouldly;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bielu.BetterSearch.Tests;
@@ -9,12 +9,12 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType,TSearchClient
     public void ServiceShouldBeRegistered(Type serviceType)
     {
         var instance = collection.GetService(serviceType);
-        instance.Should().NotBeNull($"because {serviceType.Name} should be registered in the service provider");
+        instance.ShouldNotBeNull($"because {serviceType.Name} should be registered in the service provider");
     }
     public void ServiceShouldBeTypeOf(Type interfaceType, Type implementationType)
     {
         var instance = collection.GetService(interfaceType);
-        instance.Should().BeOfType(implementationType, $"because {interfaceType.Name} should be registered as {implementationType.Name}");
+        instance.ShouldBeOfType(implementationType, $"because {interfaceType.Name} should be registered as {implementationType.Name}");
     }
     [Fact]
     public void IndexingProviderShouldBeRegistered() => ServiceShouldBeRegistered(typeof(IIndexingProviderAsync));

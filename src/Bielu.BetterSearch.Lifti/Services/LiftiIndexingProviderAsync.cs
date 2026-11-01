@@ -1,4 +1,4 @@
-﻿using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
 using Lifti;
 
@@ -98,6 +98,6 @@ public class LiftiIndexingProviderAsync(
     public async Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default)
     {
         var result = await liftiIndexManager.CreateIndexAsync(index);
-        return result.IsSuccess ? Result.Ok(true) : Result.Fail(result.Errors.First().Message);
+        return result.IsSuccess ? Result.Ok(true) : Result.Fail(result.Errors[0].Message);
     }
 }

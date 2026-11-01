@@ -1,8 +1,8 @@
-﻿using Bielu.BetterSearch.Abstractions.Models;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
-using FluentAssertions;
+using Shouldly;
 
 namespace Bielu.BetterSearch.Tests;
 
@@ -67,9 +67,9 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
         var result = await serviceAsync.SearchAsync(query);
 
         //Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().NotBeNull();
-        result.Value.Items.Should().NotBeEmpty();
-        result.Value.Items.Count().Should().BeGreaterThan(0);
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldNotBeNull();
+        result.Value.Items.ShouldNotBeEmpty();
+        result.Value.Items.Count().ShouldBeGreaterThan(0);
     }
 }

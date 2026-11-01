@@ -1,7 +1,7 @@
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Lifti.Services;
 using Bielu.BetterSearch.Tests;
-using FluentAssertions;
+using Shouldly;
 using Lifti;
 using Lifti.Querying;
 
