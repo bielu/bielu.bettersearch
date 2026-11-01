@@ -15,18 +15,14 @@
     <PackageVersion Include="Elastic.Clients.Elasticsearch" Version="9.5.3" />
     <PackageVersion Include="Lifti.Core" Version="7.0.2" />
     <!-- Test frameworks -->
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
-    <!-- mtp-off: the shared CI template runs dotnet test with VSTest arguments (logger trx, collect coverage),
-         which the Microsoft Testing Platform runner in plain xunit.v3 rejects on the .NET 10 SDK. -->
-    <PackageVersion Include="xunit.v3.mtp-off" Version="4.0.2" />
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
     <PackageVersion Include="xunit.v3.extensibility.core" Version="4.0.2" />
     <PackageVersion Include="Xunit.DependencyInjection" Version="12.0.1" />
     <PackageVersion Include="Xunit.DependencyInjection.Logging" Version="12.0.0" />
     <!-- Integration test infrastructure -->
     <PackageVersion Include="Testcontainers.Elasticsearch" Version="4.16.0" />
     <!-- Code Coverage -->
-    <PackageVersion Include="coverlet.collector" Version="10.1.0" />
+    <PackageVersion Include="coverlet.MTP" Version="10.1.0" />
   </ItemGroup>
 </Project>
