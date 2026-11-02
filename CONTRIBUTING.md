@@ -4,7 +4,7 @@
 
 - **.NET SDK 10.0**
 - **Node.js 22.x** or later (for `npx changeset`)
-- **Docker** (for the Elasticsearch tests)
+- **Docker** (for the Elasticsearch tests and the Aspire AppHost)
 
 ## Build and test
 
@@ -12,6 +12,14 @@
 dotnet build src/Bielu.BetterSearch.slnx
 dotnet test --solution src/Bielu.BetterSearch.slnx
 dotnet format --verify-no-changes src/Bielu.BetterSearch.slnx
+```
+
+## Run the infrastructure
+
+The Aspire AppHost starts Elasticsearch with the dashboard:
+
+```bash
+dotnet run --project src/examples/Bielu.BetterSearch.Examples.AppHost
 ```
 
 ## Pull requests

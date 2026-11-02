@@ -1,4 +1,4 @@
-﻿using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Abstractions.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.IndexManagement;
 using Elastic.Clients.Elasticsearch.QueryDsl;
@@ -13,8 +13,7 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
 {
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
     {
-        var indexResult = await (await clientFactory.GetOrCreateClientAsync(document.Index).ConfigureAwait(false)).IndexAsync(document,
-            cancellationToken).ConfigureAwait(false);
+        var indexResult = await (await clientFactory.GetOrCreateClientAsync(document.Index).ConfigureAwait(false)).IndexAsync(document, document.Index, document.Id, cancellationToken).ConfigureAwait(false);
         return indexResult.IsSuccess() ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
     }
 

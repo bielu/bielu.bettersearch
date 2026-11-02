@@ -19,6 +19,7 @@ The solution is `src/Bielu.BetterSearch.slnx`. Everything, tests included, lives
 | `Bielu.BetterSearch.ElasticSearch` | Elasticsearch provider |
 | `Bielu.BetterSearch.Lifti` | In-memory provider |
 | `Bielu.BetterSearch.EndpointApi`, `.Meilisearch` | Placeholders (not packed) |
+| `examples/Bielu.BetterSearch.Examples.AppHost` | Aspire AppHost running the search engines, for local development and the integration tests (not packed) |
 | `Bielu.BetterSearch.BaseTests` | Provider-agnostic test bases, inherited by each provider's test project (not packed) |
 | `Bielu.BetterSearch.*.Tests` | Test projects (not packed) |
 
@@ -58,6 +59,7 @@ dotnet format --verify-no-changes src/Bielu.BetterSearch.slnx
 
 - **xUnit** (`xunit.v3`) + **Shouldly** assertions.
 - Assert on returned values, not only on `IsSuccess`: `Result<bool>` can succeed with `false`.
+- Provider tests that need a real engine start it through the Aspire AppHost (`ElasticsearchResource`), once per test run, so they need Docker. Don't add Testcontainers.
 - Name tests `Method_Scenario_ExpectedResult`.
 - Add or update tests for any behavior change, covering the happy path and the error paths.
 

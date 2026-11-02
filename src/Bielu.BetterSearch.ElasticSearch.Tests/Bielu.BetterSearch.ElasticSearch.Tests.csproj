@@ -10,9 +10,8 @@
 
     <ItemGroup>
         <PackageReference Include="coverlet.MTP" />
-        <PackageReference Include="Microsoft.Extensions.Configuration" />
         <PackageReference Include="Shouldly" />
-        <PackageReference Include="Testcontainers.Elasticsearch" />
+        <PackageReference Include="Aspire.Hosting.Testing" />
         <PackageReference Include="xunit.v3" />
         <PackageReference Include="Xunit.DependencyInjection" />
         <PackageReference Include="Xunit.DependencyInjection.Logging" />
@@ -27,12 +26,7 @@
       <ProjectReference Include="..\Bielu.BetterSearch.Core\Bielu.BetterSearch.Core.csproj" />
       <ProjectReference Include="..\Bielu.BetterSearch.ElasticSearch\Bielu.BetterSearch.ElasticSearch.csproj" />
       <ProjectReference Include="..\Bielu.BetterSearch.FluentApi\Bielu.BetterSearch.FluentApi.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <None Update="appsettings.json">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
+      <ProjectReference Include="..\examples\Bielu.BetterSearch.Examples.AppHost\Bielu.BetterSearch.Examples.AppHost.csproj" />
     </ItemGroup>
 
 </Project>

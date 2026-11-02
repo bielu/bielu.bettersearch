@@ -6,9 +6,9 @@
   <Project Path="Bielu.BetterSearch.ElasticSearch/Bielu.BetterSearch.ElasticSearch.csproj" />
   <Project Path="Bielu.BetterSearch.EndpointApi/Bielu.BetterSearch.EndpointApi.csproj" />
   <Project Path="Bielu.BetterSearch.FluentApi/Bielu.BetterSearch.FluentApi.csproj" />
-  <Project Path="Bielu.BetterSearch.IntegrationTests/Bielu.BetterSearch.IntegrationTests.csproj" />
   <Project Path="Bielu.BetterSearch.Lifti.Tests/Bielu.BetterSearch.Lifti.Tests.csproj" />
   <Project Path="Bielu.BetterSearch.Lifti/Bielu.BetterSearch.Lifti.csproj" />
   <Project Path="Bielu.BetterSearch.Meilisearch/Bielu.BetterSearch.Meilisearch.csproj" />
   <Project Path="Bielu.BetterSearch.Models/Bielu.BetterSearch.Models.csproj" />
+  <Project Path="examples/Bielu.BetterSearch.Examples.AppHost/Bielu.BetterSearch.Examples.AppHost.csproj" />
 </Solution>
