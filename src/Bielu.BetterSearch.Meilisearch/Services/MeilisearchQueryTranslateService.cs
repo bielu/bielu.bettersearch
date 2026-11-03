@@ -10,9 +10,7 @@ namespace Bielu.BetterSearch.Meilisearch.Services;
 internal sealed class MeilisearchQueryTranslateService : IQueryTranslateServiceAsync<MeilisearchQuery>
 {
     public Task<Result<MeilisearchQuery>> TranslateMainQueryAsync(ISearchQuery<ISearchResult<ISearchModel>> query) =>
-        Task.FromResult(query switch
-        {
-            SearchQuery => Result.Ok(new MeilisearchQuery()),
-            _ => Result.Fail<MeilisearchQuery>("Query type not supported")
-        });
+        // Query translation is not implemented yet, so report it rather than return a query that drops the
+        // requested predicates, paging and sorting; see FEATURE_MATRIX.md.
+        Task.FromResult(Result.Fail<MeilisearchQuery>("Query translation is not supported by the Meilisearch provider yet"));
 }

@@ -60,7 +60,10 @@ public sealed class MeilisearchIndexingProviderAsync(
             return Result.Ok(true);
         }
 
-        return await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        // A concurrent caller may create the index first, which CreateIndexAsync reports as Ok(false);
+        // the index exists either way.
+        var created = await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        return created.IsSuccess ? Result.Ok(true) : created;
     }
 
     public async Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default)

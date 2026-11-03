@@ -182,6 +182,16 @@ public sealed class MeilisearchIndexingProviderTests(
     }
 
     [Fact]
+    public async Task EnsureIndexExistsAsync_ConcurrentCalls_AllReturnTrue()
+    {
+        var index = UniqueIndex();
+
+        var results = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => provider.EnsureIndexExistsAsync(index, Token)));
+
+        results.ShouldAllBe(r => r.IsSuccess && r.Value);
+    }
+
+    [Fact]
     public async Task CreateIndexAsync_IndexAlreadyExists_ReturnsFalse()
     {
         var index = UniqueIndex();

@@ -10,7 +10,8 @@ public class MeilisearchOptions
 
     /// <summary>
     /// How long to wait for Meilisearch to finish a write. Meilisearch queues every write as a task;
-    /// the provider waits for it so a returned <c>Result</c> reflects the outcome.
+    /// the provider waits for it so a successful <c>Result</c> means the write was applied. A timeout fails the
+    /// <c>Result</c> without cancelling the task, so the write may still be applied later.
     /// </summary>
     public TimeSpan TaskTimeout { get; set; } = TimeSpan.FromSeconds(30);
 }

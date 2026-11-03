@@ -51,6 +51,21 @@ public class MeilisearchClientSettingsManagerTests
     }
 
     [Fact]
+    public void GetOrCreateClientSettings_IndexSettingsWithoutConnectionString_DoesNotChangeConfiguredOptions()
+    {
+        var indexSettings = new MeilisearchIndexSettings();
+
+        GetSettings(new MeilisearchOptions
+        {
+            SharedIndexSettings = new MeilisearchIndexSettings { ConnectionString = "http://shared:7700", ApiKey = "shared-key" },
+            Indexes = new Dictionary<string, MeilisearchIndexSettings> { ["products"] = indexSettings },
+        });
+
+        indexSettings.ConnectionString.ShouldBeEmpty();
+        indexSettings.ApiKey.ShouldBeNull();
+    }
+
+    [Fact]
     public void GetOrCreateClientSettings_OtherIndexConfigured_UsesSharedSettings()
     {
         var settings = GetSettings(new MeilisearchOptions

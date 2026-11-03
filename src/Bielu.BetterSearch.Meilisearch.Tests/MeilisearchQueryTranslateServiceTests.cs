@@ -8,11 +8,10 @@ namespace Bielu.BetterSearch.Meilisearch.Tests;
 public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<MeilisearchQuery> translateService)
 {
     [Fact]
-    public async Task TranslateMainQueryAsync_SearchQuery_ReturnsMeilisearchQuery()
+    public async Task TranslateMainQueryAsync_SearchQuery_ReturnsFailure()
     {
         var result = await translateService.TranslateMainQueryAsync(new SearchQuery());
 
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldNotBeNull();
+        result.IsFailed.ShouldBeTrue();
     }
 }

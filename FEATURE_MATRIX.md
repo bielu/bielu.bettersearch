@@ -51,7 +51,7 @@ This document describes the feature support matrix for each search provider.
 
 ## Notes on the Meilisearch Provider
 
-`Bielu.BetterSearch.Meilisearch` (the official MeiliSearch client, tested against Meilisearch 1.54) supports every index operation. Meilisearch applies writes asynchronously as tasks; the provider waits for each task, so a returned `Result` says whether the write was applied (`MeilisearchOptions.TaskTimeout`, 30 seconds by default). Documents use `id` as the primary key, so an `Id` must contain only letters, digits, `-` and `_`.
+`Bielu.BetterSearch.Meilisearch` (the official MeiliSearch client, tested against Meilisearch 1.54) supports every index operation. Meilisearch applies writes asynchronously as tasks; the provider waits for each task, so a successful `Result` means the write was applied and a failed task returns Meilisearch's error. If the wait times out (`MeilisearchOptions.TaskTimeout`, 30 seconds by default) the `Result` fails but the task is not cancelled, so the write may still be applied later. Documents use `id` as the primary key, so an `Id` must contain only letters, digits, `-` and `_`.
 
 Searching is not implemented yet: `SearchAsync` returns a failed `Result`, so no query type, combinator or field filter is supported. That is pending query translation, as for Elasticsearch. Once it lands, raw Lucene syntax (`LuceneQuery`) has no Meilisearch equivalent and will stay unsupported, and fuzzy matching will follow Meilisearch's typo tolerance rather than an edit distance per query.
 

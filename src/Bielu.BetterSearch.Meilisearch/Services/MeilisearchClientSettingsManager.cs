@@ -30,8 +30,18 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
             return indexSpecific;
         }
 
-        indexSpecific.ConnectionString = shared.ConnectionString;
-        indexSpecific.ApiKey ??= shared.ApiKey;
-        return indexSpecific;
+        // Merge into a copy: the monitored options are shared, so mutating them would let a concurrent
+        // lookup see the inherited URL before the inherited key.
+        return new MeilisearchIndexSettings
+        {
+            IndexName = indexSpecific.IndexName,
+            AliasName = indexSpecific.AliasName,
+            TypeName = indexSpecific.TypeName,
+            AliasingEnabled = indexSpecific.AliasingEnabled,
+            IndexingEnabled = indexSpecific.IndexingEnabled,
+            DevMode = indexSpecific.DevMode,
+            ConnectionString = shared.ConnectionString,
+            ApiKey = indexSpecific.ApiKey ?? shared.ApiKey,
+        };
     }
 }
