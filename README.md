@@ -7,7 +7,7 @@ A provider-agnostic search abstraction for .NET: describe a query once, then run
 search engine you configure.
 
 > **Status: beta, not production ready.** The public API will change before 1.0, and the Elasticsearch
-> provider can index documents but cannot search yet. See [ROADMAP.md](./ROADMAP.md) and
+> and OpenSearch providers can index documents but cannot search yet. See [ROADMAP.md](./ROADMAP.md) and
 > [FEATURE_MATRIX.md](./FEATURE_MATRIX.md).
 
 ## Packages
@@ -19,12 +19,26 @@ search engine you configure.
 | `Bielu.BetterSearch.Core` | Dependency injection and the indexing and search services |
 | `Bielu.BetterSearch.FluentApi` | Fluent query builder |
 | `Bielu.BetterSearch.ElasticSearch` | Elasticsearch provider (indexing only so far) |
+| `Bielu.BetterSearch.OpenSearch` | OpenSearch provider (indexing only so far) |
 | `Bielu.BetterSearch.Lifti` | In-memory provider, due to be replaced (see the roadmap) |
 
 ## Usage
 
 ```csharp
 services.AddBetterSearch(search => search.AddLiftiSearch());
+```
+
+To use OpenSearch, register its provider and point it at a cluster, in code or under
+`Bielu:BetterSearch:OpenSearch` in configuration:
+
+```csharp
+services.AddBetterSearch(configuration, search => search.AddOpenSearch());
+services.Configure<OpenSearchOptions>(options => options.SharedIndexSettings = new OpenSearchIndexSettings
+{
+    ConnectionString = "http://localhost:9200",
+    AuthenticationType = OpenSearchAuthenticationType.PASSWORD, // NONE, PASSWORD or APIKEY
+    AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "..." },
+});
 ```
 
 ```csharp

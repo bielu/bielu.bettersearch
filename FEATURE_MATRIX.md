@@ -4,50 +4,54 @@ This document describes the feature support matrix for each search provider.
 
 ## Query Types
 
-| Feature | Elasticsearch | Lifti |
-|---------|:----------:|:-----:|
-| **BoolQuery** (nested boolean logic) | ✅ | ✅ |
-| **TermQuery** (exact term match) | ✅ | ✅ |
-| **TermsQuery** (multiple exact terms) | ✅ | ✅ |
-| **FuzzyQuery** (approximate match) | ✅ | ✅ |
-| **PrefixQuery** (prefix match) | ✅ | ✅ |
-| **PrefixPhraseQuery** (phrase prefix match) | ✅ | ✅ |
-| **LuceneQuery** (raw Lucene syntax) | ✅ | ❌ |
-| **DateRangeQuery** | ✅ | ❌ |
-| **NumericRange** | ✅ | ❌ |
-| **LongRange** | ✅ | ❌ |
-| **StringRange** | ✅ | ❌ |
-| **SpatialSearchQuery** (geo/location) | ✅ | ❌ |
+| Feature | Elasticsearch | OpenSearch | Lifti |
+|---------|:----------:|:----------:|:-----:|
+| **BoolQuery** (nested boolean logic) | ✅ | ❌ | ✅ |
+| **TermQuery** (exact term match) | ✅ | ❌ | ✅ |
+| **TermsQuery** (multiple exact terms) | ✅ | ❌ | ✅ |
+| **FuzzyQuery** (approximate match) | ✅ | ❌ | ✅ |
+| **PrefixQuery** (prefix match) | ✅ | ❌ | ✅ |
+| **PrefixPhraseQuery** (phrase prefix match) | ✅ | ❌ | ✅ |
+| **LuceneQuery** (raw Lucene syntax) | ✅ | ❌ | ❌ |
+| **DateRangeQuery** | ✅ | ❌ | ❌ |
+| **NumericRange** | ✅ | ❌ | ❌ |
+| **LongRange** | ✅ | ❌ | ❌ |
+| **StringRange** | ✅ | ❌ | ❌ |
+| **SpatialSearchQuery** (geo/location) | ✅ | ❌ | ❌ |
 
 ## Query Combinators (Occurance)
 
-| Feature | Elasticsearch | Lifti |
-|---------|:----------:|:-----:|
-| **MUST** (AND) | ✅ | ✅ |
-| **SHOULD** (OR) | ✅ | ✅ |
-| **MUSTNOT** (AND NOT) | ✅ | ✅ |
-| **FILTER** | ✅ | ❌ |
+| Feature | Elasticsearch | OpenSearch | Lifti |
+|---------|:----------:|:----------:|:-----:|
+| **MUST** (AND) | ✅ | ❌ | ✅ |
+| **SHOULD** (OR) | ✅ | ❌ | ✅ |
+| **MUSTNOT** (AND NOT) | ✅ | ❌ | ✅ |
+| **FILTER** | ✅ | ❌ | ❌ |
 
 ## Index Operations
 
-| Feature | Elasticsearch | Lifti |
-|---------|:----------:|:-----:|
-| Create Index | ✅ | ✅ |
-| Delete Index | ✅ | ✅ |
-| Index Exists | ✅ | ✅ |
-| Ensure Index Exists | ✅ | ✅ |
-| Index Document | ✅ | ✅ |
-| Index Multiple Documents | ✅ | ✅ |
-| Remove Document | ✅ | ✅ |
-| Remove All Documents | ✅ | ✅ |
+| Feature | Elasticsearch | OpenSearch | Lifti |
+|---------|:----------:|:----------:|:-----:|
+| Create Index | ✅ | ✅ | ✅ |
+| Delete Index | ✅ | ✅ | ✅ |
+| Index Exists | ✅ | ✅ | ✅ |
+| Ensure Index Exists | ✅ | ✅ | ✅ |
+| Index Document | ✅ | ✅ | ✅ |
+| Index Multiple Documents | ✅ | ✅ | ✅ |
+| Remove Document | ✅ | ✅ | ✅ |
+| Remove All Documents | ✅ | ✅ | ✅ |
 
 ## Field Filtering
 
-| Feature | Elasticsearch | Lifti |
-|---------|:----------:|:-----:|
-| **Field-scoped queries** | ✅ | ⚠️ |
+| Feature | Elasticsearch | OpenSearch | Lifti |
+|---------|:----------:|:----------:|:-----:|
+| **Field-scoped queries** | ✅ | ❌ | ⚠️ |
 
 > ⚠️ **Lifti field-scoped queries**: Lifti supports field-scoped queries via `FieldFilterQueryOperator`. The current implementation performs cross-field searches. Individual query translators do not filter by field name yet.
+
+## Notes on the OpenSearch Provider
+
+`Bielu.BetterSearch.OpenSearch` (OpenSearch.Client 2.x, tested against OpenSearch 3.3) supports every index operation. Searching is not implemented yet: `SearchAsync` returns a failed `Result`, so no query type, combinator or field filter is supported. Like Elasticsearch, OpenSearch can support all of them natively; they are pending query translation, not engine limits.
 
 ## Notes on Unsupported Lifti Features
 

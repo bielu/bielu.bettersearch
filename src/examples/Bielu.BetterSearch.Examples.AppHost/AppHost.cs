@@ -11,4 +11,14 @@ builder.AddContainer("elasticsearch", "elasticsearch", "9.5.3")
     .WithEnvironment("ES_JAVA_OPTS", "-Xms512m -Xmx512m")
     .WithHttpHealthCheck("/_cluster/health", endpointName: "http");
 
+// Keep the image's major version in step with what OpenSearch.Client in Directory.Packages.props supports.
+builder.AddContainer("opensearch", "opensearchproject/opensearch", "3.3.2")
+    .WithHttpEndpoint(targetPort: 9200, name: "http")
+    .WithEnvironment("discovery.type", "single-node")
+    .WithEnvironment("DISABLE_SECURITY_PLUGIN", "true")
+    .WithEnvironment("DISABLE_INSTALL_DEMO_CONFIG", "true")
+    .WithEnvironment("cluster.routing.allocation.disk.threshold_enabled", "false")
+    .WithEnvironment("OPENSEARCH_JAVA_OPTS", "-Xms512m -Xmx512m")
+    .WithHttpHealthCheck("/_cluster/health", endpointName: "http");
+
 await builder.Build().RunAsync().ConfigureAwait(false);
