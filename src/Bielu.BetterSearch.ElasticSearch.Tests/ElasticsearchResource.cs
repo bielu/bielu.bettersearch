@@ -26,6 +26,12 @@ public sealed class ElasticsearchResource : IHostedService
         timeout.CancelAfter(TimeSpan.FromMinutes(5));
 
         var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Bielu_BetterSearch_Examples_AppHost>(timeout.Token);
+        // The AppHost runs every engine; these tests only need Elasticsearch.
+        foreach (var other in builder.Resources.Where(r => r.Name != ResourceName).ToList())
+        {
+            builder.Resources.Remove(other);
+        }
+
         _app = await builder.BuildAsync(timeout.Token);
         await _app.StartAsync(timeout.Token);
         await _app.ResourceNotifications.WaitForResourceHealthyAsync(ResourceName, timeout.Token);

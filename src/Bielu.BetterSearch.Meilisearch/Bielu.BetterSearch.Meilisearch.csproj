@@ -1,8 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-    <!-- Placeholder with no functionality yet; not packed until it has some. See ROADMAP.md. -->
-    <PropertyGroup>
-        <IsPackable>false</IsPackable>
-    </PropertyGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\Bielu.BetterSearch.Abstractions\Bielu.BetterSearch.Abstractions.csproj" />
+      <ProjectReference Include="..\Bielu.BetterSearch.Core\Bielu.BetterSearch.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="MeiliSearch" />
+      <PackageReference Include="Microsoft.Extensions.Configuration" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+      <PackageReference Include="Microsoft.Extensions.Options" />
+      <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <InternalsVisibleTo Include="Bielu.BetterSearch.Meilisearch.Tests" />
+    </ItemGroup>
 
 </Project>
