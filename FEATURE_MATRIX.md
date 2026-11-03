@@ -4,50 +4,56 @@ This document describes the feature support matrix for each search provider.
 
 ## Query Types
 
-| Feature | Elasticsearch | Lifti |
-|---------|:----------:|:-----:|
-| **BoolQuery** (nested boolean logic) | ✅ | ✅ |
-| **TermQuery** (exact term match) | ✅ | ✅ |
-| **TermsQuery** (multiple exact terms) | ✅ | ✅ |
-| **FuzzyQuery** (approximate match) | ✅ | ✅ |
-| **PrefixQuery** (prefix match) | ✅ | ✅ |
-| **PrefixPhraseQuery** (phrase prefix match) | ✅ | ✅ |
-| **LuceneQuery** (raw Lucene syntax) | ✅ | ❌ |
-| **DateRangeQuery** | ✅ | ❌ |
-| **NumericRange** | ✅ | ❌ |
-| **LongRange** | ✅ | ❌ |
-| **StringRange** | ✅ | ❌ |
-| **SpatialSearchQuery** (geo/location) | ✅ | ❌ |
+| Feature | Elasticsearch | Meilisearch | Lifti |
+|---------|:----------:|:-----------:|:-----:|
+| **BoolQuery** (nested boolean logic) | ✅ | ❌ | ✅ |
+| **TermQuery** (exact term match) | ✅ | ❌ | ✅ |
+| **TermsQuery** (multiple exact terms) | ✅ | ❌ | ✅ |
+| **FuzzyQuery** (approximate match) | ✅ | ❌ | ✅ |
+| **PrefixQuery** (prefix match) | ✅ | ❌ | ✅ |
+| **PrefixPhraseQuery** (phrase prefix match) | ✅ | ❌ | ✅ |
+| **LuceneQuery** (raw Lucene syntax) | ✅ | ❌ | ❌ |
+| **DateRangeQuery** | ✅ | ❌ | ❌ |
+| **NumericRange** | ✅ | ❌ | ❌ |
+| **LongRange** | ✅ | ❌ | ❌ |
+| **StringRange** | ✅ | ❌ | ❌ |
+| **SpatialSearchQuery** (geo/location) | ✅ | ❌ | ❌ |
 
 ## Query Combinators (Occurance)
 
-| Feature | Elasticsearch | Lifti |
-|---------|:----------:|:-----:|
-| **MUST** (AND) | ✅ | ✅ |
-| **SHOULD** (OR) | ✅ | ✅ |
-| **MUSTNOT** (AND NOT) | ✅ | ✅ |
-| **FILTER** | ✅ | ❌ |
+| Feature | Elasticsearch | Meilisearch | Lifti |
+|---------|:----------:|:-----------:|:-----:|
+| **MUST** (AND) | ✅ | ❌ | ✅ |
+| **SHOULD** (OR) | ✅ | ❌ | ✅ |
+| **MUSTNOT** (AND NOT) | ✅ | ❌ | ✅ |
+| **FILTER** | ✅ | ❌ | ❌ |
 
 ## Index Operations
 
-| Feature | Elasticsearch | Lifti |
-|---------|:----------:|:-----:|
-| Create Index | ✅ | ✅ |
-| Delete Index | ✅ | ✅ |
-| Index Exists | ✅ | ✅ |
-| Ensure Index Exists | ✅ | ✅ |
-| Index Document | ✅ | ✅ |
-| Index Multiple Documents | ✅ | ✅ |
-| Remove Document | ✅ | ✅ |
-| Remove All Documents | ✅ | ✅ |
+| Feature | Elasticsearch | Meilisearch | Lifti |
+|---------|:----------:|:-----------:|:-----:|
+| Create Index | ✅ | ✅ | ✅ |
+| Delete Index | ✅ | ✅ | ✅ |
+| Index Exists | ✅ | ✅ | ✅ |
+| Ensure Index Exists | ✅ | ✅ | ✅ |
+| Index Document | ✅ | ✅ | ✅ |
+| Index Multiple Documents | ✅ | ✅ | ✅ |
+| Remove Document | ✅ | ✅ | ✅ |
+| Remove All Documents | ✅ | ✅ | ✅ |
 
 ## Field Filtering
 
-| Feature | Elasticsearch | Lifti |
-|---------|:----------:|:-----:|
-| **Field-scoped queries** | ✅ | ⚠️ |
+| Feature | Elasticsearch | Meilisearch | Lifti |
+|---------|:----------:|:-----------:|:-----:|
+| **Field-scoped queries** | ✅ | ❌ | ⚠️ |
 
 > ⚠️ **Lifti field-scoped queries**: Lifti supports field-scoped queries via `FieldFilterQueryOperator`. The current implementation performs cross-field searches. Individual query translators do not filter by field name yet.
+
+## Notes on the Meilisearch Provider
+
+`Bielu.BetterSearch.Meilisearch` (the official MeiliSearch client, tested against Meilisearch 1.54) supports every index operation. Meilisearch applies writes asynchronously as tasks; the provider waits for each task, so a successful `Result` means the write was applied and a failed task returns Meilisearch's error. If the wait times out (`MeilisearchOptions.TaskTimeout`, 30 seconds by default) the `Result` fails but the task is not cancelled, so the write may still be applied later. Documents use `id` as the primary key, so an `Id` must contain only letters, digits, `-` and `_`.
+
+Searching is not implemented yet: `SearchAsync` returns a failed `Result`, so no query type, combinator or field filter is supported. That is pending query translation, as for Elasticsearch. Once it lands, raw Lucene syntax (`LuceneQuery`) has no Meilisearch equivalent and will stay unsupported, and fuzzy matching will follow Meilisearch's typo tolerance rather than an edit distance per query.
 
 ## Notes on Unsupported Lifti Features
 
