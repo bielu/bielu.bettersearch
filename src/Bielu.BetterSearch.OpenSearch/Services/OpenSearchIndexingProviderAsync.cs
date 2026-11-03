@@ -53,12 +53,9 @@ public sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenSea
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {
         var exist = await IndexExistsAsync(index, cancellationToken).ConfigureAwait(false);
-        if (exist is { IsSuccess: true, Value: true })
-        {
-            return Result.Ok(true);
-        }
-
-        return await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        return exist is { IsSuccess: true, Value: true }
+            ? Result.Ok(true)
+            : await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default)

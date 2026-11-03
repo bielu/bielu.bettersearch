@@ -18,9 +18,9 @@ public class OpenSearchIndexSettings : IndexSettings
 
 public enum OpenSearchAuthenticationType
 {
-    NONE,
-    PASSWORD,
-    APIKEY
+    NONE = 0,
+    PASSWORD = 1,
+    APIKEY = 2
 }
 
 public class OpenSearchAuthenticationDetails
