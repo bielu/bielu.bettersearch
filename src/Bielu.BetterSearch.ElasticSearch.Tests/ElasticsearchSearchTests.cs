@@ -151,6 +151,21 @@ public sealed class ElasticsearchSearchTests(
     }
 
     [Fact]
+    public async Task SearchAsync_FuzzyQueryOnKeywordField_KeepsTheValueCase()
+    {
+        var index = await CreatePeopleAsync();
+
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new FuzzyQuery
+        {
+            Field = "City.keyword",
+            Value = "Warsaw",
+            Fuziness = Tuple.Create(0, 0)
+        }));
+
+        ids.ShouldBe(["3", "Up-1"]);
+    }
+
+    [Fact]
     public async Task SearchAsync_NumericRange_HonoursEdges()
     {
         var index = await CreatePeopleAsync();
@@ -282,9 +297,16 @@ public sealed class ElasticsearchSearchTests(
     {
         var index = await CreatePeopleAsync();
         // City is Warsaw AND (Name is jane OR Age >= 35) AND NOT Name is doe
-        var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.SHOULD, new TermSubQuery { Occurance = Occurance.SHOULD, Field = "Name", Value = "jane" });
-        nested.Add(Occurance.SHOULD, new NumericRange { Occurance = Occurance.SHOULD, Field = "Age", MinValue = 35, IncludeMinEdge = true });
+        // The translator reads each nested clause's own Occurance. BoolSearchSubQuery.Add ignores its
+        // occurrence argument, so the clauses are set directly rather than through Add.
+        var nested = new BoolSearchSubQuery
+        {
+            NestedQueries =
+            [
+                new TermSubQuery { Occurance = Occurance.SHOULD, Field = "Name", Value = "jane" },
+                new NumericRange { Occurance = Occurance.SHOULD, Field = "Age", MinValue = 35, IncludeMinEdge = true }
+            ]
+        };
         var query = Query(index, Occurance.FILTER, new TermSubQuery { Field = "City", Value = "warsaw" });
         query.Add(Occurance.MUST, nested);
         query.Add(Occurance.MUSTNOT, new TermSubQuery { Field = "Name", Value = "doe" });
@@ -364,6 +386,7 @@ public sealed class ElasticsearchSearchTests(
         jane.CustomProperties["Name"].ShouldBe(["Jane Doe"]);
         jane.CustomProperties["Age"].ShouldBe([25L]);
         jane.CustomProperties["Views"].ShouldBe([5_000_000_000L]);
+        jane.CustomProperties["Age"].Single().ShouldBeOfType<long>();
         jane.CustomProperties["City"].ShouldBe(["Warsaw"]);
     }
 

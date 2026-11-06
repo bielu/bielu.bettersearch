@@ -11,10 +11,10 @@ Elasticsearch documents are stored with their values under `fields`, so a query 
 | Feature | Elasticsearch | Lifti |
 |---------|:------------:|:-----:|
 | **BoolQuery** (nested boolean logic) | ✅ | ⚠️ see [boolean semantics](#boolean-semantics) |
-| **TermQuery** (exact term match) | ⚠️ matches one analyzed token, case-insensitively; use `Field.keyword` for the whole value | ⚠️ field ignored; accented terms don't match |
+| **TermQuery** (exact term match) | ⚠️ matches one analyzed token, ignoring ASCII case only (`Żółw` does not match `żółw`); use `Field.keyword` for the whole value | ⚠️ field ignored; accented terms don't match |
 | **TermsQuery** (multiple exact terms) | ⚠️ as TermQuery; an empty list matches nothing | ⚠️ field ignored; accented terms don't match |
-| **FuzzyQuery** | ⚠️ at most 2 edits; `AUTO` when `Fuziness` is unset | ⚠️ field ignored |
-| **PrefixQuery** | ✅ case-insensitive | ⚠️ field ignored |
+| **FuzzyQuery** | ⚠️ at most 2 edits; `AUTO` when `Fuziness` is unset; the value goes through the field's analyzer and every token must match | ⚠️ field ignored |
+| **PrefixQuery** | ⚠️ ignores ASCII case only, as TermQuery | ⚠️ field ignored |
 | **PrefixPhraseQuery** | ✅ | ⚠️ field ignored |
 | **LuceneQuery** (raw Lucene syntax) | ⚠️ field names need the `fields.` prefix | ❌ |
 | **DateRangeQuery** | ✅ | ❌ |
@@ -62,4 +62,4 @@ The query model and fluent API can express sorting, facets, highlighting and pos
 
 ## Test coverage
 
-Provider-agnostic bases live in `BaseTests`. Lifti runs all three (`SubQueryTranslationTestBase`, `IndexingTestBase`, `QueryResultBaseTests`). Elasticsearch runs all three against a real server, plus its own search tests covering every query type, boolean combinations, paging, sorting, result mapping and error paths. Most of these tests assert `IsSuccess` without checking the returned value, and `FluentApi` has no tests.
+Provider-agnostic bases live in `BaseTests`. Lifti runs all three (`SubQueryTranslationTestBase`, `IndexingTestBase`, `QueryResultBaseTests`). Elasticsearch runs all three against a real server, plus its own search tests running every query type except `SpatialSearchQuery` against it, with boolean combinations, paging, sorting, result mapping and error paths. `SpatialSearchQuery` is only checked to translate, as it needs an explicit `geo_point` mapping. Most of these tests assert `IsSuccess` without checking the returned value, and `FluentApi` has no tests.

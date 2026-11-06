@@ -10,7 +10,8 @@ using Result = FluentResults.Result;
 namespace Bielu.BetterSearch.ElasticSearch.Services;
 
 public class ElasticSearchSearchProviderAsync(
-    ElasticSearchQueryTranslateService queryTranslateServiceAsync,
+    IQueryTranslateServiceAsync<EsQuery> queryTranslateServiceAsync,
+    ElasticSearchQueryTranslateService postFilterTranslateService,
     IClientFactoryAsync<ElasticsearchClient> clientFactoryAsync,
     IResultMapper<SearchResponse<SearchDocument>> resultMapper) : ISearchProviderAsync
 {
@@ -40,7 +41,7 @@ public class ElasticSearchSearchProviderAsync(
             return mainQuery.ToResult<ISearchResult<ISearchModel>>();
         }
 
-        var postFilter = await queryTranslateServiceAsync.TranslatePostFilterAsync(query).ConfigureAwait(false);
+        var postFilter = await postFilterTranslateService.TranslatePostFilterAsync(query).ConfigureAwait(false);
         if (postFilter.IsFailed)
         {
             return postFilter.ToResult<ISearchResult<ISearchModel>>();
@@ -51,6 +52,13 @@ public class ElasticSearchSearchProviderAsync(
         if (!response.IsValidResponse)
         {
             return Result.Fail<ISearchResult<ISearchModel>>(DescribeFailure(response));
+        }
+
+        // Partial results are disallowed in the request; this guards against a cluster that returns them anyway.
+        if (response.TimedOut || response.Shards.Failed > 0)
+        {
+            return Result.Fail<ISearchResult<ISearchModel>>(
+                $"Elasticsearch returned incomplete results: timed out {response.TimedOut}, {response.Shards.Failed} of {response.Shards.Total} shards failed.");
         }
 
         var result = resultMapper.MapResult(response);
@@ -76,7 +84,8 @@ public class ElasticSearchSearchProviderAsync(
             PostFilter = postFilter,
             From = (PageOf(query) - 1) * pageSize,
             Size = pageSize,
-            TrackTotalHits = new TrackHits(true)
+            TrackTotalHits = new TrackHits(true),
+            AllowPartialSearchResults = false
         };
 
         if (query.SortOrder is { Count: > 0 })

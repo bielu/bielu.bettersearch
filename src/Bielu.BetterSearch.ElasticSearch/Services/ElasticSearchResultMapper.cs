@@ -34,7 +34,7 @@ public class ElasticSearchResultMapper : IResultMapper<SearchResponse<SearchDocu
     private static object ToClrValue(object? value) => value switch
     {
         JsonElement { ValueKind: JsonValueKind.String } element => element.GetString()!,
-        JsonElement { ValueKind: JsonValueKind.Number } element => element.TryGetInt64(out var number) ? number : element.GetDouble(),
+        JsonElement { ValueKind: JsonValueKind.Number } element => element.TryGetInt64(out var number) ? (object)number : element.GetDouble(),
         JsonElement { ValueKind: JsonValueKind.True } => true,
         JsonElement { ValueKind: JsonValueKind.False } => false,
         JsonElement { ValueKind: JsonValueKind.Null or JsonValueKind.Undefined } => null!,
