@@ -49,11 +49,18 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
         {
             await indexingServiceAsync.IndexDocumentAsync(document);
         }
+
+        await DocumentsIndexedAsync(index);
     }
+
+    /// <summary>Called once the example documents are indexed, for engines that must refresh before they can be searched.</summary>
+    protected virtual Task DocumentsIndexedAsync(string index) => Task.CompletedTask;
+
     [Fact]
     public async Task CanSearchWithPrefixQueryAsyncTest()
     {
-        var index = "test-index-1";
+        // An index of its own, so other tests can't change what it finds.
+        var index = $"query-results-{Guid.NewGuid():N}";
         await CreateExampleDocumentsAsync(index);
         //Arrange
         var query = new SearchQuery();
@@ -69,7 +76,6 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
         //Assert
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldNotBeNull();
-        result.Value.Items.ShouldNotBeEmpty();
-        result.Value.Items.Count().ShouldBeGreaterThan(0);
+        result.Value.Items.Cast<BaseSearchModel>().Select(item => item.Id).OrderBy(id => id).ShouldBe(["2", "3"]);
     }
 }
