@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/bielu/bielu.bettersearch/actions/workflows/buildAndPublishPackage.yml/badge.svg)](https://github.com/bielu/bielu.bettersearch/actions/workflows/buildAndPublishPackage.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Docs](https://img.shields.io/badge/docs-search.bielu.pl-blue)](https://search.bielu.pl)
 
 A provider-agnostic search abstraction for .NET: describe a query once, then run it against whichever
 search engine you configure.
