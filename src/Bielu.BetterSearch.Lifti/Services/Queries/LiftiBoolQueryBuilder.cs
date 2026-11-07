@@ -51,6 +51,8 @@ internal static class LiftiBoolQueryBuilder
         IQueryPart? optional = null;
         IQueryPart? excluded = null;
         var optionalComplement = false;
+        // A required clause makes SHOULD optional even when it only excludes and leaves required null.
+        var hasRequired = false;
 
         foreach (var (occurance, subQuery) in clauses)
         {
@@ -73,6 +75,7 @@ internal static class LiftiBoolQueryBuilder
                         // Requiring "not x" excludes x; excluding "not x" requires x.
                         case Occurance.MUST or Occurance.FILTER:
                             excluded = Or(excluded, nestedExcluded);
+                            hasRequired = true;
                             continue;
                         case Occurance.MUSTNOT:
                             required = And(required, nestedExcluded);
@@ -120,16 +123,17 @@ internal static class LiftiBoolQueryBuilder
                     break;
                 default:
                     required = And(required, part);
+                    hasRequired = true;
                     break;
             }
         }
 
-        if (required == null && optionalComplement)
+        if (!hasRequired && optionalComplement)
         {
             return Result.Fail<(IQueryPart?, IQueryPart?)>(NoPositiveClause);
         }
 
-        return Result.Ok<(IQueryPart?, IQueryPart?)>((required ?? optional, excluded));
+        return Result.Ok<(IQueryPart?, IQueryPart?)>((hasRequired ? required : optional, excluded));
     }
 
     private static IQueryPart Or(IQueryPart? left, IQueryPart right) => left == null ? right : new OrQueryOperator(left, right);

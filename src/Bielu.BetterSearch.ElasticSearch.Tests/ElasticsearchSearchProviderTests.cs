@@ -63,10 +63,10 @@ public sealed class ElasticsearchSearchProviderTests(
         var index = $"total-{Guid.NewGuid():N}";
         foreach (var id in Enumerable.Range(1, 5))
         {
-            (await indexingProvider.IndexDocumentAsync(new SearchDocument { Id = id.ToString(), Index = index })).IsSuccess.ShouldBeTrue();
+            (await indexingProvider.IndexDocumentAsync(new SearchDocument { Id = id.ToString(), Index = index }, TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         }
 
-        await (await clientFactory.GetOrCreateClientAsync(index)).Indices.RefreshAsync(index);
+        await (await clientFactory.GetOrCreateClientAsync(index)).Indices.RefreshAsync(index, TestContext.Current.CancellationToken);
         var provider = new ElasticSearchSearchProviderAsync(
             queryTranslateService,
             postFilterTranslateService,

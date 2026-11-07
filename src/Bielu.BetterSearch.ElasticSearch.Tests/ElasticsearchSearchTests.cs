@@ -490,8 +490,8 @@ public sealed class ElasticsearchSearchTests(
                 { "Active", [true] }
             }
         };
-        (await indexingProvider.IndexDocumentAsync(document)).IsSuccess.ShouldBeTrue();
-        await (await clientFactory.GetOrCreateClientAsync(index)).Indices.RefreshAsync(index);
+        (await indexingProvider.IndexDocumentAsync(document, TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        await (await clientFactory.GetOrCreateClientAsync(index)).Indices.RefreshAsync(index, TestContext.Current.CancellationToken);
 
         var result = await searchService.SearchAsync(new SearchQuery { Index = index });
 

@@ -176,6 +176,55 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
         ids.ShouldBe(["2", "3"]);
     }
 
+    /// <summary>Lucene semantics: a <c>MUST</c> makes <c>SHOULD</c> optional, even when the <c>MUST</c> only excludes.</summary>
+    [Fact]
+    public virtual async Task SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ReturnsEveryDocumentExceptTheExclusions()
+    {
+        var query = await CreateShouldBesideMustOfNestedMustNotOnlyQueryAsync();
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["1", "2"]);
+    }
+
+    /// <summary>For providers that cannot return the complement: a failed <c>Result</c>, never the <c>SHOULD</c> matches.</summary>
+    protected async Task SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ShouldFailAsync()
+    {
+        var query = await CreateShouldBesideMustOfNestedMustNotOnlyQueryAsync();
+
+        var result = await serviceAsync.SearchAsync(query);
+
+        result.IsFailed.ShouldBeTrue();
+    }
+
+    /// <summary>The same shape nested under a positive clause, which every provider can answer.</summary>
+    [Fact]
+    public async Task SearchAsync_NestedShouldBesideMustOfNestedMustNotOnly_ExcludesFromTheParentMatches()
+    {
+        var query = await CreateQueryAsync();
+        var exclusion = new BoolSearchSubQuery();
+        exclusion.Add(Occurance.MUSTNOT, Name("3"));
+        var nested = new BoolSearchSubQuery();
+        nested.Add(Occurance.SHOULD, Name("jane"));
+        nested.Add(Occurance.MUST, exclusion);
+        query.Add(Occurance.MUST, Name("doe"));
+        query.Add(Occurance.MUST, nested);
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["1", "2"]);
+    }
+
+    private async Task<SearchQuery> CreateShouldBesideMustOfNestedMustNotOnlyQueryAsync()
+    {
+        var query = await CreateQueryAsync();
+        var nested = new BoolSearchSubQuery();
+        nested.Add(Occurance.MUSTNOT, Name("3"));
+        query.Add(Occurance.SHOULD, Name("jane"));
+        query.Add(Occurance.MUST, nested);
+        return query;
+    }
+
     /// <summary>Lucene semantics: <c>MUSTNOT</c> on its own returns every other document.</summary>
     [Fact]
     public virtual async Task SearchAsync_MustNotOnly_ReturnsTheComplement()

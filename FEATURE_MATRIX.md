@@ -29,7 +29,7 @@ Elasticsearch documents are stored with their values under `fields`, so a query 
 |---------|:------------:|:-----:|
 | **MUST** | ✅ | ✅ |
 | **SHOULD** | ✅ Lucene semantics: alongside `MUST` or `FILTER`, only adds to the score | ✅ Lucene semantics: alongside `MUST`, it changes nothing |
-| **MUSTNOT** | ✅ on its own, returns the complement | ⚠️ a nested bool with only `MUSTNOT` clauses excludes from its parent's matches; a query with no `MUST`, `FILTER` or `SHOULD` clause at any level returns a failed `Result`, as Lifti has no query for every document |
+| **MUSTNOT** | ✅ on its own, returns the complement | ⚠️ a nested bool with only `MUSTNOT` clauses excludes from its parent's matches; a query whose matches would be every document except the exclusions (no positive clause, or `SHOULD` beside a `MUST` that only excludes) returns a failed `Result`, as Lifti has no query for every document |
 | **FILTER** | ✅ matches without scoring | ⚠️ treated as `MUST`, so it still scores |
 
 ## Search features
