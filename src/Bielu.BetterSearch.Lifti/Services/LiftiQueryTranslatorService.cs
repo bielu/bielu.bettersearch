@@ -11,7 +11,7 @@ namespace Bielu.BetterSearch.Lifti.Services;
 public class LiftiQueryTranslatorService(
     IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators) : IQueryTranslateServiceAsync<IQuery>
 {
-    public async Task<Result<IQuery>> TranslateMainQueryAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
+    public async Task<Result<IQuery>> TranslateMainQueryAsync(ISearchQuery query)
     {
         if (query.Query == null || query.Query.Count == 0)
         {

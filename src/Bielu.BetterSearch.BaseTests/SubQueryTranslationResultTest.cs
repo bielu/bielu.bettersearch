@@ -1,7 +1,9 @@
-﻿using Bielu.BetterSearch.Abstractions.Models;
+﻿using Bielu.BetterSearch.Abstractions.Fields;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.FluentApi;
+using Bielu.BetterSearch.FluentApi.Fluent.Extensions;
 using Shouldly;
 
 namespace Bielu.BetterSearch.Tests;
@@ -76,14 +78,14 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
         //Assert
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldNotBeNull();
-        result.Value.Items.Cast<BaseSearchModel>().Select(item => item.Id).OrderBy(id => id).ShouldBe(["2", "3"]);
+        result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id).ShouldBe(["2", "3"]);
     }
 
     private async Task<List<string>> SearchIdsAsync(SearchQuery query)
     {
         var result = await serviceAsync.SearchAsync(query);
         result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
-        return result.Value.Items.Cast<BaseSearchModel>().Select(item => item.Id).OrderBy(id => id).ToList();
+        return result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id).ToList();
     }
 
     private async Task<SearchQuery> CreateQueryAsync()
@@ -106,6 +108,84 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
         result.IsSuccess.ShouldBeTrue();
         result.Value.Items.Count().ShouldBe(2);
         result.Value.Items.ShouldAllBe(item => item.Score > 0);
+    }
+
+    [Fact]
+    public async Task SearchAsync_CancelledToken_ThrowsOperationCanceledException()
+    {
+        var query = await CreateQueryAsync();
+        query.Add(Occurance.MUST, Name("john"));
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(() => serviceAsync.SearchAsync(query, cancellation.Token));
+    }
+
+    [Fact]
+    public async Task SearchAsync_CancelledTokenAndInvalidQuery_ThrowsOperationCanceledException()
+    {
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        // The query has no Index, which every provider rejects; the cancellation still wins.
+        await Should.ThrowAsync<OperationCanceledException>(() => serviceAsync.SearchAsync(new SearchQuery(), cancellation.Token));
+    }
+
+    [Fact]
+    public async Task SearchAsync_MixedCaseId_ComesBackUnchanged()
+    {
+        var index = $"query-results-{Guid.NewGuid():N}";
+        (await indexingServiceAsync.IndexDocumentAsync(new SearchDocument
+        {
+            Id = "Up-1",
+            Index = index,
+            Fields = new Dictionary<string, IList<object>> { { "Name", ["Mixed Case"] } }
+        })).IsSuccess.ShouldBeTrue();
+        await DocumentsIndexedAsync(index);
+        var query = new SearchQuery { Index = index };
+        query.Add(Occurance.MUST, Name("mixed"));
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["Up-1"]);
+    }
+
+    [Fact]
+    public virtual async Task SearchAsync_FluentCultureFilter_ReturnsOnlyThatCulture()
+    {
+        var index = $"query-results-{Guid.NewGuid():N}";
+        SearchDocument Page(string id, string title, string culture) => new()
+        {
+            Id = id,
+            Index = index,
+            Fields = new Dictionary<string, IList<object>>
+            {
+                { "Title", [title] },
+                { CultureField.Name, [CultureField.Value(culture)] }
+            }
+        };
+        // Document 2's title holds the en-US culture value, so a filter that ignores its field matches it too.
+        var pages = new[]
+        {
+            Page("1", "Welcome page", "en-US"),
+            Page("2", $"Welcome page {CultureField.Value("en-US")}", "pl-PL"),
+            Page("3", "Welcome page", "en-GB")
+        };
+        foreach (var page in pages)
+        {
+            (await indexingServiceAsync.IndexDocumentAsync(page)).IsSuccess.ShouldBeTrue();
+        }
+
+        await DocumentsIndexedAsync(index);
+        var query = (SearchQuery)FluentApiSearchQueryCreator.Create()
+            .WithSearchQuery(search => search.WithIndex(index))
+            .CreateSearchQuery(search => search
+                .CreateTermQuery(term => term.WithField("Title").WithValue("welcome"))
+                .FilterByCulture("en-US"));
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["1"]);
     }
 
     [Fact]

@@ -63,7 +63,7 @@ public sealed class ElasticsearchSearchTests(
         query.PageSize = 100;
         var result = await searchService.SearchAsync(query);
         result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.Message)));
-        return result.Value.Items.Select(item => item.Key).OrderBy(id => id, StringComparer.Ordinal).ToList();
+        return result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
     }
 
     private static SearchQuery Query(string index, Occurance occurance, ISearchSubQuery subQuery)
@@ -143,7 +143,7 @@ public sealed class ElasticsearchSearchTests(
         // Each string is also sent lower-cased, so 32,769 distinct upper-case strings send 65,538 terms.
         var values = Enumerable.Range(0, 32_769).Select(i => (object)$"ID-{i}").ToList();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "City", Value = values }));
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "City", Value = values }), TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("index.max_terms_count");
@@ -320,10 +320,10 @@ public sealed class ElasticsearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.FILTER, new TermSubQuery { Field = "City", Value = "warsaw" }));
+        var result = await searchService.SearchAsync(Query(index, Occurance.FILTER, new TermSubQuery { Field = "City", Value = "warsaw" }), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.Items.Select(item => item.Key).OrderBy(id => id).ShouldBe(["3", "Up-1"]);
+        result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id).ShouldBe(["3", "Up-1"]);
         result.Value.Items.ShouldAllBe(item => item.Score == 0);
     }
 
@@ -356,10 +356,10 @@ public sealed class ElasticsearchSearchTests(
             SortOrder = [new SortField { FieldName = "Age" }]
         };
 
-        var result = await searchService.SearchAsync(query);
+        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.Items.Select(item => item.Key).ShouldBe(["3", "4"]);
+        result.Value.Items.Select(item => item.Document.Id).ShouldBe(["3", "4"]);
         result.Value.Pagination.TotalCount.ShouldBe(5);
         result.Value.Pagination.Page.ShouldBe(2);
         result.Value.Pagination.PageSize.ShouldBe(2);
@@ -373,7 +373,7 @@ public sealed class ElasticsearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(new SearchQuery { Index = index, Page = page, PageSize = pageSize });
+        var result = await searchService.SearchAsync(new SearchQuery { Index = index, Page = page, PageSize = pageSize }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("max_result_window");
@@ -384,7 +384,7 @@ public sealed class ElasticsearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(new SearchQuery { Index = index, Page = 5_000, PageSize = 2 });
+        var result = await searchService.SearchAsync(new SearchQuery { Index = index, Page = 5_000, PageSize = 2 }, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Items.ShouldBeEmpty();
@@ -421,7 +421,7 @@ public sealed class ElasticsearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(new SearchQuery { Index = index, Page = 10, PageSize = 2 });
+        var result = await searchService.SearchAsync(new SearchQuery { Index = index, Page = 10, PageSize = 2 }, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Items.ShouldBeEmpty();
@@ -443,10 +443,10 @@ public sealed class ElasticsearchSearchTests(
             ]
         };
 
-        var result = await searchService.SearchAsync(query);
+        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.Items.Select(item => item.Key).ShouldBe(["4", "5", "2", "3", "Up-1"]);
+        result.Value.Items.Select(item => item.Document.Id).ShouldBe(["4", "5", "2", "3", "Up-1"]);
     }
 
     [Fact]
@@ -454,12 +454,13 @@ public sealed class ElasticsearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" }));
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" }), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        var jane = result.Value.Items.Single(item => item.Key == "Up-1");
-        jane.Score.ShouldNotBeNull();
-        jane.Score.Value.ShouldBeGreaterThan(0);
+        var hit = result.Value.Items.Single(item => item.Document.Id == "Up-1");
+        var jane = hit.Document;
+        hit.Score.ShouldNotBeNull();
+        hit.Score.Value.ShouldBeGreaterThan(0);
         jane.ContentType.ShouldBe("Person");
         jane.CustomProperties["Name"].ShouldBe(["Jane Doe"]);
         jane.CustomProperties["Age"].ShouldBe([25L]);
@@ -493,10 +494,10 @@ public sealed class ElasticsearchSearchTests(
         (await indexingProvider.IndexDocumentAsync(document, TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         await (await clientFactory.GetOrCreateClientAsync(index)).Indices.RefreshAsync(index, TestContext.Current.CancellationToken);
 
-        var result = await searchService.SearchAsync(new SearchQuery { Index = index });
+        var result = await searchService.SearchAsync(new SearchQuery { Index = index }, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        var fields = result.Value.Items.Single().CustomProperties;
+        var fields = result.Value.Items.Single().Document.CustomProperties;
         fields["Integer"].Single().ShouldBeOfType<long>().ShouldBe(3L);
         fields["Whole"].Single().ShouldBeOfType<double>().ShouldBe(3.0d);
         fields["Fraction"].Single().ShouldBeOfType<double>().ShouldBe(3.5d);
@@ -511,11 +512,11 @@ public sealed class ElasticsearchSearchTests(
         var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "anna" });
         query.Properties = ["Name"];
 
-        var result = await searchService.SearchAsync(query);
+        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        var anna = result.Value.Items.Single();
-        anna.Key.ShouldBe("4");
+        var anna = result.Value.Items.Single().Document;
+        anna.Id.ShouldBe("4");
         anna.ContentType.ShouldBe("Person");
         anna.CustomProperties.Keys.ShouldBe(["Name"]);
     }
@@ -544,7 +545,7 @@ public sealed class ElasticsearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "nobody" }));
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "nobody" }), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Items.ShouldBeEmpty();
@@ -555,7 +556,7 @@ public sealed class ElasticsearchSearchTests(
     [Fact]
     public async Task SearchAsync_MissingIndex_ReturnsFailedResult()
     {
-        var result = await searchService.SearchAsync(new SearchQuery { Index = $"missing-{Guid.NewGuid():N}" });
+        var result = await searchService.SearchAsync(new SearchQuery { Index = $"missing-{Guid.NewGuid():N}" }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("index_not_found_exception");
@@ -566,7 +567,7 @@ public sealed class ElasticsearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = "fields.Name:(john" }));
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = "fields.Name:(john" }), TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("Elasticsearch search failed");
@@ -575,7 +576,7 @@ public sealed class ElasticsearchSearchTests(
     [Fact]
     public async Task SearchAsync_NoIndex_ReturnsFailedResult()
     {
-        var result = await searchService.SearchAsync(new SearchQuery());
+        var result = await searchService.SearchAsync(new SearchQuery(), TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("Index");
@@ -584,7 +585,7 @@ public sealed class ElasticsearchSearchTests(
     [Fact]
     public async Task SearchAsync_SubQueryWithoutField_ReturnsFailedResult()
     {
-        var result = await searchService.SearchAsync(Query("any", Occurance.MUST, new TermSubQuery { Value = "jane" }));
+        var result = await searchService.SearchAsync(Query("any", Occurance.MUST, new TermSubQuery { Value = "jane" }), TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("Field");
@@ -596,7 +597,7 @@ public sealed class ElasticsearchSearchTests(
         var query = new SearchQuery { Index = "any" };
         query.FacetQueries.Add(new TermAggregation { AggregationName = "cities", TermFieldName = "City" });
 
-        var result = await searchService.SearchAsync(query);
+        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("facets");
@@ -608,7 +609,7 @@ public sealed class ElasticsearchSearchTests(
         var query = new SearchQuery { Index = "any" };
         query.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name" });
 
-        var result = await searchService.SearchAsync(query);
+        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("highlighting");

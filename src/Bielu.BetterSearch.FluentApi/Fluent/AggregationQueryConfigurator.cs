@@ -4,7 +4,7 @@ using Bielu.BetterSearch.FluentApi.Fluent.Aggregations;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
-    public class AggregationQueryConfigurator(ISearchQuery<ISearchResult<ISearchModel>> configuratorQuery)
+    public class AggregationQueryConfigurator(ISearchQuery configuratorQuery)
     {
         public AggregationQueryConfigurator CreateFilterQuery(Action<FilterAggregationQueryConfigurator> query)
         {

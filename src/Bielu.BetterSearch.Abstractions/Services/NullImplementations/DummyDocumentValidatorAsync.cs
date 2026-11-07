@@ -4,5 +4,5 @@ namespace Bielu.BetterSearch.Abstractions.Services.NullImplementations;
 
 public class DummyDocumentValidatorAsync : IDocumentValidatorAsync
 {
-    public Task<Result<bool>> ValidateDocumentAsync(SearchDocument document) => Task.FromResult<Result<bool>>(true);
+    public Task<Result<bool>> ValidateDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) => Task.FromResult<Result<bool>>(true);
 }

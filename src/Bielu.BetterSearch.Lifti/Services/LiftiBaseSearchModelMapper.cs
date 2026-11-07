@@ -6,9 +6,9 @@ namespace Bielu.BetterSearch.Lifti.Services;
 
 public class LiftiBaseSearchModelMapper : IResultMapper<ISearchResults<string>>
 {
-    public ISearchResult<ISearchModel> MapResult(ISearchResults<string> searchEngineResult) => new BaseSearchResults()
+    public ISearchResult MapResult(ISearchResults<string> searchEngineResult) => new BaseSearchResults()
     {
-        Items = searchEngineResult.Select(x => new BaseSearchModel() { Id = x.Key, Score = x.Score }),
+        Items = searchEngineResult.Select(x => new SearchHit(new BaseSearchModel() { Id = x.Key }, x.Score)).ToList(),
         Pagination = new Pagination
         {
             TotalCount = searchEngineResult.Count

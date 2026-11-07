@@ -5,5 +5,5 @@ namespace Bielu.BetterSearch.FluentApi;
 
 public interface IFluentApiSearchQueryCreator
 {
-    ISearchQuery<ISearchResult<ISearchModel>> CreateSearchQuery(Action<IBaseQueryConfigurator> configurator);
+    ISearchQuery CreateSearchQuery(Action<IBaseQueryConfigurator> configurator);
 }

@@ -2,9 +2,9 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
-    public class QueryCreatorConfigurator(ISearchQuery<ISearchResult<ISearchModel>> query)
+    public class QueryCreatorConfigurator(ISearchQuery query)
     {
-        public ISearchQuery<ISearchResult<ISearchModel>> Query { get; set; } = query;
+        public ISearchQuery Query { get; set; } = query;
 
         public QueryCreatorConfigurator WithPageSize(int pageSize)
         {

@@ -29,8 +29,6 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Core | `SearchApplicationConfiguration.CurrentInstance` is a process-wide mutable singleton shared by every `AddBetterSearch` call (*by inspection*) | Per-container configuration |
 | Core | Services are registered twice, once by the provider and once by `AddBetterSearch` | Once |
 | Core | Observers get `OnCompleted` after each operation and never `OnError`, breaking the `IObserver` contract, and live on a scoped service (*by inspection*) | See phase 1 |
-| Models | Serializing a search hit throws `NullReferenceException`, from `BaseSearchModel.SearchCulture` | Serializable |
-| Models | `BaseSearchModel.Id` lower-cases ids: `Up-1` comes back as `up-1` | The id unchanged |
 | Models | `new TermSubQuery().Occurance` is `0`, which is not a defined enum value | A defined default |
 | Lifti search | `Page` and `PageSize` are ignored; hits contain only an id | Paged hits with fields |
 | Fluent API | `.Should()` on a sub-query configurator is silently lost, and `.Must()`, `.MustNot()` and `.Filter()` take the same path | The chosen occurrence |
@@ -67,9 +65,9 @@ Breaking, and cheapest now.
 
 - Tests that assert values: make the base tests fail on the defects above, with an isolated index per test.
 - Correct the names: `DepedencyInjection`, `Occurance`, `PrefixLenght`, `Fuziness`, `MultiTermAggreation`, `CreateGoeDistanceQuery`, `DepedenyInjectionTestBase`.
-- Reshape the model: remove the unused generic on `ISearchQuery<T>` and `ISearchResult<T>`, give `IEntity<T>` its `Id`, merge `Bielu.BetterSearch.Models` into Abstractions, and move `Score` from the document to the hit. Return typed field values on hits from explicit mappings; Elasticsearch hits keep their JSON types until then. Drop CMS leftovers such as `ViewModelType`, `SiteId`, `ListingId` and the duplicated `TotalPages`. Rename `DeleteDocumentRequest.Type`, which actually holds the index name.
+- Reshape the model: merge `Bielu.BetterSearch.Models` into Abstractions. Return typed field values on hits from explicit mappings; Elasticsearch hits keep their JSON types until then. Rename `DeleteDocumentRequest.Type`, which actually holds the index name. (Done in #17: the unused generics are gone, `IEntity<T>` has its `Id`, `Score` is on the hit, ids come back unchanged, the CMS leftovers are dropped and `FilterByCulture` filters on a plain culture field.)
 - Resolve the nullable warnings by making the model honest about what is required.
-- Add `CancellationToken` to `SearchAsync` and the validator. Stop catching `OperationCanceledException`, and keep exceptions through `ExceptionalError`.
+- Stop catching `OperationCanceledException` in the indexing providers, and keep exceptions through `ExceptionalError`. (Done in #17: `SearchAsync` and the validator take a `CancellationToken`, and a cancelled search throws.)
 - Remove the global configuration singleton and the duplicate registrations. Add the missing `SetDocumentValidatorType`.
 - Replace the `IObservable` surface with something that fits its use, such as an indexing pipeline or events, or remove it.
 - Pass bulk through to the provider from `IndexMultipleDocumentsAsync`.

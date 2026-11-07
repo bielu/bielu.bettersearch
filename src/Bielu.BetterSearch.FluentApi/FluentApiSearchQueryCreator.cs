@@ -3,7 +3,7 @@ using Bielu.BetterSearch.Abstractions.Models;
 
 namespace Bielu.BetterSearch.FluentApi;
 
-public class FluentApiSearchQueryCreator(ISearchQuery<ISearchResult<ISearchModel>> baseQuery) : IFluentApiSearchQueryCreator
+public class FluentApiSearchQueryCreator(ISearchQuery baseQuery) : IFluentApiSearchQueryCreator
 {
     public FluentApiSearchQueryCreator WithSearchQuery(Action<QueryCreatorConfigurator> configurator)
     {
@@ -12,7 +12,7 @@ public class FluentApiSearchQueryCreator(ISearchQuery<ISearchResult<ISearchModel
         baseQuery = query.Query;
         return this;
     }
-    public ISearchQuery<ISearchResult<ISearchModel>> CreateSearchQuery(Action<IBaseQueryConfigurator> configurator)
+    public ISearchQuery CreateSearchQuery(Action<IBaseQueryConfigurator> configurator)
     {
         var newQuery = new FluentQueryConfigurator(baseQuery);
         newQuery.Occurance = Occurance.MUST;

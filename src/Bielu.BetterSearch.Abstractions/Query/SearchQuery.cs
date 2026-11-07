@@ -1,11 +1,10 @@
 ﻿using Bielu.BetterSearch.Abstractions.Fields;
-using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query.Aggregations;
 using Bielu.BetterSearch.Abstractions.Query.Highlighter;
 
 namespace Bielu.BetterSearch.Abstractions.Query
 {
-    public class SearchQuery : ISearchQuery<ISearchResult<ISearchModel>>
+    public class SearchQuery : ISearchQuery
     {
         public int Page { get; set; }
         public int PageSize { get; set; }

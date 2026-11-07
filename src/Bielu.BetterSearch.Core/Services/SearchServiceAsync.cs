@@ -19,19 +19,20 @@ public class SearchServiceAsync(ISearchProviderAsync providerAsync) : ISearchSer
         return new Unsubscriber<ISearchModel>(_indexingObservers, observer);
     }
 
-    public async Task<Result<ISearchResult<ISearchModel>>> SearchAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
+    public async Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
     {
-        var result = await providerAsync.SearchAsync(query).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = await providerAsync.SearchAsync(query, cancellationToken).ConfigureAwait(false);
         if (result.IsFailed)
         {
             return result;
         }
 
-        foreach (var document in result.Value.Items)
+        foreach (var hit in result.Value.Items)
         {
             foreach (var observer in _indexingObservers)
             {
-                observer.OnNext(document);
+                observer.OnNext(hit.Document);
             }
         }
 

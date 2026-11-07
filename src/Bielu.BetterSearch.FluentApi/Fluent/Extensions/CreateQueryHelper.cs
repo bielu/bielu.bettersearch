@@ -1,4 +1,7 @@
-﻿using Bielu.BetterSearch.FluentApi.Fluent.RangeQueries;
+﻿using System.Globalization;
+using Bielu.BetterSearch.Abstractions.Fields;
+using Bielu.BetterSearch.Abstractions.Query.SubQueries;
+using Bielu.BetterSearch.FluentApi.Fluent.RangeQueries;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
 {
@@ -111,6 +114,25 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
             configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
             return configurator;
         }
+        /// <summary>
+        /// Keeps only documents whose <see cref="CultureField.Name"/> field holds <paramref name="culture"/>,
+        /// as a <c>FILTER</c> clause. Index the culture with <see cref="CultureField.Value"/>.
+        /// </summary>
+        public static IBaseQueryConfigurator FilterByCulture(this IBaseQueryConfigurator configurator, string culture)
+        {
+            configurator.Query.Add(Occurance.FILTER, new TermSubQuery
+            {
+                Occurance = Occurance.FILTER,
+                Field = CultureField.Name,
+                Value = CultureField.Value(culture)
+            });
+            return configurator;
+        }
+
+        /// <inheritdoc cref="FilterByCulture(IBaseQueryConfigurator, string)"/>
+        public static IBaseQueryConfigurator FilterByCulture(this IBaseQueryConfigurator configurator, CultureInfo culture) =>
+            configurator.FilterByCulture(culture.Name);
+
         public static IBaseQueryConfigurator CreateBoolQuery(this IBaseQueryConfigurator configurator,
             Action<BooleanQueryConfigurator> query)
         {

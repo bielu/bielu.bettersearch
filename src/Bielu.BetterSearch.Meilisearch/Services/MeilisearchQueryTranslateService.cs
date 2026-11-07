@@ -14,7 +14,7 @@ namespace Bielu.BetterSearch.Meilisearch.Services;
 internal sealed class MeilisearchQueryTranslateService(IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators)
     : IQueryTranslateServiceAsync<MeilisearchQuery>
 {
-    public async Task<Result<MeilisearchQuery>> TranslateMainQueryAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
+    public async Task<Result<MeilisearchQuery>> TranslateMainQueryAsync(ISearchQuery query)
     {
         var main = await TranslateAsync(query.Query).ConfigureAwait(false);
         if (main.IsFailed)
