@@ -21,6 +21,7 @@ public class SearchServiceAsync(ISearchProviderAsync providerAsync) : ISearchSer
 
     public async Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var result = await providerAsync.SearchAsync(query, cancellationToken).ConfigureAwait(false);
         if (result.IsFailed)
         {

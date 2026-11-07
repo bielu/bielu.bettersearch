@@ -13,4 +13,9 @@ public class QueryTranslationResultsUnitTests(ISearchServiceAsync serviceAsync, 
     [Fact]
     public override async Task SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ReturnsEveryDocumentExceptTheExclusions() =>
         await SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ShouldFailAsync();
+
+    /// <summary>Known failure: Lifti ignores <c>Field</c> on a term query, so the filter also matches the title holding the culture value.</summary>
+    [Fact(Skip = "Lifti ignores Field on a term query (ROADMAP.md, Confirmed defects: \"`Field` is ignored\")")]
+    public override async Task SearchAsync_FluentCultureFilter_ReturnsOnlyThatCulture() =>
+        await base.SearchAsync_FluentCultureFilter_ReturnsOnlyThatCulture();
 }

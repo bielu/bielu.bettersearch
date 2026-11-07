@@ -122,6 +122,16 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
     }
 
     [Fact]
+    public async Task SearchAsync_CancelledTokenAndInvalidQuery_ThrowsOperationCanceledException()
+    {
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        // The query has no Index, which every provider rejects; the cancellation still wins.
+        await Should.ThrowAsync<OperationCanceledException>(() => serviceAsync.SearchAsync(new SearchQuery(), cancellation.Token));
+    }
+
+    [Fact]
     public async Task SearchAsync_MixedCaseId_ComesBackUnchanged()
     {
         var index = $"query-results-{Guid.NewGuid():N}";
@@ -141,20 +151,27 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
     }
 
     [Fact]
-    public async Task SearchAsync_FluentCultureFilter_ReturnsOnlyThatCulture()
+    public virtual async Task SearchAsync_FluentCultureFilter_ReturnsOnlyThatCulture()
     {
         var index = $"query-results-{Guid.NewGuid():N}";
-        SearchDocument Page(string id, string culture) => new()
+        SearchDocument Page(string id, string title, string culture) => new()
         {
             Id = id,
             Index = index,
             Fields = new Dictionary<string, IList<object>>
             {
-                { "Title", ["Welcome page"] },
+                { "Title", [title] },
                 { CultureField.Name, [CultureField.Value(culture)] }
             }
         };
-        foreach (var page in new[] { Page("1", "en-US"), Page("2", "pl-PL"), Page("3", "en-GB") })
+        // Document 2's title holds the en-US culture value, so a filter that ignores its field matches it too.
+        var pages = new[]
+        {
+            Page("1", "Welcome page", "en-US"),
+            Page("2", $"Welcome page {CultureField.Value("en-US")}", "pl-PL"),
+            Page("3", "Welcome page", "en-GB")
+        };
+        foreach (var page in pages)
         {
             (await indexingServiceAsync.IndexDocumentAsync(page)).IsSuccess.ShouldBeTrue();
         }

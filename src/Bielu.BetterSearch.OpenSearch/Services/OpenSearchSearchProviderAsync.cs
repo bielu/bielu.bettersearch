@@ -22,6 +22,7 @@ internal sealed class OpenSearchSearchProviderAsync(
 
     public async Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(query.Index))
         {
             return Result.Fail<ISearchResult>("The query needs an Index.");
