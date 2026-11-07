@@ -10,7 +10,7 @@
 </p>
 
 A provider-agnostic search abstraction for .NET: describe a query once, then run it against whichever
-search engine you configure. Elasticsearch and an in-memory provider ship today, and a new engine is a new
+search engine you configure. Elasticsearch, OpenSearch and an in-memory provider ship today, and a new engine is a new
 provider package, with no change to the core.
 
 📖 **Full documentation: [https://search.bielu.pl/](https://search.bielu.pl/)**
@@ -28,6 +28,7 @@ dotnet add package Bielu.BetterSearch.Core --prerelease
 
 # Then one provider:
 dotnet add package Bielu.BetterSearch.ElasticSearch --prerelease   # Elasticsearch
+dotnet add package Bielu.BetterSearch.OpenSearch --prerelease      # OpenSearch
 dotnet add package Bielu.BetterSearch.Lifti --prerelease           # in-memory
 ```
 
@@ -41,6 +42,37 @@ using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
 
 builder.Services.AddBetterSearch(search => search.AddElasticSearch());
 ```
+
+OpenSearch, configured from `Bielu:BetterSearch:OpenSearch`:
+
+```csharp
+using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+
+builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpenSearch());
+```
+
+```json
+{
+  "Bielu": {
+    "BetterSearch": {
+      "OpenSearch": {
+        "SharedIndexSettings": {
+          "ConnectionString": "http://localhost:9200",
+          "AuthenticationType": "PASSWORD",
+          "AuthenticationDetails": { "Username": "admin", "Password": "..." }
+        }
+      }
+    }
+  }
+}
+```
+
+`AuthenticationType` is `NONE`, `PASSWORD` (basic, `Username` and `Password`) or `APIKEY` (an OpenSearch
+3.x API key in `ApiKey`). An entry under `Indexes` overrides the connection string or the authentication
+for that one index and takes the rest from the shared settings (set `"AuthenticationType": "NONE"` there to
+turn the shared authentication off for that index), and `MaxResultWindow` (10,000 by default)
+should match the indexes' `index.max_result_window`.
 
 Or in memory:
 
@@ -77,13 +109,13 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
 - ✅ **One query model** for every provider: term, terms, prefix, prefix phrase, fuzzy, date, numeric and
   string ranges, geo distance, raw Lucene, and nested boolean logic with Lucene semantics
 - ✅ **Fluent query builder** in `Bielu.BetterSearch.FluentApi`
-- ✅ **Paging, sorting, post filters and scores** on the Elasticsearch provider
+- ✅ **Paging, sorting, post filters and scores** on the Elasticsearch and OpenSearch providers
 - ✅ **Errors as results**: searching and indexing return [FluentResults](https://github.com/altmann/FluentResults)
-  `Result`s. Elasticsearch fails a query that asks for facets or highlighting, but Lifti ignores paging,
+  `Result`s. Elasticsearch and OpenSearch fail a query that asks for facets or highlighting, but Lifti ignores paging,
   sorting, post filters, facets and highlighting, so check the [feature matrix](FEATURE_MATRIX.md) for what
   your provider applies
 - ✅ **Shared provider tests**: provider-agnostic behavior tests in `BaseTests` run against every provider
-- ✅ **.NET Aspire AppHost** that starts Elasticsearch for local development and the integration tests
+- ✅ **.NET Aspire AppHost** that starts Elasticsearch and OpenSearch for local development and the integration tests
 
 Facets and highlighting can be expressed but no provider runs them yet. See the
 [feature matrix](FEATURE_MATRIX.md) for the full picture.
@@ -102,6 +134,7 @@ Facets and highlighting can be expressed but no provider runs them yet. See the
 | Package | Engine | Status |
 | --- | --- | --- |
 | [`Bielu.BetterSearch.ElasticSearch`](https://www.nuget.org/packages/Bielu.BetterSearch.ElasticSearch/) | [Elasticsearch](https://www.elastic.co/elasticsearch) | Available |
+| [`Bielu.BetterSearch.OpenSearch`](https://www.nuget.org/packages/Bielu.BetterSearch.OpenSearch/) | [OpenSearch](https://opensearch.org/) | Available |
 | [`Bielu.BetterSearch.Lifti`](https://www.nuget.org/packages/Bielu.BetterSearch.Lifti/) | In memory, on [LIFTI](https://github.com/mikegoatly/lifti) | Available; to be replaced by Lucene.NET |
 | `Bielu.BetterSearch.Lucene` | [Lucene.NET](https://lucenenet.apache.org/), in memory or on disk | Planned ([roadmap](ROADMAP.md)) |
 
@@ -117,7 +150,7 @@ The [changelog](CHANGELOG.md) lists what changed in each release.
 ## Building from source
 
 The repository needs the **.NET 10 SDK**. The solution is `src/Bielu.BetterSearch.slnx`. The Elasticsearch
-tests start Elasticsearch through the Aspire AppHost, so they need Docker.
+and OpenSearch tests start their engine through the Aspire AppHost, so they need Docker.
 
 ```bash
 dotnet build src/Bielu.BetterSearch.slnx
