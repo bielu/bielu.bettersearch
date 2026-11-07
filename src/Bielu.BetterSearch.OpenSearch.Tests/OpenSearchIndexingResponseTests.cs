@@ -1,7 +1,10 @@
 ﻿using System.Text;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using OpenSearch.Client;
 using OpenSearch.Net;
 using Shouldly;
@@ -17,6 +20,16 @@ public sealed class OpenSearchIndexingResponseTests
     {
         public Task<IOpenSearchClient> GetOrCreateClientAsync(string indexName) => Task.FromResult(client);
     }
+
+    private sealed class InvalidSettingsOptionsMonitor : IOptionsMonitor<OpenSearchOptions>
+    {
+        public OpenSearchOptions CurrentValue { get; } = new() { SharedIndexSettings = new() { ConnectionString = "localhost:9200" } };
+        public OpenSearchOptions Get(string? name) => CurrentValue;
+        public IDisposable? OnChange(Action<OpenSearchOptions, string?> listener) => null;
+    }
+
+    private static IClientFactoryAsync<IOpenSearchClient> InvalidSettingsFactory() =>
+        new OpenSearchClientFactory(new OpenSearchClientSettingsManager(new InvalidSettingsOptionsMonitor()));
 
     private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode)
     {
@@ -94,5 +107,48 @@ public sealed class OpenSearchIndexingResponseTests
         var result = await provider.EnsureIndexExistsAsync("people", Token);
 
         result.IsFailed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_ExistsCheckForbidden_ReturnsTheCheckFailure()
+    {
+        // Every request gets the same 401; a create attempt would fail with a create error instead.
+        var provider = Provider("""{"error":{"type":"security_exception","reason":"missing authentication credentials"},"status":401}""", 401);
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain("HEAD");
+    }
+
+    [Fact]
+    public async Task IndexingProvider_InvalidSettings_ReturnsFailuresInsteadOfThrowing()
+    {
+        var provider = new OpenSearchIndexingProviderAsync(InvalidSettingsFactory(), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+        var document = new SearchDocument { Id = "1", Index = "people" };
+
+        (await provider.IndexDocumentAsync(document, Token)).IsFailed.ShouldBeTrue();
+        (await provider.IndexMultipleDocumentsAsync([document], Token)).IsFailed.ShouldBeTrue();
+        (await provider.RemoveDocumentAsync("1", "people", Token)).IsFailed.ShouldBeTrue();
+        (await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token)).IsFailed.ShouldBeTrue();
+        (await provider.DeleteIndexAsync("people", Token)).IsFailed.ShouldBeTrue();
+        (await provider.IndexExistsAsync("people", Token)).IsFailed.ShouldBeTrue();
+        (await provider.CreateIndexAsync("people", Token)).IsFailed.ShouldBeTrue();
+        var ensure = await provider.EnsureIndexExistsAsync("people", Token);
+        ensure.IsFailed.ShouldBeTrue();
+        ensure.Errors.Single().Message.ShouldContain("not an http or https URL");
+    }
+
+    [Fact]
+    public async Task SearchAsync_InvalidSettings_ReturnsFailureInsteadOfThrowing()
+    {
+        var options = new InvalidSettingsOptionsMonitor();
+        var translateService = new OpenSearchQueryTranslateService([]);
+        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), options);
+
+        var result = await provider.SearchAsync(new SearchQuery { Index = "people" });
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain("people");
     }
 }

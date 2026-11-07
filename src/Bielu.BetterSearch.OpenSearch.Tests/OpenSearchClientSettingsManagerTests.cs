@@ -121,7 +121,7 @@ public class OpenSearchClientSettingsManagerTests
         GetSettings(options);
 
         products.ConnectionString.ShouldBeEmpty();
-        products.AuthenticationType.ShouldBe(OpenSearchAuthenticationType.NONE);
+        products.AuthenticationType.ShouldBeNull();
         products.AuthenticationDetails.ShouldBeNull();
     }
 
@@ -137,7 +137,7 @@ public class OpenSearchClientSettingsManagerTests
             },
         };
         var monitor = new StaticOptionsMonitor(options);
-        var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor), monitor);
+        var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor));
 
         var people = await factory.GetOrCreateClientAsync("people");
         var orders = await factory.GetOrCreateClientAsync("orders");
@@ -148,6 +148,99 @@ public class OpenSearchClientSettingsManagerTests
         products.ShouldNotBeSameAs(people);
         products.ConnectionSettings.ConnectionPool.Nodes.Single().Uri.ShouldBe(new Uri("http://products:9200"));
     }
+
+    [Fact]
+    public void GetOrCreateClientSettings_IndexSettingsWithAuthenticationNone_TurnsSharedAuthenticationOff()
+    {
+        var settings = GetSettings(new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings
+            {
+                ConnectionString = "http://shared:9200",
+                AuthenticationType = OpenSearchAuthenticationType.PASSWORD,
+                AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "secret" },
+            },
+            Indexes = new Dictionary<string, OpenSearchIndexSettings>
+            {
+                ["products"] = new() { ConnectionString = "http://products:9200", AuthenticationType = OpenSearchAuthenticationType.NONE },
+            },
+        });
+
+        settings.ConnectionPool.Nodes.Single().Uri.ShouldBe(new Uri("http://products:9200"));
+        settings.BasicAuthenticationCredentials.ShouldBeNull();
+        settings.ApiKeyAuthenticationCredentials.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_IndexEntriesWithoutConnectionSettings_ShareTheSharedClient()
+    {
+        var options = new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings { ConnectionString = "http://shared:9200" },
+            Indexes = new Dictionary<string, OpenSearchIndexSettings>
+            {
+                ["products"] = new() { IndexingEnabled = false },
+                ["default"] = new() { ConnectionString = "http://other:9200" },
+            },
+        };
+        var monitor = new StaticOptionsMonitor(options);
+        var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor));
+
+        var people = await factory.GetOrCreateClientAsync("people");
+        var products = await factory.GetOrCreateClientAsync("products");
+        var defaultIndex = await factory.GetOrCreateClientAsync("default");
+
+        products.ShouldBeSameAs(people);
+        defaultIndex.ShouldNotBeSameAs(people);
+        people.ConnectionSettings.ConnectionPool.Nodes.Single().Uri.ShouldBe(new Uri("http://shared:9200"));
+        defaultIndex.ConnectionSettings.ConnectionPool.Nodes.Single().Uri.ShouldBe(new Uri("http://other:9200"));
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_ChangedSettings_CreatesANewClient()
+    {
+        var options = new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings
+            {
+                ConnectionString = "http://shared:9200",
+                AuthenticationType = OpenSearchAuthenticationType.PASSWORD,
+                AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "old" },
+            },
+        };
+        var monitor = new StaticOptionsMonitor(options);
+        var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor));
+        var before = await factory.GetOrCreateClientAsync("people");
+
+        options.SharedIndexSettings.AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "new" };
+        var after = await factory.GetOrCreateClientAsync("people");
+
+        after.ShouldNotBeSameAs(before);
+        after.ConnectionSettings.BasicAuthenticationCredentials.Password.CreateString().ShouldBe("new");
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_InvalidSettingsFixed_CreatesTheClient()
+    {
+        var options = new OpenSearchOptions();
+        var monitor = new StaticOptionsMonitor(options);
+        var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor));
+        await Should.ThrowAsync<ArgumentException>(() => factory.GetOrCreateClientAsync("people"));
+
+        options.SharedIndexSettings.ConnectionString = "http://shared:9200";
+        var client = await factory.GetOrCreateClientAsync("people");
+
+        client.ConnectionSettings.ConnectionPool.Nodes.Single().Uri.ShouldBe(new Uri("http://shared:9200"));
+    }
+
+    [Theory]
+    [InlineData("localhost:9200")]
+    [InlineData("not a url")]
+    public void GetOrCreateClientSettings_ConnectionStringNotAnHttpUrl_Throws(string connectionString) =>
+        Should.Throw<ArgumentException>(() => GetSettings(new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings { ConnectionString = connectionString },
+        }));
 
     [Theory]
     [InlineData(OpenSearchAuthenticationType.PASSWORD)]

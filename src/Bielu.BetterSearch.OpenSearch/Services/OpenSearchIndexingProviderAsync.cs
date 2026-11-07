@@ -14,8 +14,13 @@ public sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenSea
 
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
     {
-        var client = await clientFactory.GetOrCreateClientAsync(document.Index).ConfigureAwait(false);
-        var response = await client.IndexAsync(document, i => i.Index(document.Index).Id(document.Id), cancellationToken).ConfigureAwait(false);
+        var client = await clientFactory.TryGetClientAsync(document.Index).ConfigureAwait(false);
+        if (client.IsFailed)
+        {
+            return client.ToResult();
+        }
+
+        var response = await client.Value.IndexAsync(document, i => i.Index(document.Index).Id(document.Id), cancellationToken).ConfigureAwait(false);
         return IsSuccess(response) ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
     }
 
@@ -26,8 +31,14 @@ public sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenSea
         var results = new List<Result>();
         foreach (var indexGroup in searchDocuments.GroupBy(x => x.Index))
         {
-            var client = await clientFactory.GetOrCreateClientAsync(indexGroup.Key).ConfigureAwait(false);
-            var response = await client.BulkAsync(b => b.Index(indexGroup.Key).IndexMany(indexGroup, (descriptor, document) => descriptor.Id(document.Id)), cancellationToken).ConfigureAwait(false);
+            var client = await clientFactory.TryGetClientAsync(indexGroup.Key).ConfigureAwait(false);
+            if (client.IsFailed)
+            {
+                results.Add(client.ToResult());
+                continue;
+            }
+
+            var response = await client.Value.BulkAsync(b => b.Index(indexGroup.Key).IndexMany(indexGroup, (descriptor, document) => descriptor.Id(document.Id)), cancellationToken).ConfigureAwait(false);
             results.Add(IsSuccess(response) ? Result.Ok() : Result.Fail(new Error(response.DebugInformation)));
         }
 
@@ -37,16 +48,26 @@ public sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenSea
 
     public async Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default)
     {
-        var client = await clientFactory.GetOrCreateClientAsync(type).ConfigureAwait(false);
-        var response = await client.DeleteAsync(new DeleteRequest(type, id), cancellationToken).ConfigureAwait(false);
+        var client = await clientFactory.TryGetClientAsync(type).ConfigureAwait(false);
+        if (client.IsFailed)
+        {
+            return client.ToResult();
+        }
+
+        var response = await client.Value.DeleteAsync(new DeleteRequest(type, id), cancellationToken).ConfigureAwait(false);
         return IsSuccess(response) ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
     }
 
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
         CancellationToken cancellationToken = default)
     {
-        var client = await clientFactory.GetOrCreateClientAsync(index.IndexName).ConfigureAwait(false);
-        var response = await client.DeleteByQueryAsync<SearchDocument>(d => d.Index(index.IndexName).Query(q => q.MatchAll()), cancellationToken).ConfigureAwait(false);
+        var client = await clientFactory.TryGetClientAsync(index.IndexName).ConfigureAwait(false);
+        if (client.IsFailed)
+        {
+            return client.ToResult<long?>();
+        }
+
+        var response = await client.Value.DeleteByQueryAsync<SearchDocument>(d => d.Index(index.IndexName).Query(q => q.MatchAll()), cancellationToken).ConfigureAwait(false);
         if (!IsSuccess(response))
         {
             return Result.Fail<long?>(new Error(response.DebugInformation));
@@ -65,15 +86,24 @@ public sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenSea
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {
         var exist = await IndexExistsAsync(index, cancellationToken).ConfigureAwait(false);
-        return exist is { IsSuccess: true, Value: true }
-            ? Result.Ok(true)
-            : await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        // A failed check, such as a 401 or 5xx, is returned as it is rather than hidden behind a create attempt.
+        if (exist.IsFailed)
+        {
+            return exist;
+        }
+
+        return exist.Value ? Result.Ok(true) : await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default)
     {
-        var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-        var response = await client.Indices.DeleteAsync(index, ct: cancellationToken).ConfigureAwait(false);
+        var client = await clientFactory.TryGetClientAsync(index).ConfigureAwait(false);
+        if (client.IsFailed)
+        {
+            return client.ToResult<bool>();
+        }
+
+        var response = await client.Value.Indices.DeleteAsync(index, ct: cancellationToken).ConfigureAwait(false);
         return IsSuccess(response) ? Result.Ok(true) : Result.Fail<bool>(new Error(response.DebugInformation));
     }
 

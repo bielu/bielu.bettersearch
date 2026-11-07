@@ -140,6 +140,66 @@ public class OpenSearchQueryTranslateServiceTests(
     }
 
     [Theory]
+    [InlineData(91, 0)]
+    [InlineData(-90.5, 0)]
+    [InlineData(0, 200)]
+    [InlineData(0, -180.5)]
+    [InlineData(double.NaN, 0)]
+    public async Task SpatialSearchQuery_CoordinatesOutOfRange_ReturnsFailedResult(double lat, double lng)
+    {
+        var subQuery = new SpatialSearchQuery { Field = "Location", Distance = 10, Lat = lat, Lng = lng };
+
+        var result = await translators.First(t => t.CanTranslate(subQuery)).TranslateAsync(subQuery, translators);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain(lat is >= -90 and <= 90 ? "Lng" : "Lat");
+    }
+
+    [Theory]
+    [InlineData(0.00001)]
+    [InlineData(1e20)]
+    public async Task SpatialSearchQuery_VerySmallOrLargeDistance_IsAccepted(double distance)
+    {
+        var subQuery = new SpatialSearchQuery { Field = "Location", Distance = distance, Lat = 52.23, Lng = 21.01 };
+
+        var result = await translators.First(t => t.CanTranslate(subQuery)).TranslateAsync(subQuery, translators);
+
+        result.IsSuccess.ShouldBeTrue();
+        var geoDistance = ((IQueryContainer)result.Value).GeoDistance.Distance;
+        geoDistance.Precision.ShouldBe(distance);
+        geoDistance.Unit.ShouldBe(DistanceUnit.Kilometers);
+    }
+
+    [Fact]
+    public async Task DateRangeQuery_UtcBound_IsSentAsUtc()
+    {
+        var subQuery = new DateRangeQuery { Field = "Born", MinValue = new DateTime(2020, 5, 1, 12, 0, 0, DateTimeKind.Utc) };
+
+        var json = await TranslateToJsonAsync(subQuery);
+
+        json.ShouldContain("\"gt\":\"2020-05-01T12:00:00Z\"");
+    }
+
+    [Fact]
+    public async Task DateRangeQuery_LocalBound_KeepsTheLocalOffset()
+    {
+        var bound = new DateTime(2020, 5, 1, 12, 0, 0, DateTimeKind.Local);
+        var subQuery = new DateRangeQuery { Field = "Born", MinValue = bound };
+
+        var json = await TranslateToJsonAsync(subQuery);
+
+        var offset = new DateTimeOffset(bound).ToString("zzz", System.Globalization.CultureInfo.InvariantCulture);
+        json.ShouldContain($"\"gt\":\"2020-05-01T12:00:00{offset}\"");
+    }
+
+    private async Task<string> TranslateToJsonAsync(ISearchSubQuery subQuery)
+    {
+        var result = await translators.First(t => t.CanTranslate(subQuery)).TranslateAsync(subQuery, translators);
+        result.IsSuccess.ShouldBeTrue();
+        return new OpenSearchClient().RequestResponseSerializer.SerializeToString(new SearchRequest("people") { Query = result.Value });
+    }
+
+    [Theory]
     [InlineData(true, true)]
     [InlineData(false, false)]
     public async Task DateRangeQuery_Edges_PickInclusiveOrExclusiveBounds(bool includeMin, bool includeMax)

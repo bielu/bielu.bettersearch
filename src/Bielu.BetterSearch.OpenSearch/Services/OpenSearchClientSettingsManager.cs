@@ -8,16 +8,19 @@ namespace Bielu.BetterSearch.OpenSearch.Services;
 internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearchOptions> optionsMonitor)
     : IOpenSearchClientSettingsManager
 {
-    public ConnectionSettings GetOrCreateClientSettings(string indexName)
+    public ConnectionSettings GetOrCreateClientSettings(string indexName) =>
+        CreateClientSettings(GetConnectionSettings(indexName));
+
+    public OpenSearchIndexSettings GetConnectionSettings(string indexName)
     {
         var options = optionsMonitor.CurrentValue;
         var shared = options.SharedIndexSettings;
         if (options.Indexes == null || !options.Indexes.TryGetValue(indexName, out var indexSpecific))
         {
-            return ParseSettings(shared);
+            return MergeSettings(new OpenSearchIndexSettings(), shared);
         }
 
-        return ParseSettings(MergeSettings(indexSpecific, shared));
+        return MergeSettings(indexSpecific, shared);
     }
 
     /// <summary>
@@ -27,26 +30,33 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
     private static OpenSearchIndexSettings MergeSettings(OpenSearchIndexSettings indexSpecific,
         OpenSearchIndexSettings shared)
     {
-        var ownAuthentication = indexSpecific.AuthenticationType != OpenSearchAuthenticationType.NONE;
+        var ownAuthentication = indexSpecific.AuthenticationType is not null;
         return new OpenSearchIndexSettings
         {
             ConnectionString = string.IsNullOrWhiteSpace(indexSpecific.ConnectionString)
                 ? shared.ConnectionString
                 : indexSpecific.ConnectionString,
-            AuthenticationType = ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType,
+            AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
+                                 ?? OpenSearchAuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
         };
     }
 
-    private static ConnectionSettings ParseSettings(OpenSearchIndexSettings settings)
+    public ConnectionSettings CreateClientSettings(OpenSearchIndexSettings settings)
     {
         if (string.IsNullOrWhiteSpace(settings.ConnectionString))
         {
             throw new ArgumentException("OpenSearch connection string is missing");
         }
 
-        var connectionSettings = new ConnectionSettings(new SingleNodeConnectionPool(new Uri(settings.ConnectionString)));
-        switch (settings.AuthenticationType)
+        if (!Uri.TryCreate(settings.ConnectionString, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new ArgumentException($"OpenSearch connection string {settings.ConnectionString} is not an http or https URL");
+        }
+
+        var connectionSettings = new ConnectionSettings(new SingleNodeConnectionPool(uri));
+        switch (settings.AuthenticationType ?? OpenSearchAuthenticationType.NONE)
         {
             case OpenSearchAuthenticationType.NONE:
                 break;
@@ -62,7 +72,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
                 connectionSettings.ApiKeyAuthentication(new ApiKeyAuthenticationCredentials(apiKeyDetails.ApiKey));
                 break;
             default:
-                throw new InvalidOperationException("Invalid authentication type");
+                throw new ArgumentException($"Invalid authentication type {settings.AuthenticationType}");
         }
 
         return connectionSettings;

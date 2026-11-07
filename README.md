@@ -70,7 +70,8 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
 
 `AuthenticationType` is `NONE`, `PASSWORD` (basic, `Username` and `Password`) or `APIKEY` (an OpenSearch
 3.x API key in `ApiKey`). An entry under `Indexes` overrides the connection string or the authentication
-for that one index and takes the rest from the shared settings, and `MaxResultWindow` (10,000 by default)
+for that one index and takes the rest from the shared settings (set `"AuthenticationType": "NONE"` there to
+turn the shared authentication off for that index), and `MaxResultWindow` (10,000 by default)
 should match the indexes' `index.max_result_window`.
 
 Or in memory:

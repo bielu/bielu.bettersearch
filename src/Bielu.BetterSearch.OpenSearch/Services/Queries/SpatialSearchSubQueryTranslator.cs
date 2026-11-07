@@ -27,11 +27,23 @@ internal sealed class SpatialSearchSubQueryTranslator : OpenSearchSubQueryTransl
             return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchQuery)} needs a Distance greater than 0."));
         }
 
+        // OpenSearch.Client does not check coordinates, so an out-of-range one would only fail on the server.
+        if (query.Lat is < -90 or > 90 || double.IsNaN(query.Lat))
+        {
+            return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchQuery)} has an invalid Lat {query.Lat}: it must be between -90 and 90."));
+        }
+
+        if (query.Lng is < -180 or > 180 || double.IsNaN(query.Lng))
+        {
+            return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchQuery)} has an invalid Lng {query.Lng}: it must be between -180 and 180."));
+        }
+
         var unit = string.IsNullOrWhiteSpace(query.UnitOfDistance) ? DefaultUnit : query.UnitOfDistance;
         Distance distance;
         try
         {
-            distance = new Distance(query.Distance.ToString(System.Globalization.CultureInfo.InvariantCulture) + unit);
+            // Fixed-point, because a value such as 0.00001 would otherwise format as "1E-05".
+            distance = new Distance(query.Distance.ToString("0.###############", System.Globalization.CultureInfo.InvariantCulture) + unit);
         }
         catch (Exception e) when (e is ArgumentException or InvalidCastException)
         {

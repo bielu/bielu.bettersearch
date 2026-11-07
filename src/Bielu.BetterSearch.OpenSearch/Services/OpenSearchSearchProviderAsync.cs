@@ -56,8 +56,13 @@ public sealed class OpenSearchSearchProviderAsync(
             return postFilter.ToResult<ISearchResult<ISearchModel>>();
         }
 
-        var client = await clientFactoryAsync.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
-        var response = await client.SearchAsync<SearchDocument>(CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow)).ConfigureAwait(false);
+        var client = await clientFactoryAsync.TryGetClientAsync(query.Index).ConfigureAwait(false);
+        if (client.IsFailed)
+        {
+            return client.ToResult<ISearchResult<ISearchModel>>();
+        }
+
+        var response = await client.Value.SearchAsync<SearchDocument>(CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow)).ConfigureAwait(false);
         // OpenSearch.Client treats some error responses as valid, so a server error is a failure too.
         if (!response.IsValid || response.ServerError is not null)
         {

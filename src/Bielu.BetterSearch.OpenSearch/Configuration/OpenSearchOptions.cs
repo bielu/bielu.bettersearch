@@ -18,7 +18,11 @@ public class OpenSearchOptions
 public class OpenSearchIndexSettings : IndexSettings
 {
     public string ConnectionString { get; set; } = string.Empty;
-    public OpenSearchAuthenticationType AuthenticationType { get; set; }
+    /// <summary>
+    /// How to authenticate. Unset under <c>Indexes</c> means the index takes the shared authentication;
+    /// <c>NONE</c> there turns it off for that index. Unset in <c>SharedIndexSettings</c> means <c>NONE</c>.
+    /// </summary>
+    public OpenSearchAuthenticationType? AuthenticationType { get; set; }
     public OpenSearchAuthenticationDetails? AuthenticationDetails { get; set; }
 }
 
