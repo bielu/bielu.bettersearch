@@ -10,6 +10,7 @@
             "src/Bielu.BetterSearch.Core/*.csproj",
             "src/Bielu.BetterSearch.FluentApi/*.csproj",
             "src/Bielu.BetterSearch.ElasticSearch/*.csproj",
+            "src/Bielu.BetterSearch.OpenSearch/*.csproj",
             "src/Bielu.BetterSearch.Lifti/*.csproj"
           ]
         }
