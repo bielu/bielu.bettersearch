@@ -19,10 +19,7 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 
 | Area | Behavior | Expected |
 |---|---|---|
-| Lifti query | `MUSTNOT` as the first or only clause returns the documents that match | The complement, or a failed `Result` |
-| Lifti query | `MUST a` + `SHOULD b` returns a ∪ b | Documents matching a, as in Lucene and Elasticsearch |
 | Lifti query | `Field` is ignored: `Name=jane` also matches `City=Jane` | Only that field |
-| Lifti query | `FILTER` as the first or only clause succeeds, though documented as unsupported | A failed `Result` |
 | Lifti query | Accented terms never match: `Żółw` finds nothing, because terms are upper-cased by hand instead of using the index tokenizer | A match |
 | Lifti index | `CreateIndexAsync` on an existing index silently wipes its documents | An error or a no-op |
 | Core | `RemoveAllDocumentsAsync` reports 0 removed, whatever the real count | The count |
@@ -38,7 +35,6 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Elasticsearch | Provider methods return `Result.Ok()` where a `Result<bool>` or `Result<int>` is due, so `Value` is `false` or `0` even on success (*by inspection*) | The real value |
 | Elasticsearch | `CreateIndexAsync` reports a server rejection as a successful `false`; `IndexExistsAsync` reads transport errors as "does not exist" (*by inspection*) | A failed `Result` |
 | Elasticsearch | Bulk indexing ignores per-item failures (*by inspection*) | A failed `Result` naming them |
-| Elasticsearch | A new client, with its connection pool, per call (*by inspection*) | One client per connection |
 | Elasticsearch | Merging index settings mutates the live options object and only merges the connection string, not credentials (*by inspection*) | A merged copy |
 
 ## Replacing Lifti: use Lucene.NET
@@ -88,7 +84,7 @@ Breaking, and cheapest now.
 
 - ~~Implement sub-query translators, `SearchAsync`, result mapping, pagination and sorting.~~ Done; facets and highlighting are still to come.
 - Run the same conformance suite as Lucene.
-- Fix the provider defects above: real return values, per-item bulk errors, one cached client per connection, non-mutating settings, options validation at startup.
+- Fix the provider defects above: real return values, per-item bulk errors, non-mutating settings, options validation at startup.
 - Add a sample API to the AppHost, with `ServiceDefaults`.
 
 ### Phase 4: stabilize

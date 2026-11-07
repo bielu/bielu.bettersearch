@@ -4,15 +4,22 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 
 /// <summary>
 /// Maps the field names of the query model to Elasticsearch fields. Documents are stored with their
-/// values under <c>fields</c>, so <c>Name</c> becomes <c>fields.Name</c>. Names starting with an
-/// underscore are Elasticsearch metadata fields, such as <c>_id</c> or <c>_score</c>, and pass through.
+/// values under <c>fields</c>, so <c>Name</c> becomes <c>fields.Name</c>. Elasticsearch metadata
+/// fields, such as <c>_id</c> or <c>_score</c>, pass through; any other name starting with an
+/// underscore, such as <c>_tags</c>, is a document field.
 /// </summary>
 internal static class ElasticSearchFieldNames
 {
     private const string FieldsPrefix = "fields.";
 
+    private static readonly HashSet<string> MetadataFields = new(StringComparer.Ordinal)
+    {
+        "_id", "_index", "_score", "_doc", "_source", "_routing", "_ignored", "_seq_no", "_primary_term",
+        "_version", "_tier", "_field_names", "_doc_count", "_size"
+    };
+
     public static string Resolve(string field) =>
-        field.StartsWith('_') || field.StartsWith(FieldsPrefix, StringComparison.Ordinal)
+        MetadataFields.Contains(field) || field.StartsWith(FieldsPrefix, StringComparison.Ordinal)
             ? field
             : FieldsPrefix + field;
 

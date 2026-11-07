@@ -1,9 +1,11 @@
 ﻿using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.Core.Search;
 using FluentResults;
+using Microsoft.Extensions.Options;
 using EsQuery = Elastic.Clients.Elasticsearch.QueryDsl.Query;
 using Result = FluentResults.Result;
 
@@ -11,9 +13,10 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 
 public class ElasticSearchSearchProviderAsync(
     IQueryTranslateServiceAsync<EsQuery> queryTranslateServiceAsync,
-    ElasticSearchQueryTranslateService postFilterTranslateService,
+    IPostFilterTranslateServiceAsync<EsQuery> postFilterTranslateService,
     IClientFactoryAsync<ElasticsearchClient> clientFactoryAsync,
-    IResultMapper<SearchResponse<SearchDocument>> resultMapper) : ISearchProviderAsync
+    IResultMapper<SearchResponse<SearchDocument>> resultMapper,
+    IOptionsMonitor<ElasticSearchOptions> optionsMonitor) : ISearchProviderAsync
 {
     /// <summary>Used when <c>PageSize</c> is not set, as Elasticsearch does.</summary>
     public const int DefaultPageSize = 10;
@@ -33,6 +36,13 @@ public class ElasticSearchSearchProviderAsync(
         if (query.HighlightQueries is { Count: > 0 })
         {
             return Result.Fail<ISearchResult<ISearchModel>>("The Elasticsearch provider does not support highlighting yet.");
+        }
+
+        var maxResultWindow = optionsMonitor.CurrentValue.MaxResultWindow;
+        if (LastResultOf(query) > maxResultWindow)
+        {
+            return Result.Fail<ISearchResult<ISearchModel>>(
+                $"Page {PageOf(query)} with PageSize {PageSizeOf(query)} reaches result {LastResultOf(query)}, past the limit of {maxResultWindow} (index.max_result_window). Narrow the query or raise MaxResultWindow with the index setting.");
         }
 
         var mainQuery = await queryTranslateServiceAsync.TranslateMainQueryAsync(query).ConfigureAwait(false);
@@ -75,6 +85,9 @@ public class ElasticSearchSearchProviderAsync(
     private static int PageSizeOf(ISearchQuery<ISearchResult<ISearchModel>> query) =>
         query.PageSize > 0 ? query.PageSize : DefaultPageSize;
 
+    /// <summary>The position of the page's last result, in <c>long</c> so a large page can't overflow.</summary>
+    private static long LastResultOf(ISearchQuery<ISearchResult<ISearchModel>> query) => (long)PageOf(query) * PageSizeOf(query);
+
     private static SearchRequest CreateRequest(ISearchQuery<ISearchResult<ISearchModel>> query, EsQuery mainQuery, EsQuery? postFilter)
     {
         var pageSize = PageSizeOf(query);
@@ -84,7 +97,6 @@ public class ElasticSearchSearchProviderAsync(
             PostFilter = postFilter,
             From = (PageOf(query) - 1) * pageSize,
             Size = pageSize,
-            TrackTotalHits = new TrackHits(true),
             AllowPartialSearchResults = false
         };
 

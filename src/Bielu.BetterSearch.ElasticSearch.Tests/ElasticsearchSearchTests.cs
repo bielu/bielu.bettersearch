@@ -105,6 +105,28 @@ public sealed class ElasticsearchSearchTests(
     }
 
     [Fact]
+    public async Task SearchAsync_TermsQueryOnKeywordField_MatchesTheValueAsGiven()
+    {
+        var index = await CreatePeopleAsync();
+
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "City.keyword", Value = ["Warsaw", "krakow"] }));
+
+        ids.ShouldBe(["3", "Up-1"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_TermsQueryWithManyValues_StaysUnderTheClauseLimit()
+    {
+        var index = await CreatePeopleAsync();
+        // Above the default limit of 4,096 clauses that one term query per value would hit.
+        var values = Enumerable.Range(0, 5_000).Select(i => (object)$"id-{i}").Append("gdansk").ToList();
+
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "City", Value = values }));
+
+        ids.ShouldBe(["4"]);
+    }
+
+    [Fact]
     public async Task SearchAsync_TermsQueryWithNoValues_MatchesNothing()
     {
         var index = await CreatePeopleAsync();
@@ -297,16 +319,9 @@ public sealed class ElasticsearchSearchTests(
     {
         var index = await CreatePeopleAsync();
         // City is Warsaw AND (Name is jane OR Age >= 35) AND NOT Name is doe
-        // The translator reads each nested clause's own Occurance. BoolSearchSubQuery.Add ignores its
-        // occurrence argument, so the clauses are set directly rather than through Add.
-        var nested = new BoolSearchSubQuery
-        {
-            NestedQueries =
-            [
-                new TermSubQuery { Occurance = Occurance.SHOULD, Field = "Name", Value = "jane" },
-                new NumericRange { Occurance = Occurance.SHOULD, Field = "Age", MinValue = 35, IncludeMinEdge = true }
-            ]
-        };
+        var nested = new BoolSearchSubQuery();
+        nested.Add(Occurance.SHOULD, new TermSubQuery { Field = "Name", Value = "jane" });
+        nested.Add(Occurance.SHOULD, new NumericRange { Field = "Age", MinValue = 35, IncludeMinEdge = true });
         var query = Query(index, Occurance.FILTER, new TermSubQuery { Field = "City", Value = "warsaw" });
         query.Add(Occurance.MUST, nested);
         query.Add(Occurance.MUSTNOT, new TermSubQuery { Field = "Name", Value = "doe" });
@@ -336,6 +351,56 @@ public sealed class ElasticsearchSearchTests(
         result.Value.Pagination.Page.ShouldBe(2);
         result.Value.Pagination.PageSize.ShouldBe(2);
         result.Value.Pagination.TotalPages.ShouldBe(3);
+    }
+
+    [Theory]
+    [InlineData(5_001, 2)]
+    [InlineData(int.MaxValue, int.MaxValue)]
+    public async Task SearchAsync_PagePastTheResultWindow_ReturnsFailedResult(int page, int pageSize)
+    {
+        var index = await CreatePeopleAsync();
+
+        var result = await searchService.SearchAsync(new SearchQuery { Index = index, Page = page, PageSize = pageSize });
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain("max_result_window");
+    }
+
+    [Fact]
+    public async Task SearchAsync_LastPageInTheResultWindow_Succeeds()
+    {
+        var index = await CreatePeopleAsync();
+
+        var result = await searchService.SearchAsync(new SearchQuery { Index = index, Page = 5_000, PageSize = 2 });
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Items.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task SearchAsync_FieldStartingWithUnderscore_IsADocumentField()
+    {
+        var index = await CreatePeopleAsync();
+        var tagged = Person(index, "6", "Tag Holder", 50, 1, new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc), "Lodz");
+        tagged.Fields["_tags"] = ["blue"];
+        (await indexingProvider.IndexDocumentAsync(tagged, TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        await (await clientFactory.GetOrCreateClientAsync(index)).Indices.RefreshAsync(index, TestContext.Current.CancellationToken);
+
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "_tags", Value = "blue" }));
+
+        ids.ShouldBe(["6"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_SortByScoreMetadataField_PassesThrough()
+    {
+        var index = await CreatePeopleAsync();
+        var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "john" });
+        query.SortOrder = [new SortField { FieldName = "_score", Desc = true }];
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["2", "3"]);
     }
 
     [Fact]

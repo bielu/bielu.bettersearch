@@ -12,12 +12,12 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 /// the occurrence it was added with. A query with no clauses matches every document.
 /// </summary>
 public class ElasticSearchQueryTranslateService(IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
-    : IQueryTranslateServiceAsync<EsQuery>
+    : IQueryTranslateServiceAsync<EsQuery>, IPostFilterTranslateServiceAsync<EsQuery>
 {
     public Task<Result<EsQuery>> TranslateMainQueryAsync(ISearchQuery<ISearchResult<ISearchModel>> query) =>
         TranslateAsync(query.Query);
 
-    /// <summary>Translates the post filters, or returns <c>null</c> when there are none.</summary>
+    /// <inheritdoc />
     public async Task<Result<EsQuery?>> TranslatePostFilterAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
     {
         if (query.PostFilterQuery == null || query.PostFilterQuery.Values.All(clauses => clauses.Count == 0))

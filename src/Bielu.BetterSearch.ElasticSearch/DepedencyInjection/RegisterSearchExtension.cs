@@ -14,7 +14,7 @@ public static class RegisterSearchExtension
     public static Configurator AddElasticSearch(this Configurator configurator)
     {
         configurator.Services.AddSingleton<IElasticSearchClientSettingsManager, ElasticSearchClientSettingsManager>();
-        configurator.Services.AddScoped<IClientFactoryAsync<ElasticsearchClient>, ElasticsearchClientFactory>();
+        configurator.Services.AddSingleton<IClientFactoryAsync<ElasticsearchClient>, ElasticsearchClientFactory>();
         configurator.Services.AddScoped(typeof(IDocumentValidatorAsync),
             configurator.Configuration.DocumentValidatorType);
         configurator.SetSearchProviderType<ElasticSearchSearchProviderAsync>()
@@ -24,6 +24,8 @@ public static class RegisterSearchExtension
         configurator.Services.AddScoped(typeof(ISearchServiceAsync), configurator.Configuration.SearchServiceType);
         configurator.Services.AddScoped<ElasticSearchQueryTranslateService>();
         configurator.Services.AddScoped<IQueryTranslateServiceAsync<Query>>(sp =>
+            sp.GetRequiredService<ElasticSearchQueryTranslateService>());
+        configurator.Services.AddScoped<IPostFilterTranslateServiceAsync<Query>>(sp =>
             sp.GetRequiredService<ElasticSearchQueryTranslateService>());
         configurator.Services.AddScoped<IResultMapper<SearchResponse<SearchDocument>>, ElasticSearchResultMapper>();
 

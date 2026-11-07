@@ -6,6 +6,10 @@
         public string? Field { get; set; }
         public int BoostValue { get; set; } = 1;
         public List<ISearchSubQuery> NestedQueries { get; set; } = [];
-        public void Add(Occurance key, ISearchSubQuery value) => NestedQueries.Add(value);
+        public void Add(Occurance key, ISearchSubQuery value)
+        {
+            value.Occurance = key;
+            NestedQueries.Add(value);
+        }
     }
 }

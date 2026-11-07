@@ -1,14 +1,17 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using FluentResults;
 using EsQuery = Elastic.Clients.Elasticsearch.QueryDsl.Query;
+using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.ElasticSearch.Services.Queries;
 
 /// <summary>
-/// Matches any of the terms. Built from <c>term</c> queries rather than a <c>terms</c> query, which has
-/// no case-insensitive option, so it matches the same documents as <see cref="TermSubQuery"/> would.
+/// Matches any of the terms with one <c>terms</c> query. It has no case-insensitive option, so each
+/// string is also sent lower-cased: that matches the tokens the default analyzer indexes for text,
+/// while a keyword field still matches the value as given.
 /// </summary>
 internal sealed class TermsSubQueryTranslator : ElasticSearchSubQueryTranslator<TermsSubQuery>
 {
@@ -26,10 +29,15 @@ internal sealed class TermsSubQueryTranslator : ElasticSearchSubQueryTranslator<
             return Task.FromResult(Result.Ok<EsQuery>(new MatchNoneQuery()));
         }
 
-        return Task.FromResult(Result.Ok<EsQuery>(new BoolQuery
+        var terms = values
+            .SelectMany(value => value is string text ? [text, text.ToLowerInvariant()] : new[] { value })
+            .Distinct()
+            .Select(FieldValue.FromValue)
+            .ToList();
+        return Task.FromResult(Result.Ok<EsQuery>(new TermsQuery
         {
-            Should = values.Select(value => TermSubQueryTranslator.Create(field.Value, value, null)).ToList(),
-            MinimumShouldMatch = 1,
+            Field = field.Value,
+            Terms = new TermsQueryField(terms),
             Boost = ElasticSearchFieldNames.Boost(query.BoostValue)
         }));
     }

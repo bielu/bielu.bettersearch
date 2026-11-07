@@ -78,4 +78,95 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
         result.Value.ShouldNotBeNull();
         result.Value.Items.Cast<BaseSearchModel>().Select(item => item.Id).OrderBy(id => id).ShouldBe(["2", "3"]);
     }
+
+    private async Task<List<string>> SearchIdsAsync(SearchQuery query)
+    {
+        var result = await serviceAsync.SearchAsync(query);
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+        return result.Value.Items.Cast<BaseSearchModel>().Select(item => item.Id).OrderBy(id => id).ToList();
+    }
+
+    private async Task<SearchQuery> CreateQueryAsync()
+    {
+        var index = $"query-results-{Guid.NewGuid():N}";
+        await CreateExampleDocumentsAsync(index);
+        return new SearchQuery { Index = index };
+    }
+
+    private static TermSubQuery Name(string value) => new() { Field = "Name", Value = value };
+
+    [Fact]
+    public async Task SearchAsync_Hits_CarryAScore()
+    {
+        var query = await CreateQueryAsync();
+        query.Add(Occurance.MUST, Name("john"));
+
+        var result = await serviceAsync.SearchAsync(query);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Items.Count().ShouldBe(2);
+        result.Value.Items.ShouldAllBe(item => item.Score > 0);
+    }
+
+    [Fact]
+    public async Task SearchAsync_MustAndShould_ReturnsOnlyTheMustMatches()
+    {
+        var query = await CreateQueryAsync();
+        query.Add(Occurance.SHOULD, Name("jane"));
+        query.Add(Occurance.MUST, Name("john"));
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["2", "3"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShouldOnly_ReturnsAnyMatch()
+    {
+        var query = await CreateQueryAsync();
+        query.Add(Occurance.SHOULD, Name("jane"));
+        query.Add(Occurance.SHOULD, Name("3"));
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["1", "3"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_NestedBoolBuiltWithAdd_KeepsEachOccurrence()
+    {
+        var query = await CreateQueryAsync();
+        var nested = new BoolSearchSubQuery();
+        nested.Add(Occurance.SHOULD, Name("jane"));
+        nested.Add(Occurance.MUST, Name("john"));
+        nested.Add(Occurance.MUSTNOT, Name("3"));
+        query.Add(Occurance.MUST, nested);
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["2"]);
+    }
+
+    /// <summary>Lucene semantics: <c>MUSTNOT</c> on its own returns every other document.</summary>
+    [Fact]
+    public virtual async Task SearchAsync_MustNotOnly_ReturnsTheComplement()
+    {
+        var query = await CreateQueryAsync();
+        query.Add(Occurance.MUSTNOT, Name("jane"));
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["2", "3"]);
+    }
+
+    /// <summary>For providers that cannot return the complement: a failed <c>Result</c>, never the matches.</summary>
+    protected async Task SearchAsync_MustNotOnly_ShouldFailAsync()
+    {
+        var query = await CreateQueryAsync();
+        query.Add(Occurance.MUSTNOT, Name("jane"));
+
+        var result = await serviceAsync.SearchAsync(query);
+
+        result.IsFailed.ShouldBeTrue();
+    }
 }
