@@ -53,6 +53,8 @@ internal static class LiftiBoolQueryBuilder
         var optionalComplement = false;
         // A required clause makes SHOULD optional even when it only excludes and leaves required null.
         var hasRequired = false;
+        // Excluding "not x" requires x, but unlike a MUST it leaves SHOULD deciding the matches, as in Lucene.
+        IQueryPart? doubleNegated = null;
 
         foreach (var (occurance, subQuery) in clauses)
         {
@@ -78,7 +80,7 @@ internal static class LiftiBoolQueryBuilder
                             hasRequired = true;
                             continue;
                         case Occurance.MUSTNOT:
-                            required = And(required, nestedExcluded);
+                            doubleNegated = And(doubleNegated, nestedExcluded);
                             continue;
                         default:
                             // Only matters when nothing is required, and Lifti can't express "or not x".
@@ -133,7 +135,14 @@ internal static class LiftiBoolQueryBuilder
             return Result.Fail<(IQueryPart?, IQueryPart?)>(NoPositiveClause);
         }
 
-        return Result.Ok<(IQueryPart?, IQueryPart?)>((hasRequired ? required : optional, excluded));
+        var matches = hasRequired ? required : optional;
+        if (doubleNegated != null)
+        {
+            // A null match is every document, or no positive clause, so the double negation alone is the match.
+            matches = And(matches, doubleNegated);
+        }
+
+        return Result.Ok<(IQueryPart?, IQueryPart?)>((matches, excluded));
     }
 
     private static IQueryPart Or(IQueryPart? left, IQueryPart right) => left == null ? right : new OrQueryOperator(left, right);

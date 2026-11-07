@@ -176,6 +176,35 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
         ids.ShouldBe(["2", "3"]);
     }
 
+    /// <summary>Excluding "not 3" on its own requires 3.</summary>
+    [Fact]
+    public async Task SearchAsync_OnlyMustNotOfNestedMustNotOnly_ReturnsTheNestedMatches()
+    {
+        var query = await CreateQueryAsync();
+        var nested = new BoolSearchSubQuery();
+        nested.Add(Occurance.MUSTNOT, Name("3"));
+        query.Add(Occurance.MUSTNOT, nested);
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["3"]);
+    }
+
+    /// <summary>Lucene semantics: a <c>MUSTNOT</c> does not make <c>SHOULD</c> optional, so both must match.</summary>
+    [Fact]
+    public async Task SearchAsync_ShouldBesideMustNotOfNestedMustNotOnly_ReturnsBothMatches()
+    {
+        var query = await CreateQueryAsync();
+        var nested = new BoolSearchSubQuery();
+        nested.Add(Occurance.MUSTNOT, Name("3"));
+        query.Add(Occurance.SHOULD, Name("john"));
+        query.Add(Occurance.MUSTNOT, nested);
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["3"]);
+    }
+
     /// <summary>Lucene semantics: a <c>MUST</c> makes <c>SHOULD</c> optional, even when the <c>MUST</c> only excludes.</summary>
     [Fact]
     public virtual async Task SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ReturnsEveryDocumentExceptTheExclusions()
