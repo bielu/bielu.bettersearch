@@ -8,9 +8,6 @@ namespace Bielu.BetterSearch.OpenSearch.Services;
 internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearchOptions> optionsMonitor)
     : IOpenSearchClientSettingsManager
 {
-    public ConnectionSettings GetOrCreateClientSettings(string indexName) =>
-        CreateClientSettings(GetConnectionSettings(indexName));
-
     public OpenSearchIndexSettings GetConnectionSettings(string indexName)
     {
         var options = optionsMonitor.CurrentValue;

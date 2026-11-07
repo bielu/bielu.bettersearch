@@ -11,11 +11,14 @@ public class OpenSearchClientSettingsManagerTests
     private static OpenSearchClientSettingsManager CreateManager(OpenSearchOptions options) =>
         new(new StaticOptionsMonitor(options));
 
-    private static IConnectionConfigurationValues GetSettings(OpenSearchOptions options, string index = "products") =>
-        CreateManager(options).GetOrCreateClientSettings(index);
+    private static IConnectionConfigurationValues GetSettings(OpenSearchOptions options, string index = "products")
+    {
+        var manager = CreateManager(options);
+        return manager.CreateClientSettings(manager.GetConnectionSettings(index));
+    }
 
     [Fact]
-    public void GetOrCreateClientSettings_NoIndexSettings_UsesSharedConnectionString()
+    public void CreateClientSettings_NoIndexSettings_UsesSharedConnectionString()
     {
         var settings = GetSettings(new OpenSearchOptions
         {
@@ -28,7 +31,7 @@ public class OpenSearchClientSettingsManagerTests
     }
 
     [Fact]
-    public void GetOrCreateClientSettings_IndexSettingsWithConnectionString_UsesIndexConnectionString()
+    public void CreateClientSettings_IndexSettingsWithConnectionString_UsesIndexConnectionString()
     {
         var settings = GetSettings(new OpenSearchOptions
         {
@@ -43,7 +46,7 @@ public class OpenSearchClientSettingsManagerTests
     }
 
     [Fact]
-    public void GetOrCreateClientSettings_IndexSettingsWithoutConnectionString_FallsBackToShared()
+    public void CreateClientSettings_IndexSettingsWithoutConnectionString_FallsBackToShared()
     {
         var settings = GetSettings(new OpenSearchOptions
         {
@@ -63,7 +66,7 @@ public class OpenSearchClientSettingsManagerTests
     }
 
     [Fact]
-    public void GetOrCreateClientSettings_ApiKeyAuthentication_SetsApiKeyCredentials()
+    public void CreateClientSettings_ApiKeyAuthentication_SetsApiKeyCredentials()
     {
         var settings = GetSettings(new OpenSearchOptions
         {
@@ -82,7 +85,7 @@ public class OpenSearchClientSettingsManagerTests
     }
 
     [Fact]
-    public void GetOrCreateClientSettings_IndexSettingsWithoutAuthentication_UsesSharedAuthentication()
+    public void CreateClientSettings_IndexSettingsWithoutAuthentication_UsesSharedAuthentication()
     {
         var settings = GetSettings(new OpenSearchOptions
         {
@@ -104,7 +107,7 @@ public class OpenSearchClientSettingsManagerTests
     }
 
     [Fact]
-    public void GetOrCreateClientSettings_IndexSettings_DoesNotChangeTheOptions()
+    public void CreateClientSettings_IndexSettings_DoesNotChangeTheOptions()
     {
         var products = new OpenSearchIndexSettings();
         var options = new OpenSearchOptions
@@ -150,7 +153,7 @@ public class OpenSearchClientSettingsManagerTests
     }
 
     [Fact]
-    public void GetOrCreateClientSettings_IndexSettingsWithAuthenticationNone_TurnsSharedAuthenticationOff()
+    public void CreateClientSettings_IndexSettingsWithAuthenticationNone_TurnsSharedAuthenticationOff()
     {
         var settings = GetSettings(new OpenSearchOptions
         {
@@ -219,6 +222,25 @@ public class OpenSearchClientSettingsManagerTests
         after.ConnectionSettings.BasicAuthenticationCredentials.Password.CreateString().ShouldBe("new");
     }
 
+    [Theory]
+    [InlineData(OpenSearchAuthenticationType.PASSWORD)]
+    [InlineData(OpenSearchAuthenticationType.APIKEY)]
+    public void ClientKey_ToString_LeavesOutCredentials(OpenSearchAuthenticationType authenticationType)
+    {
+        var key = OpenSearchClientFactory.ClientKey.From(new OpenSearchIndexSettings
+        {
+            ConnectionString = "http://shared:9200",
+            AuthenticationType = authenticationType,
+            AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "s3cret-password", ApiKey = "s3cret-key" },
+        });
+
+        var text = key.ToString();
+
+        text.ShouldContain("http://shared:9200");
+        text.ShouldContain(authenticationType.ToString());
+        text.ShouldNotContain("s3cret");
+    }
+
     [Fact]
     public async Task GetOrCreateClientAsync_InvalidSettingsFixed_CreatesTheClient()
     {
@@ -236,7 +258,7 @@ public class OpenSearchClientSettingsManagerTests
     [Theory]
     [InlineData("localhost:9200")]
     [InlineData("not a url")]
-    public void GetOrCreateClientSettings_ConnectionStringNotAnHttpUrl_Throws(string connectionString) =>
+    public void CreateClientSettings_ConnectionStringNotAnHttpUrl_Throws(string connectionString) =>
         Should.Throw<ArgumentException>(() => GetSettings(new OpenSearchOptions
         {
             SharedIndexSettings = new OpenSearchIndexSettings { ConnectionString = connectionString },
@@ -245,7 +267,7 @@ public class OpenSearchClientSettingsManagerTests
     [Theory]
     [InlineData(OpenSearchAuthenticationType.PASSWORD)]
     [InlineData(OpenSearchAuthenticationType.APIKEY)]
-    public void GetOrCreateClientSettings_AuthenticationWithoutDetails_Throws(OpenSearchAuthenticationType authenticationType) =>
+    public void CreateClientSettings_AuthenticationWithoutDetails_Throws(OpenSearchAuthenticationType authenticationType) =>
         Should.Throw<ArgumentException>(() => GetSettings(new OpenSearchOptions
         {
             SharedIndexSettings = new OpenSearchIndexSettings
@@ -256,7 +278,7 @@ public class OpenSearchClientSettingsManagerTests
         }));
 
     [Fact]
-    public void GetOrCreateClientSettings_MissingConnectionString_Throws() =>
+    public void CreateClientSettings_MissingConnectionString_Throws() =>
         Should.Throw<ArgumentException>(() => GetSettings(new OpenSearchOptions()));
 
     private sealed class StaticOptionsMonitor(OpenSearchOptions options) : IOptionsMonitor<OpenSearchOptions>

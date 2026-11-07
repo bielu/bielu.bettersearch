@@ -38,6 +38,12 @@ public sealed class OpenSearchSearchProviderAsync(
         }
 
         var maxResultWindow = optionsMonitor.CurrentValue.MaxResultWindow;
+        if (maxResultWindow <= 0)
+        {
+            return Result.Fail<ISearchResult<ISearchModel>>(
+                $"MaxResultWindow is {maxResultWindow}, but it must be greater than 0. Set {OpenSearchOptions.OpenSearchOptionsKey}:MaxResultWindow to the indexes' index.max_result_window.");
+        }
+
         if (LastResultOf(query) > maxResultWindow)
         {
             return Result.Fail<ISearchResult<ISearchModel>>(

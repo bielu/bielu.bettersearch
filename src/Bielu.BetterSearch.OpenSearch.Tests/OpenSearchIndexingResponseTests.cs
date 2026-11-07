@@ -21,9 +21,14 @@ public sealed class OpenSearchIndexingResponseTests
         public Task<IOpenSearchClient> GetOrCreateClientAsync(string indexName) => Task.FromResult(client);
     }
 
-    private sealed class InvalidSettingsOptionsMonitor : IOptionsMonitor<OpenSearchOptions>
+    private sealed class CancelledClientFactory : IClientFactoryAsync<IOpenSearchClient>
     {
-        public OpenSearchOptions CurrentValue { get; } = new() { SharedIndexSettings = new() { ConnectionString = "localhost:9200" } };
+        public Task<IOpenSearchClient> GetOrCreateClientAsync(string indexName) => throw new OperationCanceledException();
+    }
+
+    private sealed class InvalidSettingsOptionsMonitor(int maxResultWindow = 10_000) : IOptionsMonitor<OpenSearchOptions>
+    {
+        public OpenSearchOptions CurrentValue { get; } = new() { SharedIndexSettings = new() { ConnectionString = "localhost:9200" }, MaxResultWindow = maxResultWindow };
         public OpenSearchOptions Get(string? name) => CurrentValue;
         public IDisposable? OnChange(Action<OpenSearchOptions, string?> listener) => null;
     }
@@ -132,11 +137,40 @@ public sealed class OpenSearchIndexingResponseTests
         (await provider.RemoveDocumentAsync("1", "people", Token)).IsFailed.ShouldBeTrue();
         (await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token)).IsFailed.ShouldBeTrue();
         (await provider.DeleteIndexAsync("people", Token)).IsFailed.ShouldBeTrue();
-        (await provider.IndexExistsAsync("people", Token)).IsFailed.ShouldBeTrue();
-        (await provider.CreateIndexAsync("people", Token)).IsFailed.ShouldBeTrue();
+        var exists = await provider.IndexExistsAsync("people", Token);
+        exists.IsFailed.ShouldBeTrue();
+        exists.Errors.Single().Message.ShouldStartWith("The OpenSearch settings for people are invalid:");
+        var create = await provider.CreateIndexAsync("people", Token);
+        create.IsFailed.ShouldBeTrue();
+        create.Errors.Single().Message.ShouldStartWith("The OpenSearch settings for people are invalid:");
         var ensure = await provider.EnsureIndexExistsAsync("people", Token);
         ensure.IsFailed.ShouldBeTrue();
+        ensure.Errors.Single().Message.ShouldStartWith("The OpenSearch settings for people are invalid:");
         ensure.Errors.Single().Message.ShouldContain("not an http or https URL");
+    }
+
+    [Fact]
+    public async Task IndexExistsAndCreateIndex_Cancelled_Throw()
+    {
+        // Cancellation is not a failed Result: it propagates, as it does from every other method.
+        var provider = new OpenSearchIndexingProviderAsync(new CancelledClientFactory(), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+
+        await Should.ThrowAsync<OperationCanceledException>(() => provider.IndexExistsAsync("people", Token));
+        await Should.ThrowAsync<OperationCanceledException>(() => provider.CreateIndexAsync("people", Token));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task SearchAsync_MaxResultWindowNotPositive_ReturnsConfigurationError(int maxResultWindow)
+    {
+        var translateService = new OpenSearchQueryTranslateService([]);
+        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), new InvalidSettingsOptionsMonitor(maxResultWindow));
+
+        var result = await provider.SearchAsync(new SearchQuery { Index = "people" });
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldBe($"MaxResultWindow is {maxResultWindow}, but it must be greater than 0. Set Bielu:BetterSearch:OpenSearch:MaxResultWindow to the indexes' index.max_result_window.");
     }
 
     [Fact]

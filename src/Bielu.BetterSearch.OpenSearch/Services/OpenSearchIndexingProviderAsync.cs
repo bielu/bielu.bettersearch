@@ -109,47 +109,43 @@ public sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenSea
 
     public async Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {
-        try
+        var client = await clientFactory.TryGetClientAsync(index).ConfigureAwait(false);
+        if (client.IsFailed)
         {
-            var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-            var response = await client.Indices.ExistsAsync(index, ct: cancellationToken).ConfigureAwait(false);
-            // Only 200 and 404 answer the question; anything else, such as a 401, 403 or 5xx, is a failure.
-            return response.ApiCall?.HttpStatusCode switch
-            {
-                200 => Result.Ok(true),
-                404 => Result.Ok(false),
-                _ => Result.Fail<bool>(new Error(response.DebugInformation)),
-            };
+            return client.ToResult<bool>();
         }
-        catch (Exception e)
+
+        var response = await client.Value.Indices.ExistsAsync(index, ct: cancellationToken).ConfigureAwait(false);
+        // Only 200 and 404 answer the question; anything else, such as a 401, 403 or 5xx, is a failure.
+        return response.ApiCall?.HttpStatusCode switch
         {
-            return Result.Fail<bool>(new Error(e.Message));
-        }
+            200 => Result.Ok(true),
+            404 => Result.Ok(false),
+            _ => Result.Fail<bool>(new Error(response.DebugInformation)),
+        };
     }
 
     public async Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default)
     {
-        try
+        var client = await clientFactory.TryGetClientAsync(index).ConfigureAwait(false);
+        if (client.IsFailed)
         {
-            var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-            var response = await client.Indices.CreateAsync(index, ct: cancellationToken).ConfigureAwait(false);
-            if (IsSuccess(response))
-            {
-                return Result.Ok(true);
-            }
-
-            // An index that already exists was not created, but nothing went wrong.
-            if (response.ServerError?.Error?.Type == "resource_already_exists_exception")
-            {
-                return Result.Ok(false);
-            }
-
-            logger.LogError("Creating index {Index} failed: {Error}", index, response.DebugInformation);
-            return Result.Fail<bool>(new Error(response.DebugInformation));
+            return client.ToResult<bool>();
         }
-        catch (Exception e)
+
+        var response = await client.Value.Indices.CreateAsync(index, ct: cancellationToken).ConfigureAwait(false);
+        if (IsSuccess(response))
         {
-            return Result.Fail<bool>(new Error(e.Message));
+            return Result.Ok(true);
         }
+
+        // An index that already exists was not created, but nothing went wrong.
+        if (response.ServerError?.Error?.Type == "resource_already_exists_exception")
+        {
+            return Result.Ok(false);
+        }
+
+        logger.LogError("Creating index {Index} failed: {Error}", index, response.DebugInformation);
+        return Result.Fail<bool>(new Error(response.DebugInformation));
     }
 }

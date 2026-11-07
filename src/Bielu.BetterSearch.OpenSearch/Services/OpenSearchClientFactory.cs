@@ -11,6 +11,7 @@ namespace Bielu.BetterSearch.OpenSearch.Services;
 /// Creates one long-lived client per distinct connection, so connections are reused. Clients are keyed on the
 /// settings an index connects with, not its name: indexes with the same connection string and authentication
 /// share a client, and a changed setting, such as a rotated password, gets a new client on the next call.
+/// The client for the old setting stays cached until the application restarts, which suits settings that rarely change.
 /// </summary>
 internal sealed class OpenSearchClientFactory(IOpenSearchClientSettingsManager settingsManager) : IClientFactoryAsync<IOpenSearchClient>
 {
@@ -26,7 +27,7 @@ internal sealed class OpenSearchClientFactory(IOpenSearchClientSettingsManager s
         return Task.FromResult(client.Value);
     }
 
-    private readonly record struct ClientKey(
+    internal readonly record struct ClientKey(
         string ConnectionString,
         OpenSearchAuthenticationType? AuthenticationType,
         string? Username,
@@ -39,6 +40,10 @@ internal sealed class OpenSearchClientFactory(IOpenSearchClientSettingsManager s
             settings.AuthenticationDetails?.Username,
             settings.AuthenticationDetails?.Password,
             settings.AuthenticationDetails?.ApiKey);
+
+        // The generated ToString prints every member; keep the credentials out of logs and exception messages.
+        public override string ToString() =>
+            $"{nameof(ClientKey)} {{ {nameof(ConnectionString)} = {ConnectionString}, {nameof(AuthenticationType)} = {AuthenticationType} }}";
     }
 }
 
