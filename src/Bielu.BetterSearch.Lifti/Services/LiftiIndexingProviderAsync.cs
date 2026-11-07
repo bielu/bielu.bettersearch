@@ -47,6 +47,13 @@ public class LiftiIndexingProviderAsync(
     {
         try
         {
+            // Matches the other providers: a missing index is a caller mistake, not an already removed document.
+            var exists = await liftiIndexManager.ExistsAsync(type).ConfigureAwait(false);
+            if (!exists.Value)
+            {
+                return Result.Fail($"Index {type} does not exist.");
+            }
+
             var index = await clientFactory.GetOrCreateClientAsync(type).ConfigureAwait(false);
             await index.RemoveAsync(id, cancellationToken).ConfigureAwait(false);
             return Result.Ok();

@@ -87,30 +87,36 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
             Type = document.Index,
         })).IsSuccess.ShouldBeTrue();
     }
+
+    /// <summary>Called after documents change, for engines that must refresh before a change is visible.</summary>
+    protected virtual Task DocumentsChangedAsync(string index) => Task.CompletedTask;
+
     [Fact]
     public async Task RemoveDocumentAsync_MissingDocument_ReturnsSuccess()
     {
         //Arrange
-        var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index-1", };
-        (await serviceAsync.IndexDocumentAsync(document)).IsSuccess.ShouldBeTrue();
+        var index = $"remove-{Guid.NewGuid():N}";
+        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
 
         //Act
         var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
         {
             Id = "never-indexed",
-            Type = document.Index,
+            Type = index,
         });
 
         //Assert
         result.IsSuccess.ShouldBeTrue();
     }
+
     [Fact]
     public async Task RemoveDocumentAsync_AlreadyRemovedDocument_ReturnsSuccess()
     {
         //Arrange
-        var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index-1", };
+        var index = $"remove-{Guid.NewGuid():N}";
+        var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = index, };
         (await serviceAsync.IndexDocumentAsync(document)).IsSuccess.ShouldBeTrue();
-        var request = new DeleteDocumentRequest() { Id = document.Id, Type = document.Index, };
+        var request = new DeleteDocumentRequest() { Id = document.Id, Type = index, };
         (await serviceAsync.RemoveDocumentAsync(request)).IsSuccess.ShouldBeTrue();
 
         //Act
@@ -118,5 +124,27 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
 
         //Assert
         result.IsSuccess.ShouldBeTrue();
+        // The document must really be gone, so a provider that succeeds without deleting can't pass.
+        await DocumentsChangedAsync(index);
+        var remaining = await indexingProviderAsync.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = index });
+        remaining.IsSuccess.ShouldBeTrue();
+        remaining.Value.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task RemoveDocumentAsync_MissingIndex_ReturnsFailure()
+    {
+        //Arrange
+        var index = $"remove-{Guid.NewGuid():N}";
+
+        //Act
+        var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
+        {
+            Id = "1",
+            Type = index,
+        });
+
+        //Assert
+        result.IsFailed.ShouldBeTrue();
     }
 }
