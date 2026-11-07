@@ -44,7 +44,8 @@ internal sealed class TermsSubQueryTranslator : OpenSearchSubQueryTranslator<Ter
         {
             Field = field.Value,
             Terms = terms,
-            Boost = OpenSearchFieldNames.Boost(query.BoostValue)
+            Boost = OpenSearchFieldNames.Boost(query.BoostValue),
+            IsVerbatim = true
         }));
     }
 }

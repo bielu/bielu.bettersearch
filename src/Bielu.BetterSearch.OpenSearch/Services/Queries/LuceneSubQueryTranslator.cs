@@ -22,7 +22,8 @@ internal sealed class LuceneSubQueryTranslator : OpenSearchSubQueryTranslator<Lu
         return Task.FromResult(Result.Ok<QueryContainer>(new QueryStringQuery
         {
             Query = query.LuceneQuery,
-            Boost = OpenSearchFieldNames.Boost(query.BoostValue)
+            Boost = OpenSearchFieldNames.Boost(query.BoostValue),
+            IsVerbatim = true
         }));
     }
 }

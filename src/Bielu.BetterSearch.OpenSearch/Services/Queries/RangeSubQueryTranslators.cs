@@ -26,7 +26,8 @@ internal sealed class NumericRangeSubQueryTranslator : OpenSearchSubQueryTransla
             GreaterThan = query.IncludeMinEdge ? null : query.MinValue,
             LessThanOrEqualTo = query.IncludeMaxEdge ? query.MaxValue : null,
             LessThan = query.IncludeMaxEdge ? null : query.MaxValue,
-            Boost = OpenSearchFieldNames.Boost(query.BoostValue)
+            Boost = OpenSearchFieldNames.Boost(query.BoostValue),
+            IsVerbatim = true
         }));
     }
 }
@@ -49,7 +50,8 @@ internal sealed class LongRangeSubQueryTranslator : OpenSearchSubQueryTranslator
             GreaterThan = query.IncludeMinEdge ? null : query.MinValue,
             LessThanOrEqualTo = query.IncludeMaxEdge ? query.MaxValue : null,
             LessThan = query.IncludeMaxEdge ? null : query.MaxValue,
-            Boost = OpenSearchFieldNames.Boost(query.BoostValue)
+            Boost = OpenSearchFieldNames.Boost(query.BoostValue),
+            IsVerbatim = true
         }));
     }
 }
@@ -73,7 +75,8 @@ internal sealed class DateRangeSubQueryTranslator : OpenSearchSubQueryTranslator
             GreaterThan = query.IncludeMinEdge ? null : min,
             LessThanOrEqualTo = query.IncludeMaxEdge ? max : null,
             LessThan = query.IncludeMaxEdge ? null : max,
-            Boost = OpenSearchFieldNames.Boost(query.BoostValue)
+            Boost = OpenSearchFieldNames.Boost(query.BoostValue),
+            IsVerbatim = true
         }));
     }
 }
@@ -96,7 +99,8 @@ internal sealed class StringRangeSubQueryTranslator : OpenSearchSubQueryTranslat
             GreaterThan = query.IncludeMinEdge ? null : query.MinValue,
             LessThanOrEqualTo = query.IncludeMaxEdge ? query.MaxValue : null,
             LessThan = query.IncludeMaxEdge ? null : query.MaxValue,
-            Boost = OpenSearchFieldNames.Boost(query.BoostValue)
+            Boost = OpenSearchFieldNames.Boost(query.BoostValue),
+            IsVerbatim = true
         }));
     }
 }

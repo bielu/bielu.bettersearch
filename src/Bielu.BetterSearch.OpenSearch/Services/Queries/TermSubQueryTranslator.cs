@@ -28,7 +28,8 @@ internal sealed class TermSubQueryTranslator : OpenSearchSubQueryTranslator<Term
             Field = field.Value,
             Value = query.Value,
             CaseInsensitive = query.Value is string ? true : null,
-            Boost = OpenSearchFieldNames.Boost(query.BoostValue)
+            Boost = OpenSearchFieldNames.Boost(query.BoostValue),
+            IsVerbatim = true
         }));
     }
 }

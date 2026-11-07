@@ -6,6 +6,11 @@ using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.OpenSearch.Services.Queries;
 
+/// <summary>
+/// Base for the sub-query translators. Translators mark their clauses verbatim: OpenSearch.Client otherwise
+/// drops a clause it considers conditionless (an empty term, an unbounded range), which would silently
+/// remove the restriction from the query.
+/// </summary>
 internal abstract class OpenSearchSubQueryTranslator<TSubQuery> : ISubQueryTranslator<QueryContainer>
     where TSubQuery : ISearchSubQuery
 {

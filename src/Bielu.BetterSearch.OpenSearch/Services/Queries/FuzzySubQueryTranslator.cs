@@ -42,7 +42,8 @@ internal sealed class FuzzySubQueryTranslator : OpenSearchSubQueryTranslator<Fuz
             FuzzyTranspositions = query.Transposition,
             PrefixLength = query.PrefixLenght > 0 ? query.PrefixLenght : null,
             MaxExpansions = query.MaxExpansions > 0 ? query.MaxExpansions : null,
-            Boost = OpenSearchFieldNames.Boost(query.BoostValue)
+            Boost = OpenSearchFieldNames.Boost(query.BoostValue),
+            IsVerbatim = true
         }));
     }
 }

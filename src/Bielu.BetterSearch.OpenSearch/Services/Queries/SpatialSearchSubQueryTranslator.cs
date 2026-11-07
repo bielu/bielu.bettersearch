@@ -43,7 +43,8 @@ internal sealed class SpatialSearchSubQueryTranslator : OpenSearchSubQueryTransl
             Field = field.Value,
             Distance = distance,
             Location = new GeoLocation(query.Lat, query.Lng),
-            Boost = OpenSearchFieldNames.Boost(query.BoostValue)
+            Boost = OpenSearchFieldNames.Boost(query.BoostValue),
+            IsVerbatim = true
         }));
     }
 }

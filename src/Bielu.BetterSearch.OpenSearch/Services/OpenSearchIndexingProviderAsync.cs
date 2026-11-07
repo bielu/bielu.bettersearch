@@ -47,7 +47,19 @@ public sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenSea
     {
         var client = await clientFactory.GetOrCreateClientAsync(index.IndexName).ConfigureAwait(false);
         var response = await client.DeleteByQueryAsync<SearchDocument>(d => d.Index(index.IndexName).Query(q => q.MatchAll()), cancellationToken).ConfigureAwait(false);
-        return IsSuccess(response) ? Result.Ok<long?>(response.Deleted) : Result.Fail<long?>(new Error(response.DebugInformation));
+        if (!IsSuccess(response))
+        {
+            return Result.Fail<long?>(new Error(response.DebugInformation));
+        }
+
+        // A delete by query that timed out or hit failures is still valid, but only some documents were removed.
+        if (response.TimedOut || response.Failures.Count > 0)
+        {
+            return Result.Fail<long?>(new Error(
+                $"Removing all documents from {index.IndexName} did not complete: {response.Deleted} of {response.Total} documents were removed, timed out: {response.TimedOut}, failures: {response.Failures.Count}."));
+        }
+
+        return Result.Ok<long?>(response.Deleted);
     }
 
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)
@@ -90,12 +102,19 @@ public sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenSea
         {
             var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
             var response = await client.Indices.CreateAsync(index, ct: cancellationToken).ConfigureAwait(false);
-            if (!IsSuccess(response))
+            if (IsSuccess(response))
             {
-                logger.LogError("Creating index {Index} failed: {Error}", index, response.DebugInformation);
+                return Result.Ok(true);
             }
 
-            return Result.Ok(IsSuccess(response));
+            // An index that already exists was not created, but nothing went wrong.
+            if (response.ServerError?.Error?.Type == "resource_already_exists_exception")
+            {
+                return Result.Ok(false);
+            }
+
+            logger.LogError("Creating index {Index} failed: {Error}", index, response.DebugInformation);
+            return Result.Fail<bool>(new Error(response.DebugInformation));
         }
         catch (Exception e)
         {

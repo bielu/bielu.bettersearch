@@ -27,7 +27,8 @@ internal sealed class PrefixPhraseSubQueryTranslator : OpenSearchSubQueryTransla
         {
             Field = field.Value,
             Query = value,
-            Boost = OpenSearchFieldNames.Boost(query.BoostValue)
+            Boost = OpenSearchFieldNames.Boost(query.BoostValue),
+            IsVerbatim = true
         }));
     }
 }

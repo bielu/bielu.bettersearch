@@ -2,7 +2,10 @@
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using OpenSearch.Client;
+using OpenSearch.Net;
 using Shouldly;
+using DateRangeQuery = Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeQuery;
+using FuzzyQuery = Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzyQuery;
 
 namespace Bielu.BetterSearch.OpenSearch.Tests;
 
@@ -38,6 +41,29 @@ public class OpenSearchQueryTranslateServiceTests(
         boolQuery.Should.Count().ShouldBe(1);
         boolQuery.MustNot.Count().ShouldBe(1);
         boolQuery.Filter.Count().ShouldBe(1);
+    }
+
+    public static TheoryData<ISearchSubQuery> ConditionlessSubQueries() => new()
+    {
+        new TermSubQuery { Field = "City.keyword", Value = "" },
+        new FuzzyQuery { Field = "Name", Value = "" },
+        new DateRangeQuery { Field = "Born" },
+        new NumericRange { Field = "Age" },
+        new StringRange { Field = "Name" },
+    };
+
+    [Theory]
+    [MemberData(nameof(ConditionlessSubQueries))]
+    public async Task TranslateMainQueryAsync_ConditionlessClause_IsStillSent(ISearchSubQuery subQuery)
+    {
+        var query = new SearchQuery();
+        query.Add(Occurance.MUST, subQuery);
+
+        var result = await translateService.TranslateMainQueryAsync(query);
+
+        result.IsSuccess.ShouldBeTrue();
+        var json = new OpenSearchClient().RequestResponseSerializer.SerializeToString(new SearchRequest("people") { Query = result.Value });
+        json.ShouldContain("\"must\":[{");
     }
 
     [Fact]

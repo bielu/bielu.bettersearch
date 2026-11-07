@@ -51,14 +51,14 @@ The query model and fluent API can express sorting, facets, highlighting and pos
 
 | Feature | Elasticsearch | OpenSearch | Lifti |
 |---------|:------------:|:----------:|:-----:|
-| Create index | ⚠️ a rejection is reported as success with `false` | ⚠️ a rejection is reported as success with `false` | ⚠️ silently replaces an existing index, losing its documents |
+| Create index | ⚠️ a rejection is reported as success with `false` | ✅ `false` when the index already exists; any other rejection is a failed `Result` | ⚠️ silently replaces an existing index, losing its documents |
 | Delete index | ⚠️ `Value` is `false` even on success | ✅ | ✅ |
 | Index exists | ⚠️ transport errors read as "does not exist" | ✅ | ✅ |
 | Ensure index exists | ⚠️ `Value` is `false` when it already exists | ✅ | ✅ |
 | Index document | ✅ | ✅ | ✅ |
 | Index multiple documents | ⚠️ the service indexes one by one; the provider's bulk path is unused and ignores per-item failures | ⚠️ the service indexes one by one; the provider's bulk path is unused | ⚠️ the service indexes one by one |
 | Remove document | ✅ | ✅ | ✅ |
-| Remove all documents | ⚠️ the service reports a count of 0 | ⚠️ the service reports a count of 0 | ⚠️ the service reports a count of 0 |
+| Remove all documents | ⚠️ the service reports a count of 0 | ⚠️ the service reports a count of 0; a timed-out or partly failed delete is a failed `Result` | ⚠️ the service reports a count of 0 |
 | Persistence | ✅ | ✅ | ❌ in memory only, lost on restart |
 
 ## Test coverage
