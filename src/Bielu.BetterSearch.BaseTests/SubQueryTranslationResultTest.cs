@@ -190,12 +190,17 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
         ids.ShouldBe(["3"]);
     }
 
-    /// <summary>Lucene semantics: a <c>MUSTNOT</c> does not make <c>SHOULD</c> optional, so both must match.</summary>
+    /// <summary>
+    /// Lucene semantics: a <c>MUSTNOT</c> does not make <c>SHOULD</c> optional, so both must match. The
+    /// <c>SHOULD</c> matches 2 and 3 and the double negation matches 1 and 3, so ignoring either one returns
+    /// two documents instead of 3.
+    /// </summary>
     [Fact]
     public async Task SearchAsync_ShouldBesideMustNotOfNestedMustNotOnly_ReturnsBothMatches()
     {
         var query = await CreateQueryAsync();
         var nested = new BoolSearchSubQuery();
+        nested.Add(Occurance.MUSTNOT, Name("jane"));
         nested.Add(Occurance.MUSTNOT, Name("3"));
         query.Add(Occurance.SHOULD, Name("john"));
         query.Add(Occurance.MUSTNOT, nested);
