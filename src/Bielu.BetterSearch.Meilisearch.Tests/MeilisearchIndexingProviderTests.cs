@@ -230,6 +230,63 @@ public sealed class MeilisearchIndexingProviderTests(
     }
 
     [Fact]
+    public async Task IndexDocumentAsync_IndexDeletedElsewhere_AppliesTheSettingsAgain()
+    {
+        var index = UniqueIndex();
+        (await provider.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+        var client = await clientFactory.GetOrCreateClientAsync(index);
+        await client.WaitForTaskAsync((await client.DeleteIndexAsync(index, Token)).TaskUid, cancellationToken: Token);
+
+        var result = await provider.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        var settings = await client.Index(index).GetSettingsAsync(Token);
+        settings.FilterableAttributes!.Select(attribute => attribute.Attribute).ShouldContain("tokens");
+        settings.Pagination!.MaxTotalHits.ShouldBe(options.CurrentValue.MaxTotalHits);
+    }
+
+    [Fact]
+    public async Task IndexDocumentAsync_MaxTotalHitsChanged_UpdatesThePagination()
+    {
+        var index = UniqueIndex();
+        (await provider.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+        var changed = new MeilisearchOptions
+        {
+            SharedIndexSettings = options.CurrentValue.SharedIndexSettings,
+            MaxTotalHits = 500,
+        };
+        var other = new MeilisearchIndexingProviderAsync(clientFactory, new StaticOptionsMonitor(changed),
+            NullLogger<MeilisearchIndexingProviderAsync>.Instance);
+
+        (await other.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+
+        var client = await clientFactory.GetOrCreateClientAsync(index);
+        (await client.Index(index).GetSettingsAsync(Token)).Pagination!.MaxTotalHits.ShouldBe(500);
+    }
+
+    [Fact]
+    public async Task IndexDocumentAsync_PhraseFieldsSet_StoresPhrasesForThoseFieldsOnly()
+    {
+        var index = UniqueIndex();
+        var restricted = new MeilisearchOptions
+        {
+            SharedIndexSettings = options.CurrentValue.SharedIndexSettings,
+            PhraseFields = ["Title"],
+        };
+        var other = new MeilisearchIndexingProviderAsync(clientFactory, new StaticOptionsMonitor(restricted),
+            NullLogger<MeilisearchIndexingProviderAsync>.Instance);
+        var document = CreateDocuments(index, 1)[0];
+        document.Fields["Title"] = ["Jane Doe"];
+
+        (await other.IndexDocumentAsync(document, Token)).IsSuccess.ShouldBeTrue();
+
+        var client = await clientFactory.GetOrCreateClientAsync(index);
+        var stored = await client.Index(index).GetDocumentAsync<MeilisearchDocument>(document.Id, cancellationToken: Token);
+        stored.Phrases.Keys.ShouldBe(["Title"]);
+        stored.Tokens.Keys.ShouldBe(["Name", "Title"], ignoreOrder: true);
+    }
+
+    [Fact]
     public async Task CreateIndexAsync_IndexAlreadyExists_ReturnsFalse()
     {
         var index = UniqueIndex();

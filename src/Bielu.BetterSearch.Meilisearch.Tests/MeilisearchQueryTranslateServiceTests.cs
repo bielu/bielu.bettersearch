@@ -67,6 +67,105 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     }
 
     [Fact]
+    public async Task TranslateMainQueryAsync_DateTermOnStoredValue_ComparesTheDatesCopy()
+    {
+        var filter = await FilterAsync(Query(Occurance.MUST, new TermSubQuery { Field = "fields.Born", Value = new DateTime(1970, 1, 1, 0, 0, 1, DateTimeKind.Utc) }));
+
+        filter.ShouldBe("(dates.Born = 1000)");
+    }
+
+    [Theory]
+    [InlineData("30", "tokens.Age = \"30\" OR fields.Age = 30")]
+    [InlineData("1e20", "tokens.Age = \"1e20\" OR fields.Age = 1E20")]
+    [InlineData("True", "tokens.Age = \"true\" OR fields.Age = true")]
+    [InlineData("NaN", "tokens.Age = \"nan\"")]
+    public async Task TranslateMainQueryAsync_StringTermReadingAsNumberOrBoolean_AlsoComparesTheValue(string value, string expected)
+    {
+        var filter = await FilterAsync(Query(Occurance.MUST, new TermSubQuery { Field = "Age", Value = value }));
+
+        filter.ShouldBe($"({expected})");
+    }
+
+    [Fact]
+    public async Task TranslateMainQueryAsync_TermsQuery_UsesOneInPerAttribute()
+    {
+        var filter = await FilterAsync(Query(Occurance.MUST, new TermsSubQuery { Field = "Age", Value = ["Jane", "30", 31, "jane", 30d] }));
+
+        filter.ShouldBe("(tokens.Age IN [\"jane\", \"30\"] OR fields.Age IN [30, 31])");
+    }
+
+    [Theory]
+    [InlineData(true, true, "fields.Age 1 TO 5")]
+    [InlineData(false, false, "fields.Age 1.0000000000000002 TO 4.999999999999999")]
+    public async Task TranslateMainQueryAsync_RangeWithBothBounds_UsesOneToRange(bool includeMin, bool includeMax, string expected)
+    {
+        var filter = await FilterAsync(Query(Occurance.MUST, new NumericRange
+        {
+            Field = "Age",
+            MinValue = 1,
+            MaxValue = 5,
+            IncludeMinEdge = includeMin,
+            IncludeMaxEdge = includeMax
+        }));
+
+        filter.ShouldBe($"({expected})");
+    }
+
+    [Theory]
+    [InlineData(true, null, "fields.Age >= 1")]
+    [InlineData(false, null, "fields.Age > 1")]
+    [InlineData(null, true, "fields.Age <= 5")]
+    [InlineData(null, false, "fields.Age < 5")]
+    public async Task TranslateMainQueryAsync_RangeWithOneBound_ComparesThatBound(bool? includeMin, bool? includeMax, string expected)
+    {
+        var filter = await FilterAsync(Query(Occurance.MUST, new NumericRange
+        {
+            Field = "Age",
+            MinValue = includeMin == null ? null : 1,
+            MaxValue = includeMax == null ? null : 5,
+            IncludeMinEdge = includeMin ?? false,
+            IncludeMaxEdge = includeMax ?? false
+        }));
+
+        filter.ShouldBe($"({expected})");
+    }
+
+    [Theory]
+    [InlineData("b", "a\0", "tokens.Name \"b\0\" TO \"a\"")]
+    [InlineData("b", "a", "tokens.Name \"b\0\" TO \"`\U0010FFFF\"")]
+    [InlineData("B", "[", "tokens.Name \"b\0\" TO \"@\U0010FFFF\"")]
+    [InlineData("b", "N", "tokens.Name \"b\0\" TO \"m\U0010FFFF\"")]
+    public async Task TranslateMainQueryAsync_StringRangeWithExcludedEdges_MovesEachEdgeInward(string min, string max, string expected)
+    {
+        var filter = await FilterAsync(Query(Occurance.MUST, new StringRange { Field = "Name", MinValue = min, MaxValue = max }));
+
+        filter.ShouldBe($"({expected})");
+    }
+
+    [Fact]
+    public async Task TranslateMainQueryAsync_StringRangeBelowEmptyMaximum_MatchesNothing()
+    {
+        var filter = await FilterAsync(Query(Occurance.MUST, new StringRange { Field = "Name", MinValue = "a", MaxValue = "" }));
+
+        filter.ShouldBe("(id IN [])");
+    }
+
+    [Fact]
+    public async Task TranslateMainQueryAsync_PrefixPhraseOutsidePhraseFields_ReturnsFailure()
+    {
+        var translator = new PrefixPhraseSubQueryTranslator(new StaticOptionsMonitor(new MeilisearchOptions { PhraseFields = ["Title"] }));
+
+        var outside = await translator.TranslateAsync(new PrefixPhraseSubQuery { Field = "Name", Value = "jane d" }, [translator]);
+        var inside = await translator.TranslateAsync(new PrefixPhraseSubQuery { Field = "Title", Value = "jane d" }, [translator]);
+        var storedValue = await translator.TranslateAsync(new PrefixPhraseSubQuery { Field = "fields.Name", Value = "jane d" }, [translator]);
+
+        outside.IsFailed.ShouldBeTrue();
+        outside.Errors.Single().Message.ShouldContain("PhraseFields");
+        inside.Value.Expression.ShouldBe("phrases.Title STARTS WITH \"jane d\"");
+        storedValue.Value.Expression.ShouldBe("fields.Name STARTS WITH \"jane d\"");
+    }
+
+    [Fact]
     public async Task TranslateMainQueryAsync_ShouldBesideMust_KeepsOnlyTheMust()
     {
         var query = Query(Occurance.MUST, new TermSubQuery { Field = "Name", Value = "john" });

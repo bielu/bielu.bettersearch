@@ -5,7 +5,7 @@ using Bielu.BetterSearch.Tests;
 
 namespace Bielu.BetterSearch.Meilisearch.Tests;
 
-public sealed class MeilisearchQueryTranslationTests(IEnumerable<ISubQueryTranslator<MeilisearchFilter>> translators)
+internal sealed class MeilisearchQueryTranslationTests(IEnumerable<ISubQueryTranslator<MeilisearchFilter>> translators)
     : SubQueryTranslationTestBase<MeilisearchFilter>(translators)
 {
     public override async Task FuzzyQueryShouldBeTranslatable()

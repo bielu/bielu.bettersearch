@@ -28,6 +28,14 @@ public class MeilisearchOptions
     /// dictionary with <c>lat</c> and <c>lon</c> (or <c>lng</c>). Unset, spatial queries return a failed <c>Result</c>.
     /// </summary>
     public string? GeoField { get; set; }
+
+    /// <summary>
+    /// The fields a <c>PrefixPhraseSubQuery</c> can search. For each word of a text value the provider stores the run of
+    /// up to 16 words starting there, so a long text stores about 16 times its words. Listing the fields that need
+    /// phrase prefixes stores runs for those fields only, and a phrase prefix on any other field returns a failed
+    /// <c>Result</c>. Unset, every field stores them.
+    /// </summary>
+    public IList<string>? PhraseFields { get; set; }
 }
 
 public class MeilisearchIndexSettings : IndexSettings

@@ -259,6 +259,116 @@ public sealed class MeilisearchSearchTests(
     }
 
     [Fact]
+    public async Task SearchAsync_StringRangeOnWords_NeedsOneWordInsideTheRange()
+    {
+        var index = await CreatePeopleAsync();
+
+        // "Jane Doe" has "jane" past the minimum and "doe" before the maximum, but neither word inside the range.
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new StringRange
+        {
+            Field = "Name",
+            MinValue = "e",
+            MaxValue = "i",
+            IncludeMinEdge = true,
+            IncludeMaxEdge = true
+        }));
+
+        ids.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task SearchAsync_StringRange_HonoursExcludedEdges()
+    {
+        var index = await CreatePeopleAsync();
+
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new StringRange
+        {
+            Field = "fields.City",
+            MinValue = "Gdansk",
+            MaxValue = "Warsaw"
+        }));
+
+        ids.ShouldBe(["2", "5"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_NumericRangeOnManyValues_NeedsOneValueInsideTheRange()
+    {
+        var index = $"search-{Guid.NewGuid():N}";
+        SearchDocument Scores(string id, params object[] scores) => new()
+        {
+            Id = id,
+            Index = index,
+            Fields = new Dictionary<string, IList<object>> { { "Scores", scores } }
+        };
+        (await indexingProvider.IndexMultipleDocumentsAsync([Scores("1", 0, 10), Scores("2", 3), Scores("3", 5)], Token)).IsSuccess.ShouldBeTrue();
+
+        var inclusive = await SearchIdsAsync(Query(index, Occurance.MUST, new NumericRange
+        {
+            Field = "Scores",
+            MinValue = 1,
+            MaxValue = 5,
+            IncludeMinEdge = true,
+            IncludeMaxEdge = true
+        }));
+        var exclusive = await SearchIdsAsync(Query(index, Occurance.MUST, new NumericRange { Field = "Scores", MinValue = 1, MaxValue = 5 }));
+
+        inclusive.ShouldBe(["2", "3"]);
+        exclusive.ShouldBe(["2"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_TermQueryOnStoredValue_IgnoresCase()
+    {
+        var index = await CreatePeopleAsync();
+
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "fields.City", Value = "WARSAW" }));
+
+        ids.ShouldBe(["3", "Up-1"]);
+    }
+
+    [Theory]
+    [InlineData("Age", "30", "2")]
+    [InlineData("Age", "30.0", "2")]
+    [InlineData("fields.Age", "30", "2")]
+    [InlineData("Active", "true", "2")]
+    public async Task SearchAsync_StringTermOnNumberOrBoolean_MatchesTheValue(string field, string value, string expected)
+    {
+        var index = await CreatePeopleAsync();
+        (await indexingProvider.IndexDocumentAsync(new SearchDocument
+        {
+            Id = "2",
+            Index = index,
+            Fields = new Dictionary<string, IList<object>> { { "Age", [30] }, { "Active", [true] } }
+        }, Token)).IsSuccess.ShouldBeTrue();
+
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = field, Value = value }));
+
+        ids.ShouldBe([expected]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_DateTermOnStoredValue_MatchesTheDate()
+    {
+        var index = await CreatePeopleAsync();
+
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "fields.Born", Value = new DateTime(1994, 1, 1, 0, 0, 0, DateTimeKind.Utc) }));
+
+        ids.ShouldBe(["2"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_TermsQueryWithManyValues_MatchesAnyOfThem()
+    {
+        var index = await CreatePeopleAsync();
+        var values = Enumerable.Range(0, 2_000).Select(i => (object)$"city{i}").Append("Gdansk").ToList();
+
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "City", Value = values }));
+
+        ids.ShouldBe(["4"]);
+    }
+
+    [Fact]
     public async Task SearchAsync_MustNotOnly_ReturnsTheComplement()
     {
         var index = await CreatePeopleAsync();

@@ -35,7 +35,8 @@ internal sealed partial class MeilisearchDocument
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public double? RankingScore { get; set; }
 
-    public static Result<MeilisearchDocument> From(SearchDocument document, string? geoField)
+    /// <summary>The stored form of <paramref name="document"/>, with phrases for <paramref name="phraseFields"/>, or every field when <c>null</c>.</summary>
+    public static Result<MeilisearchDocument> From(SearchDocument document, string? geoField, ICollection<string>? phraseFields = null)
     {
         var stored = new MeilisearchDocument { Id = document.Id, Type = document.Type, Index = document.Index, Fields = document.Fields };
         if (geoField != null && document.Fields.TryGetValue(geoField, out var locations) && locations.Count > 0)
@@ -57,8 +58,11 @@ internal sealed partial class MeilisearchDocument
                 {
                     var tokens = Tokenize(text);
                     Add(stored.Tokens, name, tokens);
-                    Add(stored.Phrases, name, tokens.Select((_, start) =>
-                        string.Join(' ', tokens.Skip(start).Take(MaxPhraseTokens))));
+                    if (phraseFields == null || phraseFields.Contains(name))
+                    {
+                        Add(stored.Phrases, name, tokens.Select((_, start) =>
+                            string.Join(' ', tokens.Skip(start).Take(MaxPhraseTokens))));
+                    }
                 }
                 else if (ToUnixMilliseconds(value) is { } date)
                 {

@@ -29,9 +29,13 @@ internal static class MeilisearchFieldNames
     /// <summary>Whether <paramref name="field"/> names the stored value rather than its words.</summary>
     public static bool IsStoredValue(string field) => field.StartsWith(FieldsPrefix, StringComparison.Ordinal);
 
-    /// <summary>The attribute <paramref name="field"/> is stored under in <paramref name="map"/>.</summary>
-    public static string In(string map, string field) =>
-        IsStoredValue(field) ? field : $"{map}.{field}";
+    /// <summary>
+    /// The attribute <paramref name="field"/> is stored under in <paramref name="map"/>. Dates are only comparable as
+    /// Unix milliseconds, so a date on a <c>fields.</c> name still compares its <c>dates</c> copy.
+    /// </summary>
+    public static string In(string map, string field) => IsStoredValue(field)
+        ? map == Dates ? $"{Dates}.{field[FieldsPrefix.Length..]}" : field
+        : $"{map}.{field}";
 
     /// <summary>
     /// The query's field, or a failure when it is missing or cannot be written in a filter: Meilisearch
@@ -57,25 +61,32 @@ internal static class MeilisearchFieldNames
     {
         byte or sbyte or short or ushort or int or uint or long or ulong or decimal =>
             Convert.ToString(value, CultureInfo.InvariantCulture),
-        float number => number.ToString("R", CultureInfo.InvariantCulture),
-        double number => number.ToString("R", CultureInfo.InvariantCulture),
+        float number => Exponent(number.ToString("R", CultureInfo.InvariantCulture)),
+        double number => Exponent(number.ToString("R", CultureInfo.InvariantCulture)),
         _ => null
     };
 
-    /// <summary>A comparison of <paramref name="attribute"/> with each bound present; <c>EXISTS</c> when neither is.</summary>
+    /// <summary>Meilisearch reads <c>1E16</c> but not <c>1E+16</c>.</summary>
+    private static string Exponent(string number) => number.Replace("E+", "E", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Values of <paramref name="attribute"/> between the bounds present; <c>EXISTS</c> when neither is. With both
+    /// bounds this is one <c>TO</c> range, so on a field with many values one value must lie inside it, as on
+    /// Elasticsearch; two comparisons could each be met by a different value. <c>TO</c> includes both edges, so the
+    /// caller passes the closest included value for an excluded edge.
+    /// </summary>
     public static string Range(string attribute, string? min, bool includeMin, string? max, bool includeMax)
     {
-        var bounds = new List<string>();
+        if (min != null && max != null)
+        {
+            return $"{attribute} {min} TO {max}";
+        }
+
         if (min != null)
         {
-            bounds.Add($"{attribute} {(includeMin ? ">=" : ">")} {min}");
+            return $"{attribute} {(includeMin ? ">=" : ">")} {min}";
         }
 
-        if (max != null)
-        {
-            bounds.Add($"{attribute} {(includeMax ? "<=" : "<")} {max}");
-        }
-
-        return bounds.Count == 0 ? $"{attribute} EXISTS" : string.Join(" AND ", bounds);
+        return max != null ? $"{attribute} {(includeMax ? "<=" : "<")} {max}" : $"{attribute} EXISTS";
     }
 }

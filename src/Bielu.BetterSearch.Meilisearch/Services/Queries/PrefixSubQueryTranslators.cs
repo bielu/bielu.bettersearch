@@ -1,6 +1,8 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Meilisearch.Configuration;
 using FluentResults;
+using Microsoft.Extensions.Options;
 
 namespace Bielu.BetterSearch.Meilisearch.Services.Queries;
 
@@ -29,7 +31,8 @@ internal sealed class PrefixSubQueryTranslator : MeilisearchSubQueryTranslator<P
 /// Matches the words of the value in order, the last one as a prefix, as an Elasticsearch
 /// <c>match_phrase_prefix</c> query does. The phrase can have at most <see cref="MeilisearchDocument.MaxPhraseTokens"/> words.
 /// </summary>
-internal sealed class PrefixPhraseSubQueryTranslator : MeilisearchSubQueryTranslator<PrefixPhraseSubQuery>
+internal sealed class PrefixPhraseSubQueryTranslator(IOptionsMonitor<MeilisearchOptions> optionsMonitor)
+    : MeilisearchSubQueryTranslator<PrefixPhraseSubQuery>
 {
     protected override Result<MeilisearchFilter> Translate(PrefixPhraseSubQuery query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators)
     {
@@ -37,6 +40,14 @@ internal sealed class PrefixPhraseSubQueryTranslator : MeilisearchSubQueryTransl
         if (field.IsFailed)
         {
             return field.ToResult<MeilisearchFilter>();
+        }
+
+        // A fields. name compares the stored value, so it needs no phrases.
+        if (!MeilisearchFieldNames.IsStoredValue(field.Value) && optionsMonitor.CurrentValue.PhraseFields is { } phraseFields
+            && !phraseFields.Contains(field.Value))
+        {
+            return Result.Fail<MeilisearchFilter>(
+                $"{nameof(PrefixPhraseSubQuery)} field '{field.Value}' is not in MeilisearchOptions.PhraseFields, so its phrases are not stored.");
         }
 
         var tokens = query.Value is string text ? MeilisearchDocument.Tokenize(text) : [];

@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Text.Json;
+﻿using System.Text.Json;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
 using FluentResults;
@@ -25,12 +24,6 @@ public sealed class MeilisearchIndexingProviderAsync(
     private const string PrimaryKey = "id";
     private const string IndexNotFound = "index_not_found";
     private const string IndexAlreadyExists = "index_already_exists";
-
-    /// <summary>
-    /// The indexes whose search settings this process has applied, per client and so per server. Settings are
-    /// applied on the first write to an index rather than on every one, as each update is a Meilisearch task.
-    /// </summary>
-    private static readonly ConcurrentDictionary<(MeilisearchClient Client, string Index), bool> ConfiguredIndexes = new();
 
     public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
         IndexDocumentsAsync(document.Index, [document], cancellationToken);
@@ -79,12 +72,6 @@ public sealed class MeilisearchIndexingProviderAsync(
     public async Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default)
     {
         var task = await RunTaskAsync(index, client => client.DeleteIndexAsync(index, cancellationToken), cancellationToken).ConfigureAwait(false);
-        if (task.IsSuccess)
-        {
-            var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-            ConfiguredIndexes.TryRemove((client, index), out _);
-        }
-
         return task.IsSuccess ? Result.Ok(true) : Result.Fail<bool>(task.Errors);
     }
 
@@ -110,14 +97,11 @@ public sealed class MeilisearchIndexingProviderAsync(
     {
         var task = await RunTaskAsync(index, client => client.CreateIndexAsync(index, PrimaryKey, cancellationToken), cancellationToken).ConfigureAwait(false);
         var created = task.IsSuccess;
-        if (!created)
+        // Matches the other providers: creating an index that already exists is not an error, it just creates nothing.
+        if (!created && !task.HasError(e => e.Metadata.TryGetValue("code", out var code) && Equals(code, IndexAlreadyExists)))
         {
             logger.LogError("Creating index {Index} failed: {Error}", index, task.Errors[0].Message);
-            // Matches the other providers: creating an index that already exists is not an error, it just creates nothing.
-            if (!task.HasError(e => e.Metadata.TryGetValue("code", out var code) && Equals(code, IndexAlreadyExists)))
-            {
-                return Result.Fail<bool>(task.Errors);
-            }
+            return Result.Fail<bool>(task.Errors);
         }
 
         var configured = await ConfigureIndexAsync(index, cancellationToken).ConfigureAwait(false);
@@ -127,8 +111,9 @@ public sealed class MeilisearchIndexingProviderAsync(
     private async Task<Result> IndexDocumentsAsync(string index, IReadOnlyCollection<SearchDocument> documents,
         CancellationToken cancellationToken)
     {
-        var geoField = optionsMonitor.CurrentValue.GeoField;
-        var converted = documents.Select(document => MeilisearchDocument.From(document, geoField)).ToList();
+        var options = optionsMonitor.CurrentValue;
+        var phraseFields = options.PhraseFields?.ToHashSet(StringComparer.Ordinal);
+        var converted = documents.Select(document => MeilisearchDocument.From(document, options.GeoField, phraseFields)).ToList();
         var invalid = converted.Where(document => document.IsFailed).SelectMany(document => document.Errors).ToList();
         if (invalid.Count > 0)
         {
@@ -149,39 +134,46 @@ public sealed class MeilisearchIndexingProviderAsync(
 
     /// <summary>
     /// Makes the attributes the query translators filter and sort on filterable and sortable, and sets how deep a
-    /// search can page, once per index.
+    /// search can page. The settings are read on every write and updated only when they differ, as each update is a
+    /// Meilisearch task, so an index deleted or changed outside the provider, or a new <c>MaxTotalHits</c>, is
+    /// picked up by the next write.
     /// </summary>
     private async Task<Result> ConfigureIndexAsync(string index, CancellationToken cancellationToken)
     {
-        MeilisearchClient client;
+        var maxTotalHits = optionsMonitor.CurrentValue.MaxTotalHits;
         try
         {
-            client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
+            var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
+            var current = await client.Index(index).GetSettingsAsync(cancellationToken).ConfigureAwait(false);
+            if (IsConfigured(current, maxTotalHits))
+            {
+                return Result.Ok();
+            }
         }
-        catch (Exception e)
+        catch (MeilisearchApiError e) when (e.Code == IndexNotFound)
+        {
+            // Updating the settings creates the index.
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
         {
             return Result.Fail(new Error(e.Message).CausedBy(e));
-        }
-
-        if (ConfiguredIndexes.ContainsKey((client, index)))
-        {
-            return Result.Ok();
         }
 
         var settings = new Settings
         {
             FilterableAttributes = MeilisearchFieldNames.FilterableAttributes.Select(name => new FilterableAttribute { Attribute = name }).ToList(),
             SortableAttributes = MeilisearchFieldNames.SortableAttributes,
-            Pagination = new Pagination { MaxTotalHits = optionsMonitor.CurrentValue.MaxTotalHits }
+            Pagination = new Pagination { MaxTotalHits = maxTotalHits }
         };
-        var task = await RunTaskAsync(index, _ => client.Index(index).UpdateSettingsAsync(settings, cancellationToken), cancellationToken).ConfigureAwait(false);
-        if (task.IsSuccess)
-        {
-            ConfiguredIndexes[(client, index)] = true;
-        }
-
+        var task = await RunTaskAsync(index, client => client.Index(index).UpdateSettingsAsync(settings, cancellationToken), cancellationToken).ConfigureAwait(false);
         return task.ToResult();
     }
+
+    private static bool IsConfigured(Settings settings, int maxTotalHits) =>
+        settings.Pagination?.MaxTotalHits == maxTotalHits
+        && settings.FilterableAttributes?.Select(attribute => attribute.Attribute).ToHashSet(StringComparer.Ordinal)
+            .SetEquals(MeilisearchFieldNames.FilterableAttributes) == true
+        && settings.SortableAttributes?.ToHashSet(StringComparer.Ordinal).SetEquals(MeilisearchFieldNames.SortableAttributes) == true;
 
     /// <summary>
     /// Starts a write and waits for the task Meilisearch queues for it, so the result reflects whether the
