@@ -13,7 +13,4 @@ public sealed class MeilisearchQueryTranslationTests(IEnumerable<ISubQueryTransl
 
     public override async Task LuceneSubQueryShouldBeTranslatable()
         => await SubQueryTranslationShouldFailAsync(new LuceneSubQuery { LuceneQuery = "Name:jane" });
-
-    public override async Task SpatialSearchQueryShouldBeTranslatable()
-        => await SubQueryTranslationShouldFailAsync(new SpatialSearchQuery { Field = "Location", Distance = 10, Lat = 52.23, Lng = 21.01 });
 }

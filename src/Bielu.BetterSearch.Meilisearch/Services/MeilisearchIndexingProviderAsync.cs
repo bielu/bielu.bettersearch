@@ -127,6 +127,14 @@ public sealed class MeilisearchIndexingProviderAsync(
     private async Task<Result> IndexDocumentsAsync(string index, IReadOnlyCollection<SearchDocument> documents,
         CancellationToken cancellationToken)
     {
+        var geoField = optionsMonitor.CurrentValue.GeoField;
+        var converted = documents.Select(document => MeilisearchDocument.From(document, geoField)).ToList();
+        var invalid = converted.Where(document => document.IsFailed).SelectMany(document => document.Errors).ToList();
+        if (invalid.Count > 0)
+        {
+            return Result.Fail(invalid);
+        }
+
         // Meilisearch creates a missing index when documents are added to it, or when its settings are updated.
         var configured = await ConfigureIndexAsync(index, cancellationToken).ConfigureAwait(false);
         if (configured.IsFailed)
@@ -134,7 +142,7 @@ public sealed class MeilisearchIndexingProviderAsync(
             return configured;
         }
 
-        var stored = documents.Select(MeilisearchDocument.From).ToList();
+        var stored = converted.Select(document => document.Value).ToList();
         var task = await RunTaskAsync(index, client => client.Index(index).AddDocumentsAsync(stored, PrimaryKey, cancellationToken), cancellationToken).ConfigureAwait(false);
         return task.ToResult();
     }

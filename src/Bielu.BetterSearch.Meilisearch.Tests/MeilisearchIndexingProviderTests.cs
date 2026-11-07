@@ -101,6 +101,46 @@ public sealed class MeilisearchIndexingProviderTests(
         result.Errors[0].Metadata["code"].ShouldBe("invalid_document_id");
     }
 
+    public static TheoryData<object> InvalidLocations() =>
+    [
+        "52.23",
+        "north,south",
+        "91,21",
+        new Dictionary<string, object> { ["lat"] = 52.23 },
+        new Dictionary<string, object> { ["lat"] = 52.23, ["lon"] = 181 },
+        42,
+    ];
+
+    [Theory]
+    [MemberData(nameof(InvalidLocations))]
+    public async Task IndexDocumentAsync_InvalidLocation_ReturnsFailureWithoutCreatingTheIndex(object location)
+    {
+        var index = UniqueIndex();
+        var document = new SearchDocument
+        {
+            Id = "1", Type = "TestDocument", Index = index,
+            Fields = new Dictionary<string, IList<object>> { ["Location"] = [location] },
+        };
+
+        var result = await provider.IndexDocumentAsync(document, Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain("Location");
+        (await provider.IndexExistsAsync(index, Token)).Value.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task IndexDocumentAsync_TwoLocations_ReturnsFailure()
+    {
+        var document = new SearchDocument
+        {
+            Id = "1", Type = "TestDocument", Index = UniqueIndex(),
+            Fields = new Dictionary<string, IList<object>> { ["Location"] = ["52.23,21.01", "50.06,19.94"] },
+        };
+
+        (await provider.IndexDocumentAsync(document, Token)).IsFailed.ShouldBeTrue();
+    }
+
     [Fact]
     public async Task RemoveDocumentAsync_ExistingDocument_RemovesIt()
     {

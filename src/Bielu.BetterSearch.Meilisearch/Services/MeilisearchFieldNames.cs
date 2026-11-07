@@ -13,6 +13,7 @@ internal static class MeilisearchFieldNames
     public const string Tokens = "tokens";
     public const string Phrases = "phrases";
     public const string Dates = "dates";
+    public const string Geo = "_geo";
 
     /// <summary>Matches every document: each one has an id.</summary>
     public const string MatchAll = "id EXISTS";
@@ -22,7 +23,7 @@ internal static class MeilisearchFieldNames
 
     private const string FieldsPrefix = Fields + ".";
 
-    public static readonly string[] FilterableAttributes = ["id", "type", Fields, Tokens, Phrases, Dates];
+    public static readonly string[] FilterableAttributes = ["id", "type", Fields, Tokens, Phrases, Dates, Geo];
     public static readonly string[] SortableAttributes = [Fields];
 
     /// <summary>Whether <paramref name="field"/> names the stored value rather than its words.</summary>

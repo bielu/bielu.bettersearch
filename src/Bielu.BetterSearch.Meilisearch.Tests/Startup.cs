@@ -19,10 +19,13 @@ public class Startup
         services.AddHostedService(sp => sp.GetRequiredService<MeilisearchResource>());
         services.AddOptions<MeilisearchOptions>()
             .Configure<MeilisearchResource>((options, meilisearch) =>
+            {
                 options.SharedIndexSettings = new MeilisearchIndexSettings
                 {
                     ConnectionString = meilisearch.Endpoint!.ToString(),
                     ApiKey = meilisearch.MasterKey,
-                });
+                };
+                options.GeoField = "Location";
+            });
     }
 }

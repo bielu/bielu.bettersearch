@@ -1,6 +1,8 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Meilisearch.Configuration;
+using Bielu.BetterSearch.Meilisearch.Services.Queries;
 using Shouldly;
 using MeilisearchQuery = Meilisearch.SearchQuery;
 
@@ -125,6 +127,12 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
         new FuzzyQuery { Field = "Name", Value = "jnae" },
         new LuceneSubQuery { LuceneQuery = "Name:jane" },
         new SpatialSearchQuery { Field = "Location" },
+        new SpatialSearchQuery { Distance = 10 },
+        new SpatialSearchQuery { Field = "Home", Distance = 10 },
+        new SpatialSearchQuery { Field = "Location", Distance = 10, Lat = 91 },
+        new SpatialSearchQuery { Field = "Location", Distance = 10, Lng = -181 },
+        new SpatialSearchQuery { Field = "Location", Distance = 10, Lat = double.NaN },
+        new SpatialSearchQuery { Field = "Location", Distance = 10, UnitOfDistance = "parsecs" },
     ];
 
     [Theory]
@@ -134,6 +142,31 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
         var result = await translateService.TranslateMainQueryAsync(Query(Occurance.MUST, subQuery));
 
         result.IsFailed.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData(null, "_geoRadius(52.23, 21.01, 10000)")]
+    [InlineData("m", "_geoRadius(52.23, 21.01, 10)")]
+    [InlineData("mi", "_geoRadius(52.23, 21.01, 16093.44)")]
+    public async Task TranslateMainQueryAsync_SpatialQuery_FiltersOnGeoRadiusInMetres(string? unit, string expected)
+    {
+        var filter = await FilterAsync(Query(Occurance.MUST, new SpatialSearchQuery
+        {
+            Field = "Location", Distance = 10, Lat = 52.23, Lng = 21.01, UnitOfDistance = unit
+        }));
+
+        filter.ShouldBe($"({expected})");
+    }
+
+    [Fact]
+    public async Task TranslateMainQueryAsync_SpatialQueryWithoutGeoField_ReturnsFailure()
+    {
+        var translator = new SpatialSearchSubQueryTranslator(new StaticOptionsMonitor(new MeilisearchOptions()));
+
+        var result = await translator.TranslateAsync(new SpatialSearchQuery { Field = "Location", Distance = 10 }, [translator]);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain("GeoField");
     }
 
     [Fact]

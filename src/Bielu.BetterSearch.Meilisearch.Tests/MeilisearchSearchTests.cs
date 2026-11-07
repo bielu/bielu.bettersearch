@@ -438,6 +438,58 @@ public sealed class MeilisearchSearchTests(
         anna.CustomProperties.Keys.ShouldBe(["Name"]);
     }
 
+    /// <summary>Warsaw, Krakow and Gdansk, the first two as strings and the last as a dictionary.</summary>
+    private async Task<string> CreatePlacesAsync()
+    {
+        var index = $"places-{Guid.NewGuid():N}";
+        SearchDocument Place(string id, object location) => new()
+        {
+            Id = id, Type = "Place", Index = index,
+            Fields = new Dictionary<string, IList<object>> { ["Location"] = [location] }
+        };
+
+        var places = new[]
+        {
+            Place("warsaw", "52.2297,21.0122"),
+            Place("krakow", "50.0647,19.9450"),
+            Place("gdansk", new Dictionary<string, object> { ["lat"] = 54.3520, ["lon"] = 18.6466 }),
+            new SearchDocument { Id = "nowhere", Type = "Place", Index = index }
+        };
+        (await indexingProvider.IndexMultipleDocumentsAsync(places, Token)).Value.ShouldBe(places.Length);
+        return index;
+    }
+
+    [Fact]
+    public async Task SearchAsync_SpatialQuery_MatchesDocumentsWithinTheDistance()
+    {
+        var index = await CreatePlacesAsync();
+
+        // Lodz is about 120 km from Warsaw, 190 km from Krakow and 290 km from Gdansk.
+        SpatialSearchQuery Around(double distance, string? unit = null) => new()
+        {
+            Field = "Location", Lat = 51.7592, Lng = 19.4560, Distance = distance, UnitOfDistance = unit
+        };
+        var near = await SearchIdsAsync(Query(index, Occurance.MUST, Around(150)));
+        var wider = await SearchIdsAsync(Query(index, Occurance.MUST, Around(250)));
+        var miles = await SearchIdsAsync(Query(index, Occurance.MUST, Around(200, "mi")));
+        var outside = await SearchIdsAsync(Query(index, Occurance.MUSTNOT, Around(150)));
+
+        near.ShouldBe(["warsaw"]);
+        wider.ShouldBe(["krakow", "warsaw"]);
+        miles.ShouldBe(["gdansk", "krakow", "warsaw"]);
+        outside.ShouldBe(["gdansk", "krakow", "nowhere"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_DocumentWithLocation_ReturnsTheLocationAsIndexed()
+    {
+        var index = await CreatePlacesAsync();
+
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "fields.Location", Value = "52.2297,21.0122" }));
+
+        result.Value.Items.Single().CustomProperties["Location"].ShouldBe(["52.2297,21.0122"]);
+    }
+
     [Fact]
     public async Task SearchAsync_PostFilter_FiltersHits()
     {

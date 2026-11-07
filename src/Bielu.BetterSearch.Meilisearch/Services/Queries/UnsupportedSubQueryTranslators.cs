@@ -7,6 +7,3 @@ internal sealed class FuzzySubQueryTranslator()
 
 internal sealed class LuceneSubQueryTranslator()
     : UnsupportedSubQueryTranslator<LuceneSubQuery>("Meilisearch has no Lucene query syntax");
-
-internal sealed class SpatialSearchSubQueryTranslator()
-    : UnsupportedSubQueryTranslator<SpatialSearchQuery>("Meilisearch only filters by distance on the top-level _geo attribute, which documents don't have");

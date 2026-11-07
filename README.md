@@ -101,7 +101,8 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeil
 
 `ApiKey` is the master key or an API key; leave it empty when the server has none. An entry under
 `Indexes` without a `ConnectionString` uses the shared server and key. Meilisearch filters rather than
-ranks, so fuzzy, raw Lucene and spatial queries return a failed `Result` (see the
+ranks, so fuzzy and raw Lucene queries return a failed `Result`. Spatial queries work on one field, named by
+`"GeoField"` under `Meilisearch`, holding a `"lat,lon"` string or a dictionary with `lat` and `lon` (see the
 [feature matrix](FEATURE_MATRIX.md)).
 
 Or in memory:
