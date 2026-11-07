@@ -37,8 +37,9 @@ the core, and every provider runs the same shared tests.
 ## Errors as results
 
 Searching and indexing are designed to return [FluentResults](https://github.com/altmann/FluentResults)
-`Result`s, so anything a caller can act on, including a feature an engine can't support, is a failed
-result rather than an exception. In this beta some paths still throw; the [roadmap](../ROADMAP.md) lists
+`Result`s, so anything a caller can act on is a failed result rather than an exception. Not every
+unsupported option fails yet: Lifti ignores paging, sorting and post filters, as the
+[feature matrix](../FEATURE_MATRIX.md) records. In this beta some paths still throw; the [roadmap](../ROADMAP.md) lists
 known defects.
 
 [API reference →](api/index.md)

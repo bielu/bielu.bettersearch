@@ -33,12 +33,20 @@ dotnet add package Bielu.BetterSearch.Lifti --prerelease           # in-memory
 
 ### 2. Register a provider
 
+Elasticsearch, configured from `Bielu:BetterSearch:ElasticSearch`:
+
 ```csharp
-using Bielu.BetterSearch.DepedencyInjection;                 // AddBetterSearch, AddLiftiSearch
-using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;   // AddElasticSearch
+using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
 
 builder.Services.AddBetterSearch(search => search.AddElasticSearch());
-// configured from "Bielu:BetterSearch:ElasticSearch", or in memory:
+```
+
+Or in memory:
+
+```csharp
+using Bielu.BetterSearch.DepedencyInjection;
+
 builder.Services.AddBetterSearch(search => search.AddLiftiSearch());
 ```
 
@@ -71,7 +79,9 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
 - ✅ **Fluent query builder** in `Bielu.BetterSearch.FluentApi`
 - ✅ **Paging, sorting, post filters and scores** on the Elasticsearch provider
 - ✅ **Errors as results**: searching and indexing return [FluentResults](https://github.com/altmann/FluentResults)
-  `Result`s, and a feature an engine can't support is a failed result
+  `Result`s. Elasticsearch fails a query that asks for facets or highlighting, but Lifti ignores paging,
+  sorting, post filters, facets and highlighting, so check the [feature matrix](FEATURE_MATRIX.md) for what
+  your provider applies
 - ✅ **Shared provider tests**: provider-agnostic behavior tests in `BaseTests` run against every provider
 - ✅ **.NET Aspire AppHost** that starts Elasticsearch for local development and the integration tests
 
