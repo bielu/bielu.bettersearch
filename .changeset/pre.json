@@ -4,5 +4,15 @@
   "initialVersions": {
     "bielu-bettersearch": "1.0.0-beta.2"
   },
-  "changesets": []
+  "changesets": [
+    "aspire-testing",
+    "bold-taxes-boil",
+    "ecosystem-standards",
+    "elasticsearch-search",
+    "lifti-double-negation",
+    "package-icon",
+    "readme-ecosystem",
+    "stabilization-roadmap",
+    "static-analyzers"
+  ]
 }
