@@ -62,8 +62,8 @@ services.AddBetterSearch(configuration, search => search.AddOpenSearch());
 |---------|---------|
 | `SharedIndexSettings` | Connection used for every index without its own entry |
 | `ConnectionString` | Cluster URL; a missing one throws when the client is created |
-| `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`) or `APIKEY` (`Id` and `ApiKey`) |
-| `Indexes` | Per-index settings; an entry replaces the shared settings for that index, taking only the connection string from them when it sets none |
+| `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`) or `APIKEY` (an OpenSearch 3.x API key in `ApiKey`, sent as `Authorization: ApiKey <key>`) |
+| `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings` |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window` |
 
 You can also set the options in code with `services.Configure<OpenSearchOptions>(...)`. Documents are stored

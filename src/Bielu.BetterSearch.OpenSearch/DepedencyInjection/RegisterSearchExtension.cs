@@ -13,14 +13,10 @@ public static class RegisterSearchExtension
     public static Configurator AddOpenSearch(this Configurator configurator)
     {
         configurator.Services.AddSingleton<IOpenSearchClientSettingsManager, OpenSearchClientSettingsManager>();
-        configurator.Services.AddScoped<IClientFactoryAsync<IOpenSearchClient>, OpenSearchClientFactory>();
-        configurator.Services.AddScoped(typeof(IDocumentValidatorAsync),
-            configurator.Configuration.DocumentValidatorType);
+        configurator.Services.AddSingleton<IClientFactoryAsync<IOpenSearchClient>, OpenSearchClientFactory>();
+        // AddBetterSearch registers the validator and the indexing and search services after this runs.
         configurator.SetSearchProviderType<OpenSearchSearchProviderAsync>()
             .SetIndexingProviderType<OpenSearchIndexingProviderAsync>();
-        configurator.Services.AddScoped(typeof(IIndexingServiceAsync), configurator.Configuration.IndexingServiceType);
-
-        configurator.Services.AddScoped(typeof(ISearchServiceAsync), configurator.Configuration.SearchServiceType);
         configurator.Services.AddScoped<OpenSearchQueryTranslateService>();
         configurator.Services.AddScoped<IQueryTranslateServiceAsync<QueryContainer>>(sp =>
             sp.GetRequiredService<OpenSearchQueryTranslateService>());

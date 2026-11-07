@@ -33,6 +33,7 @@ public class OpenSearchAuthenticationDetails
 {
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
+
+    /// <summary>An OpenSearch API key (3.x security plugin), sent as <c>Authorization: ApiKey &lt;key&gt;</c>.</summary>
     public string ApiKey { get; set; } = string.Empty;
-    public string Id { get; set; } = string.Empty;
 }

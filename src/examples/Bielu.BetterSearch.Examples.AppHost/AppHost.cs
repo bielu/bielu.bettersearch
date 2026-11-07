@@ -11,7 +11,8 @@ builder.AddContainer("elasticsearch", "elasticsearch", "9.5.3")
     .WithEnvironment("ES_JAVA_OPTS", "-Xms512m -Xmx512m")
     .WithHttpHealthCheck("/_cluster/health", endpointName: "http");
 
-// Keep the image's major version in step with what OpenSearch.Client in Directory.Packages.props supports.
+// OpenSearch.Client 2.x, pinned in Directory.Packages.props, supports OpenSearch 2.x and 3.x servers
+// (see opensearch-net's COMPATIBILITY.md); keep the image within what the client supports.
 builder.AddContainer("opensearch", "opensearchproject/opensearch", "3.3.2")
     .WithHttpEndpoint(targetPort: 9200, name: "http")
     .WithEnvironment("discovery.type", "single-node")

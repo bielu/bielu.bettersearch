@@ -27,6 +27,32 @@ public sealed class OpenSearchIndexingResponseTests
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
+    [Theory]
+    [InlineData(401)]
+    [InlineData(403)]
+    [InlineData(500)]
+    public async Task IndexExistsAsync_ServerError_ReturnsFailure(int statusCode)
+    {
+        var provider = Provider("""{"error":{"type":"security_exception","reason":"no permissions"},"status":403}""", statusCode);
+
+        var result = await provider.IndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData(200, true)]
+    [InlineData(404, false)]
+    public async Task IndexExistsAsync_Answered_ReturnsWhetherItExists(int statusCode, bool exists)
+    {
+        var provider = Provider("", statusCode);
+
+        var result = await provider.IndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(exists);
+    }
+
     [Fact]
     public async Task RemoveAllDocumentsAsync_TimedOut_ReturnsFailureWithDeletedCount()
     {

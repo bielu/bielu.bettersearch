@@ -20,15 +20,22 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
         return ParseSettings(MergeSettings(indexSpecific, shared));
     }
 
+    /// <summary>
+    /// Builds a new settings object, leaving the live options untouched: the index's connection string and
+    /// authentication win, and an index without its own takes the shared one.
+    /// </summary>
     private static OpenSearchIndexSettings MergeSettings(OpenSearchIndexSettings indexSpecific,
         OpenSearchIndexSettings shared)
     {
-        if (string.IsNullOrWhiteSpace(indexSpecific.ConnectionString))
+        var ownAuthentication = indexSpecific.AuthenticationType != OpenSearchAuthenticationType.NONE;
+        return new OpenSearchIndexSettings
         {
-            indexSpecific.ConnectionString = shared.ConnectionString;
-        }
-
-        return indexSpecific;
+            ConnectionString = string.IsNullOrWhiteSpace(indexSpecific.ConnectionString)
+                ? shared.ConnectionString
+                : indexSpecific.ConnectionString,
+            AuthenticationType = ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType,
+            AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
+        };
     }
 
     private static ConnectionSettings ParseSettings(OpenSearchIndexSettings settings)
@@ -51,7 +58,8 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
             case OpenSearchAuthenticationType.APIKEY:
                 var apiKeyDetails = settings.AuthenticationDetails
                                     ?? throw new ArgumentException("Authentication details are missing");
-                connectionSettings.ApiKeyAuthentication(apiKeyDetails.Id, apiKeyDetails.ApiKey);
+                // OpenSearch API keys are sent as they are, "Authorization: ApiKey <token>", not encoded with an id.
+                connectionSettings.ApiKeyAuthentication(new ApiKeyAuthenticationCredentials(apiKeyDetails.ApiKey));
                 break;
             default:
                 throw new InvalidOperationException("Invalid authentication type");

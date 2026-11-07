@@ -71,12 +71,82 @@ public class OpenSearchClientSettingsManagerTests
             {
                 ConnectionString = "http://shared:9200",
                 AuthenticationType = OpenSearchAuthenticationType.APIKEY,
-                AuthenticationDetails = new OpenSearchAuthenticationDetails { Id = "key-id", ApiKey = "key" },
+                AuthenticationDetails = new OpenSearchAuthenticationDetails { ApiKey = "os_key" },
             },
         });
 
         settings.ApiKeyAuthenticationCredentials.ShouldNotBeNull();
+        // Sent as "Authorization: ApiKey os_key", the form the OpenSearch security plugin accepts.
+        settings.ApiKeyAuthenticationCredentials.Base64EncodedApiKey.CreateString().ShouldBe("os_key");
         settings.BasicAuthenticationCredentials.ShouldBeNull();
+    }
+
+    [Fact]
+    public void GetOrCreateClientSettings_IndexSettingsWithoutAuthentication_UsesSharedAuthentication()
+    {
+        var settings = GetSettings(new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings
+            {
+                ConnectionString = "http://shared:9200",
+                AuthenticationType = OpenSearchAuthenticationType.PASSWORD,
+                AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "secret" },
+            },
+            Indexes = new Dictionary<string, OpenSearchIndexSettings>
+            {
+                ["products"] = new() { ConnectionString = "http://products:9200" },
+            },
+        });
+
+        settings.ConnectionPool.Nodes.Single().Uri.ShouldBe(new Uri("http://products:9200"));
+        settings.BasicAuthenticationCredentials.ShouldNotBeNull();
+        settings.BasicAuthenticationCredentials.Username.ShouldBe("admin");
+    }
+
+    [Fact]
+    public void GetOrCreateClientSettings_IndexSettings_DoesNotChangeTheOptions()
+    {
+        var products = new OpenSearchIndexSettings();
+        var options = new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings
+            {
+                ConnectionString = "http://shared:9200",
+                AuthenticationType = OpenSearchAuthenticationType.PASSWORD,
+                AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "secret" },
+            },
+            Indexes = new Dictionary<string, OpenSearchIndexSettings> { ["products"] = products },
+        };
+
+        GetSettings(options);
+
+        products.ConnectionString.ShouldBeEmpty();
+        products.AuthenticationType.ShouldBe(OpenSearchAuthenticationType.NONE);
+        products.AuthenticationDetails.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_SameSettings_ReusesOneClient()
+    {
+        var options = new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings { ConnectionString = "http://shared:9200" },
+            Indexes = new Dictionary<string, OpenSearchIndexSettings>
+            {
+                ["products"] = new() { ConnectionString = "http://products:9200" },
+            },
+        };
+        var monitor = new StaticOptionsMonitor(options);
+        var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor), monitor);
+
+        var people = await factory.GetOrCreateClientAsync("people");
+        var orders = await factory.GetOrCreateClientAsync("orders");
+        var products = await factory.GetOrCreateClientAsync("products");
+
+        orders.ShouldBeSameAs(people);
+        (await factory.GetOrCreateClientAsync("products")).ShouldBeSameAs(products);
+        products.ShouldNotBeSameAs(people);
+        products.ConnectionSettings.ConnectionPool.Nodes.Single().Uri.ShouldBe(new Uri("http://products:9200"));
     }
 
     [Theory]

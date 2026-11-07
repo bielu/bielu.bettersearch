@@ -83,12 +83,13 @@ public sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenSea
         {
             var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
             var response = await client.Indices.ExistsAsync(index, ct: cancellationToken).ConfigureAwait(false);
-            if (response.OriginalException is not null)
+            // Only 200 and 404 answer the question; anything else, such as a 401, 403 or 5xx, is a failure.
+            return response.ApiCall?.HttpStatusCode switch
             {
-                return Result.Fail<bool>(new Error(response.DebugInformation));
-            }
-
-            return Result.Ok(response.Exists);
+                200 => Result.Ok(true),
+                404 => Result.Ok(false),
+                _ => Result.Fail<bool>(new Error(response.DebugInformation)),
+            };
         }
         catch (Exception e)
         {
