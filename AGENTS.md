@@ -17,10 +17,11 @@ The solution is `src/Bielu.BetterSearch.slnx`. Everything, tests included, lives
 | `Bielu.BetterSearch.Core` | `AddBetterSearch`, `IndexingServiceAsync`, `SearchServiceAsync` |
 | `Bielu.BetterSearch.FluentApi` | Fluent query builder |
 | `Bielu.BetterSearch.ElasticSearch` | Elasticsearch provider |
+| `Bielu.BetterSearch.Meilisearch` | Meilisearch provider |
 | `Bielu.BetterSearch.OpenSearch` | OpenSearch provider |
 | `Bielu.BetterSearch.Lifti` | In-memory provider |
-| `Bielu.BetterSearch.EndpointApi`, `.Meilisearch` | Placeholders (not packed) |
-| `examples/Bielu.BetterSearch.Examples.AppHost` | Aspire AppHost running the search engines, for local development and the integration tests (not packed) |
+| `Bielu.BetterSearch.EndpointApi` | Placeholder (not packed) |
+| `examples/Bielu.BetterSearch.Examples.AppHost` | Aspire AppHost running the search engines and their UIs, for local development and the integration tests (not packed) |
 | `Bielu.BetterSearch.BaseTests` | Provider-agnostic test bases, inherited by each provider's test project (not packed) |
 | `Bielu.BetterSearch.*.Tests` | Test projects (not packed) |
 

@@ -10,7 +10,7 @@
 </p>
 
 A provider-agnostic search abstraction for .NET: describe a query once, then run it against whichever
-search engine you configure. Elasticsearch, OpenSearch and an in-memory provider ship today, and a new engine is a new
+search engine you configure. Elasticsearch, OpenSearch, Meilisearch and an in-memory provider ship today, and a new engine is a new
 provider package, with no change to the core.
 
 📖 **Full documentation: [https://search.bielu.pl/](https://search.bielu.pl/)**
@@ -29,6 +29,7 @@ dotnet add package Bielu.BetterSearch.Core --prerelease
 # Then one provider:
 dotnet add package Bielu.BetterSearch.ElasticSearch --prerelease   # Elasticsearch
 dotnet add package Bielu.BetterSearch.OpenSearch --prerelease      # OpenSearch
+dotnet add package Bielu.BetterSearch.Meilisearch --prerelease     # Meilisearch
 dotnet add package Bielu.BetterSearch.Lifti --prerelease           # in-memory
 ```
 
@@ -74,6 +75,37 @@ for that one index and takes the rest from the shared settings (set `"Authentica
 turn the shared authentication off for that index), and `MaxResultWindow` (10,000 by default)
 should match the indexes' `index.max_result_window`.
 
+Meilisearch, configured from `Bielu:BetterSearch:Meilisearch`:
+
+```csharp
+using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.Meilisearch.DepedencyInjection;
+
+builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeilisearch());
+```
+
+```json
+{
+  "Bielu": {
+    "BetterSearch": {
+      "Meilisearch": {
+        "SharedIndexSettings": {
+          "ConnectionString": "http://localhost:7700",
+          "ApiKey": "..."
+        }
+      }
+    }
+  }
+}
+```
+
+`ApiKey` is the master key or an API key; leave it empty when the server has none. An entry under
+`Indexes` without a `ConnectionString` uses the shared server and key. Meilisearch filters rather than
+ranks, so fuzzy and raw Lucene queries return a failed `Result`. Spatial queries work on one field, named by
+`"GeoField"` under `Meilisearch`, holding a `"lat,lon"` string or a dictionary with `lat` and `lon`. Phrase
+prefix queries store word runs for every text field; list the fields that need them in `"PhraseFields"` to keep
+long texts small, and re-index after adding a field to it (see the [feature matrix](FEATURE_MATRIX.md)).
+
 Or in memory:
 
 ```csharp
@@ -109,13 +141,16 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
 - ✅ **One query model** for every provider: term, terms, prefix, prefix phrase, fuzzy, date, numeric and
   string ranges, geo distance, raw Lucene, and nested boolean logic with Lucene semantics
 - ✅ **Fluent query builder** in `Bielu.BetterSearch.FluentApi`
-- ✅ **Paging, sorting, post filters and scores** on the Elasticsearch and OpenSearch providers
+- ✅ **Paging, sorting, post filters and scores** on the Elasticsearch and OpenSearch providers; paging, sorting
+  and post filters on Meilisearch
 - ✅ **Errors as results**: searching and indexing return [FluentResults](https://github.com/altmann/FluentResults)
-  `Result`s. Elasticsearch and OpenSearch fail a query that asks for facets or highlighting, but Lifti ignores paging,
+  `Result`s. Elasticsearch, OpenSearch and Meilisearch fail a query that asks for facets or highlighting, but Lifti ignores paging,
   sorting, post filters, facets and highlighting, so check the [feature matrix](FEATURE_MATRIX.md) for what
   your provider applies
 - ✅ **Shared provider tests**: provider-agnostic behavior tests in `BaseTests` run against every provider
-- ✅ **.NET Aspire AppHost** that starts Elasticsearch and OpenSearch for local development and the integration tests
+- ✅ **.NET Aspire AppHost** that starts Elasticsearch, OpenSearch and Meilisearch for local development and the
+  integration tests, with [meilisearch-ui](https://github.com/riccox/meilisearch-ui) for browsing Meilisearch
+  indexes and trying queries
 
 Facets and highlighting can be expressed but no provider runs them yet. See the
 [feature matrix](FEATURE_MATRIX.md) for the full picture.
@@ -135,6 +170,7 @@ Facets and highlighting can be expressed but no provider runs them yet. See the
 | --- | --- | --- |
 | [`Bielu.BetterSearch.ElasticSearch`](https://www.nuget.org/packages/Bielu.BetterSearch.ElasticSearch/) | [Elasticsearch](https://www.elastic.co/elasticsearch) | Available |
 | [`Bielu.BetterSearch.OpenSearch`](https://www.nuget.org/packages/Bielu.BetterSearch.OpenSearch/) | [OpenSearch](https://opensearch.org/) | Available |
+| [`Bielu.BetterSearch.Meilisearch`](https://www.nuget.org/packages/Bielu.BetterSearch.Meilisearch/) | [Meilisearch](https://www.meilisearch.com/) | Available; filters only, see the feature matrix |
 | [`Bielu.BetterSearch.Lifti`](https://www.nuget.org/packages/Bielu.BetterSearch.Lifti/) | In memory, on [LIFTI](https://github.com/mikegoatly/lifti) | Available; to be replaced by Lucene.NET |
 | `Bielu.BetterSearch.Lucene` | [Lucene.NET](https://lucenenet.apache.org/), in memory or on disk | Planned ([roadmap](ROADMAP.md)) |
 
@@ -149,13 +185,17 @@ The [changelog](CHANGELOG.md) lists what changed in each release.
 
 ## Building from source
 
-The repository needs the **.NET 10 SDK**. The solution is `src/Bielu.BetterSearch.slnx`. The Elasticsearch
-and OpenSearch tests start their engine through the Aspire AppHost, so they need Docker.
+The repository needs the **.NET 10 SDK**. The solution is `src/Bielu.BetterSearch.slnx`. The Elasticsearch,
+OpenSearch and Meilisearch tests start their engine through the Aspire AppHost, so they need Docker.
 
 ```bash
 dotnet build src/Bielu.BetterSearch.slnx
 dotnet test --solution src/Bielu.BetterSearch.slnx
 ```
+
+To run the engines yourself, start `src/examples/Bielu.BetterSearch.Examples.AppHost` (`aspire run` from
+`src/`, or `dotnet run` the project). For Meilisearch the Aspire dashboard links to Meilisearch's own search
+preview and to meilisearch-ui; the master key is the `meilisearch-masterKey` parameter shown in the dashboard.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Every pull request needs a
 [changeset](.changeset/README.md).
