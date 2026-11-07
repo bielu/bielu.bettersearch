@@ -210,6 +210,48 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
         ids.ShouldBe(["3"]);
     }
 
+    /// <summary>
+    /// With nothing required, a <c>SHOULD</c> that only excludes still has to match: not jane (2 and 3) and
+    /// the double negation (1 and 3) leave 3. Ignoring the <c>SHOULD</c> would return 1 and 3.
+    /// </summary>
+    [Fact]
+    public async Task SearchAsync_ShouldOfNestedMustNotOnlyBesideDoubleNegation_ReturnsBothMatches()
+    {
+        var query = await CreateQueryAsync();
+        var notJane = new BoolSearchSubQuery();
+        notJane.Add(Occurance.MUSTNOT, Name("jane"));
+        var doubleNegated = new BoolSearchSubQuery();
+        doubleNegated.Add(Occurance.MUSTNOT, Name("jane"));
+        doubleNegated.Add(Occurance.MUSTNOT, Name("3"));
+        query.Add(Occurance.SHOULD, notJane);
+        query.Add(Occurance.MUSTNOT, doubleNegated);
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["3"]);
+    }
+
+    /// <summary>
+    /// A nested bool of <c>SHOULD</c> clauses where one only excludes: not john (1) or 3 gives 1 and 3,
+    /// within the parent's doe.
+    /// </summary>
+    [Fact]
+    public async Task SearchAsync_NestedShouldOfMustNotOnlyBesideShould_ReturnsEitherMatch()
+    {
+        var query = await CreateQueryAsync();
+        var notJohn = new BoolSearchSubQuery();
+        notJohn.Add(Occurance.MUSTNOT, Name("john"));
+        var nested = new BoolSearchSubQuery();
+        nested.Add(Occurance.SHOULD, notJohn);
+        nested.Add(Occurance.SHOULD, Name("3"));
+        query.Add(Occurance.MUST, Name("doe"));
+        query.Add(Occurance.MUST, nested);
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["1", "3"]);
+    }
+
     /// <summary>Lucene semantics: a <c>MUST</c> makes <c>SHOULD</c> optional, even when the <c>MUST</c> only excludes.</summary>
     [Fact]
     public virtual async Task SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ReturnsEveryDocumentExceptTheExclusions()

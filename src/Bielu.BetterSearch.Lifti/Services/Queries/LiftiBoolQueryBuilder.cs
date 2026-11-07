@@ -41,7 +41,8 @@ internal static class LiftiBoolQueryBuilder
 
     /// <summary>
     /// Returns the matches and the exclusions separately, so a parent can apply the exclusions of a
-    /// nested bool that has nothing to exclude them from.
+    /// nested bool that has nothing to exclude them from. A <c>null</c> match with exclusions means every
+    /// document except them; with neither, there are no clauses.
     /// </summary>
     private static async Task<Result<(IQueryPart? Matches, IQueryPart? Excluded)>> BuildClausesAsync(
         IEnumerable<(Occurance Occurance, ISearchSubQuery Query)> clauses,
@@ -50,7 +51,8 @@ internal static class LiftiBoolQueryBuilder
         IQueryPart? required = null;
         IQueryPart? optional = null;
         IQueryPart? excluded = null;
-        var optionalComplement = false;
+        // SHOULD clauses that match every document except these: "not a or not b" is "not (a and b)".
+        IQueryPart? optionalComplementExcluded = null;
         // A required clause makes SHOULD optional even when it only excludes and leaves required null.
         var hasRequired = false;
         // Excluding "not x" requires x, but unlike a MUST it leaves SHOULD deciding the matches, as in Lucene.
@@ -83,8 +85,7 @@ internal static class LiftiBoolQueryBuilder
                             doubleNegated = And(doubleNegated, nestedExcluded);
                             continue;
                         default:
-                            // Only matters when nothing is required, and Lifti can't express "or not x".
-                            optionalComplement = true;
+                            optionalComplementExcluded = And(optionalComplementExcluded, nestedExcluded);
                             continue;
                     }
                 }
@@ -130,9 +131,16 @@ internal static class LiftiBoolQueryBuilder
             }
         }
 
-        if (!hasRequired && optionalComplement)
+        if (!hasRequired && optionalComplementExcluded != null)
         {
-            return Result.Fail<(IQueryPart?, IQueryPart?)>(NoPositiveClause);
+            // The SHOULD clauses match "optional or every document except C", which is every document
+            // except the part of C that optional doesn't match.
+            var notMatched = optional == null
+                ? optionalComplementExcluded
+                : new AndNotQueryOperator(optionalComplementExcluded, optional);
+            return Result.Ok<(IQueryPart?, IQueryPart?)>(doubleNegated == null
+                ? (null, Or(excluded, notMatched))
+                : (new AndNotQueryOperator(doubleNegated, notMatched), excluded));
         }
 
         var matches = hasRequired ? required : optional;
