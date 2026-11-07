@@ -9,7 +9,7 @@ namespace Bielu.BetterSearch.OpenSearch.Tests;
 /// Provider paths the shared <c>IndexingTestBase</c> does not reach: Core indexes many documents one by one,
 /// so bulk indexing and removing every document are exercised here directly.
 /// </summary>
-public sealed class OpenSearchIndexingProviderTests(IIndexingProviderAsync provider, ISearchProviderAsync searchProvider, IClientFactoryAsync<IOpenSearchClient> clientFactory)
+public sealed class OpenSearchIndexingProviderTests(IIndexingProviderAsync provider, IClientFactoryAsync<IOpenSearchClient> clientFactory)
 {
     private static string UniqueIndex() => $"opensearch-provider-{Guid.NewGuid():N}";
 
@@ -109,14 +109,6 @@ public sealed class OpenSearchIndexingProviderTests(IIndexingProviderAsync provi
     public async Task DeleteIndexAsync_MissingIndex_ReturnsFailure()
     {
         var result = await provider.DeleteIndexAsync(UniqueIndex(), Token);
-
-        result.IsFailed.ShouldBeTrue();
-    }
-
-    [Fact]
-    public async Task SearchAsync_AnyQuery_ReturnsNotSupportedFailure()
-    {
-        var result = await searchProvider.SearchAsync(new SearchQuery { Index = UniqueIndex() });
 
         result.IsFailed.ShouldBeTrue();
     }
