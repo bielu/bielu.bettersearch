@@ -268,6 +268,22 @@ public sealed class MeilisearchIndexingProviderTests(
     }
 
     [Fact]
+    public async Task CreateIndexAsync_IndexDeletedElsewhereWithinTheInterval_AppliesTheSettings()
+    {
+        var index = UniqueIndex();
+        var cached = ProviderWith(o => o.SettingsCheckInterval = TimeSpan.FromHours(1));
+        (await cached.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+        var client = await clientFactory.GetOrCreateClientAsync(index);
+        await client.WaitForTaskAsync((await client.DeleteIndexAsync(index, Token)).TaskUid, cancellationToken: Token);
+
+        var result = await cached.CreateIndexAsync(index, Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
+        (await SettingsAsync(index)).FilterableAttributes!.Select(attribute => attribute.Attribute).ShouldContain("tokens");
+    }
+
+    [Fact]
     public async Task IndexDocumentAsync_IndexDeletedThroughTheProvider_AppliesTheSettingsAgain()
     {
         var index = UniqueIndex();

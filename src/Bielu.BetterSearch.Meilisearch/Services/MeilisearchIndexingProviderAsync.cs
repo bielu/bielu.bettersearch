@@ -108,6 +108,13 @@ public sealed class MeilisearchIndexingProviderAsync(
     {
         var task = await RunTaskAsync(index, client => client.CreateIndexAsync(index, PrimaryKey, cancellationToken), cancellationToken).ConfigureAwait(false);
         var created = task.IsSuccess;
+        if (created)
+        {
+            // A new index has no settings, so an earlier check, made before it was deleted elsewhere, no longer holds.
+            var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
+            ForgetSettingsCheck(client, index);
+        }
+
         // Matches the other providers: creating an index that already exists is not an error, it just creates nothing.
         if (!created && !task.HasError(e => e.Metadata.TryGetValue("code", out var code) && Equals(code, IndexAlreadyExists)))
         {
