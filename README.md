@@ -127,11 +127,23 @@ await indexing.IndexDocumentAsync(new SearchDocument
 var query = new SearchQuery { Index = "people", Page = 1, PageSize = 20 };
 query.Add(Occurance.MUST, new PrefixSubQuery { Field = "Name", Value = "ja" });
 
-var result = await search.SearchAsync(query);
+var result = await search.SearchAsync(query, cancellationToken);
 if (result.IsSuccess)
 {
-    foreach (var hit in result.Value.Items) { /* hit.Id, hit.Score, ... */ }
+    foreach (var hit in result.Value.Items) { /* hit.Document.Id, hit.Score, ... */ }
 }
+```
+
+To search one culture, index it in the plain `Culture` field and filter on it with the fluent API:
+
+```csharp
+Fields[CultureField.Name] = [CultureField.Value("en-US")];
+
+var query = FluentApiSearchQueryCreator.Create()
+    .WithSearchQuery(search => search.WithIndex("pages"))
+    .CreateSearchQuery(search => search
+        .CreateTermQuery(term => term.WithField("Title").WithValue("welcome"))
+        .FilterByCulture("en-US"));
 ```
 
 The [Getting Started](https://search.bielu.pl/articles/getting-started.html) guide covers this in more detail.
