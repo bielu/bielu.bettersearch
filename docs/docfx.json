@@ -50,6 +50,7 @@
     "resource": [
       {
         "files": [
+          "images/**",
           "public/**"
         ]
       }
@@ -63,6 +64,8 @@
     "globalMetadata": {
       "_appName": "Bielu.BetterSearch",
       "_appTitle": "Bielu.BetterSearch",
+      "_appLogoPath": "images/logo.svg",
+      "_appFaviconPath": "images/logo.svg",
       "_enableSearch": true,
       "_enableNewTab": true,
       "repository": "https://github.com/bielu/bielu.bettersearch",
