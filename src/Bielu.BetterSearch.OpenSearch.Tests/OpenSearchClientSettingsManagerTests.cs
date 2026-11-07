@@ -277,6 +277,28 @@ public class OpenSearchClientSettingsManagerTests
             },
         }));
 
+    [Theory]
+    [InlineData(OpenSearchAuthenticationType.PASSWORD, "", "s3cret", "")]
+    [InlineData(OpenSearchAuthenticationType.PASSWORD, "admin", " ", "")]
+    [InlineData(OpenSearchAuthenticationType.APIKEY, "", "", "")]
+    [InlineData(OpenSearchAuthenticationType.APIKEY, "", "", "  ")]
+    public void CreateClientSettings_AuthenticationWithEmptyCredentials_Throws(
+        OpenSearchAuthenticationType authenticationType, string username, string password, string apiKey) =>
+        Should.Throw<ArgumentException>(() => GetSettings(new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings
+            {
+                ConnectionString = "http://shared:9200",
+                AuthenticationType = authenticationType,
+                AuthenticationDetails = new OpenSearchAuthenticationDetails
+                {
+                    Username = username,
+                    Password = password,
+                    ApiKey = apiKey,
+                },
+            },
+        }));
+
     [Fact]
     public void CreateClientSettings_MissingConnectionString_Throws() =>
         Should.Throw<ArgumentException>(() => GetSettings(new OpenSearchOptions()));

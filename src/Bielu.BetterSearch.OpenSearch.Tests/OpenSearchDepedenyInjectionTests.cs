@@ -10,7 +10,7 @@ using Shouldly;
 namespace Bielu.BetterSearch.OpenSearch.Tests;
 
 public class OpenSearchDepedenyInjectionTests(IServiceProvider collection)
-    : DepedenyInjectionTestBase<OpenSearchIndexingProviderAsync, IOpenSearchClient, QueryContainer>(collection)
+    : DepedenyInjectionTestBase<IIndexingProviderAsync, IOpenSearchClient, QueryContainer>(collection)
 {
     [Fact]
     public void SearchProviderShouldBeTypeOfOpenSearchSearchProviderAsync() => ServiceShouldBeTypeOf(typeof(ISearchProviderAsync), typeof(OpenSearchSearchProviderAsync));

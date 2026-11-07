@@ -60,11 +60,21 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
             case OpenSearchAuthenticationType.PASSWORD:
                 var passwordDetails = settings.AuthenticationDetails
                                       ?? throw new ArgumentException("Authentication details are missing");
+                if (string.IsNullOrWhiteSpace(passwordDetails.Username) || string.IsNullOrWhiteSpace(passwordDetails.Password))
+                {
+                    throw new ArgumentException("PASSWORD authentication needs a Username and a Password");
+                }
+
                 connectionSettings.BasicAuthentication(passwordDetails.Username, passwordDetails.Password);
                 break;
             case OpenSearchAuthenticationType.APIKEY:
                 var apiKeyDetails = settings.AuthenticationDetails
                                     ?? throw new ArgumentException("Authentication details are missing");
+                if (string.IsNullOrWhiteSpace(apiKeyDetails.ApiKey))
+                {
+                    throw new ArgumentException("APIKEY authentication needs an ApiKey");
+                }
+
                 // OpenSearch API keys are sent as they are, "Authorization: ApiKey <token>", not encoded with an id.
                 connectionSettings.ApiKeyAuthentication(new ApiKeyAuthenticationCredentials(apiKeyDetails.ApiKey));
                 break;

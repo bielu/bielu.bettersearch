@@ -10,7 +10,7 @@ using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.OpenSearch.Services;
 
-public sealed class OpenSearchSearchProviderAsync(
+internal sealed class OpenSearchSearchProviderAsync(
     IQueryTranslateServiceAsync<QueryContainer> queryTranslateServiceAsync,
     IPostFilterTranslateServiceAsync<QueryContainer> postFilterTranslateService,
     IClientFactoryAsync<IOpenSearchClient> clientFactoryAsync,

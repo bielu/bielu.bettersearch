@@ -6,7 +6,7 @@ using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.OpenSearch.Services;
 
-public sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenSearchClient> clientFactory, ILogger<OpenSearchIndexingProviderAsync> logger) : IIndexingProviderAsync
+internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenSearchClient> clientFactory, ILogger<OpenSearchIndexingProviderAsync> logger) : IIndexingProviderAsync
 {
     // OpenSearch.Client treats some 404s (for example delete by query on a missing index) as valid,
     // so a response that carries a server error is a failure too.
