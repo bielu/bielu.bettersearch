@@ -25,11 +25,10 @@ with the fluent API, and get the same results from every provider.
 
 ## Pluggable providers
 
-[Elasticsearch](https://www.nuget.org/packages/Bielu.BetterSearch.ElasticSearch/) and an in-memory
-[Lifti](https://www.nuget.org/packages/Bielu.BetterSearch.Lifti/) provider today. A new engine is a new
-provider package, with no change to the core.
+Pick the engine in one line of configuration. A new engine is a new provider package, with no change to
+the core, and every provider runs the same shared tests.
 
-[Feature matrix →](../FEATURE_MATRIX.md)
+[See the providers →](#providers)
 
 </div>
 
@@ -42,6 +41,52 @@ anything a caller can act on, including a feature an engine can't support, is a 
 an exception.
 
 [API reference →](api/index.md)
+
+</div>
+
+</div>
+
+## Providers
+
+Each provider is its own NuGet package. The [feature matrix](../FEATURE_MATRIX.md) records exactly what
+each one supports today.
+
+<div class="landing-cards provider-cards">
+
+<div class="landing-card">
+
+### Elasticsearch <span class="provider-status available">Available</span>
+
+[Bielu.BetterSearch.ElasticSearch](https://www.nuget.org/packages/Bielu.BetterSearch.ElasticSearch/)
+indexes and searches an [Elasticsearch](https://www.elastic.co/elasticsearch) cluster, with paging,
+sorting and post filters.
+
+```csharp
+search.AddElasticSearch()
+```
+
+</div>
+
+<div class="landing-card">
+
+### Lifti <span class="provider-status available">Available</span>
+
+[Bielu.BetterSearch.Lifti](https://www.nuget.org/packages/Bielu.BetterSearch.Lifti/) is an in-memory
+index built on [LIFTI](https://github.com/mikegoatly/lifti), for tests and small data sets. It is due to
+be replaced by Lucene.NET.
+
+```csharp
+search.AddLiftiSearch()
+```
+
+</div>
+
+<div class="landing-card">
+
+### Lucene.NET <span class="provider-status planned">Planned</span>
+
+`Bielu.BetterSearch.Lucene` will run on [Lucene.NET](https://lucenenet.apache.org/), in memory or on
+disk, with the same query semantics as Elasticsearch. See the [roadmap](../ROADMAP.md).
 
 </div>
 

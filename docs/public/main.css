@@ -13,3 +13,28 @@
 .landing-card h2 {
     margin-top: 0.75rem;
 }
+
+.provider-cards .landing-card {
+    flex-basis: 260px;
+}
+.provider-cards .landing-card h3 {
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.provider-status {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 1rem;
+    border: 1px solid currentColor;
+}
+.provider-status.available {
+    color: var(--bs-success, #198754);
+}
+.provider-status.planned {
+    color: var(--bs-secondary-color, #6c757d);
+}
