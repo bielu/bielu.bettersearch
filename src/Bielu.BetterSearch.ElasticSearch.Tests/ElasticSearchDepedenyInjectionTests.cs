@@ -6,4 +6,4 @@ using Elastic.Clients.Elasticsearch.QueryDsl;
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
 
 public class ElasticSearchDepedenyInjectionTests(IServiceProvider collection)
-    : DepedenyInjectionTestBase<ElasticSearchIndexingProviderAsync, ElasticsearchClient, BoolQueryDescriptor<SearchDocument>>(collection);
+    : DepedenyInjectionTestBase<ElasticSearchIndexingProviderAsync, ElasticsearchClient, Query>(collection);

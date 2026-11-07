@@ -8,7 +8,7 @@ public class LiftiBaseSearchModelMapper : IResultMapper<ISearchResults<string>>
 {
     public ISearchResult<ISearchModel> MapResult(ISearchResults<string> searchEngineResult) => new BaseSearchResults()
     {
-        Items = searchEngineResult.Select(x => new BaseSearchModel() { Id = x.Key }),
+        Items = searchEngineResult.Select(x => new BaseSearchModel() { Id = x.Key, Score = x.Score }),
         Pagination = new Pagination
         {
             TotalCount = searchEngineResult.Count

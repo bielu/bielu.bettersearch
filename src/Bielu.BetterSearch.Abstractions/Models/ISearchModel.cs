@@ -8,6 +8,9 @@ namespace Bielu.BetterSearch.Abstractions.Models
         string Url { get; set; }
 
         DateTime? IndexedAt { get; set; }
+
+        /// <summary>The relevance score the engine gave the hit, when it scores hits.</summary>
+        double? Score { get; set; }
         CultureInfo Culture { get; set; }
         string SearchCulture { get; set; }
         string ContentKey { get; set; }

@@ -8,6 +8,12 @@ public class ElasticSearchOptions
     public ElasticSearchIndexSettings SharedIndexSettings { get; set; }
     public Dictionary<string, ElasticSearchIndexSettings>? Indexes { get; set; }
 
+    /// <summary>
+    /// The deepest result a search may page to, <c>(Page - 1) * PageSize + PageSize</c>. Match it to the
+    /// indexes' <c>index.max_result_window</c>, which is 10,000 unless changed.
+    /// </summary>
+    public int MaxResultWindow { get; set; } = 10_000;
+
 }
 
 public class ElasticSearchIndexSettings : IndexSettings

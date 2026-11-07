@@ -1,72 +1,66 @@
 # BetterSearch Provider Feature Matrix
 
-This document describes the feature support matrix for each search provider.
+What each provider really does today. This is a beta: see [ROADMAP.md](./ROADMAP.md) for the plan.
 
-## Query Types
+✅ works · ⚠️ works with the caveat noted · ❌ not available
 
-| Feature | Elasticsearch | OpenSearch | Lifti |
-|---------|:----------:|:----------:|:-----:|
-| **BoolQuery** (nested boolean logic) | ✅ | ❌ | ✅ |
-| **TermQuery** (exact term match) | ✅ | ❌ | ✅ |
-| **TermsQuery** (multiple exact terms) | ✅ | ❌ | ✅ |
-| **FuzzyQuery** (approximate match) | ✅ | ❌ | ✅ |
-| **PrefixQuery** (prefix match) | ✅ | ❌ | ✅ |
-| **PrefixPhraseQuery** (phrase prefix match) | ✅ | ❌ | ✅ |
-| **LuceneQuery** (raw Lucene syntax) | ✅ | ❌ | ❌ |
-| **DateRangeQuery** | ✅ | ❌ | ❌ |
-| **NumericRange** | ✅ | ❌ | ❌ |
-| **LongRange** | ✅ | ❌ | ❌ |
-| **StringRange** | ✅ | ❌ | ❌ |
-| **SpatialSearchQuery** (geo/location) | ✅ | ❌ | ❌ |
+Elasticsearch documents are stored with their values under `fields`, so a query on `Name` searches `fields.Name`. Elasticsearch metadata fields such as `_id` and `_score` pass through unchanged; any other name, including one starting with `_` such as `_tags`, is a document field. A query missing a value it needs, such as `Field`, returns a failed `Result`.
 
-## Query Combinators (Occurance)
+## Query types
 
-| Feature | Elasticsearch | OpenSearch | Lifti |
-|---------|:----------:|:----------:|:-----:|
-| **MUST** (AND) | ✅ | ❌ | ✅ |
-| **SHOULD** (OR) | ✅ | ❌ | ✅ |
-| **MUSTNOT** (AND NOT) | ✅ | ❌ | ✅ |
-| **FILTER** | ✅ | ❌ | ❌ |
+| Feature | Elasticsearch | Lifti |
+|---------|:------------:|:-----:|
+| **BoolQuery** (nested boolean logic) | ✅ | ⚠️ see [boolean semantics](#boolean-semantics) |
+| **TermQuery** (exact term match) | ⚠️ matches one analyzed token, ignoring ASCII case only (`Żółw` does not match `żółw`); use `Field.keyword` for the whole value | ⚠️ field ignored; accented terms don't match |
+| **TermsQuery** (multiple exact terms) | ⚠️ one `terms` query: a string matches as given or lower-cased (so `Warsaw` matches the token `warsaw` but not a `WARSAW` keyword); an empty list matches nothing; more than 65,536 terms after the lower-cased copies (`index.max_terms_count`) returns a failed `Result` | ⚠️ field ignored; accented terms don't match |
+| **FuzzyQuery** | ⚠️ at most 2 edits; `AUTO` when `Fuziness` is unset; the value goes through the field's analyzer and every token must match | ⚠️ field ignored |
+| **PrefixQuery** | ⚠️ ignores ASCII case only, as TermQuery | ⚠️ field ignored |
+| **PrefixPhraseQuery** | ✅ | ⚠️ field ignored |
+| **LuceneQuery** (raw Lucene syntax) | ⚠️ field names need the `fields.` prefix | ❌ |
+| **DateRangeQuery** | ✅ | ❌ |
+| **NumericRange** | ✅ | ❌ |
+| **LongRange** | ✅ | ❌ |
+| **StringRange** | ⚠️ compares analyzed tokens; use `Field.keyword` for whole values | ❌ |
+| **SpatialSearchQuery** | ⚠️ the field must be mapped as `geo_point`; dynamic mapping doesn't create one | ❌ |
 
-## Index Operations
+## Boolean semantics
 
-| Feature | Elasticsearch | OpenSearch | Lifti |
-|---------|:----------:|:----------:|:-----:|
-| Create Index | ✅ | ✅ | ✅ |
-| Delete Index | ✅ | ✅ | ✅ |
-| Index Exists | ✅ | ✅ | ✅ |
-| Ensure Index Exists | ✅ | ✅ | ✅ |
-| Index Document | ✅ | ✅ | ✅ |
-| Index Multiple Documents | ✅ | ✅ | ✅ |
-| Remove Document | ✅ | ✅ | ✅ |
-| Remove All Documents | ✅ | ✅ | ✅ |
+| Feature | Elasticsearch | Lifti |
+|---------|:------------:|:-----:|
+| **MUST** | ✅ | ✅ |
+| **SHOULD** | ✅ Lucene semantics: alongside `MUST` or `FILTER`, only adds to the score | ✅ Lucene semantics: alongside `MUST`, it changes nothing |
+| **MUSTNOT** | ✅ on its own, returns the complement | ⚠️ a nested bool with only `MUSTNOT` clauses excludes from its parent's matches; a query whose matches would be every document except the exclusions (no positive clause, or `SHOULD` beside a `MUST` that only excludes) returns a failed `Result`, as Lifti has no query for every document |
+| **FILTER** | ✅ matches without scoring | ⚠️ treated as `MUST`, so it still scores |
 
-## Field Filtering
+## Search features
 
-| Feature | Elasticsearch | OpenSearch | Lifti |
-|---------|:----------:|:----------:|:-----:|
-| **Field-scoped queries** | ✅ | ❌ | ⚠️ |
+| Feature | Elasticsearch | Lifti |
+|---------|:------------:|:-----:|
+| Pagination (`Page`, `PageSize`) | ✅ `Page` counts from 1; `PageSize` defaults to 10; a page past `MaxResultWindow` (10,000 by default, matching `index.max_result_window`) returns a failed `Result` | ❌ ignored, all hits are returned |
+| Sorting | ⚠️ sort text on `Field.keyword`; Elasticsearch rejects sorting on a text field | ❌ |
+| Facets / aggregations | ❌ a query with facets returns a failed `Result` | ❌ |
+| Highlighting | ❌ a query with highlighting returns a failed `Result` | ❌ |
+| Post filters | ✅ | ❌ |
+| Stored fields on hits | ✅ fields as `CustomProperties`, the id unchanged in `Key`, plus `Score` and `ContentType`; `Properties` limits the fields. Values keep their JSON types: numbers written without a fraction (`int`, `long`) come back as `long`, other numbers (a `double`, even `3.0`) as `double`, dates as ISO 8601 strings, booleans as `bool` | ⚠️ hits only carry the document id, lower-cased, and `Score` |
+| Total hit count | ⚠️ exact up to `MaxResultWindow` matches (10,000 by default), then a lower bound | ✅ exact |
+| Cancelling a search | ❌ `SearchAsync` takes no token | ❌ `SearchAsync` takes no token |
 
-> ⚠️ **Lifti field-scoped queries**: Lifti supports field-scoped queries via `FieldFilterQueryOperator`. The current implementation performs cross-field searches. Individual query translators do not filter by field name yet.
+The query model and fluent API can express sorting, facets, highlighting and post filters. Elasticsearch applies sorting and post filters; Lifti reads none of them.
 
-## Notes on the OpenSearch Provider
+## Index operations
 
-`Bielu.BetterSearch.OpenSearch` (OpenSearch.Client 2.x, tested against OpenSearch 3.3) supports every index operation. Searching is not implemented yet: `SearchAsync` returns a failed `Result`, so no query type, combinator or field filter is supported. Like Elasticsearch, OpenSearch can support all of them natively; they are pending query translation, not engine limits.
+| Feature | Elasticsearch | Lifti |
+|---------|:------------:|:-----:|
+| Create index | ⚠️ a rejection is reported as success with `false` | ⚠️ silently replaces an existing index, losing its documents |
+| Delete index | ⚠️ `Value` is `false` even on success | ✅ |
+| Index exists | ⚠️ transport errors read as "does not exist" | ✅ |
+| Ensure index exists | ⚠️ `Value` is `false` when it already exists | ✅ |
+| Index document | ✅ | ✅ |
+| Index multiple documents | ⚠️ the service indexes one by one; the provider's bulk path is unused and ignores per-item failures | ⚠️ the service indexes one by one |
+| Remove document | ✅ | ✅ |
+| Remove all documents | ⚠️ the service reports a count of 0 | ⚠️ the service reports a count of 0 |
+| Persistence | ✅ | ❌ in memory only, lost on restart |
 
-## Notes on Unsupported Lifti Features
+## Test coverage
 
-### Range Queries (DateRange, NumericRange, LongRange, StringRange)
-Lifti is a full-text search engine focused on tokenized text. It does not have native support for range queries on numeric or date fields. For range-based filtering, consider using Elasticsearch or a dedicated search engine.
-
-### Spatial / Geo Search (SpatialSearchQuery)
-Lifti does not support geospatial indexing or proximity-based location queries. Use Elasticsearch for geospatial search requirements.
-
-### Raw Lucene Query Syntax (LuceneSubQuery)
-Lifti uses its own query syntax and parser. Raw Lucene query strings are not supported. Use specific query types (`TermSubQuery`, `PrefixSubQuery`, etc.) instead.
-
-### FILTER Occurance
-Lifti does not have a separate concept of a filter context (non-scoring). All queries in Lifti contribute to scoring.
-
-## Test Coverage
-
-All providers share the same base test suite (`SubQueryTranslationTestBase`, `IndexingTestBase`, `QueryResultBaseTests`) to ensure feature parity. Lifti-specific test overrides mark unsupported features with explanatory failure messages, documenting where Lifti intentionally diverges from the full feature set.
+Provider-agnostic bases live in `BaseTests`. Lifti runs all three (`SubQueryTranslationTestBase`, `IndexingTestBase`, `QueryResultBaseTests`). The nested and top-level boolean semantics are shared tests there, so both providers must agree on them. Elasticsearch runs all three against a real server, plus its own search tests running every query type except `SpatialSearchQuery` against it, with boolean combinations, paging, sorting, result mapping and error paths. `SpatialSearchQuery` is only checked to translate, as it needs an explicit `geo_point` mapping. Most of these tests assert `IsSuccess` without checking the returned value, and `FluentApi` has no tests.
