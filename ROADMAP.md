@@ -7,8 +7,9 @@ Where `Bielu.BetterSearch` stands and how it gets to `1.0.0`. The repository sta
 The repository tooling now matches the bielu ecosystem: .NET 10, current packages, shared CI and releases, analyzers, Aspire. The code itself is an early beta:
 
 - **The Elasticsearch provider searches** with every query type, paging, sorting and post filters, but has no facets or highlighting, and its index operations have the defects listed below.
+- **The OpenSearch provider searches** the same way as Elasticsearch, with every index operation, but likewise has no facets or highlighting.
 - **The in-memory provider gives wrong answers** for some queries (see below), and it is built on Lifti, which should be replaced.
-- **Half the query model does little.** Pagination, sorting, facets, highlighting and post filters can be expressed; only Elasticsearch reads pagination, sorting and post filters.
+- **Half the query model does little.** Pagination, sorting, facets, highlighting and post filters can be expressed; only Elasticsearch and OpenSearch read pagination, sorting and post filters.
 - **The tests pass while all of this is true.** They mostly assert `IsSuccess`, and `Result<bool>` can succeed with `false`.
 
 Nothing has shipped as stable, so breaking changes are still free. That window should be used, because it closes at 1.0.

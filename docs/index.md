@@ -71,6 +71,20 @@ search.AddElasticSearch()
 
 <div class="landing-card">
 
+### OpenSearch <span class="provider-status available">Available</span>
+
+[Bielu.BetterSearch.OpenSearch](https://www.nuget.org/packages/Bielu.BetterSearch.OpenSearch/)
+runs on an [OpenSearch](https://opensearch.org/) cluster, configured from `Bielu:BetterSearch:OpenSearch`
+with basic or API key authentication. It translates queries the same way as the Elasticsearch provider.
+
+```csharp
+search.AddOpenSearch()
+```
+
+</div>
+
+<div class="landing-card">
+
 ### Lifti <span class="provider-status available">Available</span>
 
 [Bielu.BetterSearch.Lifti](https://www.nuget.org/packages/Bielu.BetterSearch.Lifti/) is an in-memory
