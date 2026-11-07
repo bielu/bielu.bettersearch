@@ -8,6 +8,7 @@ Add the core package and one provider:
 dotnet add package Bielu.BetterSearch.Core
 dotnet add package Bielu.BetterSearch.Lifti           # in-memory
 dotnet add package Bielu.BetterSearch.ElasticSearch   # Elasticsearch
+dotnet add package Bielu.BetterSearch.OpenSearch      # OpenSearch
 ```
 
 | Package | Purpose |
@@ -17,6 +18,7 @@ dotnet add package Bielu.BetterSearch.ElasticSearch   # Elasticsearch
 | `Bielu.BetterSearch.Core` | Dependency injection and the indexing and search services |
 | `Bielu.BetterSearch.FluentApi` | Fluent query builder |
 | `Bielu.BetterSearch.ElasticSearch` | Elasticsearch provider |
+| `Bielu.BetterSearch.OpenSearch` | OpenSearch provider |
 | `Bielu.BetterSearch.Lifti` | In-memory provider |
 
 ## Register a provider
@@ -24,6 +26,49 @@ dotnet add package Bielu.BetterSearch.ElasticSearch   # Elasticsearch
 ```csharp
 services.AddBetterSearch(search => search.AddLiftiSearch());
 ```
+
+### OpenSearch
+
+`AddOpenSearch()` reads its settings from `Bielu:BetterSearch:OpenSearch`, so pass the configuration in:
+
+```csharp
+using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+
+services.AddBetterSearch(configuration, search => search.AddOpenSearch());
+```
+
+```json
+{
+  "Bielu": {
+    "BetterSearch": {
+      "OpenSearch": {
+        "SharedIndexSettings": {
+          "ConnectionString": "http://localhost:9200",
+          "AuthenticationType": "PASSWORD",
+          "AuthenticationDetails": { "Username": "admin", "Password": "..." }
+        },
+        "Indexes": {
+          "people": { "ConnectionString": "http://people-cluster:9200" }
+        },
+        "MaxResultWindow": 10000
+      }
+    }
+  }
+}
+```
+
+| Setting | Meaning |
+|---------|---------|
+| `SharedIndexSettings` | Connection used for every index without its own entry |
+| `ConnectionString` | Cluster URL, `http` or `https`; a missing or invalid one makes each call for that index return a failed `Result` |
+| `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`) or `APIKEY` (an OpenSearch 3.x API key in `ApiKey`, sent as `Authorization: ApiKey <key>`) |
+| `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call |
+| `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. It must be greater than 0, or every search fails with a configuration error |
+
+You can also set the options in code with `services.Configure<OpenSearchOptions>(...)`. Documents are stored
+with their values under `fields`, as with Elasticsearch, and the same queries give the same results; the
+[feature matrix](../../FEATURE_MATRIX.md) lists the OpenSearch specifics.
 
 ## Index and search
 

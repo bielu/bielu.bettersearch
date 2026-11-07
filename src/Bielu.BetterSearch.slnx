@@ -11,5 +11,7 @@
   <Project Path="Bielu.BetterSearch.Meilisearch.Tests/Bielu.BetterSearch.Meilisearch.Tests.csproj" />
   <Project Path="Bielu.BetterSearch.Meilisearch/Bielu.BetterSearch.Meilisearch.csproj" />
   <Project Path="Bielu.BetterSearch.Models/Bielu.BetterSearch.Models.csproj" />
+  <Project Path="Bielu.BetterSearch.OpenSearch.Tests/Bielu.BetterSearch.OpenSearch.Tests.csproj" />
+  <Project Path="Bielu.BetterSearch.OpenSearch/Bielu.BetterSearch.OpenSearch.csproj" />
   <Project Path="examples/Bielu.BetterSearch.Examples.AppHost/Bielu.BetterSearch.Examples.AppHost.csproj" />
 </Solution>
