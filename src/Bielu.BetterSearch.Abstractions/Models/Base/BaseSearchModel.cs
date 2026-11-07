@@ -7,6 +7,7 @@ namespace Bielu.BetterSearch.Abstractions.Models
         public string Key { get; set; }
         public string Url { get; set; }
         public DateTime? IndexedAt { get; set; }
+        public double? Score { get; set; }
         public CultureInfo Culture { get; set; }
 
         public string SearchCulture

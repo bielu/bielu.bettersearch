@@ -22,6 +22,11 @@ public class SearchServiceAsync(ISearchProviderAsync providerAsync) : ISearchSer
     public async Task<Result<ISearchResult<ISearchModel>>> SearchAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
     {
         var result = await providerAsync.SearchAsync(query).ConfigureAwait(false);
+        if (result.IsFailed)
+        {
+            return result;
+        }
+
         foreach (var document in result.Value.Items)
         {
             foreach (var observer in _indexingObservers)

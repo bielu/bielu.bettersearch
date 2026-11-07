@@ -6,9 +6,9 @@ Where `Bielu.BetterSearch` stands and how it gets to `1.0.0`. The repository sta
 
 The repository tooling now matches the bielu ecosystem: .NET 10, current packages, shared CI and releases, analyzers, Aspire. The code itself is an early beta:
 
-- **The Elasticsearch provider cannot search.** `SearchAsync` throws `NotImplementedException` and the translator is a stub. It only does index operations.
+- **The Elasticsearch provider searches** with every query type, paging, sorting and post filters, but has no facets or highlighting, and its index operations have the defects listed below.
 - **The in-memory provider gives wrong answers** for some queries (see below), and it is built on Lifti, which should be replaced.
-- **Half the query model does nothing.** Pagination, sorting, facets, highlighting and post filters can be expressed, but no provider reads them.
+- **Half the query model does little.** Pagination, sorting, facets, highlighting and post filters can be expressed; only Elasticsearch reads pagination, sorting and post filters.
 - **The tests pass while all of this is true.** They mostly assert `IsSuccess`, and `Result<bool>` can succeed with `false`.
 
 Nothing has shipped as stable, so breaking changes are still free. That window should be used, because it closes at 1.0.
@@ -19,13 +19,9 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 
 | Area | Behavior | Expected |
 |---|---|---|
-| Lifti query | `MUSTNOT` as the first or only clause returns the documents that match | The complement, or a failed `Result` |
-| Lifti query | `MUST a` + `SHOULD b` returns a ∪ b | Documents matching a, as in Lucene and Elasticsearch |
 | Lifti query | `Field` is ignored: `Name=jane` also matches `City=Jane` | Only that field |
-| Lifti query | `FILTER` as the first or only clause succeeds, though documented as unsupported | A failed `Result` |
 | Lifti query | Accented terms never match: `Żółw` finds nothing, because terms are upper-cased by hand instead of using the index tokenizer | A match |
 | Lifti index | `CreateIndexAsync` on an existing index silently wipes its documents | An error or a no-op |
-| Core | `SearchAsync` throws `InvalidOperationException` when the provider fails, because it reads `result.Value` unchecked | A failed `Result` |
 | Core | `RemoveAllDocumentsAsync` reports 0 removed, whatever the real count | The count |
 | Core | `IndexMultipleDocumentsAsync` indexes one at a time, so the provider bulk path is never used (*by inspection*) | Bulk indexing |
 | Core | `SearchApplicationConfiguration.CurrentInstance` is a process-wide mutable singleton shared by every `AddBetterSearch` call (*by inspection*) | Per-container configuration |
@@ -34,12 +30,11 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Models | Serializing a search hit throws `NullReferenceException`, from `BaseSearchModel.SearchCulture` | Serializable |
 | Models | `BaseSearchModel.Id` lower-cases ids: `Up-1` comes back as `up-1` | The id unchanged |
 | Models | `new TermSubQuery().Occurance` is `0`, which is not a defined enum value | A defined default |
-| Search | `Page` and `PageSize` are ignored; hits contain only an id | Paged hits with fields |
+| Lifti search | `Page` and `PageSize` are ignored; hits contain only an id | Paged hits with fields |
 | Fluent API | `.Should()` on a sub-query configurator is silently lost, and `.Must()`, `.MustNot()` and `.Filter()` take the same path | The chosen occurrence |
 | Elasticsearch | Provider methods return `Result.Ok()` where a `Result<bool>` or `Result<int>` is due, so `Value` is `false` or `0` even on success (*by inspection*) | The real value |
 | Elasticsearch | `CreateIndexAsync` reports a server rejection as a successful `false`; `IndexExistsAsync` reads transport errors as "does not exist" (*by inspection*) | A failed `Result` |
 | Elasticsearch | Bulk indexing ignores per-item failures (*by inspection*) | A failed `Result` naming them |
-| Elasticsearch | A new client, with its connection pool, per call (*by inspection*) | One client per connection |
 | Elasticsearch | Merging index settings mutates the live options object and only merges the connection string, not credentials (*by inspection*) | A merged copy |
 
 ## Replacing Lifti: use Lucene.NET
@@ -70,12 +65,12 @@ Breaking, and cheapest now.
 
 - Tests that assert values: make the base tests fail on the defects above, with an isolated index per test.
 - Correct the names: `DepedencyInjection`, `Occurance`, `PrefixLenght`, `Fuziness`, `MultiTermAggreation`, `CreateGoeDistanceQuery`, `DepedenyInjectionTestBase`.
-- Reshape the model: remove the unused generic on `ISearchQuery<T>` and `ISearchResult<T>`, give `IEntity<T>` its `Id`, merge `Bielu.BetterSearch.Models` into Abstractions, and move `Score` from the document to the hit. Drop CMS leftovers such as `ViewModelType`, `SiteId`, `ListingId` and the duplicated `TotalPages`. Rename `DeleteDocumentRequest.Type`, which actually holds the index name.
+- Reshape the model: remove the unused generic on `ISearchQuery<T>` and `ISearchResult<T>`, give `IEntity<T>` its `Id`, merge `Bielu.BetterSearch.Models` into Abstractions, and move `Score` from the document to the hit. Return typed field values on hits from explicit mappings; Elasticsearch hits keep their JSON types until then. Drop CMS leftovers such as `ViewModelType`, `SiteId`, `ListingId` and the duplicated `TotalPages`. Rename `DeleteDocumentRequest.Type`, which actually holds the index name.
 - Resolve the nullable warnings by making the model honest about what is required.
 - Add `CancellationToken` to `SearchAsync` and the validator. Stop catching `OperationCanceledException`, and keep exceptions through `ExceptionalError`.
 - Remove the global configuration singleton and the duplicate registrations. Add the missing `SetDocumentValidatorType`.
 - Replace the `IObservable` surface with something that fits its use, such as an indexing pipeline or events, or remove it.
-- Fix `SearchServiceAsync` failure handling, and pass bulk through to the provider from `IndexMultipleDocumentsAsync`.
+- Pass bulk through to the provider from `IndexMultipleDocumentsAsync`.
 - Deduplicate the fluent API and fix the lost occurrence, with its first tests.
 - Decide the `SHOULD` semantics: follow Lucene, and write them down.
 
@@ -87,9 +82,9 @@ Breaking, and cheapest now.
 
 ### Phase 3: Elasticsearch search
 
-- Implement sub-query translators, `SearchAsync`, result mapping, pagination and sorting.
+- ~~Implement sub-query translators, `SearchAsync`, result mapping, pagination and sorting.~~ Done; facets and highlighting are still to come.
 - Run the same conformance suite as Lucene.
-- Fix the provider defects above: real return values, per-item bulk errors, one cached client per connection, non-mutating settings, options validation at startup.
+- Fix the provider defects above: real return values, per-item bulk errors, non-mutating settings, options validation at startup.
 - Add a sample API to the AppHost, with `ServiceDefaults`.
 
 ### Phase 4: stabilize
