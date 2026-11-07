@@ -65,7 +65,7 @@ Breaking, and cheapest now.
 
 - Tests that assert values: make the base tests fail on the defects above, with an isolated index per test.
 - Correct the names: `DepedencyInjection`, `Occurance`, `PrefixLenght`, `Fuziness`, `MultiTermAggreation`, `CreateGoeDistanceQuery`, `DepedenyInjectionTestBase`.
-- Reshape the model: remove the unused generic on `ISearchQuery<T>` and `ISearchResult<T>`, give `IEntity<T>` its `Id`, merge `Bielu.BetterSearch.Models` into Abstractions, and move `Score` from the document to the hit. Drop CMS leftovers such as `ViewModelType`, `SiteId`, `ListingId` and the duplicated `TotalPages`. Rename `DeleteDocumentRequest.Type`, which actually holds the index name.
+- Reshape the model: remove the unused generic on `ISearchQuery<T>` and `ISearchResult<T>`, give `IEntity<T>` its `Id`, merge `Bielu.BetterSearch.Models` into Abstractions, and move `Score` from the document to the hit. Return typed field values on hits from explicit mappings; Elasticsearch hits keep their JSON types until then. Drop CMS leftovers such as `ViewModelType`, `SiteId`, `ListingId` and the duplicated `TotalPages`. Rename `DeleteDocumentRequest.Type`, which actually holds the index name.
 - Resolve the nullable warnings by making the model honest about what is required.
 - Add `CancellationToken` to `SearchAsync` and the validator. Stop catching `OperationCanceledException`, and keep exceptions through `ExceptionalError`.
 - Remove the global configuration singleton and the duplicate registrations. Add the missing `SetDocumentValidatorType`.

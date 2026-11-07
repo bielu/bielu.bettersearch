@@ -12,7 +12,7 @@ Elasticsearch documents are stored with their values under `fields`, so a query 
 |---------|:------------:|:-----:|
 | **BoolQuery** (nested boolean logic) | ✅ | ⚠️ see [boolean semantics](#boolean-semantics) |
 | **TermQuery** (exact term match) | ⚠️ matches one analyzed token, ignoring ASCII case only (`Żółw` does not match `żółw`); use `Field.keyword` for the whole value | ⚠️ field ignored; accented terms don't match |
-| **TermsQuery** (multiple exact terms) | ⚠️ one `terms` query: a string matches as given or lower-cased (so `Warsaw` matches the token `warsaw` but not a `WARSAW` keyword); an empty list matches nothing | ⚠️ field ignored; accented terms don't match |
+| **TermsQuery** (multiple exact terms) | ⚠️ one `terms` query: a string matches as given or lower-cased (so `Warsaw` matches the token `warsaw` but not a `WARSAW` keyword); an empty list matches nothing; more than 65,536 terms after the lower-cased copies (`index.max_terms_count`) returns a failed `Result` | ⚠️ field ignored; accented terms don't match |
 | **FuzzyQuery** | ⚠️ at most 2 edits; `AUTO` when `Fuziness` is unset; the value goes through the field's analyzer and every token must match | ⚠️ field ignored |
 | **PrefixQuery** | ⚠️ ignores ASCII case only, as TermQuery | ⚠️ field ignored |
 | **PrefixPhraseQuery** | ✅ | ⚠️ field ignored |
@@ -29,7 +29,7 @@ Elasticsearch documents are stored with their values under `fields`, so a query 
 |---------|:------------:|:-----:|
 | **MUST** | ✅ | ✅ |
 | **SHOULD** | ✅ Lucene semantics: alongside `MUST` or `FILTER`, only adds to the score | ✅ Lucene semantics: alongside `MUST`, it changes nothing |
-| **MUSTNOT** | ✅ on its own, returns the complement | ⚠️ on its own, returns a failed `Result`, as Lifti has no query for every document |
+| **MUSTNOT** | ✅ on its own, returns the complement | ⚠️ a nested bool with only `MUSTNOT` clauses excludes from its parent's matches; a query with no `MUST`, `FILTER` or `SHOULD` clause at any level returns a failed `Result`, as Lifti has no query for every document |
 | **FILTER** | ✅ matches without scoring | ⚠️ treated as `MUST`, so it still scores |
 
 ## Search features
@@ -41,8 +41,8 @@ Elasticsearch documents are stored with their values under `fields`, so a query 
 | Facets / aggregations | ❌ a query with facets returns a failed `Result` | ❌ |
 | Highlighting | ❌ a query with highlighting returns a failed `Result` | ❌ |
 | Post filters | ✅ | ❌ |
-| Stored fields on hits | ✅ fields as `CustomProperties`, the id unchanged in `Key`, plus `Score` and `ContentType`; `Properties` limits the fields | ⚠️ hits only carry the document id, lower-cased, and `Score` |
-| Total hit count | ⚠️ exact up to 10,000 matches, then a lower bound | ✅ exact |
+| Stored fields on hits | ✅ fields as `CustomProperties`, the id unchanged in `Key`, plus `Score` and `ContentType`; `Properties` limits the fields. Values keep their JSON types: numbers written without a fraction (`int`, `long`) come back as `long`, other numbers (a `double`, even `3.0`) as `double`, dates as ISO 8601 strings, booleans as `bool` | ⚠️ hits only carry the document id, lower-cased, and `Score` |
+| Total hit count | ⚠️ exact up to `MaxResultWindow` matches (10,000 by default), then a lower bound | ✅ exact |
 | Cancelling a search | ❌ `SearchAsync` takes no token | ❌ `SearchAsync` takes no token |
 
 The query model and fluent API can express sorting, facets, highlighting and post filters. Elasticsearch applies sorting and post filters; Lifti reads none of them.

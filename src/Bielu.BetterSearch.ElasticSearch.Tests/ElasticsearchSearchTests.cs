@@ -137,6 +137,19 @@ public sealed class ElasticsearchSearchTests(
     }
 
     [Fact]
+    public async Task SearchAsync_TermsQueryPastTheTermsLimit_ReturnsFailedResult()
+    {
+        var index = await CreatePeopleAsync();
+        // Each string is also sent lower-cased, so 32,769 distinct upper-case strings send 65,538 terms.
+        var values = Enumerable.Range(0, 32_769).Select(i => (object)$"ID-{i}").ToList();
+
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "City", Value = values }));
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain("index.max_terms_count");
+    }
+
+    [Fact]
     public async Task SearchAsync_PrefixQuery_MatchesPrefix()
     {
         var index = await CreatePeopleAsync();
@@ -453,6 +466,42 @@ public sealed class ElasticsearchSearchTests(
         jane.CustomProperties["Views"].ShouldBe([5_000_000_000L]);
         jane.CustomProperties["Age"].Single().ShouldBeOfType<long>();
         jane.CustomProperties["City"].ShouldBe(["Warsaw"]);
+    }
+
+    /// <summary>
+    /// Pins the JSON types: <c>_source</c> no longer knows the CLR type, so numbers written without a
+    /// fraction come back as <c>long</c>, other numbers as <c>double</c>, dates as ISO 8601 strings and
+    /// booleans as <c>bool</c>. The client writes a whole <c>double</c> as <c>3.0</c>, so it stays a <c>double</c>.
+    /// </summary>
+    [Fact]
+    public async Task SearchAsync_HitFields_KeepTheirJsonTypes()
+    {
+        var index = $"search-{Guid.NewGuid():N}";
+        var document = new SearchDocument
+        {
+            Id = "1",
+            Index = index,
+            Fields = new Dictionary<string, IList<object>>
+            {
+                { "Integer", [3] },
+                { "Whole", [3.0d] },
+                { "Fraction", [3.5d] },
+                { "Born", [new DateTime(1999, 5, 1, 0, 0, 0, DateTimeKind.Utc)] },
+                { "Active", [true] }
+            }
+        };
+        (await indexingProvider.IndexDocumentAsync(document)).IsSuccess.ShouldBeTrue();
+        await (await clientFactory.GetOrCreateClientAsync(index)).Indices.RefreshAsync(index);
+
+        var result = await searchService.SearchAsync(new SearchQuery { Index = index });
+
+        result.IsSuccess.ShouldBeTrue();
+        var fields = result.Value.Items.Single().CustomProperties;
+        fields["Integer"].Single().ShouldBeOfType<long>().ShouldBe(3L);
+        fields["Whole"].Single().ShouldBeOfType<double>().ShouldBe(3.0d);
+        fields["Fraction"].Single().ShouldBeOfType<double>().ShouldBe(3.5d);
+        fields["Born"].Single().ShouldBeOfType<string>().ShouldBe("1999-05-01T00:00:00Z");
+        fields["Active"].Single().ShouldBeOfType<bool>().ShouldBeTrue();
     }
 
     [Fact]

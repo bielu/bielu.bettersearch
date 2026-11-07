@@ -58,7 +58,7 @@ public class ElasticSearchSearchProviderAsync(
         }
 
         var client = await clientFactoryAsync.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
-        var response = await client.SearchAsync<SearchDocument>(CreateRequest(query, mainQuery.Value, postFilter.Value)).ConfigureAwait(false);
+        var response = await client.SearchAsync<SearchDocument>(CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow)).ConfigureAwait(false);
         if (!response.IsValidResponse)
         {
             return Result.Fail<ISearchResult<ISearchModel>>(DescribeFailure(response));
@@ -88,7 +88,7 @@ public class ElasticSearchSearchProviderAsync(
     /// <summary>The position of the page's last result, in <c>long</c> so a large page can't overflow.</summary>
     private static long LastResultOf(ISearchQuery<ISearchResult<ISearchModel>> query) => (long)PageOf(query) * PageSizeOf(query);
 
-    private static SearchRequest CreateRequest(ISearchQuery<ISearchResult<ISearchModel>> query, EsQuery mainQuery, EsQuery? postFilter)
+    private static SearchRequest CreateRequest(ISearchQuery<ISearchResult<ISearchModel>> query, EsQuery mainQuery, EsQuery? postFilter, int maxResultWindow)
     {
         var pageSize = PageSizeOf(query);
         var request = new SearchRequest(query.Index)
@@ -97,7 +97,9 @@ public class ElasticSearchSearchProviderAsync(
             PostFilter = postFilter,
             From = (PageOf(query) - 1) * pageSize,
             Size = pageSize,
-            AllowPartialSearchResults = false
+            AllowPartialSearchResults = false,
+            // Counts exactly as far as a page can reach, so every page TotalPages names can be fetched.
+            TrackTotalHits = new TrackHits(maxResultWindow)
         };
 
         if (query.SortOrder is { Count: > 0 })

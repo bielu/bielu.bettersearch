@@ -15,6 +15,9 @@ namespace Bielu.BetterSearch.ElasticSearch.Services.Queries;
 /// </summary>
 internal sealed class TermsSubQueryTranslator : ElasticSearchSubQueryTranslator<TermsSubQuery>
 {
+    /// <summary>The default <c>index.max_terms_count</c>; a longer list is rejected by Elasticsearch.</summary>
+    public const int MaxTermsCount = 65_536;
+
     protected override Task<Result<EsQuery>> TranslateAsync(TermsSubQuery query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
     {
         var field = ElasticSearchFieldNames.Require(query.Field, nameof(TermsSubQuery));
@@ -34,6 +37,12 @@ internal sealed class TermsSubQueryTranslator : ElasticSearchSubQueryTranslator<
             .Distinct()
             .Select(FieldValue.FromValue)
             .ToList();
+        if (terms.Count > MaxTermsCount)
+        {
+            return Task.FromResult(Result.Fail<EsQuery>(
+                $"The terms query on {query.Field} sends {terms.Count} terms, each string as given and lower-cased, past the limit of {MaxTermsCount} (index.max_terms_count)."));
+        }
+
         return Task.FromResult(Result.Ok<EsQuery>(new TermsQuery
         {
             Field = field.Value,

@@ -147,6 +147,35 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
         ids.ShouldBe(["2"]);
     }
 
+    /// <summary>The usual way to write an exclusion: a nested bool with only <c>MUSTNOT</c>, beside a positive clause.</summary>
+    [Fact]
+    public async Task SearchAsync_NestedMustNotOnlyBesideMust_ExcludesFromTheParentMatches()
+    {
+        var query = await CreateQueryAsync();
+        var nested = new BoolSearchSubQuery();
+        nested.Add(Occurance.MUSTNOT, Name("3"));
+        query.Add(Occurance.MUST, Name("doe"));
+        query.Add(Occurance.MUST, nested);
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["1", "2"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_MustNotOfNestedMustNotOnly_RequiresTheNestedMatches()
+    {
+        var query = await CreateQueryAsync();
+        var nested = new BoolSearchSubQuery();
+        nested.Add(Occurance.MUSTNOT, Name("john"));
+        query.Add(Occurance.MUST, Name("doe"));
+        query.Add(Occurance.MUSTNOT, nested);
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["2", "3"]);
+    }
+
     /// <summary>Lucene semantics: <c>MUSTNOT</c> on its own returns every other document.</summary>
     [Fact]
     public virtual async Task SearchAsync_MustNotOnly_ReturnsTheComplement()

@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query;
+using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
 using Lifti.Querying;
@@ -9,35 +10,101 @@ namespace Bielu.BetterSearch.Lifti.Services.Queries;
 /// <summary>
 /// Combines clauses by their occurrence with Lucene semantics, as Elasticsearch does: every <c>MUST</c>
 /// and <c>FILTER</c> clause is required; <c>SHOULD</c> clauses only decide the matches when nothing is
-/// required; <c>MUSTNOT</c> clauses exclude. Lifti has no query for every document, so <c>MUSTNOT</c>
-/// clauses on their own return a failed <see cref="Result"/> instead of the complement.
+/// required; <c>MUSTNOT</c> clauses exclude. Lifti has no query for every document, so a nested bool
+/// with only <c>MUSTNOT</c> clauses hands its exclusions to the parent, and a query with no positive
+/// clause anywhere returns a failed <see cref="Result"/> instead of the complement.
 /// </summary>
 internal static class LiftiBoolQueryBuilder
 {
+    private const string NoPositiveClause =
+        "Lifti cannot return every document except the MUSTNOT matches; add a MUST, FILTER or SHOULD clause.";
+
     /// <summary>Returns the combined query part, or <c>null</c> when there are no clauses.</summary>
     public static async Task<Result<IQueryPart?>> BuildAsync(
+        IEnumerable<(Occurance Occurance, ISearchSubQuery Query)> clauses,
+        IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators)
+    {
+        var built = await BuildClausesAsync(clauses, subQueryTranslators).ConfigureAwait(false);
+        if (built.IsFailed)
+        {
+            return built.ToResult<IQueryPart?>();
+        }
+
+        var (matches, excluded) = built.Value;
+        if (matches == null)
+        {
+            return excluded == null ? Result.Ok<IQueryPart?>(null) : Result.Fail<IQueryPart?>(NoPositiveClause);
+        }
+
+        return Result.Ok<IQueryPart?>(excluded == null ? matches : new AndNotQueryOperator(matches, excluded));
+    }
+
+    /// <summary>
+    /// Returns the matches and the exclusions separately, so a parent can apply the exclusions of a
+    /// nested bool that has nothing to exclude them from.
+    /// </summary>
+    private static async Task<Result<(IQueryPart? Matches, IQueryPart? Excluded)>> BuildClausesAsync(
         IEnumerable<(Occurance Occurance, ISearchSubQuery Query)> clauses,
         IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators)
     {
         IQueryPart? required = null;
         IQueryPart? optional = null;
         IQueryPart? excluded = null;
+        var optionalComplement = false;
 
         foreach (var (occurance, subQuery) in clauses)
         {
-            var translator = subQueryTranslators.FirstOrDefault(t => t.CanTranslate(subQuery));
-            if (translator == null)
+            IQueryPart? part;
+            if (subQuery is BoolSearchSubQuery nested)
             {
-                return Result.Fail<IQueryPart?>($"No translator found for subquery type {subQuery.GetType().Name}");
+                var nestedClauses = await BuildClausesAsync(
+                    nested.NestedQueries.Select(query => (query.Occurance, query)),
+                    subQueryTranslators).ConfigureAwait(false);
+                if (nestedClauses.IsFailed)
+                {
+                    return nestedClauses;
+                }
+
+                var (nestedMatches, nestedExcluded) = nestedClauses.Value;
+                if (nestedMatches == null && nestedExcluded != null)
+                {
+                    switch (occurance)
+                    {
+                        // Requiring "not x" excludes x; excluding "not x" requires x.
+                        case Occurance.MUST or Occurance.FILTER:
+                            excluded = Or(excluded, nestedExcluded);
+                            continue;
+                        case Occurance.MUSTNOT:
+                            required = And(required, nestedExcluded);
+                            continue;
+                        default:
+                            // Only matters when nothing is required, and Lifti can't express "or not x".
+                            optionalComplement = true;
+                            continue;
+                    }
+                }
+
+                part = nestedMatches == null || nestedExcluded == null
+                    ? nestedMatches
+                    : new AndNotQueryOperator(nestedMatches, nestedExcluded);
+            }
+            else
+            {
+                var translator = subQueryTranslators.FirstOrDefault(t => t.CanTranslate(subQuery));
+                if (translator == null)
+                {
+                    return Result.Fail<(IQueryPart?, IQueryPart?)>($"No translator found for subquery type {subQuery.GetType().Name}");
+                }
+
+                var translated = await translator.TranslateAsync(subQuery, subQueryTranslators).ConfigureAwait(false);
+                if (translated.IsFailed)
+                {
+                    return Result.Fail<(IQueryPart?, IQueryPart?)>(translated.Errors);
+                }
+
+                part = translated.Value.Root;
             }
 
-            var translated = await translator.TranslateAsync(subQuery, subQueryTranslators).ConfigureAwait(false);
-            if (translated.IsFailed)
-            {
-                return Result.Fail<IQueryPart?>(translated.Errors);
-            }
-
-            var part = translated.Value.Root;
             if (part == null)
             {
                 continue;
@@ -46,25 +113,26 @@ internal static class LiftiBoolQueryBuilder
             switch (occurance)
             {
                 case Occurance.SHOULD:
-                    optional = optional == null ? part : new OrQueryOperator(optional, part);
+                    optional = Or(optional, part);
                     break;
                 case Occurance.MUSTNOT:
-                    excluded = excluded == null ? part : new OrQueryOperator(excluded, part);
+                    excluded = Or(excluded, part);
                     break;
                 default:
-                    required = required == null ? part : new AndQueryOperator(required, part);
+                    required = And(required, part);
                     break;
             }
         }
 
-        var matches = required ?? optional;
-        if (matches == null)
+        if (required == null && optionalComplement)
         {
-            return excluded == null
-                ? Result.Ok<IQueryPart?>(null)
-                : Result.Fail<IQueryPart?>("Lifti cannot return every document except the MUSTNOT matches; add a MUST, FILTER or SHOULD clause.");
+            return Result.Fail<(IQueryPart?, IQueryPart?)>(NoPositiveClause);
         }
 
-        return Result.Ok<IQueryPart?>(excluded == null ? matches : new AndNotQueryOperator(matches, excluded));
+        return Result.Ok<(IQueryPart?, IQueryPart?)>((required ?? optional, excluded));
     }
+
+    private static IQueryPart Or(IQueryPart? left, IQueryPart right) => left == null ? right : new OrQueryOperator(left, right);
+
+    private static IQueryPart And(IQueryPart? left, IQueryPart right) => left == null ? right : new AndQueryOperator(left, right);
 }
