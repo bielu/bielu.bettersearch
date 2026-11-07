@@ -14,6 +14,12 @@ public class MeilisearchOptions
     /// <c>Result</c> without cancelling the task, so the write may still be applied later.
     /// </summary>
     public TimeSpan TaskTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// The deepest result a search may page to, <c>Page * PageSize</c>. The provider sets it as each index's
+    /// <c>pagination.maxTotalHits</c> when it writes to the index; 10,000 matches Elasticsearch's default window.
+    /// </summary>
+    public int MaxTotalHits { get; set; } = 10_000;
 }
 
 public class MeilisearchIndexSettings : IndexSettings

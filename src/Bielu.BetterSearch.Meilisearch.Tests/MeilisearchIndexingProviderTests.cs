@@ -1,5 +1,4 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
-using Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
 using Bielu.BetterSearch.Meilisearch.Services;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -15,7 +14,6 @@ namespace Bielu.BetterSearch.Meilisearch.Tests;
 /// </summary>
 public sealed class MeilisearchIndexingProviderTests(
     IIndexingProviderAsync provider,
-    ISearchProviderAsync searchProvider,
     IClientFactoryAsync<MeilisearchClient> clientFactory,
     IOptionsMonitor<MeilisearchOptions> options)
 {
@@ -248,14 +246,6 @@ public sealed class MeilisearchIndexingProviderTests(
         var unreachable = CreateProvider("http://127.0.0.1:1", null);
 
         var result = await unreachable.CreateIndexAsync(UniqueIndex(), Token);
-
-        result.IsFailed.ShouldBeTrue();
-    }
-
-    [Fact]
-    public async Task SearchAsync_AnyQuery_ReturnsNotSupportedFailure()
-    {
-        var result = await searchProvider.SearchAsync(new SearchQuery { Index = UniqueIndex() });
 
         result.IsFailed.ShouldBeTrue();
     }

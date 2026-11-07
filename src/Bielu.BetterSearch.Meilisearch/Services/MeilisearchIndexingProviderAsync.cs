@@ -1,12 +1,16 @@
-﻿using System.Text.Json;
+﻿using System.Collections.Concurrent;
+using System.Text.Json;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using FilterableAttribute = Meilisearch.FilterableAttribute;
 using MeilisearchApiError = Meilisearch.MeilisearchApiError;
 using MeilisearchClient = Meilisearch.MeilisearchClient;
+using Pagination = Meilisearch.Pagination;
 using Result = FluentResults.Result;
+using Settings = Meilisearch.Settings;
 using TaskInfo = Meilisearch.TaskInfo;
 using TaskInfoStatus = Meilisearch.TaskInfoStatus;
 using TaskResource = Meilisearch.TaskResource;
@@ -21,6 +25,12 @@ public sealed class MeilisearchIndexingProviderAsync(
     private const string PrimaryKey = "id";
     private const string IndexNotFound = "index_not_found";
     private const string IndexAlreadyExists = "index_already_exists";
+
+    /// <summary>
+    /// The indexes whose search settings this process has applied, per client and so per server. Settings are
+    /// applied on the first write to an index rather than on every one, as each update is a Meilisearch task.
+    /// </summary>
+    private static readonly ConcurrentDictionary<(MeilisearchClient Client, string Index), bool> ConfiguredIndexes = new();
 
     public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
         IndexDocumentsAsync(document.Index, [document], cancellationToken);
@@ -69,6 +79,12 @@ public sealed class MeilisearchIndexingProviderAsync(
     public async Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default)
     {
         var task = await RunTaskAsync(index, client => client.DeleteIndexAsync(index, cancellationToken), cancellationToken).ConfigureAwait(false);
+        if (task.IsSuccess)
+        {
+            var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
+            ConfiguredIndexes.TryRemove((client, index), out _);
+        }
+
         return task.IsSuccess ? Result.Ok(true) : Result.Fail<bool>(task.Errors);
     }
 
@@ -93,23 +109,69 @@ public sealed class MeilisearchIndexingProviderAsync(
     public async Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default)
     {
         var task = await RunTaskAsync(index, client => client.CreateIndexAsync(index, PrimaryKey, cancellationToken), cancellationToken).ConfigureAwait(false);
-        if (task.IsSuccess)
+        var created = task.IsSuccess;
+        if (!created)
         {
-            return Result.Ok(true);
+            logger.LogError("Creating index {Index} failed: {Error}", index, task.Errors[0].Message);
+            // Matches the other providers: creating an index that already exists is not an error, it just creates nothing.
+            if (!task.HasError(e => e.Metadata.TryGetValue("code", out var code) && Equals(code, IndexAlreadyExists)))
+            {
+                return Result.Fail<bool>(task.Errors);
+            }
         }
 
-        logger.LogError("Creating index {Index} failed: {Error}", index, task.Errors[0].Message);
-        // Matches the other providers: creating an index that already exists is not an error, it just creates nothing.
-        return task.HasError(e => e.Metadata.TryGetValue("code", out var code) && Equals(code, IndexAlreadyExists))
-            ? Result.Ok(false)
-            : Result.Fail<bool>(task.Errors);
+        var configured = await ConfigureIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        return configured.IsSuccess ? Result.Ok(created) : Result.Fail<bool>(configured.Errors);
     }
 
     private async Task<Result> IndexDocumentsAsync(string index, IReadOnlyCollection<SearchDocument> documents,
         CancellationToken cancellationToken)
     {
-        // Meilisearch creates a missing index when documents are added to it.
-        var task = await RunTaskAsync(index, client => client.Index(index).AddDocumentsAsync(documents, PrimaryKey, cancellationToken), cancellationToken).ConfigureAwait(false);
+        // Meilisearch creates a missing index when documents are added to it, or when its settings are updated.
+        var configured = await ConfigureIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        if (configured.IsFailed)
+        {
+            return configured;
+        }
+
+        var stored = documents.Select(MeilisearchDocument.From).ToList();
+        var task = await RunTaskAsync(index, client => client.Index(index).AddDocumentsAsync(stored, PrimaryKey, cancellationToken), cancellationToken).ConfigureAwait(false);
+        return task.ToResult();
+    }
+
+    /// <summary>
+    /// Makes the attributes the query translators filter and sort on filterable and sortable, and sets how deep a
+    /// search can page, once per index.
+    /// </summary>
+    private async Task<Result> ConfigureIndexAsync(string index, CancellationToken cancellationToken)
+    {
+        MeilisearchClient client;
+        try
+        {
+            client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            return Result.Fail(new Error(e.Message).CausedBy(e));
+        }
+
+        if (ConfiguredIndexes.ContainsKey((client, index)))
+        {
+            return Result.Ok();
+        }
+
+        var settings = new Settings
+        {
+            FilterableAttributes = MeilisearchFieldNames.FilterableAttributes.Select(name => new FilterableAttribute { Attribute = name }).ToList(),
+            SortableAttributes = MeilisearchFieldNames.SortableAttributes,
+            Pagination = new Pagination { MaxTotalHits = optionsMonitor.CurrentValue.MaxTotalHits }
+        };
+        var task = await RunTaskAsync(index, _ => client.Index(index).UpdateSettingsAsync(settings, cancellationToken), cancellationToken).ConfigureAwait(false);
+        if (task.IsSuccess)
+        {
+            ConfiguredIndexes[(client, index)] = true;
+        }
+
         return task.ToResult();
     }
 
