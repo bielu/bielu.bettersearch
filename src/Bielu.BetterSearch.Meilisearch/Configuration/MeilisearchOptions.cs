@@ -18,8 +18,17 @@ public class MeilisearchOptions
     /// <summary>
     /// The deepest result a search may page to, <c>Page * PageSize</c>. The provider sets it as each index's
     /// <c>pagination.maxTotalHits</c> when it writes to the index; 10,000 matches Elasticsearch's default window.
+    /// A higher value already on the index is kept.
     /// </summary>
     public int MaxTotalHits { get; set; } = 10_000;
+
+    /// <summary>
+    /// How long an index's settings, once checked by a write, are trusted before another write reads them again. Each
+    /// check is one more request, so this keeps a burst of single-document writes from paying it every time. An index
+    /// deleted or reconfigured outside the provider is fixed by the first write after this. <c>TimeSpan.Zero</c>
+    /// checks on every write.
+    /// </summary>
+    public TimeSpan SettingsCheckInterval { get; set; } = TimeSpan.FromSeconds(5);
 
     /// <summary>
     /// The document field holding each document's location, for <c>SpatialSearchQuery</c>. Meilisearch only filters by
@@ -33,7 +42,8 @@ public class MeilisearchOptions
     /// The fields a <c>PrefixPhraseSubQuery</c> can search. For each word of a text value the provider stores the run of
     /// up to 16 words starting there, so a long text stores about 16 times its words. Listing the fields that need
     /// phrase prefixes stores runs for those fields only, and a phrase prefix on any other field returns a failed
-    /// <c>Result</c>. Unset, every field stores them.
+    /// <c>Result</c>. Unset, every field stores them. Phrases are stored when a document is indexed, so after adding a
+    /// field here re-index the documents: until then a phrase prefix on that field matches none of the older ones.
     /// </summary>
     public IList<string>? PhraseFields { get; set; }
 }

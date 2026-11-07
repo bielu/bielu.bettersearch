@@ -1,4 +1,7 @@
-﻿using System.Text.Json;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
 using FluentResults;
@@ -24,6 +27,10 @@ public sealed class MeilisearchIndexingProviderAsync(
     private const string PrimaryKey = "id";
     private const string IndexNotFound = "index_not_found";
     private const string IndexAlreadyExists = "index_already_exists";
+
+    // When each index's settings were last found complete, and for which MaxTotalHits, per client. The singleton
+    // client factory caches the clients, so this lives as long as they do and is shared by every scope.
+    private static readonly ConditionalWeakTable<MeilisearchClient, ConcurrentDictionary<string, (long CheckedAt, int MaxTotalHits)>> SettingsChecks = new();
 
     public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
         IndexDocumentsAsync(document.Index, [document], cancellationToken);
@@ -71,7 +78,11 @@ public sealed class MeilisearchIndexingProviderAsync(
 
     public async Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default)
     {
-        var task = await RunTaskAsync(index, client => client.DeleteIndexAsync(index, cancellationToken), cancellationToken).ConfigureAwait(false);
+        var task = await RunTaskAsync(index, client =>
+        {
+            ForgetSettingsCheck(client, index);
+            return client.DeleteIndexAsync(index, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
         return task.IsSuccess ? Result.Ok(true) : Result.Fail<bool>(task.Errors);
     }
 
@@ -133,22 +144,38 @@ public sealed class MeilisearchIndexingProviderAsync(
     }
 
     /// <summary>
-    /// Makes the attributes the query translators filter and sort on filterable and sortable, and sets how deep a
-    /// search can page. The settings are read on every write and updated only when they differ, as each update is a
-    /// Meilisearch task, so an index deleted or changed outside the provider, or a new <c>MaxTotalHits</c>, is
-    /// picked up by the next write.
+    /// Makes the attributes the query translators filter and sort on filterable and sortable, and lets a search page
+    /// at least <c>MaxTotalHits</c> deep. Each update is a Meilisearch task, so the settings are read first and
+    /// updated only when something is missing. Once complete they are trusted for <c>MeilisearchOptions.SettingsCheckInterval</c>,
+    /// so a burst of writes reads them once; an index deleted or changed outside the provider is fixed by the first
+    /// write after that, and a higher <c>MaxTotalHits</c> by the next write. Attributes added by others and a higher
+    /// <c>maxTotalHits</c> are kept, so two configurations sharing an index never undo each other's settings.
     /// </summary>
     private async Task<Result> ConfigureIndexAsync(string index, CancellationToken cancellationToken)
     {
-        var maxTotalHits = optionsMonitor.CurrentValue.MaxTotalHits;
+        var options = optionsMonitor.CurrentValue;
+        var maxTotalHits = options.MaxTotalHits;
+        MeilisearchClient client;
         try
         {
-            var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-            var current = await client.Index(index).GetSettingsAsync(cancellationToken).ConfigureAwait(false);
-            if (IsConfigured(current, maxTotalHits))
-            {
-                return Result.Ok();
-            }
+            client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            return Result.Fail(new Error(e.Message).CausedBy(e));
+        }
+
+        var checks = SettingsChecks.GetValue(client, _ => new ConcurrentDictionary<string, (long, int)>(StringComparer.Ordinal));
+        if (checks.TryGetValue(index, out var last) && last.MaxTotalHits >= maxTotalHits
+            && Stopwatch.GetElapsedTime(last.CheckedAt) < options.SettingsCheckInterval)
+        {
+            return Result.Ok();
+        }
+
+        Settings? current = null;
+        try
+        {
+            current = await client.Index(index).GetSettingsAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (MeilisearchApiError e) when (e.Code == IndexNotFound)
         {
@@ -159,21 +186,39 @@ public sealed class MeilisearchIndexingProviderAsync(
             return Result.Fail(new Error(e.Message).CausedBy(e));
         }
 
-        var settings = new Settings
+        var filterable = current?.FilterableAttributes?.ToList() ?? [];
+        var missingFilterable = MeilisearchFieldNames.FilterableAttributes
+            .Except(filterable.Select(attribute => attribute.Attribute).OfType<string>(), StringComparer.Ordinal).ToList();
+        var sortable = current?.SortableAttributes?.ToList() ?? [];
+        var missingSortable = MeilisearchFieldNames.SortableAttributes.Except(sortable, StringComparer.Ordinal).ToList();
+        var currentMaxTotalHits = current?.Pagination?.MaxTotalHits ?? 0;
+        var configuredMaxTotalHits = Math.Max(currentMaxTotalHits, maxTotalHits);
+        if (missingFilterable.Count > 0 || missingSortable.Count > 0 || currentMaxTotalHits < maxTotalHits)
         {
-            FilterableAttributes = MeilisearchFieldNames.FilterableAttributes.Select(name => new FilterableAttribute { Attribute = name }).ToList(),
-            SortableAttributes = MeilisearchFieldNames.SortableAttributes,
-            Pagination = new Pagination { MaxTotalHits = maxTotalHits }
-        };
-        var task = await RunTaskAsync(index, client => client.Index(index).UpdateSettingsAsync(settings, cancellationToken), cancellationToken).ConfigureAwait(false);
-        return task.ToResult();
+            var settings = new Settings
+            {
+                FilterableAttributes = filterable.Concat(missingFilterable.Select(name => new FilterableAttribute { Attribute = name })).ToList(),
+                SortableAttributes = sortable.Concat(missingSortable).ToList(),
+                Pagination = new Pagination { MaxTotalHits = configuredMaxTotalHits }
+            };
+            var task = await RunTaskAsync(index, c => c.Index(index).UpdateSettingsAsync(settings, cancellationToken), cancellationToken).ConfigureAwait(false);
+            if (task.IsFailed)
+            {
+                return task.ToResult();
+            }
+        }
+
+        checks[index] = (Stopwatch.GetTimestamp(), configuredMaxTotalHits);
+        return Result.Ok();
     }
 
-    private static bool IsConfigured(Settings settings, int maxTotalHits) =>
-        settings.Pagination?.MaxTotalHits == maxTotalHits
-        && settings.FilterableAttributes?.Select(attribute => attribute.Attribute).ToHashSet(StringComparer.Ordinal)
-            .SetEquals(MeilisearchFieldNames.FilterableAttributes) == true
-        && settings.SortableAttributes?.ToHashSet(StringComparer.Ordinal).SetEquals(MeilisearchFieldNames.SortableAttributes) == true;
+    private static void ForgetSettingsCheck(MeilisearchClient client, string index)
+    {
+        if (SettingsChecks.TryGetValue(client, out var checks))
+        {
+            checks.TryRemove(index, out _);
+        }
+    }
 
     /// <summary>
     /// Starts a write and waits for the task Meilisearch queues for it, so the result reflects whether the

@@ -104,7 +104,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeil
 ranks, so fuzzy and raw Lucene queries return a failed `Result`. Spatial queries work on one field, named by
 `"GeoField"` under `Meilisearch`, holding a `"lat,lon"` string or a dictionary with `lat` and `lon`. Phrase
 prefix queries store word runs for every text field; list the fields that need them in `"PhraseFields"` to keep
-long texts small (see the [feature matrix](FEATURE_MATRIX.md)).
+long texts small, and re-index after adding a field to it (see the [feature matrix](FEATURE_MATRIX.md)).
 
 Or in memory:
 

@@ -229,39 +229,117 @@ public sealed class MeilisearchIndexingProviderTests(
         results.ShouldAllBe(r => r.IsSuccess && r.Value);
     }
 
+    private MeilisearchIndexingProviderAsync ProviderWith(Action<MeilisearchOptions> configure)
+    {
+        var changed = new MeilisearchOptions { SharedIndexSettings = options.CurrentValue.SharedIndexSettings };
+        configure(changed);
+        return new MeilisearchIndexingProviderAsync(clientFactory, new StaticOptionsMonitor(changed),
+            NullLogger<MeilisearchIndexingProviderAsync>.Instance);
+    }
+
+    private async Task UpdateSettingsElsewhereAsync(string index, global::Meilisearch.Settings settings)
+    {
+        var client = await clientFactory.GetOrCreateClientAsync(index);
+        var task = await client.WaitForTaskAsync((await client.Index(index).UpdateSettingsAsync(settings, Token)).TaskUid, cancellationToken: Token);
+        task.Status.ShouldBe(global::Meilisearch.TaskInfoStatus.Succeeded);
+    }
+
+    private async Task<global::Meilisearch.Settings> SettingsAsync(string index)
+    {
+        var client = await clientFactory.GetOrCreateClientAsync(index);
+        return await client.Index(index).GetSettingsAsync(Token);
+    }
+
     [Fact]
     public async Task IndexDocumentAsync_IndexDeletedElsewhere_AppliesTheSettingsAgain()
     {
         var index = UniqueIndex();
-        (await provider.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+        var uncached = ProviderWith(o => o.SettingsCheckInterval = TimeSpan.Zero);
+        (await uncached.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
         var client = await clientFactory.GetOrCreateClientAsync(index);
         await client.WaitForTaskAsync((await client.DeleteIndexAsync(index, Token)).TaskUid, cancellationToken: Token);
 
-        var result = await provider.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token);
+        var result = await uncached.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token);
 
         result.IsSuccess.ShouldBeTrue();
-        var settings = await client.Index(index).GetSettingsAsync(Token);
+        var settings = await SettingsAsync(index);
         settings.FilterableAttributes!.Select(attribute => attribute.Attribute).ShouldContain("tokens");
         settings.Pagination!.MaxTotalHits.ShouldBe(options.CurrentValue.MaxTotalHits);
     }
 
     [Fact]
-    public async Task IndexDocumentAsync_MaxTotalHitsChanged_UpdatesThePagination()
+    public async Task IndexDocumentAsync_IndexDeletedThroughTheProvider_AppliesTheSettingsAgain()
     {
         var index = UniqueIndex();
         (await provider.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
-        var changed = new MeilisearchOptions
+        (await provider.DeleteIndexAsync(index, Token)).Value.ShouldBeTrue();
+
+        (await provider.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+
+        (await SettingsAsync(index)).FilterableAttributes!.Select(attribute => attribute.Attribute).ShouldContain("tokens");
+    }
+
+    [Fact]
+    public async Task IndexDocumentAsync_SettingsCheckedWithinTheInterval_DoesNotReadThemAgain()
+    {
+        var index = UniqueIndex();
+        var cached = ProviderWith(o => o.SettingsCheckInterval = TimeSpan.FromHours(1));
+        (await cached.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+        await UpdateSettingsElsewhereAsync(index, new global::Meilisearch.Settings { FilterableAttributes = [new global::Meilisearch.FilterableAttribute { Attribute = "id" }] });
+
+        (await cached.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+        (await SettingsAsync(index)).FilterableAttributes!.Select(attribute => attribute.Attribute).ShouldNotContain("tokens");
+
+        (await ProviderWith(o => o.SettingsCheckInterval = TimeSpan.Zero).IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+        (await SettingsAsync(index)).FilterableAttributes!.Select(attribute => attribute.Attribute).ShouldContain("tokens");
+    }
+
+    [Fact]
+    public async Task IndexDocumentAsync_MaxTotalHitsRaised_UpdatesThePagination()
+    {
+        var index = UniqueIndex();
+        (await provider.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+
+        (await ProviderWith(o => o.MaxTotalHits = 20_000).IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+
+        (await SettingsAsync(index)).Pagination!.MaxTotalHits.ShouldBe(20_000);
+    }
+
+    [Fact]
+    public async Task IndexDocumentAsync_MaxTotalHitsLowerThanTheIndex_KeepsTheHigherValue()
+    {
+        var index = UniqueIndex();
+        (await ProviderWith(o => o.MaxTotalHits = 20_000).IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+
+        (await ProviderWith(o => { o.MaxTotalHits = 500; o.SettingsCheckInterval = TimeSpan.Zero; })
+            .IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+
+        (await SettingsAsync(index)).Pagination!.MaxTotalHits.ShouldBe(20_000);
+    }
+
+    [Fact]
+    public async Task IndexDocumentAsync_AttributesAddedElsewhere_KeepsThem()
+    {
+        var index = UniqueIndex();
+        (await provider.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+        await UpdateSettingsElsewhereAsync(index, new global::Meilisearch.Settings
         {
-            SharedIndexSettings = options.CurrentValue.SharedIndexSettings,
-            MaxTotalHits = 500,
-        };
-        var other = new MeilisearchIndexingProviderAsync(clientFactory, new StaticOptionsMonitor(changed),
-            NullLogger<MeilisearchIndexingProviderAsync>.Instance);
+            FilterableAttributes = [new global::Meilisearch.FilterableAttribute { Attribute = "custom" }],
+            SortableAttributes = ["custom"],
+        });
 
-        (await other.IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
+        (await ProviderWith(o => o.SettingsCheckInterval = TimeSpan.Zero).IndexDocumentAsync(CreateDocuments(index, 1)[0], Token)).IsSuccess.ShouldBeTrue();
 
-        var client = await clientFactory.GetOrCreateClientAsync(index);
-        (await client.Index(index).GetSettingsAsync(Token)).Pagination!.MaxTotalHits.ShouldBe(500);
+        var settings = await SettingsAsync(index);
+        settings.FilterableAttributes!.Select(attribute => attribute.Attribute).ShouldContain("custom");
+        settings.FilterableAttributes!.Select(attribute => attribute.Attribute).ShouldContain("tokens");
+        settings.SortableAttributes!.ShouldBe(["custom", "fields"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public void SettingsCheckInterval_Default_IsFiveSeconds()
+    {
+        new MeilisearchOptions().SettingsCheckInterval.ShouldBe(TimeSpan.FromSeconds(5));
     }
 
     [Fact]
