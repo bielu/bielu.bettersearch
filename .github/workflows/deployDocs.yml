@@ -8,6 +8,9 @@ on:
       - "src/**"
       - "FEATURE_MATRIX.md"
       - "ROADMAP.md"
+      - "Directory.Packages.props"
+      - "version.props"
+      - "global.json"
       - ".github/workflows/deployDocs.yml"
   workflow_dispatch:
 
