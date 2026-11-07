@@ -87,4 +87,36 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
             Type = document.Index,
         })).IsSuccess.ShouldBeTrue();
     }
+    [Fact]
+    public async Task RemoveDocumentAsync_MissingDocument_ReturnsSuccess()
+    {
+        //Arrange
+        var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index-1", };
+        (await serviceAsync.IndexDocumentAsync(document)).IsSuccess.ShouldBeTrue();
+
+        //Act
+        var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
+        {
+            Id = "never-indexed",
+            Type = document.Index,
+        });
+
+        //Assert
+        result.IsSuccess.ShouldBeTrue();
+    }
+    [Fact]
+    public async Task RemoveDocumentAsync_AlreadyRemovedDocument_ReturnsSuccess()
+    {
+        //Arrange
+        var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index-1", };
+        (await serviceAsync.IndexDocumentAsync(document)).IsSuccess.ShouldBeTrue();
+        var request = new DeleteDocumentRequest() { Id = document.Id, Type = document.Index, };
+        (await serviceAsync.RemoveDocumentAsync(request)).IsSuccess.ShouldBeTrue();
+
+        //Act
+        var result = await serviceAsync.RemoveDocumentAsync(request);
+
+        //Assert
+        result.IsSuccess.ShouldBeTrue();
+    }
 }

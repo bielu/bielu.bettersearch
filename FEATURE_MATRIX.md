@@ -60,7 +60,7 @@ The query model and fluent API can express sorting, facets, highlighting and pos
 | Ensure index exists | ⚠️ `Value` is `false` when it already exists | ✅ | ✅ | ✅ |
 | Index document | ✅ | ✅ | ✅ `Id` can only contain letters, digits, `-` and `_` | ✅ |
 | Index multiple documents | ⚠️ the service indexes one by one; the provider's bulk path is unused and ignores per-item failures | ⚠️ the service indexes one by one; the provider's bulk path is unused | ⚠️ the service indexes one by one; the provider's bulk path sends one request per index | ⚠️ the service indexes one by one |
-| Remove document | ✅ | ✅ | ✅ | ✅ |
+| Remove document | ✅ removing a document that is not there succeeds | ✅ removing a document that is not there succeeds | ✅ removing a document that is not there succeeds | ✅ removing a document that is not there succeeds |
 | Remove all documents | ⚠️ the service reports a count of 0 | ⚠️ the service reports a count of 0; a timed-out or partly failed delete is a failed `Result` | ⚠️ the provider returns the deleted count; the service reports 0 | ⚠️ the service reports a count of 0 |
 | Persistence | ✅ | ✅ | ✅ | ❌ in memory only, lost on restart |
 
