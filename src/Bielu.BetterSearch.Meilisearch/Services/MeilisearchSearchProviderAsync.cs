@@ -25,21 +25,21 @@ public sealed class MeilisearchSearchProviderAsync(
     /// <summary>Used when <c>PageSize</c> is not set, as for Elasticsearch.</summary>
     public const int DefaultPageSize = 10;
 
-    public async Task<Result<ISearchResult<ISearchModel>>> SearchAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
+    public async Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query.Index))
         {
-            return Result.Fail<ISearchResult<ISearchModel>>("The query needs an Index.");
+            return Result.Fail<ISearchResult>("The query needs an Index.");
         }
 
         if (query.FacetQueries is { Count: > 0 })
         {
-            return Result.Fail<ISearchResult<ISearchModel>>("The Meilisearch provider does not support facets yet.");
+            return Result.Fail<ISearchResult>("The Meilisearch provider does not support facets yet.");
         }
 
         if (query.HighlightQueries is { Count: > 0 })
         {
-            return Result.Fail<ISearchResult<ISearchModel>>("The Meilisearch provider does not support highlighting yet.");
+            return Result.Fail<ISearchResult>("The Meilisearch provider does not support highlighting yet.");
         }
 
         var page = Math.Max(query.Page, 1);
@@ -47,20 +47,20 @@ public sealed class MeilisearchSearchProviderAsync(
         var maxTotalHits = optionsMonitor.CurrentValue.MaxTotalHits;
         if ((long)page * pageSize > maxTotalHits)
         {
-            return Result.Fail<ISearchResult<ISearchModel>>(
+            return Result.Fail<ISearchResult>(
                 $"Page {page} with PageSize {pageSize} reaches result {(long)page * pageSize}, past the limit of {maxTotalHits} (MeilisearchOptions.MaxTotalHits).");
         }
 
         var request = await queryTranslateService.TranslateMainQueryAsync(query).ConfigureAwait(false);
         if (request.IsFailed)
         {
-            return request.ToResult<ISearchResult<ISearchModel>>();
+            return request.ToResult<ISearchResult>();
         }
 
         var sort = Sort(query);
         if (sort.IsFailed)
         {
-            return sort.ToResult<ISearchResult<ISearchModel>>();
+            return sort.ToResult<ISearchResult>();
         }
 
         var properties = query.Properties?.Where(property => !string.IsNullOrWhiteSpace(property)).ToList();
@@ -77,14 +77,14 @@ public sealed class MeilisearchSearchProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
-            var response = await client.Index(query.Index).SearchAsync<MeilisearchDocument>(null, meilisearchQuery).ConfigureAwait(false);
+            var response = await client.Index(query.Index).SearchAsync<MeilisearchDocument>(null, meilisearchQuery, cancellationToken).ConfigureAwait(false);
             if (response is not PaginatedSearchResult paginated)
             {
-                return Result.Fail<ISearchResult<ISearchModel>>("Meilisearch returned an unpaginated result for a paginated search.");
+                return Result.Fail<ISearchResult>("Meilisearch returned an unpaginated result for a paginated search.");
             }
 
             var totalPages = (int)Math.Ceiling(paginated.TotalHits / (double)pageSize);
-            return Result.Ok<ISearchResult<ISearchModel>>(new BaseSearchResults
+            return Result.Ok<ISearchResult>(new BaseSearchResults
             {
                 Items = paginated.Hits.Select(MapHit).ToList(),
                 Pagination = new Pagination
@@ -92,23 +92,26 @@ public sealed class MeilisearchSearchProviderAsync(
                     TotalCount = paginated.TotalHits,
                     Page = page,
                     PageSize = pageSize,
-                    TotalPages = totalPages,
-                    TotalNumberOfPages = totalPages
+                    TotalPages = totalPages
                 }
             });
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (MeilisearchApiError e)
         {
-            return Result.Fail<ISearchResult<ISearchModel>>(
+            return Result.Fail<ISearchResult>(
                 new Error($"Meilisearch search failed ({e.Code}): {e.Message}").WithMetadata("code", e.Code).CausedBy(e));
         }
         catch (Exception e)
         {
-            return Result.Fail<ISearchResult<ISearchModel>>(new Error($"Meilisearch search failed: {e.Message}").CausedBy(e));
+            return Result.Fail<ISearchResult>(new Error($"Meilisearch search failed: {e.Message}").CausedBy(e));
         }
     }
 
-    private static Result<IEnumerable<string>?> Sort(ISearchQuery<ISearchResult<ISearchModel>> query)
+    private static Result<IEnumerable<string>?> Sort(ISearchQuery query)
     {
         if (query.SortOrder is not { Count: > 0 })
         {
@@ -130,16 +133,14 @@ public sealed class MeilisearchSearchProviderAsync(
         return Result.Ok<IEnumerable<string>?>(sort);
     }
 
-    private static ISearchModel MapHit(MeilisearchDocument hit) => new BaseSearchModel
+    private static ISearchHit MapHit(MeilisearchDocument hit) => new SearchHit(new BaseSearchModel
     {
         Id = hit.Id,
-        Key = hit.Id,
-        Score = hit.RankingScore,
         ContentType = hit.Type ?? string.Empty,
         CustomProperties = hit.Fields.ToDictionary(
             field => field.Key,
             field => field.Value.Select(ToClrValue).ToList())
-    };
+    }, hit.RankingScore);
 
     /// <summary>Values are deserialized as <see cref="JsonElement"/>; callers get plain values, as from Elasticsearch.</summary>
     private static object ToClrValue(object? value) => value switch

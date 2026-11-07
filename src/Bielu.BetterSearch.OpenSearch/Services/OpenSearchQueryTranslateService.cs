@@ -14,11 +14,11 @@ namespace Bielu.BetterSearch.OpenSearch.Services;
 internal sealed class OpenSearchQueryTranslateService(IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators)
     : IQueryTranslateServiceAsync<QueryContainer>, IPostFilterTranslateServiceAsync<QueryContainer>
 {
-    public Task<Result<QueryContainer>> TranslateMainQueryAsync(ISearchQuery<ISearchResult<ISearchModel>> query) =>
+    public Task<Result<QueryContainer>> TranslateMainQueryAsync(ISearchQuery query) =>
         TranslateAsync(query.Query);
 
     /// <inheritdoc />
-    public async Task<Result<QueryContainer?>> TranslatePostFilterAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
+    public async Task<Result<QueryContainer?>> TranslatePostFilterAsync(ISearchQuery query)
     {
         if (query.PostFilterQuery == null || query.PostFilterQuery.Values.All(clauses => clauses.Count == 0))
         {

@@ -7,28 +7,25 @@ using Elastic.Clients.Elasticsearch.Core.Search;
 namespace Bielu.BetterSearch.ElasticSearch.Services;
 
 /// <summary>
-/// Maps hits to <see cref="BaseSearchModel"/>: the document id (unchanged in <c>Key</c>, as
-/// <c>Id</c> lower-cases it), its score, its type as
-/// <c>ContentType</c> and its fields as <c>CustomProperties</c>.
+/// Maps hits to a <see cref="SearchHit"/> with their score, holding a <see cref="BaseSearchModel"/>: the
+/// document id unchanged, its type as <c>ContentType</c> and its fields as <c>CustomProperties</c>.
 /// </summary>
 public class ElasticSearchResultMapper : IResultMapper<SearchResponse<SearchDocument>>
 {
-    public ISearchResult<ISearchModel> MapResult(SearchResponse<SearchDocument> searchEngineResult) => new BaseSearchResults
+    public ISearchResult MapResult(SearchResponse<SearchDocument> searchEngineResult) => new BaseSearchResults
     {
         Items = searchEngineResult.Hits.Select(MapHit).ToList(),
         Pagination = new Pagination { TotalCount = searchEngineResult.Total }
     };
 
-    private static ISearchModel MapHit(Hit<SearchDocument> hit) => new BaseSearchModel
+    private static ISearchHit MapHit(Hit<SearchDocument> hit) => new SearchHit(new BaseSearchModel
     {
         Id = hit.Id ?? hit.Source?.Id ?? string.Empty,
-        Key = hit.Id ?? hit.Source?.Id ?? string.Empty,
-        Score = hit.Score,
         ContentType = hit.Source?.Type ?? string.Empty,
         CustomProperties = hit.Source?.Fields.ToDictionary(
             field => field.Key,
             field => field.Value.Select(ToClrValue).ToList()) ?? []
-    };
+    }, hit.Score);
 
     /// <summary>Source values are deserialized as <see cref="JsonElement"/>; callers get plain values.</summary>
     private static object ToClrValue(object? value) => value switch

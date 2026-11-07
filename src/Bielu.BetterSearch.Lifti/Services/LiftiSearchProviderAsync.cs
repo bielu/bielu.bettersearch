@@ -12,20 +12,22 @@ public class LiftiSearchProviderAsync(
     ILiftiIndexManager manager,
     IResultMapper<ISearchResults<string>> resultMapper) : ISearchProviderAsync
 {
-    public async Task<Result<ISearchResult<ISearchModel>>> SearchAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
+    public async Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var indexResult = await manager.GetOrCreateIndexAsync(query.Index).ConfigureAwait(false);
         if (indexResult.IsFailed)
         {
-            return Result.Fail<ISearchResult<ISearchModel>>(indexResult.Errors);
+            return Result.Fail<ISearchResult>(indexResult.Errors);
         }
         var index = indexResult.Value;
         var translateMainQuery = await queryTranslateServiceAsync.TranslateMainQueryAsync(query).ConfigureAwait(false);
         if (translateMainQuery.IsFailed)
         {
-            return Result.Fail<ISearchResult<ISearchModel>>(translateMainQuery.Errors);
+            return Result.Fail<ISearchResult>(translateMainQuery.Errors);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         var mainResult = index.Search(translateMainQuery.Value);
         var result = resultMapper.MapResult(mainResult);
         return Result.Ok(result);

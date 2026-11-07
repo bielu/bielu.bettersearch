@@ -14,11 +14,11 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 public class ElasticSearchQueryTranslateService(IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
     : IQueryTranslateServiceAsync<EsQuery>, IPostFilterTranslateServiceAsync<EsQuery>
 {
-    public Task<Result<EsQuery>> TranslateMainQueryAsync(ISearchQuery<ISearchResult<ISearchModel>> query) =>
+    public Task<Result<EsQuery>> TranslateMainQueryAsync(ISearchQuery query) =>
         TranslateAsync(query.Query);
 
     /// <inheritdoc />
-    public async Task<Result<EsQuery?>> TranslatePostFilterAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
+    public async Task<Result<EsQuery?>> TranslatePostFilterAsync(ISearchQuery query)
     {
         if (query.PostFilterQuery == null || query.PostFilterQuery.Values.All(clauses => clauses.Count == 0))
         {

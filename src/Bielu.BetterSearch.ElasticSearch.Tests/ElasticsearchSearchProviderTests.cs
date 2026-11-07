@@ -28,7 +28,7 @@ public sealed class ElasticsearchSearchProviderTests(
 
     private sealed class RejectingTranslateService : IQueryTranslateServiceAsync<EsQuery>
     {
-        public Task<Result<EsQuery>> TranslateMainQueryAsync(ISearchQuery<ISearchResult<ISearchModel>> query) =>
+        public Task<Result<EsQuery>> TranslateMainQueryAsync(ISearchQuery query) =>
             Task.FromResult(Result.Fail<EsQuery>("rejected by the replacement"));
     }
 
@@ -42,7 +42,7 @@ public sealed class ElasticsearchSearchProviderTests(
             new ElasticSearchResultMapper(),
             options);
 
-        var result = await provider.SearchAsync(new SearchQuery { Index = "any" });
+        var result = await provider.SearchAsync(new SearchQuery { Index = "any" }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldBe("rejected by the replacement");
@@ -74,7 +74,7 @@ public sealed class ElasticsearchSearchProviderTests(
             new ElasticSearchResultMapper(),
             new FixedOptionsMonitor(new ElasticSearchOptions { MaxResultWindow = 3 }));
 
-        var result = await provider.SearchAsync(new SearchQuery { Index = index, PageSize = 1 });
+        var result = await provider.SearchAsync(new SearchQuery { Index = index, PageSize = 1 }, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Pagination.TotalCount.ShouldBe(3);

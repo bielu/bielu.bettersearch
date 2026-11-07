@@ -28,7 +28,7 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
 
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
     {
-        var validationResult = await documentValidator.ValidateDocumentAsync(document).ConfigureAwait(false);
+        var validationResult = await documentValidator.ValidateDocumentAsync(document, cancellationToken).ConfigureAwait(false);
         if (validationResult.IsFailed)
         {
             return Result.Fail("Validation failed");

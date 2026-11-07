@@ -4,7 +4,7 @@ using Bielu.BetterSearch.Abstractions.Query.Highlighter;
 
 namespace Bielu.BetterSearch.Abstractions.Query;
 
-public interface ISearchQuery<T> : ICreatableSearchQuery<Occurance, ISearchSubQuery>, ISearchQuery
+public interface ISearchQuery : ICreatableSearchQuery<Occurance, ISearchSubQuery>
 {
     public int Page { get; set; }
     public int PageSize { get; set; }
@@ -15,10 +15,5 @@ public interface ISearchQuery<T> : ICreatableSearchQuery<Occurance, ISearchSubQu
     public IDictionary<Occurance, List<ISearchSubQuery>> Query { get; set; }
     public string Index { get; set; }
     public DateTime? PreviewAt { get; set; }
-    void Add(Occurance queryOccurance, ISearchSubQuery booleanQueryQuery);
     public IEnumerable<string> Properties { get; set; }
-}
-
-public interface ISearchQuery
-{
 }

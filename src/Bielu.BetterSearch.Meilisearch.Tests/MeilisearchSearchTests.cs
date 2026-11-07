@@ -65,7 +65,7 @@ public sealed class MeilisearchSearchTests(
         query.PageSize = 100;
         var result = await searchService.SearchAsync(query);
         result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.Message)));
-        return result.Value.Items.Select(item => item.Key).OrderBy(id => id, StringComparer.Ordinal).ToList();
+        return result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
     }
 
     private static SearchQuery Query(string index, Occurance occurance, ISearchSubQuery subQuery)
@@ -419,10 +419,10 @@ public sealed class MeilisearchSearchTests(
             SortOrder = [new SortField { FieldName = "Age" }]
         };
 
-        var result = await searchService.SearchAsync(query);
+        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.Items.Select(item => item.Key).ShouldBe(["3", "4"]);
+        result.Value.Items.Select(item => item.Document.Id).ShouldBe(["3", "4"]);
         result.Value.Pagination.TotalCount.ShouldBe(5);
         result.Value.Pagination.Page.ShouldBe(2);
         result.Value.Pagination.PageSize.ShouldBe(2);
@@ -434,7 +434,7 @@ public sealed class MeilisearchSearchTests(
     [InlineData(int.MaxValue, int.MaxValue)]
     public async Task SearchAsync_PagePastMaxTotalHits_ReturnsFailedResult(int page, int pageSize)
     {
-        var result = await searchService.SearchAsync(new SearchQuery { Index = "any", Page = page, PageSize = pageSize });
+        var result = await searchService.SearchAsync(new SearchQuery { Index = "any", Page = page, PageSize = pageSize }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("MaxTotalHits");
@@ -445,7 +445,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(new SearchQuery { Index = index, Page = 10, PageSize = 2 });
+        var result = await searchService.SearchAsync(new SearchQuery { Index = index, Page = 10, PageSize = 2 }, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Items.ShouldBeEmpty();
@@ -467,10 +467,10 @@ public sealed class MeilisearchSearchTests(
             ]
         };
 
-        var result = await searchService.SearchAsync(query);
+        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.Items.Select(item => item.Key).ShouldBe(["4", "5", "2", "3", "Up-1"]);
+        result.Value.Items.Select(item => item.Document.Id).ShouldBe(["4", "5", "2", "3", "Up-1"]);
     }
 
     [Fact]
@@ -478,7 +478,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(new SearchQuery { Index = index, SortOrder = [new SortField { FieldName = "Age desc" }] });
+        var result = await searchService.SearchAsync(new SearchQuery { Index = index, SortOrder = [new SortField { FieldName = "Age desc" }] }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
     }
@@ -488,12 +488,13 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" }));
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" }), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        var jane = result.Value.Items.Single(item => item.Key == "Up-1");
-        jane.Score.ShouldNotBeNull();
-        jane.Score.Value.ShouldBeGreaterThan(0);
+        var hit = result.Value.Items.Single(item => item.Document.Id == "Up-1");
+        var jane = hit.Document;
+        hit.Score.ShouldNotBeNull();
+        hit.Score.Value.ShouldBeGreaterThan(0);
         jane.ContentType.ShouldBe("Person");
         jane.CustomProperties.Keys.OrderBy(key => key).ShouldBe(["Age", "Born", "City", "Name", "Views"]);
         jane.CustomProperties["Name"].ShouldBe(["Jane Doe"]);
@@ -521,10 +522,10 @@ public sealed class MeilisearchSearchTests(
         };
         (await indexingProvider.IndexDocumentAsync(document, Token)).IsSuccess.ShouldBeTrue();
 
-        var result = await searchService.SearchAsync(new SearchQuery { Index = index });
+        var result = await searchService.SearchAsync(new SearchQuery { Index = index }, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        var fields = result.Value.Items.Single().CustomProperties;
+        var fields = result.Value.Items.Single().Document.CustomProperties;
         fields["Integer"].Single().ShouldBeOfType<long>().ShouldBe(3L);
         fields["Fraction"].Single().ShouldBeOfType<double>().ShouldBe(3.5d);
         fields["Born"].Single().ShouldBeOfType<string>().ShouldBe("1999-05-01T00:00:00Z");
@@ -539,11 +540,11 @@ public sealed class MeilisearchSearchTests(
         var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "anna" });
         query.Properties = ["Name"];
 
-        var result = await searchService.SearchAsync(query);
+        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        var anna = result.Value.Items.Single();
-        anna.Key.ShouldBe("4");
+        var anna = result.Value.Items.Single().Document;
+        anna.Id.ShouldBe("4");
         anna.ContentType.ShouldBe("Person");
         anna.CustomProperties.Keys.ShouldBe(["Name"]);
     }
@@ -554,7 +555,9 @@ public sealed class MeilisearchSearchTests(
         var index = $"places-{Guid.NewGuid():N}";
         SearchDocument Place(string id, object location) => new()
         {
-            Id = id, Type = "Place", Index = index,
+            Id = id,
+            Type = "Place",
+            Index = index,
             Fields = new Dictionary<string, IList<object>> { ["Location"] = [location] }
         };
 
@@ -577,7 +580,11 @@ public sealed class MeilisearchSearchTests(
         // Lodz is about 120 km from Warsaw, 190 km from Krakow and 290 km from Gdansk.
         SpatialSearchQuery Around(double distance, string? unit = null) => new()
         {
-            Field = "Location", Lat = 51.7592, Lng = 19.4560, Distance = distance, UnitOfDistance = unit
+            Field = "Location",
+            Lat = 51.7592,
+            Lng = 19.4560,
+            Distance = distance,
+            UnitOfDistance = unit
         };
         var near = await SearchIdsAsync(Query(index, Occurance.MUST, Around(150)));
         var wider = await SearchIdsAsync(Query(index, Occurance.MUST, Around(250)));
@@ -595,9 +602,9 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePlacesAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "fields.Location", Value = "52.2297,21.0122" }));
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "fields.Location", Value = "52.2297,21.0122" }), TestContext.Current.CancellationToken);
 
-        result.Value.Items.Single().CustomProperties["Location"].ShouldBe(["52.2297,21.0122"]);
+        result.Value.Items.Single().Document.CustomProperties["Location"].ShouldBe(["52.2297,21.0122"]);
     }
 
     [Fact]
@@ -643,7 +650,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "nobody" }));
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "nobody" }), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Items.ShouldBeEmpty();
@@ -653,7 +660,7 @@ public sealed class MeilisearchSearchTests(
     [Fact]
     public async Task SearchAsync_MissingIndex_ReturnsFailedResultWithTheCode()
     {
-        var result = await searchService.SearchAsync(new SearchQuery { Index = $"missing-{Guid.NewGuid():N}" });
+        var result = await searchService.SearchAsync(new SearchQuery { Index = $"missing-{Guid.NewGuid():N}" }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Metadata["code"].ShouldBe("index_not_found");
@@ -662,7 +669,7 @@ public sealed class MeilisearchSearchTests(
     [Fact]
     public async Task SearchAsync_NoIndex_ReturnsFailedResult()
     {
-        var result = await searchService.SearchAsync(new SearchQuery());
+        var result = await searchService.SearchAsync(new SearchQuery(), TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
     }
@@ -672,7 +679,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Value = "jane" }));
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Value = "jane" }), TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
     }
@@ -680,7 +687,7 @@ public sealed class MeilisearchSearchTests(
     [Fact]
     public async Task SearchAsync_Facets_ReturnsUnsupportedFailure()
     {
-        var result = await searchService.SearchAsync(new SearchQuery { Index = "any", FacetQueries = [new TermAggregation()] });
+        var result = await searchService.SearchAsync(new SearchQuery { Index = "any", FacetQueries = [new TermAggregation()] }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
     }
@@ -688,7 +695,7 @@ public sealed class MeilisearchSearchTests(
     [Fact]
     public async Task SearchAsync_Highlighting_ReturnsUnsupportedFailure()
     {
-        var result = await searchService.SearchAsync(new SearchQuery { Index = "any", HighlightQueries = [new BaseHighlightQuery()] });
+        var result = await searchService.SearchAsync(new SearchQuery { Index = "any", HighlightQueries = [new BaseHighlightQuery()] }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
     }
@@ -703,7 +710,7 @@ public sealed class MeilisearchSearchTests(
         var provider = new MeilisearchSearchProviderAsync(translateService,
             new MeilisearchClientFactory(new MeilisearchClientSettingsManager(monitor)), monitor);
 
-        var result = await provider.SearchAsync(new SearchQuery { Index = "any" });
+        var result = await provider.SearchAsync(new SearchQuery { Index = "any" }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
     }

@@ -20,65 +20,67 @@ internal sealed class OpenSearchSearchProviderAsync(
     /// <summary>Used when <c>PageSize</c> is not set, as OpenSearch does.</summary>
     public const int DefaultPageSize = 10;
 
-    public async Task<Result<ISearchResult<ISearchModel>>> SearchAsync(ISearchQuery<ISearchResult<ISearchModel>> query)
+    public async Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query.Index))
         {
-            return Result.Fail<ISearchResult<ISearchModel>>("The query needs an Index.");
+            return Result.Fail<ISearchResult>("The query needs an Index.");
         }
 
         if (query.FacetQueries is { Count: > 0 })
         {
-            return Result.Fail<ISearchResult<ISearchModel>>("The OpenSearch provider does not support facets yet.");
+            return Result.Fail<ISearchResult>("The OpenSearch provider does not support facets yet.");
         }
 
         if (query.HighlightQueries is { Count: > 0 })
         {
-            return Result.Fail<ISearchResult<ISearchModel>>("The OpenSearch provider does not support highlighting yet.");
+            return Result.Fail<ISearchResult>("The OpenSearch provider does not support highlighting yet.");
         }
 
         var maxResultWindow = optionsMonitor.CurrentValue.MaxResultWindow;
         if (maxResultWindow <= 0)
         {
-            return Result.Fail<ISearchResult<ISearchModel>>(
+            return Result.Fail<ISearchResult>(
                 $"MaxResultWindow is {maxResultWindow}, but it must be greater than 0. Set {OpenSearchOptions.OpenSearchOptionsKey}:MaxResultWindow to the indexes' index.max_result_window.");
         }
 
         if (LastResultOf(query) > maxResultWindow)
         {
-            return Result.Fail<ISearchResult<ISearchModel>>(
+            return Result.Fail<ISearchResult>(
                 $"Page {PageOf(query)} with PageSize {PageSizeOf(query)} reaches result {LastResultOf(query)}, past the limit of {maxResultWindow} (index.max_result_window). Narrow the query or raise MaxResultWindow with the index setting.");
         }
 
         var mainQuery = await queryTranslateServiceAsync.TranslateMainQueryAsync(query).ConfigureAwait(false);
         if (mainQuery.IsFailed)
         {
-            return mainQuery.ToResult<ISearchResult<ISearchModel>>();
+            return mainQuery.ToResult<ISearchResult>();
         }
 
         var postFilter = await postFilterTranslateService.TranslatePostFilterAsync(query).ConfigureAwait(false);
         if (postFilter.IsFailed)
         {
-            return postFilter.ToResult<ISearchResult<ISearchModel>>();
+            return postFilter.ToResult<ISearchResult>();
         }
 
         var client = await clientFactoryAsync.TryGetClientAsync(query.Index).ConfigureAwait(false);
         if (client.IsFailed)
         {
-            return client.ToResult<ISearchResult<ISearchModel>>();
+            return client.ToResult<ISearchResult>();
         }
 
-        var response = await client.Value.SearchAsync<SearchDocument>(CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow)).ConfigureAwait(false);
+        var response = await client.Value.SearchAsync<SearchDocument>(CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow), cancellationToken).ConfigureAwait(false);
+        // The client reports a cancelled request as an invalid response; the caller cancelled, so say that instead.
+        cancellationToken.ThrowIfCancellationRequested();
         // OpenSearch.Client treats some error responses as valid, so a server error is a failure too.
         if (!response.IsValid || response.ServerError is not null)
         {
-            return Result.Fail<ISearchResult<ISearchModel>>(DescribeFailure(response));
+            return Result.Fail<ISearchResult>(DescribeFailure(response));
         }
 
         // Partial results are disallowed in the request; this guards against a cluster that returns them anyway.
         if (response.TimedOut || response.Shards.Failed > 0)
         {
-            return Result.Fail<ISearchResult<ISearchModel>>(
+            return Result.Fail<ISearchResult>(
                 $"OpenSearch returned incomplete results: timed out {response.TimedOut}, {response.Shards.Failed} of {response.Shards.Total} shards failed.");
         }
 
@@ -86,20 +88,19 @@ internal sealed class OpenSearchSearchProviderAsync(
         result.Pagination.Page = PageOf(query);
         result.Pagination.PageSize = PageSizeOf(query);
         result.Pagination.TotalPages = (int)Math.Ceiling(result.Pagination.TotalCount / (double)result.Pagination.PageSize);
-        result.Pagination.TotalNumberOfPages = result.Pagination.TotalPages;
         return Result.Ok(result);
     }
 
     /// <summary><c>Page</c> counts from 1; 0, the default, is the first page.</summary>
-    private static int PageOf(ISearchQuery<ISearchResult<ISearchModel>> query) => Math.Max(query.Page, 1);
+    private static int PageOf(ISearchQuery query) => Math.Max(query.Page, 1);
 
-    private static int PageSizeOf(ISearchQuery<ISearchResult<ISearchModel>> query) =>
+    private static int PageSizeOf(ISearchQuery query) =>
         query.PageSize > 0 ? query.PageSize : DefaultPageSize;
 
     /// <summary>The position of the page's last result, in <c>long</c> so a large page can't overflow.</summary>
-    private static long LastResultOf(ISearchQuery<ISearchResult<ISearchModel>> query) => (long)PageOf(query) * PageSizeOf(query);
+    private static long LastResultOf(ISearchQuery query) => (long)PageOf(query) * PageSizeOf(query);
 
-    private static SearchRequest<SearchDocument> CreateRequest(ISearchQuery<ISearchResult<ISearchModel>> query, QueryContainer mainQuery, QueryContainer? postFilter, int maxResultWindow)
+    private static SearchRequest<SearchDocument> CreateRequest(ISearchQuery query, QueryContainer mainQuery, QueryContainer? postFilter, int maxResultWindow)
     {
         var pageSize = PageSizeOf(query);
         var request = new SearchRequest<SearchDocument>(query.Index)

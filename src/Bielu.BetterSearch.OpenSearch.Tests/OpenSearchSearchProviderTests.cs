@@ -27,7 +27,7 @@ public sealed class OpenSearchSearchProviderTests(
 
     private sealed class RejectingTranslateService : IQueryTranslateServiceAsync<QueryContainer>
     {
-        public Task<Result<QueryContainer>> TranslateMainQueryAsync(ISearchQuery<ISearchResult<ISearchModel>> query) =>
+        public Task<Result<QueryContainer>> TranslateMainQueryAsync(ISearchQuery query) =>
             Task.FromResult(Result.Fail<QueryContainer>("rejected by the replacement"));
     }
 
@@ -41,7 +41,7 @@ public sealed class OpenSearchSearchProviderTests(
             new OpenSearchResultMapper(),
             options);
 
-        var result = await provider.SearchAsync(new SearchQuery { Index = "any" });
+        var result = await provider.SearchAsync(new SearchQuery { Index = "any" }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldBe("rejected by the replacement");
@@ -64,7 +64,7 @@ public sealed class OpenSearchSearchProviderTests(
             new OpenSearchResultMapper(),
             new FixedOptionsMonitor(new OpenSearchOptions { MaxResultWindow = 3 }));
 
-        var result = await provider.SearchAsync(new SearchQuery { Index = index, PageSize = 1 });
+        var result = await provider.SearchAsync(new SearchQuery { Index = index, PageSize = 1 }, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Pagination.TotalCount.ShouldBe(3);

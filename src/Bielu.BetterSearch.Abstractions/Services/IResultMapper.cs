@@ -4,5 +4,5 @@ namespace Bielu.BetterSearch.Abstractions.Services;
 
 public interface IResultMapper<T>
 {
-    ISearchResult<ISearchModel> MapResult(T searchEngineResult);
+    ISearchResult MapResult(T searchEngineResult);
 }

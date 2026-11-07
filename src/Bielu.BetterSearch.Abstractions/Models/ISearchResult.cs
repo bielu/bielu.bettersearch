@@ -1,7 +1,7 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Models;
 
-public interface ISearchResult<T> where T : ISearchModel
+public interface ISearchResult
 {
-    IEnumerable<ISearchModel> Items { get; set; }
+    IEnumerable<ISearchHit> Items { get; set; }
     IPagination Pagination { get; set; }
 }
