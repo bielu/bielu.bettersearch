@@ -104,7 +104,14 @@ by side.
 - A document the validator rejects, or an operation the provider fails, sends nothing. The returned `Result`
   carries the reason.
 - `OnError` is never sent. `OnCompleted` is sent once, when the service is disposed, so a stream stays open for
-  every operation the service performs. Dispose the value `Subscribe` returns to stop earlier.
+  every operation the service performs. Dispose the value `Subscribe` returns to stop earlier. Subscribing after
+  the service is disposed sends `OnCompleted` straight away, and operations after it notify nobody.
+- An observer that throws is logged and skipped: the operation still returns its `Result`, and the other
+  observers are still notified. `Dispose` never throws.
+- Subscribing the same observer twice notifies it once, until both handles `Subscribe` returned are disposed.
+
+`ISearchServiceAsync` follows the same contract for `ISearchModel`: `OnNext` for each hit of a successful search.
+Both interfaces extend `IDisposable`, and the DI scope disposes the services it created.
 
 ```csharp
 using var subscription = indexing.Subscribe(new IndexedLogger());

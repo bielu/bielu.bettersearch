@@ -73,6 +73,7 @@ public class IndexingObserverUnitTests
         //Act
         service.Dispose();
         service.Dispose();
+        // Operations stay allowed after Dispose, but notify nobody.
         (await service.IndexDocumentAsync(new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index", }, Token))
             .IsSuccess.ShouldBeTrue();
 
@@ -81,6 +82,168 @@ public class IndexingObserverUnitTests
         removed.CompletedCount.ShouldBe(1);
         emptied.CompletedCount.ShouldBe(1);
         indexed.Values.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Subscribe_AfterDispose_SendsOnCompletedAndNothingElse()
+    {
+        //Arrange
+        var service = CreateService(new DummyDocumentValidatorAsync());
+        service.Dispose();
+        var indexed = new RecordingObserver<SearchDocument>();
+        var removed = new RecordingObserver<DeleteDocumentRequest>();
+        var emptied = new RecordingObserver<DeleteAllDocumentsRequest>();
+
+        //Act
+        using var indexedSubscription = service.Subscribe(indexed);
+        using var removedSubscription = service.Subscribe(removed);
+        using var emptiedSubscription = service.Subscribe(emptied);
+        (await service.IndexDocumentAsync(new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index", }, Token))
+            .IsSuccess.ShouldBeTrue();
+        service.Dispose();
+
+        //Assert
+        indexed.CompletedCount.ShouldBe(1);
+        removed.CompletedCount.ShouldBe(1);
+        emptied.CompletedCount.ShouldBe(1);
+        indexed.Values.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task IndexDocumentAsync_ObserverThrowsInOnNext_ReturnsOkAndNotifiesOtherObservers()
+    {
+        //Arrange
+        using var service = CreateService(new DummyDocumentValidatorAsync());
+        var before = new RecordingObserver<SearchDocument>();
+        var after = new RecordingObserver<SearchDocument>();
+        using var beforeSubscription = service.Subscribe(before);
+        using var throwingSubscription = service.Subscribe(new ThrowingObserver<SearchDocument>());
+        using var afterSubscription = service.Subscribe(after);
+        var first = new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index", };
+        var second = new SearchDocument { Id = "2", Type = "TestDocument", Index = "test-index", };
+
+        //Act
+        var single = await service.IndexDocumentAsync(first, Token);
+        var batch = await service.IndexMultipleDocumentsAsync([first, second], Token);
+
+        //Assert
+        single.IsSuccess.ShouldBeTrue();
+        batch.IsSuccess.ShouldBeTrue();
+        batch.Value.ShouldBe(2);
+        before.Values.ShouldBe([first, first, second]);
+        after.Values.ShouldBe([first, first, second]);
+    }
+
+    [Fact]
+    public async Task RemoveAsync_ObserverThrowsInOnNext_ReturnsOkAndNotifiesOtherObservers()
+    {
+        //Arrange
+        using var service = CreateService(new DummyDocumentValidatorAsync());
+        var removed = new RecordingObserver<DeleteDocumentRequest>();
+        var emptied = new RecordingObserver<DeleteAllDocumentsRequest>();
+        using var s1 = service.Subscribe(new ThrowingObserver<DeleteDocumentRequest>());
+        using var s2 = service.Subscribe(removed);
+        using var s3 = service.Subscribe(new ThrowingObserver<DeleteAllDocumentsRequest>());
+        using var s4 = service.Subscribe(emptied);
+        (await service.IndexDocumentAsync(new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index", }, Token))
+            .IsSuccess.ShouldBeTrue();
+
+        //Act
+        var removeResult = await service.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "1", Type = "test-index", }, Token);
+        var removeAllResult = await service.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "test-index", }, Token);
+
+        //Assert
+        removeResult.IsSuccess.ShouldBeTrue();
+        removeAllResult.IsSuccess.ShouldBeTrue();
+        removed.Values.Count.ShouldBe(1);
+        emptied.Values.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public void Dispose_ObserverThrowsInOnCompleted_CompletesEveryOtherObserverWithoutThrowing()
+    {
+        //Arrange
+        var service = CreateService(new DummyDocumentValidatorAsync());
+        var indexed = new RecordingObserver<SearchDocument>();
+        var removed = new RecordingObserver<DeleteDocumentRequest>();
+        var emptied = new RecordingObserver<DeleteAllDocumentsRequest>();
+        service.Subscribe(new ThrowingObserver<SearchDocument>());
+        service.Subscribe(indexed);
+        service.Subscribe(new ThrowingObserver<DeleteDocumentRequest>());
+        service.Subscribe(removed);
+        service.Subscribe(emptied);
+
+        //Act
+        Should.NotThrow(service.Dispose);
+
+        //Assert
+        indexed.CompletedCount.ShouldBe(1);
+        removed.CompletedCount.ShouldBe(1);
+        emptied.CompletedCount.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Subscribe_SameObserverTwice_NotifiesOnceUntilEveryHandleIsDisposed()
+    {
+        //Arrange
+        using var service = CreateService(new DummyDocumentValidatorAsync());
+        var observer = new RecordingObserver<SearchDocument>();
+        var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index", };
+        var first = service.Subscribe(observer);
+        var second = service.Subscribe(observer);
+
+        //Act
+        (await service.IndexDocumentAsync(document, Token)).IsSuccess.ShouldBeTrue();
+        first.Dispose();
+        first.Dispose();
+        (await service.IndexDocumentAsync(document, Token)).IsSuccess.ShouldBeTrue();
+        second.Dispose();
+        (await service.IndexDocumentAsync(document, Token)).IsSuccess.ShouldBeTrue();
+
+        //Assert
+        observer.Values.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task IndexDocumentAsync_ConcurrentWithObserversUnsubscribingInOnNext_NotifiesWithoutThrowing()
+    {
+        //Arrange
+        using var service = CreateService(new DummyDocumentValidatorAsync());
+        var steady = new ConcurrentRecordingObserver();
+        using var steadySubscription = service.Subscribe(steady);
+        var selfRemoving = Enumerable.Range(0, 50).Select(_ => new SelfUnsubscribingObserver()).ToList();
+        foreach (var observer in selfRemoving)
+        {
+            observer.Subscription = service.Subscribe(observer);
+        }
+
+        var documents = Enumerable.Range(0, 200)
+            .Select(i => new SearchDocument { Id = i.ToString(System.Globalization.CultureInfo.InvariantCulture), Type = "TestDocument", Index = "test-index", })
+            .ToList();
+
+        //Act
+        var results = await Task.WhenAll(documents.Select(d => Task.Run(() => service.IndexDocumentAsync(d, Token), Token)));
+
+        //Assert
+        results.ShouldAllBe(r => r.IsSuccess);
+        steady.Count.ShouldBe(documents.Count);
+        selfRemoving.ShouldAllBe(o => o.Count >= 1);
+    }
+
+    private sealed class ThrowingObserver<T> : IObserver<T>
+    {
+        public void OnNext(T value) => throw new InvalidOperationException("OnNext failed");
+        public void OnCompleted() => throw new InvalidOperationException("OnCompleted failed");
+        public void OnError(Exception error) { }
+    }
+
+    private sealed class ConcurrentRecordingObserver : IObserver<SearchDocument>
+    {
+        private int _count;
+        public int Count => Volatile.Read(ref _count);
+        public void OnNext(SearchDocument value) => Interlocked.Increment(ref _count);
+        public void OnCompleted() { }
+        public void OnError(Exception error) { }
     }
 
     [Fact]
@@ -152,12 +315,13 @@ public class IndexingObserverUnitTests
 
     private sealed class SelfUnsubscribingObserver : IObserver<SearchDocument>
     {
+        private int _count;
         public IDisposable? Subscription { get; set; }
-        public int Count { get; private set; }
+        public int Count => Volatile.Read(ref _count);
 
         public void OnNext(SearchDocument value)
         {
-            Count++;
+            Interlocked.Increment(ref _count);
             Subscription?.Dispose();
         }
 

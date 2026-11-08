@@ -61,6 +61,112 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         (await serviceAsync.IndexDocumentAsync(document)).IsSuccess.ShouldBeTrue();
     }
     [Fact]
+    public async Task IndexDocumentAsync_NullField_Fails()
+    {
+        var document = new SearchDocument
+        {
+            Id = "1",
+            Type = "TestDocument",
+            Index = "test-index-1",
+            Fields = new Dictionary<string, IList<object>> { { "Name", ["Jane"] }, { "Tags", null! } }
+        };
+
+        var result = await serviceAsync.IndexDocumentAsync(document);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Tags");
+    }
+    [Fact]
+    public async Task IndexDocumentAsync_NullFieldsDictionary_Fails()
+    {
+        var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index-1", Fields = null! };
+
+        var result = await serviceAsync.IndexDocumentAsync(document);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("empty dictionary");
+    }
+    [Fact]
+    public async Task IndexDocumentAsync_NullValueInField_Fails()
+    {
+        var document = new SearchDocument
+        {
+            Id = "1",
+            Type = "TestDocument",
+            Index = "test-index-1",
+            Fields = new Dictionary<string, IList<object>> { { "Name", ["Jane"] }, { "Tags", ["a", null!] } }
+        };
+
+        var result = await serviceAsync.IndexDocumentAsync(document);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Tags");
+    }
+    [Fact]
+    public async Task IndexDocumentAsync_NullField_SendsNothingAndKeepsStreamOpen()
+    {
+        var observer = new RecordingObserver<SearchDocument>();
+        using var subscription = serviceAsync.Subscribe(observer);
+        var document = new SearchDocument
+        {
+            Id = "1",
+            Type = "TestDocument",
+            Index = "test-index-1",
+            Fields = new Dictionary<string, IList<object>> { { "Tags", null! } }
+        };
+
+        (await serviceAsync.IndexDocumentAsync(document)).IsFailed.ShouldBeTrue();
+
+        observer.Values.ShouldBeEmpty();
+        observer.CompletedCount.ShouldBe(0);
+    }
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_NullFieldInLaterDocument_IndexesNone()
+    {
+        var index = $"batch-{Guid.NewGuid():N}";
+        (await indexingProviderAsync.CreateIndexAsync(index, Token)).IsSuccess.ShouldBeTrue();
+        try
+        {
+            var observer = new RecordingObserver<SearchDocument>();
+            using var subscription = serviceAsync.Subscribe(observer);
+            var documents = new List<SearchDocument>
+            {
+                new() { Id = "1", Type = "TestDocument", Index = index },
+                new() { Id = "2", Type = "TestDocument", Index = index },
+                new()
+                {
+                    Id = "3",
+                    Type = "TestDocument",
+                    Index = index,
+                    Fields = new Dictionary<string, IList<object>> { { "Tags", null! } }
+                },
+            };
+
+            var result = await serviceAsync.IndexMultipleDocumentsAsync(documents, Token);
+
+            result.IsFailed.ShouldBeTrue();
+            result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Document 3");
+            observer.Values.ShouldBeEmpty();
+            observer.CompletedCount.ShouldBe(0);
+            // Documents 1 and 2 must not have reached the engine either.
+            (await CountDocumentsAsync(index)).ShouldBe(0);
+        }
+        finally
+        {
+            await indexingProviderAsync.DeleteIndexAsync(index, Token);
+        }
+    }
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_NullDocument_Fails()
+    {
+        var documents = new List<SearchDocument> { new() { Id = "1", Type = "TestDocument", Index = "test-index-1" }, null! };
+
+        var result = await serviceAsync.IndexMultipleDocumentsAsync(documents);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("document is null");
+    }
+    [Fact]
     public async Task IndexDocumentsAsyncTest()
     {
         //Arrange

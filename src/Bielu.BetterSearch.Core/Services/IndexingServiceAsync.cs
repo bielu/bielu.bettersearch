@@ -1,32 +1,57 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
+using Microsoft.Extensions.Logging;
 
 namespace Bielu.BetterSearch.Services;
 
-public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocumentValidatorAsync documentValidator)
-    : IIndexingServiceAsync, IDisposable
+/// <summary>The default <see cref="IIndexingServiceAsync"/>; see it for the observer contract.</summary>
+public class IndexingServiceAsync(
+    IIndexingProviderAsync indexingProvider,
+    IDocumentValidatorAsync documentValidator,
+    ILogger<IndexingServiceAsync>? logger = null)
+    : IIndexingServiceAsync
 {
-    // ReSharper disable once FieldCanBeMadeReadOnly.Local
-    private List<IObserver<SearchDocument>> _indexingObservers = new();
+    private readonly ObserverList<SearchDocument> _indexingObservers = new(logger);
+    private readonly ObserverList<DeleteDocumentRequest> _deleteDocumentObservers = new(logger);
+    private readonly ObserverList<DeleteAllDocumentsRequest> _deleteAllDocumentsObservers = new(logger);
 
-    // ReSharper disable once FieldCanBeMadeReadOnly.Local
-    private List<IObserver<DeleteDocumentRequest>> _deleteDocumentObservers = new();
-
-    // ReSharper disable once FieldCanBeMadeReadOnly.Local
-    private List<IObserver<DeleteAllDocumentsRequest>> _deleteAllDocumentsObservers = new();
-
-
-    public IDisposable Subscribe(IObserver<SearchDocument> observer)
-    {
-        if (!_indexingObservers.Contains(observer))
-        {
-            _indexingObservers.Add(observer);
-        }
-
-        return new Unsubscriber<SearchDocument>(_indexingObservers, observer);
-    }
+    public IDisposable Subscribe(IObserver<SearchDocument> observer) => _indexingObservers.Subscribe(observer);
 
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
+    {
+        var nullFieldsResult = CheckNullFields(document);
+        if (nullFieldsResult.IsFailed)
+        {
+            return nullFieldsResult;
+        }
+
+        return await IndexCheckedDocumentAsync(document, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
+        CancellationToken cancellationToken = default)
+    {
+        var documents = document.ToList();
+        // Reject the whole batch before indexing any of it, so a null field can't leave it partly stored.
+        var nullFieldsResult = Result.Merge(documents.Select(CheckNullFields).ToArray());
+        if (nullFieldsResult.IsFailed)
+        {
+            return Result.Fail<int>(nullFieldsResult.Errors);
+        }
+
+        foreach (var doc in documents)
+        {
+            var result = await IndexCheckedDocumentAsync(doc, cancellationToken).ConfigureAwait(false);
+            if (result.IsFailed)
+            {
+                return Result.Fail<int>(result.Errors);
+            }
+        }
+        return Result.Ok(documents.Count);
+    }
+
+    /// <summary>Validates and indexes a document that <see cref="CheckNullFields"/> has already passed.</summary>
+    private async Task<Result> IndexCheckedDocumentAsync(SearchDocument document, CancellationToken cancellationToken)
     {
         var validationResult = await documentValidator.ValidateDocumentAsync(document, cancellationToken).ConfigureAwait(false);
         if (validationResult.IsFailed)
@@ -42,25 +67,50 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
         var result = await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)
         {
-            Notify(_indexingObservers, document);
+            _indexingObservers.Notify(document);
         }
 
         return result;
     }
 
-    public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
-        CancellationToken cancellationToken = default)
+    /// <summary>Fails when the document, its fields, a field or a value in a field is <c>null</c>.</summary>
+    private static Result CheckNullFields(SearchDocument document)
     {
-        var documents = document.ToList();
-        foreach (var doc in documents)
+        if (document is null)
         {
-            var result = await IndexDocumentAsync(doc, cancellationToken).ConfigureAwait(false);
-            if (result.IsFailed)
+            return Result.Fail("A document is null.");
+        }
+
+        if (document.Fields is null)
+        {
+            return Result.Fail($"Document {document.Id} has null fields; use an empty dictionary for a document with no fields.");
+        }
+
+        var nullFields = new List<string>();
+        var nullValueFields = new List<string>();
+        foreach (var (name, values) in document.Fields)
+        {
+            if (values == null)
             {
-                return Result.Fail<int>(result.Errors);
+                nullFields.Add(name);
+            }
+            else if (values.Any(value => value is null))
+            {
+                nullValueFields.Add(name);
             }
         }
-        return Result.Ok(documents.Count);
+
+        if (nullFields.Count > 0)
+        {
+            return Result.Fail($"Document {document.Id} has null fields ({string.Join(", ", nullFields)}); use an empty list for a field with no values.");
+        }
+
+        if (nullValueFields.Count > 0)
+        {
+            return Result.Fail($"Document {document.Id} has null values in fields ({string.Join(", ", nullValueFields)}); leave them out of the list.");
+        }
+
+        return Result.Ok();
     }
 
     public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
@@ -69,7 +119,7 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
         var result = await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)
         {
-            Notify(_deleteDocumentObservers, document);
+            _deleteDocumentObservers.Notify(document);
         }
 
         return result;
@@ -81,62 +131,31 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
         var result = await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)
         {
-            Notify(_deleteAllDocumentsObservers, request);
+            _deleteAllDocumentsObservers.Notify(request);
         }
 
         return result.ToResult();
     }
 
-    public IDisposable Subscribe(IObserver<DeleteDocumentRequest> observer)
-    {
-        if (!_deleteDocumentObservers.Contains(observer))
-        {
-            _deleteDocumentObservers.Add(observer);
-        }
+    public IDisposable Subscribe(IObserver<DeleteDocumentRequest> observer) => _deleteDocumentObservers.Subscribe(observer);
 
-        return new Unsubscriber<DeleteDocumentRequest>(_deleteDocumentObservers, observer);
-    }
-
-    public IDisposable Subscribe(IObserver<DeleteAllDocumentsRequest> observer)
-    {
-        if (!_deleteAllDocumentsObservers.Contains(observer))
-        {
-            _deleteAllDocumentsObservers.Add(observer);
-        }
-
-        return new Unsubscriber<DeleteAllDocumentsRequest>(_deleteAllDocumentsObservers, observer);
-    }
+    public IDisposable Subscribe(IObserver<DeleteAllDocumentsRequest> observer) => _deleteAllDocumentsObservers.Subscribe(observer);
 
     /// <summary>Ends every stream: each observer gets <see cref="IObserver{T}.OnCompleted"/> once and is unsubscribed.</summary>
-#pragma warning disable CA1816
     public void Dispose()
-#pragma warning restore CA1816
     {
-        Complete(_indexingObservers);
-        Complete(_deleteDocumentObservers);
-        Complete(_deleteAllDocumentsObservers);
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
-    // Iterate a copy, so an observer can unsubscribe from inside its own callback. Skip any observer that left
-    // during this dispatch, so a Dispose from inside OnNext can't be followed by OnNext to an already completed observer.
-    private static void Notify<T>(List<IObserver<T>> observers, T value)
+    /// <summary>Ends every stream when <paramref name="disposing"/> is <c>true</c>. Never throws, and later calls do nothing.</summary>
+    protected virtual void Dispose(bool disposing)
     {
-        foreach (var observer in observers.ToArray())
+        if (disposing)
         {
-            if (observers.Contains(observer))
-            {
-                observer.OnNext(value);
-            }
-        }
-    }
-
-    private static void Complete<T>(List<IObserver<T>> observers)
-    {
-        var completed = observers.ToArray();
-        observers.Clear();
-        foreach (var observer in completed)
-        {
-            observer.OnCompleted();
+            _indexingObservers.Complete();
+            _deleteDocumentObservers.Complete();
+            _deleteAllDocumentsObservers.Complete();
         }
     }
 }
