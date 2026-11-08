@@ -14,8 +14,8 @@ filters and scores.
 > - **Bulk indexing**: Core's `IndexingServiceAsync.IndexMultipleDocumentsAsync` indexes one document at a time,
 >   so this provider's `BulkAsync` path is never used.
 >
-> Invalid or missing connection settings throw from searching and indexing; `RemoveDocumentAsync`,
-> `IndexExistsAsync` and `CreateIndexAsync` turn them into a failed `Result`.
+> Invalid or missing connection settings throw from searching; every indexing method turns them into a
+> failed `Result`.
 
 ## Install
 
