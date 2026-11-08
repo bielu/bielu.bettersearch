@@ -27,7 +27,7 @@ public sealed class ElasticsearchIndexingResponseTests
     private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false)
     {
         var invoker = new InMemoryRequestInvoker(Encoding.UTF8.GetBytes(json), statusCode, null, "application/json",
-            new Dictionary<string, IEnumerable<string>> { ["X-Elastic-Product"] = ["Elasticsearch"] });
+            new Dictionary<string, IEnumerable<string>> { ["x-elastic-product"] = ["Elasticsearch"] });
         var settings = new ElasticsearchClientSettings(new SingleNodePool(new Uri("http://localhost:9200")), invoker)
             .ThrowExceptions(throwExceptions);
         return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
@@ -64,6 +64,54 @@ public sealed class ElasticsearchIndexingResponseTests
 
         result.IsFailed.ShouldBeTrue();
         result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<TransportException>();
+    }
+
+    [Theory]
+    [InlineData(200, true)]
+    [InlineData(404, false)]
+    public async Task IndexExistsAsync_ServerAnswers_ReturnsWhetherTheIndexExists(int statusCode, bool expected)
+    {
+        var provider = Provider("{}", statusCode);
+
+        var result = await provider.IndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData(401)]
+    [InlineData(503)]
+    public async Task IndexExistsAsync_RequestFails_ReturnsFailure(int statusCode)
+    {
+        var provider = Provider("{}", statusCode);
+
+        var result = await provider.IndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldContain(statusCode.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    public async Task IndexExistsAsync_RequestThrows_ReturnsFailureCausedByTheException()
+    {
+        var provider = Provider("{}", 503, throwExceptions: true);
+
+        var result = await provider.IndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<TransportException>();
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_ExistsCheckFails_ReturnsTheCheckFailure()
+    {
+        var provider = Provider("{}", 401);
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldContain("HEAD");
     }
 
     public static TheoryData<string> IndexingMethods =>

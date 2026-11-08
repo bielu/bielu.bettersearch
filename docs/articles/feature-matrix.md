@@ -58,7 +58,7 @@ The query model and fluent API can express sorting, facets, highlighting and pos
 |---------|:------------:|:----------:|:-----------:|:-----:|
 | Create index | ⚠️ a rejection is reported as success with `false` | ✅ `false` when the index already exists; any other rejection is a failed `Result` | ⚠️ an existing index is success with `false` | ⚠️ silently replaces an existing index, losing its documents |
 | Delete index | ⚠️ `Value` is `false` even on success | ✅ | ✅ | ✅ |
-| Index exists | ⚠️ transport errors read as "does not exist" | ✅ any answer other than 200 or 404, such as a 403, is a failed `Result` | ✅ | ✅ |
+| Index exists | ✅ any answer other than 200 or 404, such as a 403, is a failed `Result` | ✅ any answer other than 200 or 404, such as a 403, is a failed `Result` | ✅ | ✅ |
 | Ensure index exists | ⚠️ `Value` is `false` when it already exists | ✅ | ✅ | ✅ |
 | Index document | ✅ | ✅ | ✅ `Id` can only contain letters, digits, `-` and `_` | ✅ |
 | Index multiple documents | ⚠️ the service indexes one by one; the provider's bulk path is unused and ignores per-item failures | ⚠️ the service indexes one by one; the provider's bulk path is unused | ⚠️ the service indexes one by one; the provider's bulk path sends one request per index | ⚠️ the service indexes one by one |

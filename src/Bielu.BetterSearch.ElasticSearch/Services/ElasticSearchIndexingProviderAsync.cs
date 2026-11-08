@@ -86,7 +86,13 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {
         var exist = await IndexExistsAsync(index, cancellationToken).ConfigureAwait(false);
-        if (exist is { IsSuccess: true, Value: true })
+        // A failed check, such as a 401 or 5xx, is returned as it is rather than hidden behind a create attempt.
+        if (exist.IsFailed)
+        {
+            return exist;
+        }
+
+        if (exist.Value)
         {
             return Result.Ok();
         }
@@ -117,7 +123,13 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
         try
         {
             var result = await client.Value.Indices.ExistsAsync(new ExistsRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
-            return result.Exists;
+            // Only 200 and 404 answer the question; anything else, such as no answer, a 401, 403 or 5xx, is a failure.
+            return result.ApiCallDetails?.HttpStatusCode switch
+            {
+                200 => Result.Ok(true),
+                404 => Result.Ok(false),
+                _ => Result.Fail<bool>(RequestFailed(result.DebugInformation, result.ApiCallDetails?.OriginalException)),
+            };
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -149,4 +161,9 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
         }
     }
 
+    private static Error RequestFailed(string debugInformation, Exception? exception)
+    {
+        var error = new Error(debugInformation);
+        return exception is null ? error : error.CausedBy(exception);
+    }
 }

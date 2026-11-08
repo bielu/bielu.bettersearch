@@ -9,8 +9,7 @@ filters and scores.
 >
 > - **Facets and highlighting** can be expressed, but a query that asks for them returns a failed `Result`.
 > - **Index operations report odd values**: creating an index the cluster rejects is success with `false`,
->   deleting an index returns `false` even when it worked, a transport error reads as "index does not exist",
->   and `RemoveAllDocumentsAsync` reports a count of 0.
+>   deleting an index returns `false` even when it worked, and `RemoveAllDocumentsAsync` reports a count of 0.
 > - **Bulk indexing**: Core's `IndexingServiceAsync.IndexMultipleDocumentsAsync` indexes one document at a time,
 >   so this provider's `BulkAsync` path is never used.
 >
@@ -93,5 +92,12 @@ Metadata fields such as `_id` and `_score` pass through unchanged.
 
 - **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
 - **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result`.
+
+## Checking an index exists
+
+`IndexExistsAsync` is success with `true` on a 200 and `false` on a 404. Any other answer, such as a 401, 403
+or 5xx, or no answer at all, is a failed `Result` carrying the request's debug information and, when there is
+one, the original exception. `EnsureIndexExistsAsync` returns that failure rather than trying to create the
+index.
 
 The [feature matrix](../feature-matrix.md) has the full detail.
