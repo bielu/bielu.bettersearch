@@ -1,6 +1,6 @@
 # BetterSearch Provider Feature Matrix
 
-What each provider really does today. This is a beta: see [ROADMAP.md](./ROADMAP.md) for the plan.
+What each provider really does today. This is a beta: see [roadmap](../../ROADMAP.md) for the plan.
 
 ✅ works · ⚠️ works with the caveat noted · ❌ not available
 
