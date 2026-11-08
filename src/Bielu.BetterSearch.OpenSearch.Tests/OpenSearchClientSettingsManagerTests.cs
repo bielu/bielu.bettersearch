@@ -316,6 +316,21 @@ public class OpenSearchClientSettingsManagerTests
     }
 
     [Fact]
+    public void GetConnectionSettings_AssignedIndexKeyCasingDiffers_UsesIndexSettings()
+    {
+        var options = new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings { ConnectionString = "http://shared:9200" },
+            Indexes = new Dictionary<string, OpenSearchIndexSettings>
+            {
+                ["People"] = new() { ConnectionString = "http://people:9200" },
+            },
+        };
+
+        CreateManager(options).GetConnectionSettings("people").ConnectionString.ShouldBe("http://people:9200");
+    }
+
+    [Fact]
     public void CreateClientSettings_MissingConnectionString_Throws() =>
         Should.Throw<ArgumentException>(() => GetSettings(new OpenSearchOptions()));
 

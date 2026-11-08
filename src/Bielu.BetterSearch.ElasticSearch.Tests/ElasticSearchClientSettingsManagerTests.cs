@@ -3,7 +3,6 @@ using Bielu.BetterSearch.ElasticSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
 using Shouldly;
 
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
@@ -11,7 +10,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Tests;
 public class ElasticSearchClientSettingsManagerTests
 {
     private static IElasticsearchClientSettings GetSettings(ElasticSearchOptions options, string index) =>
-        new ElasticSearchClientSettingsManager(new StaticOptionsMonitor(options)).GetOrCreateClientSettings(index);
+        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(options)).GetOrCreateClientSettings(index);
 
     [Fact]
     public void GetOrCreateClientSettings_BoundIndexKeyCasingDiffers_UsesIndexSettings()
@@ -29,6 +28,21 @@ public class ElasticSearchClientSettingsManagerTests
     }
 
     [Fact]
+    public void GetOrCreateClientSettings_AssignedIndexKeyCasingDiffers_UsesIndexSettings()
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings { ConnectionString = "http://shared:9200" },
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings>
+            {
+                ["People"] = new() { ConnectionString = "http://people:9200" },
+            },
+        };
+
+        GetSettings(options, "people").NodePool.Nodes.Single().Uri.ShouldBe(new Uri("http://people:9200"));
+    }
+
+    [Fact]
     public void GetOrCreateClientSettings_NoIndexSettings_UsesSharedConnectionString()
     {
         var options = new ElasticSearchOptions
@@ -37,14 +51,5 @@ public class ElasticSearchClientSettingsManagerTests
         };
 
         GetSettings(options, "people").NodePool.Nodes.Single().Uri.ShouldBe(new Uri("http://shared:9200"));
-    }
-
-    private sealed class StaticOptionsMonitor(ElasticSearchOptions options) : IOptionsMonitor<ElasticSearchOptions>
-    {
-        public ElasticSearchOptions CurrentValue => options;
-
-        public ElasticSearchOptions Get(string? name) => options;
-
-        public IDisposable? OnChange(Action<ElasticSearchOptions, string?> listener) => null;
     }
 }

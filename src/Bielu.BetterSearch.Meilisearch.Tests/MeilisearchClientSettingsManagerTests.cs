@@ -119,4 +119,22 @@ public class MeilisearchClientSettingsManagerTests
 
         GetSettings(options, "people").ConnectionString.ShouldBe("http://people:7700");
     }
+
+    [Fact]
+    public void GetOrCreateClientSettings_AssignedIndexKeyCasingDiffers_UsesIndexSettings()
+    {
+        var options = new MeilisearchOptions
+        {
+            SharedIndexSettings = new MeilisearchIndexSettings { ConnectionString = "http://shared:7700", ApiKey = "shared-key" },
+            Indexes = new Dictionary<string, MeilisearchIndexSettings>
+            {
+                ["People"] = new() { ConnectionString = "http://people:7700", ApiKey = "people-key" },
+            },
+        };
+
+        var settings = GetSettings(options, "people");
+
+        settings.ConnectionString.ShouldBe("http://people:7700");
+        settings.ApiKey.ShouldBe("people-key");
+    }
 }

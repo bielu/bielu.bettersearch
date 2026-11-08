@@ -19,13 +19,6 @@ public sealed class ElasticsearchSearchProviderTests(
     IPostFilterTranslateServiceAsync<EsQuery> postFilterTranslateService,
     IIndexingProviderAsync indexingProvider)
 {
-    private sealed class FixedOptionsMonitor(ElasticSearchOptions value) : IOptionsMonitor<ElasticSearchOptions>
-    {
-        public ElasticSearchOptions CurrentValue => value;
-        public ElasticSearchOptions Get(string? name) => value;
-        public IDisposable? OnChange(Action<ElasticSearchOptions, string?> listener) => null;
-    }
-
     private sealed class RejectingTranslateService : IQueryTranslateServiceAsync<EsQuery>
     {
         public Task<Result<EsQuery>> TranslateMainQueryAsync(ISearchQuery query) =>

@@ -6,11 +6,31 @@ public class OpenSearchOptions
 {
     public static string OpenSearchOptionsKey { get; } = "Bielu:BetterSearch:OpenSearch";
     public OpenSearchIndexSettings SharedIndexSettings { get; set; } = new();
+    private Dictionary<string, OpenSearchIndexSettings>? _indexes = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// Settings for single indexes, by index name. Names match whatever their case, as configuration keys do,
-    /// so <c>Indexes:People</c> applies to the index <c>people</c>.
+    /// so <c>Indexes:People</c> applies to the index <c>people</c>. An assigned dictionary is copied into a
+    /// case-insensitive one; when two of its keys differ only in case, the last one wins.
     /// </summary>
-    public Dictionary<string, OpenSearchIndexSettings>? Indexes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, OpenSearchIndexSettings>? Indexes
+    {
+        get => _indexes;
+        set => _indexes = value == null || value.Comparer == StringComparer.OrdinalIgnoreCase
+            ? value
+            : CaseInsensitiveCopy(value);
+    }
+
+    private static Dictionary<string, OpenSearchIndexSettings> CaseInsensitiveCopy(Dictionary<string, OpenSearchIndexSettings> indexes)
+    {
+        var copy = new Dictionary<string, OpenSearchIndexSettings>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, settings) in indexes)
+        {
+            copy[name] = settings;
+        }
+
+        return copy;
+    }
 
     /// <summary>
     /// The deepest result a search may page to, <c>(Page - 1) * PageSize + PageSize</c>. Match it to the
