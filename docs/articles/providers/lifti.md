@@ -70,7 +70,8 @@ There is nothing to configure.
   or retry deletes that are already done. A misspelled index name therefore goes unnoticed, unlike on the other
   providers.
 - **Cancellation**: a cancelled token throws `OperationCanceledException`, as on Elasticsearch. Any other
-  failure is a failed `Result` that keeps the exception as its cause.
+  exception is caught and returned as a failed `Result` that keeps the exception as its cause. A failed lookup
+  from `ILiftiIndexManager.GetIndexAsync` is returned with the manager's own errors, as supplied.
 - **Which index**: the index manager (`ILiftiIndexManager.GetIndexAsync`) says whether the index exists; the
   document is then removed from the index the registered `IClientFactoryAsync<IFullTextIndex<string>>` returns,
   the same one indexing writes to. A custom `ILiftiIndexManager` must implement `GetIndexAsync` and return
