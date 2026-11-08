@@ -64,24 +64,24 @@ using Bielu.BetterSearch.Abstractions.Services;
 
 public class PeopleSearch(IIndexingServiceAsync indexing, ISearchServiceAsync search)
 {
-    public async Task RunAsync()
+    public async Task RunAsync(CancellationToken cancellationToken)
     {
         await indexing.IndexDocumentAsync(new SearchDocument
         {
             Id = "1",
             Index = "people",
             Fields = new Dictionary<string, IList<object>> { ["Name"] = ["Jane Doe"] },
-        });
+        }, cancellationToken);
 
         var query = new SearchQuery { Index = "people", Page = 1, PageSize = 20 };
         query.Add(Occurance.MUST, new PrefixSubQuery { Field = "Name", Value = "ja" });
 
-        var result = await search.SearchAsync(query);
+        var result = await search.SearchAsync(query, cancellationToken);
         if (result.IsSuccess)
         {
             foreach (var hit in result.Value.Items)
             {
-                // hit.Key, hit.Score, ...
+                // hit.Document.Id, hit.Document.CustomProperties, hit.Score, ...
             }
         }
     }
@@ -89,8 +89,31 @@ public class PeopleSearch(IIndexingServiceAsync indexing, ISearchServiceAsync se
 ```
 
 `result` is a FluentResults `Result`: check `IsSuccess` before reading `Value`, and read `Errors` when a
-provider can't run the query. `Page` counts from 1. The [feature matrix](feature-matrix.md) compares every
-provider side by side.
+provider can't run the query. Each item is an `ISearchHit`: the stored `Document`, with its id unchanged, and
+the `Score` the engine gave it. `Page` counts from 1. A cancelled search throws `OperationCanceledException`
+rather than returning a failed `Result`. The [feature matrix](feature-matrix.md) compares every provider side
+by side.
+
+## Filter by culture
+
+To search one culture, index it in the plain `Culture` field and filter on it with the fluent API
+(`Bielu.BetterSearch.FluentApi`):
+
+```csharp
+using Bielu.BetterSearch.Abstractions.Fields;
+using Bielu.BetterSearch.FluentApi;
+using Bielu.BetterSearch.FluentApi.Fluent.Extensions;
+
+document.Fields[CultureField.Name] = [CultureField.Value("en-US")];
+
+var query = FluentApiSearchQueryCreator.Create()
+    .WithSearchQuery(search => search.WithIndex("pages"))
+    .CreateSearchQuery(search => search
+        .CreateTermQuery(term => term.WithField("Title").WithValue("welcome"))
+        .FilterByCulture("en-US"));
+```
+
+On Lifti the field is ignored, so a document holding the culture value in another field matches too.
 
 > [!NOTE]
 > Returning a failed `Result` instead of throwing is the contract every provider is moving to, but in this

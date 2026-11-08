@@ -13,7 +13,6 @@ which matches or doesn't, so hits aren't ranked. Paging, sorting and post filter
 > - **Relevance scores**: every hit has the same `Score`.
 > - **Facets and highlighting** can be expressed, but a query that asks for them returns a failed `Result`.
 > - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
-> - **Cancelling a search**: `SearchAsync` takes no `CancellationToken`.
 > - **Remove all documents** reports a count of 0 through the service.
 >
 > A missing connection string throws rather than returns a failed `Result`.

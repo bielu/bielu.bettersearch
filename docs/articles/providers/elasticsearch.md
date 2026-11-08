@@ -8,7 +8,6 @@ filters and scores.
 > **What won't work**
 >
 > - **Facets and highlighting** can be expressed, but a query that asks for them returns a failed `Result`.
-> - **Cancelling a search**: `SearchAsync` takes no `CancellationToken`.
 > - **Index operations report odd values**: creating an index the cluster rejects is success with `false`,
 >   deleting an index returns `false` even when it worked, a transport error reads as "index does not exist",
 >   and `RemoveAllDocumentsAsync` reports a count of 0.

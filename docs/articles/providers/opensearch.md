@@ -9,7 +9,6 @@ post filters and scores.
 > **What won't work**
 >
 > - **Facets and highlighting** can be expressed, but a query that asks for them returns a failed `Result`.
-> - **Cancelling a search**: `SearchAsync` takes no `CancellationToken`.
 > - **Bulk indexing**: `IndexMultipleDocumentsAsync` indexes one document at a time.
 > - **Remove all documents** reports a count of 0.
 

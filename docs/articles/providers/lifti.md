@@ -15,10 +15,13 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 > - **`LuceneQuery`** is not supported.
 > - **Fields are ignored**: term, terms, fuzzy, prefix and phrase prefix queries match the value in any field,
 >   and accented terms don't match.
-> - **Hits** only carry the document id, lower-cased, and `Score`; no stored fields.
+> - **Hits** only carry the document id and `Score`; no stored fields.
 > - **Persistence**: the index is lost on restart, and creating an index that exists replaces it, losing its
 >   documents.
-> - **Cancelling a search**: `SearchAsync` takes no `CancellationToken`.
+> - **Cancelling a running search**: the token is only checked before the search starts; once running, it
+>   runs to the end.
+> - **Culture filter** (`FilterByCulture`): the field is ignored, so a document holding the culture value in
+>   another field matches too.
 
 ## Install
 
