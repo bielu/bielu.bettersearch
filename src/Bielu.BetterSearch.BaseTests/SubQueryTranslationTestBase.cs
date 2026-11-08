@@ -34,8 +34,11 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
     protected abstract string Render(T translated);
 
     /// <summary>Translates under pl-PL, which writes 3.5 as "3,5", so a culture-dependent value shows in the result.</summary>
-    protected async Task<Result<T>> TranslateUnderCommaDecimalCultureAsync(ISearchSubQuery subQuery)
+    private async Task<Result<T>> TranslateUnderCommaDecimalCultureAsync(ISearchSubQuery subQuery)
     {
+        translators.Any(t => t.CanTranslate(subQuery))
+            .ShouldBeTrue($"because a translator should be able to translate {subQuery.GetType().Name}");
+
         var culture = CultureInfo.CurrentCulture;
         CultureInfo.CurrentCulture = new CultureInfo("pl-PL");
         try

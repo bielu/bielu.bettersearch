@@ -17,6 +17,7 @@ internal sealed class MeilisearchQueryTranslationTests(IEnumerable<ISubQueryTran
     public override async Task PrefixPhraseSubQuery_CommaDecimalCulture_SendsInvariantValue()
         => await SubQueryTranslationShouldFailAsync(new PrefixPhraseSubQuery { Field = "Name", Value = 3.5 });
 
+    // Meilisearch rejects every FuzzyQuery, whatever its value; see FuzzyQueryShouldBeTranslatable.
     public override async Task FuzzyQuery_CommaDecimalCulture_SendsInvariantValue()
         => await SubQueryTranslationShouldFailAsync(new FuzzyQuery { Field = "Name", Value = 3.5 });
 

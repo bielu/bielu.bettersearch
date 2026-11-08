@@ -1,4 +1,5 @@
-﻿using FluentResults;
+﻿using System.Globalization;
+using FluentResults;
 
 namespace Bielu.BetterSearch.OpenSearch.Services;
 
@@ -30,4 +31,7 @@ internal static class OpenSearchFieldNames
 
     /// <summary>The model's default boost is 1, and 0 means unset, so only other values are sent.</summary>
     public static double? Boost(int boostValue) => boostValue is > 0 and not 1 ? boostValue : null;
+
+    /// <summary>A query value as text, with the invariant culture, so <c>3.5</c> is sent as <c>3.5</c> on every machine.</summary>
+    public static string? Text(object? value) => Convert.ToString(value, CultureInfo.InvariantCulture);
 }

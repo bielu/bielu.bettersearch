@@ -40,4 +40,26 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
             CultureInfo.CurrentCulture = culture;
         }
     }
+
+    [Fact]
+    public async Task SearchAsync_TermForWholeDecimal_MatchesNothing()
+    {
+        // Lifti indexes "3.5" as the words "3" and "5", so the whole value is never one word. The feature
+        // matrix documents this; the test fails if Lifti starts matching it, so the docs get updated.
+        var index = $"culture-{Guid.NewGuid():N}";
+        var indexed = await indexingService.IndexDocumentAsync(new SearchDocument
+        {
+            Id = "1",
+            Index = index,
+            Fields = new Dictionary<string, IList<object>> { { "Price", [3.5] } }
+        }, TestContext.Current.CancellationToken);
+        indexed.IsSuccess.ShouldBeTrue();
+
+        var query = new SearchQuery { Index = index };
+        query.Add(Occurance.MUST, new TermSubQuery { Field = "Price", Value = 3.5 });
+        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+        result.Value.Items.ShouldBeEmpty();
+    }
 }

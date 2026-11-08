@@ -36,7 +36,7 @@ internal sealed class FuzzySubQueryTranslator : OpenSearchSubQueryTranslator<Fuz
         return Task.FromResult(Result.Ok<QueryContainer>(new MatchQuery
         {
             Field = field.Value,
-            Query = Convert.ToString(query.Value, System.Globalization.CultureInfo.InvariantCulture),
+            Query = OpenSearchFieldNames.Text(query.Value),
             Operator = Operator.And,
             Fuzziness = fuzziness,
             FuzzyTranspositions = query.Transposition,

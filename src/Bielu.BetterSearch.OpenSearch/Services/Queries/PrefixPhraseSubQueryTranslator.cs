@@ -1,5 +1,4 @@
-﻿using System.Globalization;
-using Bielu.BetterSearch.Abstractions.Query.SubQueries;
+﻿using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
 using OpenSearch.Client;
@@ -18,7 +17,7 @@ internal sealed class PrefixPhraseSubQueryTranslator : OpenSearchSubQueryTransla
             return Task.FromResult(field.ToResult<QueryContainer>());
         }
 
-        var value = Convert.ToString(query.Value, CultureInfo.InvariantCulture);
+        var value = OpenSearchFieldNames.Text(query.Value);
         if (string.IsNullOrEmpty(value))
         {
             return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(PrefixPhraseSubQuery)} needs a Value."));
