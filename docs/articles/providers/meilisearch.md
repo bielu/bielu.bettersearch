@@ -96,4 +96,11 @@ filterable and sortable attributes the provider needs to the index settings, kee
   and `_`; anything else returns a failed `Result`.
 - **Total hit count** is exact up to `MaxTotalHits` matches, then that number.
 
+## Removing documents
+
+`DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.
+
+- **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
+- **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result` with Meilisearch's error.
+
 The [feature matrix](../feature-matrix.md) has the full detail.
