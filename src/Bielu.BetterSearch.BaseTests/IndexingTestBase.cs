@@ -122,4 +122,84 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
             Type = document.Index,
         })).IsSuccess.ShouldBeTrue();
     }
+
+    private static CancellationToken Token => TestContext.Current.CancellationToken;
+
+    /// <summary>Counts the documents in <paramref name="index"/>, after whatever refresh the engine needs to see recent changes.</summary>
+    protected abstract Task<long> CountDocumentsAsync(string index);
+
+    /// <summary>
+    /// Whether removing a document from an index that does not exist succeeds. Lifti keeps indexes in memory, so a
+    /// missing index there is expected after a restart and holds no documents; the other engines report a caller mistake.
+    /// </summary>
+    protected virtual bool RemovingFromMissingIndexSucceeds => false;
+
+    [Fact]
+    public async Task RemoveDocumentAsync_MissingDocument_ReturnsSuccess()
+    {
+        //Arrange
+        var index = $"remove-{Guid.NewGuid():N}";
+        (await indexingProviderAsync.CreateIndexAsync(index, Token)).IsSuccess.ShouldBeTrue();
+        try
+        {
+            //Act
+            var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
+            {
+                Id = "never-indexed",
+                Type = index,
+            }, Token);
+
+            //Assert
+            result.IsSuccess.ShouldBeTrue();
+        }
+        finally
+        {
+            await indexingProviderAsync.DeleteIndexAsync(index, Token);
+        }
+    }
+
+    [Fact]
+    public async Task RemoveDocumentAsync_AlreadyRemovedDocument_ReturnsSuccess()
+    {
+        //Arrange
+        var index = $"remove-{Guid.NewGuid():N}";
+        var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = index, };
+        try
+        {
+            (await serviceAsync.IndexDocumentAsync(document, Token)).IsSuccess.ShouldBeTrue();
+            (await CountDocumentsAsync(index)).ShouldBe(1);
+            var request = new DeleteDocumentRequest() { Id = document.Id, Type = index, };
+            (await serviceAsync.RemoveDocumentAsync(request, Token)).IsSuccess.ShouldBeTrue();
+
+            //Act
+            var result = await serviceAsync.RemoveDocumentAsync(request, Token);
+
+            //Assert
+            result.IsSuccess.ShouldBeTrue();
+            // The document must really be gone, so a provider that succeeds without deleting can't pass.
+            (await CountDocumentsAsync(index)).ShouldBe(0);
+        }
+        finally
+        {
+            await indexingProviderAsync.DeleteIndexAsync(index, Token);
+        }
+    }
+
+    [Fact]
+    public async Task RemoveDocumentAsync_MissingIndex_ReturnsDocumentedResult()
+    {
+        //Arrange
+        var index = $"remove-{Guid.NewGuid():N}";
+
+        //Act
+        var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
+        {
+            Id = "1",
+            Type = index,
+        }, Token);
+
+        //Assert
+        result.IsSuccess.ShouldBe(RemovingFromMissingIndexSucceeds);
+        (await indexingProviderAsync.IndexExistsAsync(index, Token)).Value.ShouldBeFalse();
+    }
 }

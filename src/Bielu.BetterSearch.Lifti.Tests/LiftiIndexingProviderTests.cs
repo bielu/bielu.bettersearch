@@ -173,15 +173,6 @@ public sealed class LiftiIndexingProviderTests(IIndexingProviderAsync indexingPr
     }
 
     [Fact]
-    public async Task RemoveDocumentAsync_IndexCannotBeCreated_ReturnsFailedResult()
-    {
-        var result = await FailingProvider().RemoveDocumentAsync("1", "any", Token);
-
-        result.IsFailed.ShouldBeTrue();
-        result.Errors.Single().Message.ShouldBe("no index");
-    }
-
-    [Fact]
     public async Task RemoveAllDocumentsAsync_IndexCannotBeCreated_ReturnsFailedResult()
     {
         var result = await FailingProvider().RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "any" }, Token);
