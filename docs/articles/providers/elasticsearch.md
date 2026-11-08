@@ -13,8 +13,8 @@ filters and scores.
 >   and `RemoveAllDocumentsAsync` reports a count of 0.
 > - **Bulk indexing**: `IndexMultipleDocumentsAsync` indexes one document at a time.
 >
-> Invalid or missing connection settings throw from searching, indexing and deleting; only
-> `IndexExistsAsync` and `CreateIndexAsync` turn them into a failed `Result`.
+> Invalid or missing connection settings throw from searching; every indexing method turns them into a
+> failed `Result`.
 
 ## Install
 
