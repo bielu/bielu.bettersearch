@@ -52,7 +52,7 @@ public abstract class QueryResultBaseTests(
 
         foreach (var document in documents)
         {
-            await indexingServiceAsync.IndexDocumentAsync(document);
+            (await indexingServiceAsync.IndexDocumentAsync(document)).IsSuccess.ShouldBeTrue();
         }
 
         await DocumentsIndexedAsync(index);
@@ -91,15 +91,10 @@ public abstract class QueryResultBaseTests(
         //Assert
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldNotBeNull();
-        result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id).ShouldBe(["2", "3"]);
+        result.Value.Items.Select(item => item.Document.Id).Order(StringComparer.Ordinal).ShouldBe(["2", "3"]);
     }
 
-    private async Task<List<string>> SearchIdsAsync(SearchQuery query)
-    {
-        var result = await serviceAsync.SearchAsync(query);
-        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
-        return result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id).ToList();
-    }
+    private Task<List<string>> SearchIdsAsync(SearchQuery query) => serviceAsync.SearchIdsAsync(query);
 
     private async Task<SearchQuery> CreateQueryAsync()
     {
@@ -121,6 +116,7 @@ public abstract class QueryResultBaseTests(
         result.IsSuccess.ShouldBeTrue();
         result.Value.Items.Count().ShouldBe(2);
         result.Value.Items.ShouldAllBe(item => item.Score > 0);
+        result.Value.Pagination.TotalCount.ShouldBe(2);
     }
 
     [Fact]
@@ -142,6 +138,20 @@ public abstract class QueryResultBaseTests(
 
         // The query has no Index, which every provider rejects; the cancellation still wins.
         await Should.ThrowAsync<OperationCanceledException>(() => serviceAsync.SearchAsync(new SearchQuery(), cancellation.Token));
+    }
+
+    [Fact]
+    public virtual async Task SearchAsync_MissingIndex_ReturnsFailedResult()
+    {
+        var index = $"missing-{Guid.NewGuid():N}";
+        var query = new SearchQuery { Index = index };
+        query.Add(Occurance.MUST, Name("john"));
+
+        var result = await serviceAsync.SearchAsync(query);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldNotBeEmpty();
+        result.Errors.ShouldAllBe(error => !string.IsNullOrWhiteSpace(error.Message));
     }
 
     [Fact]
@@ -191,6 +201,11 @@ public abstract class QueryResultBaseTests(
             hit.Document.CustomProperties.ShouldContainKey("Tags");
             hit.Document.CustomProperties["Tags"].ShouldBeEmpty();
             hit.Document.CustomProperties["Labels"].ShouldBe(["a"]);
+        }
+        else
+        {
+            // Hits hold only the id, so the document is found by its other fields and carries none.
+            hit.Document.CustomProperties.ShouldBeEmpty();
         }
     }
 
@@ -261,6 +276,17 @@ public abstract class QueryResultBaseTests(
     [Fact]
     public virtual async Task SearchAsync_FluentCultureFilter_ReturnsOnlyThatCulture()
     {
+        var ids = await SearchFluentCultureFilterAsync();
+
+        ids.ShouldBe(["1"]);
+    }
+
+    /// <summary>
+    /// Indexes three pages in three cultures and returns the ids a fluent en-US culture filter finds.
+    /// Document 2's title holds the en-US culture value, so a filter that ignores its field matches it too.
+    /// </summary>
+    protected async Task<List<string>> SearchFluentCultureFilterAsync()
+    {
         var index = $"query-results-{Guid.NewGuid():N}";
         SearchDocument Page(string id, string title, string culture) => new()
         {
@@ -272,7 +298,6 @@ public abstract class QueryResultBaseTests(
                 { CultureField.Name, [CultureField.Value(culture)] }
             }
         };
-        // Document 2's title holds the en-US culture value, so a filter that ignores its field matches it too.
         var pages = new[]
         {
             Page("1", "Welcome page", "en-US"),
@@ -291,9 +316,7 @@ public abstract class QueryResultBaseTests(
                 .CreateTermQuery(term => term.WithField("Title").WithValue("welcome"))
                 .FilterByCulture("en-US"));
 
-        var ids = await SearchIdsAsync(query);
-
-        ids.ShouldBe(["1"]);
+        return await SearchIdsAsync(query);
     }
 
     [Fact]
