@@ -17,8 +17,9 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 >   and accented terms don't match.
 > - **Decimals and dates** are turned into text the same way on every machine and split into words at
 >   punctuation and spaces, so `3.5` is indexed as the words `3` and `5`. A term, terms or prefix query for a
->   whole decimal or date matches nothing, and a fuzzy one can match a different number (`3.5` is two edits
->   from `35`); query one of its words instead. Integers are one word and match.
+>   whole decimal or date matches nothing, and a fuzzy one for a decimal can match a different number (`3.5`
+>   is one edit from `35`); query one of its words instead, such as the day `08` of `11/08/2026 00:00:00`.
+>   Integers are one word and match.
 > - **Hits** only carry the document id and `Score`; no stored fields.
 > - **Persistence**: the index is lost on restart, and creating an index that exists replaces it, losing its
 >   documents.

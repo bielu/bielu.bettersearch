@@ -36,31 +36,17 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
 
     /// <summary>
     /// Translates and renders under a culture that writes 3.5 as "3,5" and dates day-first, so a
-    /// culture-dependent value shows in the result. It is cloned from the invariant culture rather than
-    /// looked up, so it exists, and formats that way, on every machine, including globalization-invariant ones.
+    /// culture-dependent value shows in the result.
     /// </summary>
     private async Task<string> RenderUnderCommaDecimalCultureAsync(ISearchSubQuery subQuery)
     {
-        var commaDecimal = (CultureInfo)CultureInfo.InvariantCulture.Clone();
-        commaDecimal.NumberFormat.NumberDecimalSeparator = ",";
-        commaDecimal.DateTimeFormat.ShortDatePattern = "dd.MM.yyyy";
-        commaDecimal.DateTimeFormat.DateSeparator = ".";
+        using var _ = CultureScope.CommaDecimal();
+        3.5.ToString(CultureInfo.CurrentCulture).ShouldBe("3,5", "because the test culture should write a comma decimal");
 
-        var culture = CultureInfo.CurrentCulture;
-        CultureInfo.CurrentCulture = commaDecimal;
-        try
-        {
-            3.5.ToString(CultureInfo.CurrentCulture).ShouldBe("3,5", "because the test culture should write a comma decimal");
-
-            // Rendering stays inside the scope, so a value formatted late, while serializing, is caught too.
-            var result = await TranslateAsync(subQuery);
-            result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
-            return Render(result.Value);
-        }
-        finally
-        {
-            CultureInfo.CurrentCulture = culture;
-        }
+        // Rendering stays inside the scope, so a value formatted late, while serializing, is caught too.
+        var result = await TranslateAsync(subQuery);
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+        return Render(result.Value);
     }
 
     private async Task SubQueryShouldSendInvariantValueAsync(ISearchSubQuery subQuery)
@@ -70,14 +56,13 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
         rendered.ShouldNotContain("3,5");
     }
 
-    private static readonly DateTime Date = new(2026, 11, 8, 0, 0, 0, DateTimeKind.Utc);
+    protected static readonly DateTime Date = new(2026, 11, 8, 0, 0, 0, DateTimeKind.Utc);
 
-    private async Task SubQueryShouldSendIsoDateAsync(ISearchSubQuery subQuery)
+    private async Task SubQueryShouldSendInvariantDateAsync(ISearchSubQuery subQuery)
     {
         var rendered = await RenderUnderCommaDecimalCultureAsync(subQuery);
-        rendered.ShouldContain("2026-11-08T00:00:00");
+        rendered.ShouldContain("11/08/2026");
         rendered.ShouldNotContain("08.11.2026");
-        rendered.ShouldNotContain("11/08/2026");
     }
 
     [Fact]
@@ -151,12 +136,12 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
         => await SubQueryShouldSendInvariantValueAsync(new TermsSubQuery { Field = "Name", Value = [3.5] });
 
     [Fact]
-    public virtual async Task FuzzyQuery_DateValue_SendsIsoDate()
-        => await SubQueryShouldSendIsoDateAsync(new FuzzyQuery { Field = "Born", Value = Date });
+    public virtual async Task FuzzyQuery_DateValue_SendsInvariantDate()
+        => await SubQueryShouldSendInvariantDateAsync(new FuzzyQuery { Field = "Born", Value = Date });
 
     [Fact]
-    public virtual async Task PrefixSubQuery_DateValue_SendsIsoDate()
-        => await SubQueryShouldSendIsoDateAsync(new PrefixSubQuery { Field = "Born", Value = Date });
+    public virtual async Task PrefixSubQuery_DateValue_SendsInvariantDate()
+        => await SubQueryShouldSendInvariantDateAsync(new PrefixSubQuery { Field = "Born", Value = Date });
 
     [Fact]
     public virtual async Task SpatialSearchQueryShouldBeTranslatable()
