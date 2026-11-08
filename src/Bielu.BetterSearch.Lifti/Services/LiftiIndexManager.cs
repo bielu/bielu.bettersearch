@@ -24,7 +24,7 @@ public class LiftiIndexManager : ILiftiIndexManager
                 .WithDynamicFields("Fields",
                     c => c.Fields.ToDictionary(
                         x => x.Key,
-                        x => string.Join(" ", x.Value)
+                        x => string.Join(" ", x.Value.Select(LiftiText.From))
                     )
                 )
         ).Build();

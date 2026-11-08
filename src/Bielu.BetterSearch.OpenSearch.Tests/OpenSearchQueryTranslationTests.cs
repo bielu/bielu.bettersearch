@@ -8,6 +8,8 @@ namespace Bielu.BetterSearch.OpenSearch.Tests;
 public sealed class OpenSearchQueryTranslationTests(IEnumerable<ISubQueryTranslator<QueryContainer>> translators)
     : SubQueryTranslationTestBase<QueryContainer>(translators)
 {
+    private static readonly IOpenSearchSerializer Serializer = new OpenSearchClient().RequestResponseSerializer;
+
     protected override string Render(QueryContainer translated)
-        => new OpenSearchClient().RequestResponseSerializer.SerializeToString(new SearchRequest("people") { Query = translated });
+        => Serializer.SerializeToString(new SearchRequest("people") { Query = translated });
 }

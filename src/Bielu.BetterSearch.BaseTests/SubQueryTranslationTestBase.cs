@@ -110,12 +110,24 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
     }
 
     [Fact]
+    public virtual async Task FuzzyQuery_CommaDecimalCulture_SendsInvariantValue()
+        => await SubQueryShouldSendInvariantValueAsync(new FuzzyQuery { Field = "Name", Value = 3.5 });
+
+    [Fact]
     public virtual async Task PrefixPhraseSubQuery_CommaDecimalCulture_SendsInvariantValue()
         => await SubQueryShouldSendInvariantValueAsync(new PrefixPhraseSubQuery { Field = "Name", Value = 3.5 });
 
     [Fact]
     public virtual async Task PrefixSubQuery_CommaDecimalCulture_SendsInvariantValue()
         => await SubQueryShouldSendInvariantValueAsync(new PrefixSubQuery { Field = "Name", Value = 3.5 });
+
+    [Fact]
+    public virtual async Task TermSubQuery_CommaDecimalCulture_SendsInvariantValue()
+        => await SubQueryShouldSendInvariantValueAsync(new TermSubQuery { Field = "Name", Value = 3.5 });
+
+    [Fact]
+    public virtual async Task TermsSubQuery_CommaDecimalCulture_SendsInvariantValue()
+        => await SubQueryShouldSendInvariantValueAsync(new TermsSubQuery { Field = "Name", Value = [3.5] });
 
     [Fact]
     public virtual async Task SpatialSearchQueryShouldBeTranslatable()
