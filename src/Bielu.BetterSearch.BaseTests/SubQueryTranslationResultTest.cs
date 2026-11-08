@@ -195,10 +195,10 @@ public abstract class QueryResultBaseTests(
     }
 
     [Fact]
-    public async Task SearchAsync_StoredNullFields_ReturnsTheHitWithNoFields()
+    public async Task SearchAsync_DocumentWithNullFields_ReturnsTheHitWithNoFields()
     {
         var index = $"query-results-{Guid.NewGuid():N}";
-        // SearchDocument turns null fields into an empty dictionary, so this stores a document with no fields.
+        // SearchDocument turns null fields into an empty dictionary, so this stores and reads back a document with no fields.
         (await indexingProviderAsync.IndexDocumentAsync(new SearchDocument
         {
             Id = "null-fields-1",
@@ -233,6 +233,7 @@ public abstract class QueryResultBaseTests(
                 { "Age", [25] },
                 { "Views", [5_000_000_000L] },
                 { "Rating", [4.5] },
+                { "Score", [3.0] },
                 { "Active", [true] }
             }
         })).IsSuccess.ShouldBeTrue();
@@ -252,6 +253,7 @@ public abstract class QueryResultBaseTests(
             fields["Age"].ShouldHaveSingleItem().ShouldBeOfType<long>().ShouldBe(25L);
             fields["Views"].ShouldHaveSingleItem().ShouldBeOfType<long>().ShouldBe(5_000_000_000L);
             fields["Rating"].ShouldHaveSingleItem().ShouldBeOfType<double>().ShouldBe(4.5);
+            fields["Score"].ShouldHaveSingleItem().ShouldBeOfType<double>().ShouldBe(3.0);
             fields["Active"].ShouldHaveSingleItem().ShouldBeOfType<bool>().ShouldBeTrue();
         }
     }

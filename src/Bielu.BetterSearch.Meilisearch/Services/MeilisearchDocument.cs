@@ -21,7 +21,9 @@ internal sealed partial class MeilisearchDocument
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("type")] public string? Type { get; set; }
     [JsonPropertyName("index")] public string? Index { get; set; }
-    [JsonPropertyName(MeilisearchFieldNames.Fields)] public IDictionary<string, IList<object>> Fields { get; set; } = new Dictionary<string, IList<object>>();
+    [JsonPropertyName(MeilisearchFieldNames.Fields)]
+    [JsonConverter(typeof(MeilisearchFieldsConverter))]
+    public IDictionary<string, IList<object>> Fields { get; set; } = new Dictionary<string, IList<object>>();
     [JsonPropertyName(MeilisearchFieldNames.Tokens)] public Dictionary<string, List<string>> Tokens { get; set; } = [];
     [JsonPropertyName(MeilisearchFieldNames.Phrases)] public Dictionary<string, List<string>> Phrases { get; set; } = [];
     [JsonPropertyName(MeilisearchFieldNames.Dates)] public Dictionary<string, List<long>> Dates { get; set; } = [];

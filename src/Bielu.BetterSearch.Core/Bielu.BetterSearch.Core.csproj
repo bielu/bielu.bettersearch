@@ -14,10 +14,4 @@
       <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     </ItemGroup>
 
-    <ItemGroup>
-      <InternalsVisibleTo Include="Bielu.BetterSearch.ElasticSearch" />
-      <InternalsVisibleTo Include="Bielu.BetterSearch.OpenSearch" />
-      <InternalsVisibleTo Include="Bielu.BetterSearch.Meilisearch" />
-    </ItemGroup>
-
 </Project>
