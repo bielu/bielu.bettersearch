@@ -2,7 +2,9 @@
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Elastic.Clients.Elasticsearch;
+using FluentResults;
 using Microsoft.Extensions.Options;
+using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.ElasticSearch.Services;
 
@@ -25,5 +27,26 @@ public class ElasticsearchClientFactory(IElasticSearchClientSettingsManager sear
         var client = _clients.GetOrAdd(key, settingsKey => new Lazy<ElasticsearchClient>(() =>
             new ElasticsearchClient(searchClientSettingsManager.GetOrCreateClientSettings(settingsKey))));
         return Task.FromResult(client.Value);
+    }
+}
+
+internal static class ElasticsearchClientFactoryExtensions
+{
+    /// <summary>Gets the index's client, or a failed <see cref="Result"/> that keeps the exception when it cannot be created.</summary>
+    /// <remarks>
+    /// Throws when <paramref name="cancellationToken"/> is cancelled: the Elasticsearch transport reports a cancelled
+    /// request as a failed response rather than throwing, so cancellation is checked before the request is made.
+    /// </remarks>
+    public static async Task<Result<ElasticsearchClient>> TryGetClientAsync(this IClientFactoryAsync<ElasticsearchClient> clientFactory, string indexName, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            return Result.Ok(await clientFactory.GetOrCreateClientAsync(indexName).ConfigureAwait(false));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result.Fail<ElasticsearchClient>(new Error(e.Message).CausedBy(e));
+        }
     }
 }

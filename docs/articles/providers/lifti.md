@@ -26,6 +26,8 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 >   documents.
 > - **Missing index**: searching an index that does not exist creates it and returns no hits, where the other
 >   providers return a failed `Result`.
+> - **Removing from a missing index succeeds**: `RemoveDocumentAsync` on an index that does not exist returns
+>   success, where the other providers return a failed `Result`. See [Removing documents](#removing-documents).
 > - **Cancelling a running search**: the token is only checked before the search starts; once running, it
 >   runs to the end.
 > - **Culture filter** (`FilterByCulture`): the field is ignored, so a document holding the culture value in
@@ -56,5 +58,16 @@ There is nothing to configure.
   clauses, returns a failed `Result`, as Lifti has no query for every document.
 - **`FILTER`** is treated as `MUST`, so it still scores.
 - **Total hit count** is exact.
+
+## Removing documents
+
+`DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.
+
+- **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
+- **An index that does not exist**: `RemoveDocumentAsync` succeeds and does not create the index. Lifti keeps
+  indexes in memory, so after a restart every index is missing until something writes to it; a missing index
+  holds no documents, so the document is already gone. Reporting a failure there would make callers log errors
+  or retry deletes that are already done. A misspelled index name therefore goes unnoticed, unlike on the other
+  providers.
 
 The [feature matrix](../feature-matrix.md) has the full detail.

@@ -94,6 +94,44 @@ the `Score` the engine gave it. `Page` counts from 1. A cancelled search throws 
 rather than returning a failed `Result`. The [feature matrix](feature-matrix.md) compares every provider side
 by side.
 
+## Watch indexing
+
+`IIndexingServiceAsync` is an `IObservable` of `SearchDocument`, `DeleteDocumentRequest` and
+`DeleteAllDocumentsRequest`. All three streams follow one contract:
+
+- `OnNext` is sent once for each operation that succeeded, after the provider has done it: a document indexed,
+  a document removed, an index emptied.
+- A document the validator rejects, or an operation the provider fails, sends nothing. The returned `Result`
+  carries the reason.
+- `OnError` is never sent. `OnCompleted` is sent once, when the service is disposed, so a stream stays open for
+  every operation the service performs. Dispose the value `Subscribe` returns to stop earlier. Subscribing after
+  the service is disposed sends `OnCompleted` straight away, and operations after it notify nobody.
+- An observer that throws is logged and skipped: the operation still returns its `Result`, and the other
+  observers are still notified. `Dispose` never throws.
+- Subscribing the same observer twice notifies it once, until both handles `Subscribe` returned are disposed.
+
+`ISearchServiceAsync` follows the same contract for `ISearchModel`: `OnNext` for each hit of a successful search.
+Both interfaces extend `IDisposable`. The DI scope owns the services and disposes them, which completes the
+streams for every subscriber in that scope, so don't dispose an injected service yourself: dispose the handle
+`Subscribe` returned to stop listening. Only code that creates a service itself, outside DI, should dispose it.
+
+Observers are called one at a time, and never after `OnCompleted`, only while the service isn't used
+concurrently. When one instance runs operations in parallel, for example
+`Task.WhenAll(documents.Select(indexing.IndexDocumentAsync))`, or is disposed while an operation runs, an observer
+can get overlapping `OnNext` calls, or one last `OnNext` after `OnCompleted`. In that case the observer must be
+thread-safe.
+
+```csharp
+using var subscription = indexing.Subscribe(new IndexedLogger());
+
+sealed class IndexedLogger : IObserver<SearchDocument>
+{
+    public void OnNext(SearchDocument document) => Console.WriteLine($"Indexed {document.Id}");
+    public void OnError(Exception error) { }
+    public void OnCompleted() { }
+}
+```
+
 ## Filter by culture
 
 To search one culture, index it in the plain `Culture` field and filter on it with the fluent API

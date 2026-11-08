@@ -21,7 +21,9 @@ internal sealed partial class MeilisearchDocument
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("type")] public string? Type { get; set; }
     [JsonPropertyName("index")] public string? Index { get; set; }
-    [JsonPropertyName(MeilisearchFieldNames.Fields)] public IDictionary<string, IList<object>> Fields { get; set; } = new Dictionary<string, IList<object>>();
+    [JsonPropertyName(MeilisearchFieldNames.Fields)]
+    [JsonConverter(typeof(MeilisearchFieldsConverter))]
+    public IDictionary<string, IList<object>> Fields { get; set; } = new Dictionary<string, IList<object>>();
     [JsonPropertyName(MeilisearchFieldNames.Tokens)] public Dictionary<string, List<string>> Tokens { get; set; } = [];
     [JsonPropertyName(MeilisearchFieldNames.Phrases)] public Dictionary<string, List<string>> Phrases { get; set; } = [];
     [JsonPropertyName(MeilisearchFieldNames.Dates)] public Dictionary<string, List<long>> Dates { get; set; } = [];
@@ -38,8 +40,7 @@ internal sealed partial class MeilisearchDocument
     /// <summary>The stored form of <paramref name="document"/>, with phrases for <paramref name="phraseFields"/>, or every field when <c>null</c>.</summary>
     public static Result<MeilisearchDocument> From(SearchDocument document, string? geoField, ICollection<string>? phraseFields = null)
     {
-        // A document whose fields are null is stored as one with no fields.
-        var fields = document.Fields ?? new Dictionary<string, IList<object>>();
+        var fields = document.Fields;
         var stored = new MeilisearchDocument { Id = document.Id, Type = document.Type, Index = document.Index, Fields = fields };
         if (geoField != null && fields.TryGetValue(geoField, out var locations) && locations is { Count: > 0 })
         {

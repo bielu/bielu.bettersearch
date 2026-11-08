@@ -11,10 +11,11 @@ filters and scores.
 > - **Index operations report odd values**: creating an index the cluster rejects is success with `false`,
 >   deleting an index returns `false` even when it worked, a transport error reads as "index does not exist",
 >   and `RemoveAllDocumentsAsync` reports a count of 0.
-> - **Bulk indexing**: `IndexMultipleDocumentsAsync` indexes one document at a time.
+> - **Bulk indexing**: Core's `IndexingServiceAsync.IndexMultipleDocumentsAsync` indexes one document at a time,
+>   so this provider's `BulkAsync` path is never used.
 >
-> Invalid or missing connection settings throw from searching, indexing and deleting; only
-> `IndexExistsAsync` and `CreateIndexAsync` turn them into a failed `Result`.
+> Invalid or missing connection settings throw from searching; every indexing method turns them into a
+> failed `Result`.
 
 ## Install
 
@@ -85,5 +86,12 @@ Metadata fields such as `_id` and `_score` pass through unchanged.
 - **`FuzzyQuery`** allows at most 2 edits, and uses `AUTO` when `Fuziness` is unset.
 - **`TermsQuery`** with more than 65,536 terms (`index.max_terms_count`) returns a failed `Result`.
 - **Total hit count** is exact up to `MaxResultWindow` matches, then a lower bound.
+
+## Removing documents
+
+`DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.
+
+- **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
+- **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result`.
 
 The [feature matrix](../feature-matrix.md) has the full detail.
