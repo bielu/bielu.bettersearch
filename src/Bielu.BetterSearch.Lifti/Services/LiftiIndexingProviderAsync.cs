@@ -45,26 +45,29 @@ public class LiftiIndexingProviderAsync(
 
     public async Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             // Lifti indexes live in memory, so after a restart an index is missing until something writes to it.
             // A missing index holds no documents, so the document is already gone; the index is not created.
-            var index = await liftiIndexManager.GetIndexAsync(type).ConfigureAwait(false);
-            if (index.IsFailed)
+            var lookup = await liftiIndexManager.GetIndexAsync(type).ConfigureAwait(false);
+            if (lookup.IsFailed)
             {
-                return index.ToResult();
+                return lookup.ToResult();
             }
 
-            if (index.Value is not null)
+            if (lookup.Value is not null)
             {
-                await index.Value.RemoveAsync(id, cancellationToken).ConfigureAwait(false);
+                // The index is taken from the client factory, as every other write does, so a custom factory is honoured.
+                var index = await clientFactory.GetOrCreateClientAsync(type).ConfigureAwait(false);
+                await index.RemoveAsync(id, cancellationToken).ConfigureAwait(false);
             }
 
             return Result.Ok();
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
-            return Result.Fail(e.Message);
+            return Result.Fail(new Error(e.Message).CausedBy(e));
         }
     }
 

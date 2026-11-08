@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Lifti.Services;
+﻿using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Lifti.Services;
 using FluentResults;
 using Lifti;
 using Shouldly;
@@ -32,9 +33,63 @@ public class RemoveDocumentUnitTests
     }
 
     [Fact]
-    public async Task GetIndexAsync_DefaultImplementation_MissingIndex_ReturnsNull()
+    public async Task RemoveDocumentAsync_CustomClientFactory_RemovesFromTheFactoryIndex()
     {
-        ILiftiIndexManager manager = new DefaultLookupLiftiIndexManagerWrapper(new LiftiIndexManager());
+        var manager = new LiftiIndexManager();
+        var managerIndex = (await manager.GetOrCreateIndexAsync("test-index")).Value;
+        var factoryIndex = (await new LiftiIndexManager().GetOrCreateIndexAsync("test-index")).Value;
+        await managerIndex.AddAsync(Document("1"), TestContext.Current.CancellationToken);
+        await factoryIndex.AddAsync(Document("1"), TestContext.Current.CancellationToken);
+        var provider = new LiftiIndexingProviderAsync(new StubClientFactory(() => factoryIndex), manager);
+
+        var result = await provider.RemoveDocumentAsync("1", "test-index", TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        factoryIndex.Count.ShouldBe(0);
+        managerIndex.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RemoveDocumentAsync_ClientFactoryThrows_ReturnsFailureCausedByTheException()
+    {
+        var manager = new LiftiIndexManager();
+        await manager.GetOrCreateIndexAsync("test-index");
+        var exception = new InvalidOperationException("factory failed");
+        var provider = new LiftiIndexingProviderAsync(new StubClientFactory(() => throw exception), manager);
+
+        var result = await provider.RemoveDocumentAsync("1", "test-index", TestContext.Current.CancellationToken);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldBe("factory failed");
+        result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeSameAs(exception);
+    }
+
+    [Fact]
+    public async Task RemoveDocumentAsync_Cancelled_Throws()
+    {
+        var manager = new LiftiIndexManager();
+        await manager.GetOrCreateIndexAsync("test-index");
+        var provider = new LiftiIndexingProviderAsync(new LiftiClientFactoryAsync(manager), manager);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(() => provider.RemoveDocumentAsync("1", "test-index", cancellation.Token));
+    }
+
+    [Fact]
+    public async Task RemoveDocumentAsync_FactoryThrowsCancellation_Rethrows()
+    {
+        var manager = new LiftiIndexManager();
+        await manager.GetOrCreateIndexAsync("test-index");
+        var provider = new LiftiIndexingProviderAsync(new StubClientFactory(() => throw new OperationCanceledException()), manager);
+
+        await Should.ThrowAsync<OperationCanceledException>(() => provider.RemoveDocumentAsync("1", "test-index", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task GetIndexAsync_MissingIndex_ReturnsNullWithoutCreatingIndex()
+    {
+        var manager = new LiftiIndexManager();
 
         var result = await manager.GetIndexAsync("test-index");
 
@@ -44,11 +99,10 @@ public class RemoveDocumentUnitTests
     }
 
     [Fact]
-    public async Task GetIndexAsync_DefaultImplementation_ExistingIndex_ReturnsIndex()
+    public async Task GetIndexAsync_ExistingIndex_ReturnsIndex()
     {
-        var inner = new LiftiIndexManager();
-        var created = (await inner.GetOrCreateIndexAsync("test-index")).Value;
-        ILiftiIndexManager manager = new DefaultLookupLiftiIndexManagerWrapper(inner);
+        var manager = new LiftiIndexManager();
+        var created = (await manager.GetOrCreateIndexAsync("test-index")).Value;
 
         var result = await manager.GetIndexAsync("test-index");
 
@@ -56,27 +110,15 @@ public class RemoveDocumentUnitTests
         result.Value.ShouldBeSameAs(created);
     }
 
-    [Fact]
-    public async Task GetIndexAsync_DefaultImplementation_ExistsFails_ReturnsOriginalErrors()
+    private static SearchDocument Document(string id) => new()
     {
-        ILiftiIndexManager manager = new DefaultLookupLiftiIndexManagerWrapper(new LiftiIndexManager(), existsError: "exists failed");
+        Id = id,
+        Index = "test-index",
+        Fields = new Dictionary<string, IList<object>> { { "Name", ["alpha"] } }
+    };
 
-        var result = await manager.GetIndexAsync("test-index");
-
-        result.IsFailed.ShouldBeTrue();
-        result.Errors.Select(e => e.Message).ShouldBe(["exists failed"]);
-    }
-
-    /// <summary>Implements every member except <see cref="ILiftiIndexManager.GetIndexAsync"/>, so the default is used.</summary>
-    private sealed class DefaultLookupLiftiIndexManagerWrapper(LiftiIndexManager inner, string? existsError = null) : ILiftiIndexManager
+    private sealed class StubClientFactory(Func<IFullTextIndex<string>> getIndex) : IClientFactoryAsync<IFullTextIndex<string>>
     {
-        public Task<Result<IFullTextIndex<string>>> GetOrCreateIndexAsync(string key) => inner.GetOrCreateIndexAsync(key);
-
-        public Task<Result<IFullTextIndex<string>?>> CreateIndexAsync(string key) => inner.CreateIndexAsync(key);
-
-        public Task<Result<bool>> ExistsAsync(string name) =>
-            existsError is null ? inner.ExistsAsync(name) : Task.FromResult(Result.Fail<bool>(existsError));
-
-        public Task<Result<bool>> DeleteIndexAsync(string name) => inner.DeleteIndexAsync(name);
+        public Task<IFullTextIndex<string>> GetOrCreateClientAsync(string indexName) => Task.FromResult(getIndex());
     }
 }

@@ -69,5 +69,11 @@ There is nothing to configure.
   holds no documents, so the document is already gone. Reporting a failure there would make callers log errors
   or retry deletes that are already done. A misspelled index name therefore goes unnoticed, unlike on the other
   providers.
+- **Cancellation**: a cancelled token throws `OperationCanceledException`, as on Elasticsearch. Any other
+  failure is a failed `Result` that keeps the exception as its cause.
+- **Which index**: the index manager (`ILiftiIndexManager.GetIndexAsync`) says whether the index exists; the
+  document is then removed from the index the registered `IClientFactoryAsync<IFullTextIndex<string>>` returns,
+  the same one indexing writes to. A custom `ILiftiIndexManager` must implement `GetIndexAsync` and return
+  `null`, without creating the index, when it does not exist.
 
 The [feature matrix](../feature-matrix.md) has the full detail.
