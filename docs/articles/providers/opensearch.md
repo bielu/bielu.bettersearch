@@ -9,7 +9,8 @@ post filters and scores.
 > **What won't work**
 >
 > - **Facets and highlighting** can be expressed, but a query that asks for them returns a failed `Result`.
-> - **Bulk indexing**: `IndexMultipleDocumentsAsync` indexes one document at a time.
+> - **Bulk indexing**: Core's `IndexingServiceAsync.IndexMultipleDocumentsAsync` indexes one document at a time,
+>   so this provider's `BulkAsync` path is never used.
 > - **Remove all documents** reports a count of 0.
 
 ## Install
@@ -80,6 +81,13 @@ Documents are stored with their values under `fields`, as with Elasticsearch, so
 - **`LuceneQuery`** field names need the `fields.` prefix.
 - **`FuzzyQuery`** allows at most 2 edits, and uses `AUTO` when `Fuziness` is unset.
 - **Total hit count** is exact up to `MaxResultWindow` matches, then a lower bound.
+
+## Removing documents
+
+`DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.
+
+- **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
+- **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result`.
 
 Unlike Elasticsearch, index operations report what happened: creating an existing index is success with
 `false`, and any other rejection, such as a 403, is a failed `Result`. The
