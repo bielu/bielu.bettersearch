@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <RootNamespace>Bielu.BetterSearch</RootNamespace>
@@ -12,6 +12,12 @@
       <PackageReference Include="Microsoft.Extensions.Configuration" />
       <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <InternalsVisibleTo Include="Bielu.BetterSearch.ElasticSearch" />
+      <InternalsVisibleTo Include="Bielu.BetterSearch.OpenSearch" />
+      <InternalsVisibleTo Include="Bielu.BetterSearch.Meilisearch" />
     </ItemGroup>
 
 </Project>

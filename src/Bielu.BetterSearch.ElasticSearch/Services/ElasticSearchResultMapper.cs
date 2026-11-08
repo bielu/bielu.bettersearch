@@ -1,6 +1,6 @@
-﻿using System.Text.Json;
-using Bielu.BetterSearch.Abstractions.Models;
+﻿using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.Core.Search;
 
@@ -23,20 +23,6 @@ public class ElasticSearchResultMapper : IResultMapper<SearchResponse<SearchDocu
     {
         Id = hit.Id ?? hit.Source?.Id ?? string.Empty,
         ContentType = hit.Source?.Type ?? string.Empty,
-        CustomProperties = hit.Source?.Fields?.ToDictionary(
-            field => field.Key,
-            field => field.Value?.Select(ToClrValue).Where(value => value is not null).ToList() ?? []) ?? []
+        CustomProperties = StoredFields.ToCustomProperties(hit.Source?.Fields)
     }, hit.Score);
-
-    /// <summary>Source values are deserialized as <see cref="JsonElement"/>; callers get plain values.</summary>
-    private static object ToClrValue(object? value) => value switch
-    {
-        JsonElement { ValueKind: JsonValueKind.String } element => element.GetString()!,
-        JsonElement { ValueKind: JsonValueKind.Number } element => element.TryGetInt64(out var number) ? (object)number : element.GetDouble(),
-        JsonElement { ValueKind: JsonValueKind.True } => true,
-        JsonElement { ValueKind: JsonValueKind.False } => false,
-        JsonElement { ValueKind: JsonValueKind.Null or JsonValueKind.Undefined } => null!,
-        JsonElement element => element.Clone(),
-        _ => value!
-    };
 }

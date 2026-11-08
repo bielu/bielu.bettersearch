@@ -38,8 +38,7 @@ internal sealed partial class MeilisearchDocument
     /// <summary>The stored form of <paramref name="document"/>, with phrases for <paramref name="phraseFields"/>, or every field when <c>null</c>.</summary>
     public static Result<MeilisearchDocument> From(SearchDocument document, string? geoField, ICollection<string>? phraseFields = null)
     {
-        // A document whose fields are null is stored as one with no fields.
-        var fields = document.Fields ?? new Dictionary<string, IList<object>>();
+        var fields = document.Fields;
         var stored = new MeilisearchDocument { Id = document.Id, Type = document.Type, Index = document.Index, Fields = fields };
         if (geoField != null && fields.TryGetValue(geoField, out var locations) && locations is { Count: > 0 })
         {

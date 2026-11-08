@@ -96,17 +96,15 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
         }
     }
 
-    /// <summary>Fails when the document, its fields, a field or a value in a field is <c>null</c>.</summary>
+    /// <summary>
+    /// Fails when the document, a field or a value in a field is <c>null</c>. <c>null</c> fields can't reach here,
+    /// as <see cref="SearchDocument.Fields"/> turns them into an empty dictionary.
+    /// </summary>
     private static Result CheckNullFields(SearchDocument document)
     {
         if (document is null)
         {
             return Result.Fail("A document is null.");
-        }
-
-        if (document.Fields is null)
-        {
-            return Result.Fail($"Document {document.Id} has null fields; use an empty dictionary for a document with no fields.");
         }
 
         var nullFields = new List<string>();

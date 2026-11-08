@@ -22,7 +22,7 @@ public class LiftiIndexManager : ILiftiIndexManager
         var index = new FullTextIndexBuilder<string>().WithObjectTokenization<SearchDocument>(options =>
             options.WithKey(x => x.Id)
                 .WithDynamicFields("Fields",
-                    c => (c.Fields ?? new Dictionary<string, IList<object>>()).ToDictionary(
+                    c => c.Fields.ToDictionary(
                         x => x.Key,
                         x => string.Join(" ", x.Value ?? [])
                     )
