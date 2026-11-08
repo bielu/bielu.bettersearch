@@ -74,6 +74,8 @@ Metadata fields such as `_id` and `_score` pass through unchanged.
 
 - **Text fields are analyzed.** `TermQuery` and `PrefixQuery` match analyzed tokens and ignore ASCII case only
   (`Żółw` does not match `żółw`). Use `Field.keyword` to match the whole value.
+- **`PrefixQuery` needs a text or keyword field, and `PrefixPhraseQuery` a text field.** On a field holding
+  numbers or dates, Elasticsearch rejects the query and the search returns a failed `Result`.
 - **`StringRange` bounds are case-sensitive.** They are compared to the indexed tokens as given, so on an
   analyzed field, whose tokens are lower-cased, `"a"`–`"z"` matches `Jane` but `"A"`–`"Z"` doesn't. Pass
   lower-case bounds, or use `Field.keyword` to compare whole values.

@@ -8,6 +8,8 @@ namespace Bielu.BetterSearch.Lifti.Tests;
 
 public class QueryTranslationUnitTests(IEnumerable<ISubQueryTranslator<IQuery>> translators) : SubQueryTranslationTestBase<IQuery>(translators)
 {
+    protected override string Render(IQuery translated) => translated.ToString() ?? string.Empty;
+
     [Fact]
     public override async Task DateRangeQueryShouldBeTranslatable()
         => await SubQueryTranslationShouldFailAsync(new DateRangeQuery());

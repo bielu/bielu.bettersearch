@@ -1,6 +1,8 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+﻿using System.Globalization;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using FluentResults;
 using Shouldly;
 
 namespace Bielu.BetterSearch.Tests;
@@ -8,27 +10,62 @@ namespace Bielu.BetterSearch.Tests;
 // Each query is complete, as a caller would build it; a provider may reject an incomplete one.
 public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTranslator<T>> translators)
 {
-    private async Task SubQueryShouldBeTranslatableAsync(ISearchSubQuery subQuery)
+    private async Task<Result<T>> TranslateAsync(ISearchSubQuery subQuery)
     {
-        var canTranslate = translators.Any(t => t.CanTranslate(subQuery));
-        canTranslate.ShouldBeTrue($"because a translator should be able to translate {subQuery.GetType().Name}");
+        translators.Any(t => t.CanTranslate(subQuery))
+            .ShouldBeTrue($"because a translator should be able to translate {subQuery.GetType().Name}");
 
         var translator = translators.First(t => t.CanTranslate(subQuery));
-        var result = await translator.TranslateAsync(subQuery, translators);
+        return await translator.TranslateAsync(subQuery, translators);
+    }
+
+    private async Task SubQueryShouldBeTranslatableAsync(ISearchSubQuery subQuery)
+    {
+        var result = await TranslateAsync(subQuery);
         result.IsSuccess.ShouldBeTrue($"because translation of {subQuery.GetType().Name} should be successful");
         ((object?)result.Value).ShouldNotBeNull($"because translation of {subQuery.GetType().Name} should return a query");
     }
 
     protected async Task SubQueryTranslationShouldFailAsync(ISearchSubQuery subQuery)
     {
-        var canTranslate = translators.Any(t => t.CanTranslate(subQuery));
-        canTranslate.ShouldBeTrue($"because a translator should exist for {subQuery.GetType().Name} even if unsupported");
-
-        var translator = translators.First(t => t.CanTranslate(subQuery));
-        var result = await translator.TranslateAsync(subQuery, translators);
+        var result = await TranslateAsync(subQuery);
         result.IsFailed.ShouldBeTrue($"because {subQuery.GetType().Name} is not supported by this provider");
         result.Errors.ShouldNotBeEmpty();
         result.Errors[0].Message.ShouldNotBeNullOrWhiteSpace();
+    }
+
+    /// <summary>The translated query as text, as it is sent to the engine, so a test can check the values it carries.</summary>
+    protected abstract string Render(T translated);
+
+    /// <summary>
+    /// Translates and renders under a culture that writes 3.5 as "3,5" and dates day-first, so a
+    /// culture-dependent value shows in the result.
+    /// </summary>
+    private async Task<string> RenderUnderCommaDecimalCultureAsync(ISearchSubQuery subQuery)
+    {
+        using var _ = CultureScope.CommaDecimal();
+        3.5.ToString(CultureInfo.CurrentCulture).ShouldBe("3,5", "because the test culture should write a comma decimal");
+
+        // Rendering stays inside the scope, so a value formatted late, while serializing, is caught too.
+        var result = await TranslateAsync(subQuery);
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+        return Render(result.Value);
+    }
+
+    private async Task SubQueryShouldSendInvariantValueAsync(ISearchSubQuery subQuery)
+    {
+        var rendered = await RenderUnderCommaDecimalCultureAsync(subQuery);
+        rendered.ShouldContain("3.5");
+        rendered.ShouldNotContain("3,5");
+    }
+
+    protected static readonly DateTime Date = new(2026, 11, 8, 0, 0, 0, DateTimeKind.Utc);
+
+    private async Task SubQueryShouldSendInvariantDateAsync(ISearchSubQuery subQuery)
+    {
+        var rendered = await RenderUnderCommaDecimalCultureAsync(subQuery);
+        rendered.ShouldContain("11/08/2026");
+        rendered.ShouldNotContain("08.11.2026");
     }
 
     [Fact]
@@ -80,6 +117,34 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
         var subQuery = new PrefixSubQuery { Field = "Name", Value = "ja" };
         await SubQueryShouldBeTranslatableAsync(subQuery);
     }
+
+    [Fact]
+    public virtual async Task FuzzyQuery_CommaDecimalCulture_SendsInvariantValue()
+        => await SubQueryShouldSendInvariantValueAsync(new FuzzyQuery { Field = "Name", Value = 3.5 });
+
+    [Fact]
+    public virtual async Task PrefixPhraseSubQuery_CommaDecimalCulture_SendsInvariantValue()
+        => await SubQueryShouldSendInvariantValueAsync(new PrefixPhraseSubQuery { Field = "Name", Value = 3.5 });
+
+    [Fact]
+    public virtual async Task PrefixSubQuery_CommaDecimalCulture_SendsInvariantValue()
+        => await SubQueryShouldSendInvariantValueAsync(new PrefixSubQuery { Field = "Name", Value = 3.5 });
+
+    [Fact]
+    public virtual async Task TermSubQuery_CommaDecimalCulture_SendsInvariantValue()
+        => await SubQueryShouldSendInvariantValueAsync(new TermSubQuery { Field = "Name", Value = 3.5 });
+
+    [Fact]
+    public virtual async Task TermsSubQuery_CommaDecimalCulture_SendsInvariantValue()
+        => await SubQueryShouldSendInvariantValueAsync(new TermsSubQuery { Field = "Name", Value = [3.5] });
+
+    [Fact]
+    public virtual async Task FuzzyQuery_DateValue_SendsInvariantDate()
+        => await SubQueryShouldSendInvariantDateAsync(new FuzzyQuery { Field = "Born", Value = Date });
+
+    [Fact]
+    public virtual async Task PrefixSubQuery_DateValue_SendsInvariantDate()
+        => await SubQueryShouldSendInvariantDateAsync(new PrefixSubQuery { Field = "Born", Value = Date });
 
     [Fact]
     public virtual async Task SpatialSearchQueryShouldBeTranslatable()
