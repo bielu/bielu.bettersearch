@@ -111,7 +111,15 @@ by side.
 - Subscribing the same observer twice notifies it once, until both handles `Subscribe` returned are disposed.
 
 `ISearchServiceAsync` follows the same contract for `ISearchModel`: `OnNext` for each hit of a successful search.
-Both interfaces extend `IDisposable`, and the DI scope disposes the services it created.
+Both interfaces extend `IDisposable`. The DI scope owns the services and disposes them, which completes the
+streams for every subscriber in that scope, so don't dispose an injected service yourself: dispose the handle
+`Subscribe` returned to stop listening. Only code that creates a service itself, outside DI, should dispose it.
+
+Observers are called one at a time, and never after `OnCompleted`, only while the service isn't used
+concurrently. When one instance runs operations in parallel, for example
+`Task.WhenAll(documents.Select(indexing.IndexDocumentAsync))`, or is disposed while an operation runs, an observer
+can get overlapping `OnNext` calls, or one last `OnNext` after `OnCompleted`. In that case the observer must be
+thread-safe.
 
 ```csharp
 using var subscription = indexing.Subscribe(new IndexedLogger());

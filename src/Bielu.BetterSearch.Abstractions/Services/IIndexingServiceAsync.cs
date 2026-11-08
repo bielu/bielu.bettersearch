@@ -15,6 +15,17 @@ namespace Bielu.BetterSearch.Abstractions.Services;
 /// An observer that throws is logged and skipped: the operation still returns its own <see cref="Result"/>, and the
 /// other observers are still notified. Subscribing an observer that is already subscribed notifies it once, until
 /// every handle <c>Subscribe</c> returned for it is disposed.
+/// <para>
+/// Observers are called one at a time, and never after <see cref="IObserver{T}.OnCompleted"/>, only while the service
+/// is not used concurrently. When one instance runs operations in parallel, or is disposed while an operation runs,
+/// an observer can get overlapping <see cref="IObserver{T}.OnNext"/> calls, or one last
+/// <see cref="IObserver{T}.OnNext"/> after <see cref="IObserver{T}.OnCompleted"/>, so it must be thread-safe.
+/// </para>
+/// <para>
+/// The DI scope owns the service and disposes it, which completes the streams for every subscriber in that scope.
+/// Do not dispose an injected service yourself: dispose the handle <c>Subscribe</c> returned to stop listening. Only
+/// code that creates the service itself, outside DI, should dispose it.
+/// </para>
 /// </remarks>
 public interface IIndexingServiceAsync : IObservable<SearchDocument>, IObservable<DeleteDocumentRequest>, IObservable<DeleteAllDocumentsRequest>, IDisposable
 {
