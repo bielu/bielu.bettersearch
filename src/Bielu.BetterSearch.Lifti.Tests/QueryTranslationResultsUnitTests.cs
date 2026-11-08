@@ -3,7 +3,11 @@ using Bielu.BetterSearch.Tests;
 
 namespace Bielu.BetterSearch.Lifti.Tests;
 
-public class QueryTranslationResultsUnitTests(ISearchServiceAsync serviceAsync, IIndexingServiceAsync indexingServiceAsync) : QueryResultBaseTests(serviceAsync, indexingServiceAsync)
+public class QueryTranslationResultsUnitTests(
+    ISearchServiceAsync serviceAsync,
+    IIndexingServiceAsync indexingServiceAsync,
+    IIndexingProviderAsync indexingProviderAsync)
+    : QueryResultBaseTests(serviceAsync, indexingServiceAsync, indexingProviderAsync)
 {
     /// <summary>Lifti has no query for every document, so it cannot return the complement.</summary>
     [Fact]

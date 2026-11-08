@@ -28,6 +28,12 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
 
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
     {
+        var nullFields = document.Fields.Where(field => field.Value == null).Select(field => field.Key).ToList();
+        if (nullFields.Count > 0)
+        {
+            return Result.Fail($"Document {document.Id} has null fields ({string.Join(", ", nullFields)}); use an empty list for a field with no values.");
+        }
+
         var validationResult = await documentValidator.ValidateDocumentAsync(document, cancellationToken).ConfigureAwait(false);
         if (validationResult.IsFailed)
         {

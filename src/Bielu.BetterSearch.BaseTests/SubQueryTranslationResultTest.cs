@@ -8,7 +8,10 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.Tests;
 
-public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIndexingServiceAsync indexingServiceAsync)
+public abstract class QueryResultBaseTests(
+    ISearchServiceAsync serviceAsync,
+    IIndexingServiceAsync indexingServiceAsync,
+    IIndexingProviderAsync indexingProviderAsync)
 {
     private async Task CreateExampleDocumentsAsync(string index)
     {
@@ -148,6 +151,32 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
         var ids = await SearchIdsAsync(query);
 
         ids.ShouldBe(["Up-1"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_StoredNullField_ReturnsTheHitWithAnEmptyField()
+    {
+        var index = $"query-results-{Guid.NewGuid():N}";
+        // The service rejects a null field, so store it as another writer to the index would.
+        (await indexingProviderAsync.IndexDocumentAsync(new SearchDocument
+        {
+            Id = "null-1",
+            Index = index,
+            Fields = new Dictionary<string, IList<object>> { { "Name", ["Null Field"] }, { "Tags", null! } }
+        })).IsSuccess.ShouldBeTrue();
+        await DocumentsIndexedAsync(index);
+        var query = new SearchQuery { Index = index };
+        query.Add(Occurance.MUST, Name("null"));
+
+        var result = await serviceAsync.SearchAsync(query);
+
+        result.IsSuccess.ShouldBeTrue();
+        var hit = result.Value.Items.ShouldHaveSingleItem();
+        hit.Document.Id.ShouldBe("null-1");
+        if (hit.Document.CustomProperties.TryGetValue("Tags", out var tags))
+        {
+            tags.ShouldBeEmpty();
+        }
     }
 
     [Fact]

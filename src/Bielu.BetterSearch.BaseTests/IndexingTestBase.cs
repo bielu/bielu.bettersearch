@@ -61,6 +61,22 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         (await serviceAsync.IndexDocumentAsync(document)).IsSuccess.ShouldBeTrue();
     }
     [Fact]
+    public async Task IndexDocumentAsync_NullField_Fails()
+    {
+        var document = new SearchDocument
+        {
+            Id = "1",
+            Type = "TestDocument",
+            Index = "test-index-1",
+            Fields = new Dictionary<string, IList<object>> { { "Name", ["Jane"] }, { "Tags", null! } }
+        };
+
+        var result = await serviceAsync.IndexDocumentAsync(document);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Tags");
+    }
+    [Fact]
     public async Task IndexDocumentsAsyncTest()
     {
         //Arrange

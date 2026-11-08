@@ -39,7 +39,7 @@ internal sealed partial class MeilisearchDocument
     public static Result<MeilisearchDocument> From(SearchDocument document, string? geoField, ICollection<string>? phraseFields = null)
     {
         var stored = new MeilisearchDocument { Id = document.Id, Type = document.Type, Index = document.Index, Fields = document.Fields };
-        if (geoField != null && document.Fields.TryGetValue(geoField, out var locations) && locations.Count > 0)
+        if (geoField != null && document.Fields.TryGetValue(geoField, out var locations) && locations is { Count: > 0 })
         {
             if (locations.Count > 1 || ToGeoPoint(locations[0]) is not { } point)
             {
@@ -52,7 +52,7 @@ internal sealed partial class MeilisearchDocument
 
         foreach (var (name, values) in document.Fields)
         {
-            foreach (var value in values)
+            foreach (var value in values ?? [])
             {
                 if (value is string text)
                 {

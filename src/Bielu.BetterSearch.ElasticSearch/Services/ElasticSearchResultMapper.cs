@@ -8,7 +8,8 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 
 /// <summary>
 /// Maps hits to a <see cref="SearchHit"/> with their score, holding a <see cref="BaseSearchModel"/>: the
-/// document id unchanged, its type as <c>ContentType</c> and its fields as <c>CustomProperties</c>.
+/// document id unchanged, its type as <c>ContentType</c> and its fields as <c>CustomProperties</c>,
+/// a field stored as <c>null</c> becoming an empty list.
 /// </summary>
 public class ElasticSearchResultMapper : IResultMapper<SearchResponse<SearchDocument>>
 {
@@ -24,7 +25,7 @@ public class ElasticSearchResultMapper : IResultMapper<SearchResponse<SearchDocu
         ContentType = hit.Source?.Type ?? string.Empty,
         CustomProperties = hit.Source?.Fields.ToDictionary(
             field => field.Key,
-            field => field.Value.Select(ToClrValue).ToList()) ?? []
+            field => field.Value?.Select(ToClrValue).ToList() ?? []) ?? []
     }, hit.Score);
 
     /// <summary>Source values are deserialized as <see cref="JsonElement"/>; callers get plain values.</summary>

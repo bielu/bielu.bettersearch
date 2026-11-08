@@ -6,7 +6,8 @@ namespace Bielu.BetterSearch.OpenSearch.Services;
 
 /// <summary>
 /// Maps hits to a <see cref="SearchHit"/> with their score, holding a <see cref="BaseSearchModel"/>: the
-/// document id unchanged, its type as <c>ContentType</c> and its fields as <c>CustomProperties</c>.
+/// document id unchanged, its type as <c>ContentType</c> and its fields as <c>CustomProperties</c>,
+/// a field stored as <c>null</c> becoming an empty list.
 /// </summary>
 internal sealed class OpenSearchResultMapper : IResultMapper<ISearchResponse<SearchDocument>>
 {
@@ -22,6 +23,6 @@ internal sealed class OpenSearchResultMapper : IResultMapper<ISearchResponse<Sea
         ContentType = hit.Source?.Type ?? string.Empty,
         CustomProperties = hit.Source?.Fields.ToDictionary(
             field => field.Key,
-            field => field.Value.ToList()) ?? []
+            field => field.Value?.ToList() ?? []) ?? []
     }, hit.Score);
 }
