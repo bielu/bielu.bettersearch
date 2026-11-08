@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using OpenSearch.Net;
 using Shouldly;
@@ -298,6 +299,21 @@ public class OpenSearchClientSettingsManagerTests
                 },
             },
         }));
+
+    [Fact]
+    public void GetConnectionSettings_BoundIndexKeyCasingDiffers_UsesIndexSettings()
+    {
+        var options = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SharedIndexSettings:ConnectionString"] = "http://shared:9200",
+                ["Indexes:People:ConnectionString"] = "http://people:9200",
+            })
+            .Build()
+            .Get<OpenSearchOptions>()!;
+
+        CreateManager(options).GetConnectionSettings("people").ConnectionString.ShouldBe("http://people:9200");
+    }
 
     [Fact]
     public void CreateClientSettings_MissingConnectionString_Throws() =>

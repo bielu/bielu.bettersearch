@@ -6,7 +6,11 @@ public class OpenSearchOptions
 {
     public static string OpenSearchOptionsKey { get; } = "Bielu:BetterSearch:OpenSearch";
     public OpenSearchIndexSettings SharedIndexSettings { get; set; } = new();
-    public Dictionary<string, OpenSearchIndexSettings>? Indexes { get; set; }
+    /// <summary>
+    /// Settings for single indexes, by index name. Names match whatever their case, as configuration keys do,
+    /// so <c>Indexes:People</c> applies to the index <c>people</c>.
+    /// </summary>
+    public Dictionary<string, OpenSearchIndexSettings>? Indexes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// The deepest result a search may page to, <c>(Page - 1) * PageSize + PageSize</c>. Match it to the

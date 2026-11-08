@@ -6,7 +6,11 @@ public class MeilisearchOptions
 {
     public static string MeilisearchOptionsKey { get; } = "Bielu:BetterSearch:Meilisearch";
     public MeilisearchIndexSettings SharedIndexSettings { get; set; } = new();
-    public Dictionary<string, MeilisearchIndexSettings>? Indexes { get; set; }
+    /// <summary>
+    /// Settings for single indexes, by index name. Names match whatever their case, as configuration keys do,
+    /// so <c>Indexes:People</c> applies to the index <c>people</c>.
+    /// </summary>
+    public Dictionary<string, MeilisearchIndexSettings>? Indexes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// How long to wait for Meilisearch to finish a write. Meilisearch queues every write as a task;

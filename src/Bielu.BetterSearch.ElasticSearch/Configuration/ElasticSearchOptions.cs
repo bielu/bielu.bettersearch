@@ -6,7 +6,11 @@ public class ElasticSearchOptions
 {
     public static string ElasticSearchOptionsKey { get; } = "Bielu:BetterSearch:ElasticSearch";
     public ElasticSearchIndexSettings SharedIndexSettings { get; set; }
-    public Dictionary<string, ElasticSearchIndexSettings>? Indexes { get; set; }
+    /// <summary>
+    /// Settings for single indexes, by index name. Names match whatever their case, as configuration keys do,
+    /// so <c>Indexes:People</c> applies to the index <c>people</c>.
+    /// </summary>
+    public Dictionary<string, ElasticSearchIndexSettings>? Indexes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// The deepest result a search may page to, <c>(Page - 1) * PageSize + PageSize</c>. Match it to the

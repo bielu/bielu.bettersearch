@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.Meilisearch.Configuration;
 using Bielu.BetterSearch.Meilisearch.Services;
+using Microsoft.Extensions.Configuration;
 using Shouldly;
 
 namespace Bielu.BetterSearch.Meilisearch.Tests;
@@ -102,5 +103,20 @@ public class MeilisearchClientSettingsManagerTests
 
         second.ShouldBeSameAs(first);
         orders.ShouldNotBeSameAs(first);
+    }
+
+    [Fact]
+    public void GetOrCreateClientSettings_BoundIndexKeyCasingDiffers_UsesIndexSettings()
+    {
+        var options = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SharedIndexSettings:ConnectionString"] = "http://shared:7700",
+                ["Indexes:People:ConnectionString"] = "http://people:7700",
+            })
+            .Build()
+            .Get<MeilisearchOptions>()!;
+
+        GetSettings(options, "people").ConnectionString.ShouldBe("http://people:7700");
     }
 }
