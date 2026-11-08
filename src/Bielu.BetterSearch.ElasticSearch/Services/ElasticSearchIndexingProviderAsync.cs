@@ -44,9 +44,9 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
                 && (indexResult.IsSuccess() || indexResult.Result == Elastic.Clients.Elasticsearch.Result.NotFound);
             return removed ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
-            return Result.Fail(new Error(e.Message));
+            return Result.Fail(new Error(e.Message).CausedBy(e));
         }
     }
 

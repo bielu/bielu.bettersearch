@@ -3,6 +3,7 @@ using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
+using FluentResults;
 using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;
 
@@ -18,10 +19,9 @@ public sealed class ElasticsearchIndexingResponseTests
         public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName) => Task.FromResult(client);
     }
 
-    private sealed class ThrowingClientFactory : IClientFactoryAsync<ElasticsearchClient>
+    private sealed class ThrowingClientFactory(Exception exception) : IClientFactoryAsync<ElasticsearchClient>
     {
-        public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName) =>
-            throw new InvalidOperationException("bad connection string");
+        public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName) => throw exception;
     }
 
     private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode)
@@ -57,11 +57,21 @@ public sealed class ElasticsearchIndexingResponseTests
     [Fact]
     public async Task RemoveDocumentAsync_ClientFactoryThrows_ReturnsFailure()
     {
-        var provider = new ElasticSearchIndexingProviderAsync(new ThrowingClientFactory(), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
+        var exception = new InvalidOperationException("bad connection string");
+        var provider = new ElasticSearchIndexingProviderAsync(new ThrowingClientFactory(exception), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
 
         var result = await provider.RemoveDocumentAsync("1", "people", Token);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Select(e => e.Message).ShouldBe(["bad connection string"]);
+        result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeSameAs(exception);
+    }
+
+    [Fact]
+    public async Task RemoveDocumentAsync_Cancelled_ThrowsOperationCanceledException()
+    {
+        var provider = new ElasticSearchIndexingProviderAsync(new ThrowingClientFactory(new OperationCanceledException()), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
+
+        await Should.ThrowAsync<OperationCanceledException>(() => provider.RemoveDocumentAsync("1", "people", Token));
     }
 }
