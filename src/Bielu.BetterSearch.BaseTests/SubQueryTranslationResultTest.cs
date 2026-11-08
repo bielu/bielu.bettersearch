@@ -91,15 +91,10 @@ public abstract class QueryResultBaseTests(
         //Assert
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldNotBeNull();
-        result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id).ShouldBe(["2", "3"]);
+        result.Value.Items.Select(item => item.Document.Id).Order(StringComparer.Ordinal).ShouldBe(["2", "3"]);
     }
 
-    private async Task<List<string>> SearchIdsAsync(SearchQuery query)
-    {
-        var result = await serviceAsync.SearchAsync(query);
-        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
-        return result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id).ToList();
-    }
+    private Task<List<string>> SearchIdsAsync(SearchQuery query) => serviceAsync.SearchIdsAsync(query);
 
     private async Task<SearchQuery> CreateQueryAsync()
     {
@@ -143,6 +138,20 @@ public abstract class QueryResultBaseTests(
 
         // The query has no Index, which every provider rejects; the cancellation still wins.
         await Should.ThrowAsync<OperationCanceledException>(() => serviceAsync.SearchAsync(new SearchQuery(), cancellation.Token));
+    }
+
+    [Fact]
+    public virtual async Task SearchAsync_MissingIndex_ReturnsFailedResult()
+    {
+        var index = $"missing-{Guid.NewGuid():N}";
+        var query = new SearchQuery { Index = index };
+        query.Add(Occurance.MUST, Name("john"));
+
+        var result = await serviceAsync.SearchAsync(query);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldNotBeEmpty();
+        result.Errors.ShouldAllBe(error => !string.IsNullOrWhiteSpace(error.Message));
     }
 
     [Fact]

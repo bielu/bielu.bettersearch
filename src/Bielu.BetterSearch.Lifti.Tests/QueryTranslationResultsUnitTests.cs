@@ -28,6 +28,11 @@ public class QueryTranslationResultsUnitTests(
     public override async Task SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ReturnsEveryDocumentExceptTheExclusions() =>
         await SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ShouldFailAsync();
 
+    /// <summary>Known failure: searching a missing index creates it; <c>LiftiSearchTests</c> pins that behavior.</summary>
+    [Fact(Skip = "Lifti creates a missing index on search (ROADMAP.md, Confirmed defects: \"Searching a missing index creates it\")")]
+    public override async Task SearchAsync_MissingIndex_ReturnsFailedResult() =>
+        await base.SearchAsync_MissingIndex_ReturnsFailedResult();
+
     /// <summary>Known failure: Lifti ignores <c>Field</c> on a term query, so the filter also matches the title holding the culture value.</summary>
     [Fact(Skip = "Lifti ignores Field on a term query (ROADMAP.md, Confirmed defects: \"`Field` is ignored\")")]
     public override async Task SearchAsync_FluentCultureFilter_ReturnsOnlyThatCulture() =>

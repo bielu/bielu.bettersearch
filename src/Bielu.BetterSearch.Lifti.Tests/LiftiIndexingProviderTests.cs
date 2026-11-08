@@ -2,34 +2,19 @@
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Lifti.Services;
-using FluentResults;
-using Lifti;
 using Shouldly;
+using static Bielu.BetterSearch.Tests.SearchTestHelpers;
 
 namespace Bielu.BetterSearch.Lifti.Tests;
 
 /// <summary>Checks the Lifti indexing provider's own behavior, beyond what <c>IndexingTestBase</c> covers.</summary>
 public sealed class LiftiIndexingProviderTests(IIndexingProviderAsync indexingProvider, ISearchServiceAsync searchService, ILiftiIndexManager indexManager)
 {
-    /// <summary>An index manager that cannot create an index, so every write that needs one fails.</summary>
-    private sealed class FailingIndexManager : ILiftiIndexManager
-    {
-        public Task<Result<IFullTextIndex<string>>> GetOrCreateIndexAsync(string key) =>
-            Task.FromResult(Result.Fail<IFullTextIndex<string>>("no index"));
-
-        public Task<Result<IFullTextIndex<string>?>> CreateIndexAsync(string key) =>
-            Task.FromResult(Result.Fail<IFullTextIndex<string>?>("no index"));
-
-        public Task<Result<bool>> ExistsAsync(string name) => Task.FromResult(Result.Ok(false));
-
-        public Task<Result<bool>> DeleteIndexAsync(string name) => Task.FromResult(Result.Ok(false));
-    }
-
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     private static LiftiIndexingProviderAsync FailingProvider()
     {
-        var manager = new FailingIndexManager();
+        var manager = new FakeLiftiIndexManager("no index");
         return new LiftiIndexingProviderAsync(new LiftiClientFactoryAsync(manager), manager);
     }
 
@@ -40,14 +25,8 @@ public sealed class LiftiIndexingProviderTests(IIndexingProviderAsync indexingPr
         Fields = new Dictionary<string, IList<object>> { { "Name", [name] } }
     };
 
-    private async Task<List<string>> SearchIdsAsync(string index, string term)
-    {
-        var query = new SearchQuery { Index = index };
-        query.Add(Occurance.MUST, new TermSubQuery { Field = "Name", Value = term });
-        var result = await searchService.SearchAsync(query, Token);
-        result.IsSuccess.ShouldBeTrue();
-        return result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
-    }
+    private Task<List<string>> SearchIdsAsync(string index, string term) =>
+        searchService.SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = term }), Token);
 
     [Fact]
     public async Task IndexMultipleDocumentsAsync_ManyIndexes_IndexesEachIntoItsOwn()
@@ -82,17 +61,6 @@ public sealed class LiftiIndexingProviderTests(IIndexingProviderAsync indexingPr
 
         (await indexManager.GetOrCreateIndexAsync(index)).Value.Count.ShouldBe(1);
         (await SearchIdsAsync(index, "anything")).ShouldBeEmpty();
-    }
-
-    [Fact]
-    public async Task RemoveDocumentAsync_MissingDocument_ReturnsSuccess()
-    {
-        var index = $"index-{Guid.NewGuid():N}";
-        (await indexingProvider.IndexDocumentAsync(Document(index, "1", "alpha"), Token)).IsSuccess.ShouldBeTrue();
-
-        (await indexingProvider.RemoveDocumentAsync("missing", index, Token)).IsSuccess.ShouldBeTrue();
-
-        (await SearchIdsAsync(index, "alpha")).ShouldBe(["1"]);
     }
 
     [Fact]
@@ -181,6 +149,16 @@ public sealed class LiftiIndexingProviderTests(IIndexingProviderAsync indexingPr
         result.Errors.Single().Message.ShouldBe("no index");
     }
 
+    /// <summary>Removing creates no index, but a failed lookup of the index is passed up.</summary>
+    [Fact]
+    public async Task RemoveDocumentAsync_IndexLookupFails_ReturnsFailedResult()
+    {
+        var result = await FailingProvider().RemoveDocumentAsync("1", "any", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldBe("no index");
+    }
+
     [Fact]
     public async Task EnsureIndexExistsAsync_IndexCannotBeCreated_ReturnsFailedResult()
     {
@@ -202,7 +180,7 @@ public sealed class LiftiIndexingProviderTests(IIndexingProviderAsync indexingPr
     [Fact]
     public async Task SearchAsync_IndexCannotBeCreated_ReturnsFailedResult()
     {
-        var manager = new FailingIndexManager();
+        var manager = new FakeLiftiIndexManager("no index");
         var provider = new LiftiSearchProviderAsync(
             new LiftiQueryTranslatorService([]),
             manager,

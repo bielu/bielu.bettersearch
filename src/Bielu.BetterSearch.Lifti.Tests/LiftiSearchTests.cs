@@ -5,6 +5,7 @@ using Bielu.BetterSearch.Abstractions.Query.Highlighter;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Shouldly;
+using static Bielu.BetterSearch.Tests.SearchTestHelpers;
 
 namespace Bielu.BetterSearch.Lifti.Tests;
 
@@ -55,19 +56,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
         return index;
     }
 
-    private async Task<List<string>> SearchIdsAsync(SearchQuery query)
-    {
-        var result = await searchService.SearchAsync(query, Token);
-        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.Message)));
-        return result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
-    }
-
-    private static SearchQuery Query(string index, Occurance occurance, ISearchSubQuery subQuery)
-    {
-        var query = new SearchQuery { Index = index };
-        query.Add(occurance, subQuery);
-        return query;
-    }
+    private Task<List<string>> SearchIdsAsync(SearchQuery query) => searchService.SearchIdsAsync(query, Token);
 
     [Fact]
     public async Task SearchAsync_NoClauses_ReturnsNothing()
@@ -289,6 +278,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
         var result = await searchService.SearchAsync(Query(index, Occurance.MUST, nested), Token);
 
         result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain("does not support numeric range");
     }
 
     [Fact]
@@ -400,7 +390,10 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
         var query = Query(index, Occurance.MUST, new PrefixSubQuery { Field = "Name", Value = "j" });
-        query.Add(Occurance.MUSTNOT, new TermsSubQuery { Field = "Name", Value = ["smith", "jane"] });
+        // A nested bool holding only the exclusion, the exclusion-only branch of the bool builder.
+        var exclusion = new BoolSearchSubQuery();
+        exclusion.Add(Occurance.MUSTNOT, new TermsSubQuery { Field = "Name", Value = ["smith", "jane"] });
+        query.Add(Occurance.MUST, exclusion);
 
         var ids = await SearchIdsAsync(query);
 
