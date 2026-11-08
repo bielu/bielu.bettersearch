@@ -22,9 +22,9 @@ public class LiftiIndexManager : ILiftiIndexManager
         var index = new FullTextIndexBuilder<string>().WithObjectTokenization<SearchDocument>(options =>
             options.WithKey(x => x.Id)
                 .WithDynamicFields("Fields",
-                    c => c.Fields.ToDictionary(
+                    c => (c.Fields ?? new Dictionary<string, IList<object>>()).ToDictionary(
                         x => x.Key,
-                        x => string.Join(" ", x.Value.Select(LiftiText.From))
+                        x => string.Join(" ", (x.Value ?? []).Select(LiftiText.From))
                     )
                 )
         ).Build();
@@ -32,6 +32,9 @@ public class LiftiIndexManager : ILiftiIndexManager
         _indices[key] = index;
         return Task.FromResult(Result.Ok<IFullTextIndex<string>?>(index));
     }
+
+    public Task<Result<IFullTextIndex<string>?>> GetIndexAsync(string key) =>
+        Task.FromResult(Result.Ok(_indices.TryGetValue(key, out var index) ? index : null));
 
     public Task<Result<bool>> ExistsAsync(string name) => Task.FromResult(Result.Ok(_indices.ContainsKey(name)));
 

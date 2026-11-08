@@ -7,8 +7,9 @@ namespace Bielu.BetterSearch.OpenSearch.Tests;
 public sealed class OpenSearchQueryResultTests(
     ISearchServiceAsync serviceAsync,
     IIndexingServiceAsync indexingServiceAsync,
+    IIndexingProviderAsync indexingProviderAsync,
     IClientFactoryAsync<IOpenSearchClient> clientFactory)
-    : QueryResultBaseTests(serviceAsync, indexingServiceAsync)
+    : QueryResultBaseTests(serviceAsync, indexingServiceAsync, indexingProviderAsync)
 {
     protected override async Task DocumentsIndexedAsync(string index) =>
         await (await clientFactory.GetOrCreateClientAsync(index)).Indices.RefreshAsync(index);

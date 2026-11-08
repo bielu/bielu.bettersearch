@@ -138,9 +138,9 @@ public sealed class MeilisearchSearchProviderAsync(
     {
         Id = hit.Id,
         ContentType = hit.Type ?? string.Empty,
-        CustomProperties = hit.Fields.ToDictionary(
+        CustomProperties = hit.Fields?.ToDictionary(
             field => field.Key,
-            field => field.Value.Select(ToClrValue).ToList())
+            field => field.Value?.Select(ToClrValue).Where(value => value is not null).ToList() ?? []) ?? []
     }, hit.RankingScore);
 
     /// <summary>Values are deserialized as <see cref="JsonElement"/>; callers get plain values, as from Elasticsearch.</summary>

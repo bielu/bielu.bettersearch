@@ -55,7 +55,11 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
         }
 
         var response = await client.Value.DeleteAsync(new DeleteRequest(type, id), cancellationToken).ConfigureAwait(false);
-        return IsSuccess(response) ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
+        // Deletes are idempotent: a document that is not there is already gone. A missing index is still a failure,
+        // and OpenSearch reports it with a server error rather than a not_found result.
+        var removed = response.ServerError is null
+            && (response.IsValid || response.Result == global::OpenSearch.Client.Result.NotFound);
+        return removed ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
     }
 
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
