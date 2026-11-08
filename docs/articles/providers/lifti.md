@@ -19,6 +19,8 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 > - **Hits** only carry the document id and `Score`; no stored fields.
 > - **Persistence**: the index is lost on restart, and creating an index that exists replaces it, losing its
 >   documents.
+> - **Missing index**: searching an index that does not exist creates it and returns no hits, where the other
+>   providers return a failed `Result`.
 > - **Cancelling a running search**: the token is only checked before the search starts; once running, it
 >   runs to the end.
 > - **Culture filter** (`FilterByCulture`): the field is ignored, so a document holding the culture value in

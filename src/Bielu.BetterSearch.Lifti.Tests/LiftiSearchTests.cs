@@ -93,6 +93,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
         ids.ShouldBeEmpty();
     }
 
+    /// <summary>Known defect: searching a missing index creates it, where the other providers return a failed <c>Result</c>.</summary>
     [Fact]
     public async Task SearchAsync_MissingIndex_CreatesItAndReturnsNothing()
     {

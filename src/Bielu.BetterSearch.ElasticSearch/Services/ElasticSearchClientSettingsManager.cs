@@ -10,10 +10,12 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
 {
     public ElasticsearchClientSettings GetOrCreateClientSettings(string indexName)
     {
-        var indexSpecific = optionsMonitor.CurrentValue.Indexes?.FirstOrDefault(x => x.Key == indexName);
-        var shared = optionsMonitor.CurrentValue.SharedIndexSettings;
+        var options = optionsMonitor.CurrentValue;
+        var indexSpecific = options.Indexes != null && options.Indexes.TryGetValue(indexName, out var settings)
+            ? settings
+            : null;
 
-        return ParseSettings(indexSpecific?.Value, shared);
+        return ParseSettings(indexSpecific, options.SharedIndexSettings);
     }
 
     private static ElasticsearchClientSettings ParseSettings(ElasticSearchIndexSettings? indexSpecific,

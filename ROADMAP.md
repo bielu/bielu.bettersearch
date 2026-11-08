@@ -25,6 +25,7 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Lifti query | Accented terms never match: `Żółw` finds nothing, because terms are upper-cased by hand instead of using the index tokenizer | A match |
 | Lifti query | A `PrefixPhraseSubQuery` of more than one word matches nothing: `jane d` finds no `Jane Doe`, because the whole value is matched as one word prefix | The phrase prefix |
 | Lifti index | `CreateIndexAsync` on an existing index silently wipes its documents | An error or a no-op |
+| Lifti search | Searching a missing index creates it and returns no hits | A failed `Result`, as on the other providers, without creating the index |
 | Core | `RemoveAllDocumentsAsync` reports 0 removed, whatever the real count | The count |
 | Core | `IndexMultipleDocumentsAsync` indexes one at a time, so the provider bulk path is never used (*by inspection*) | Bulk indexing |
 | Core | `SearchApplicationConfiguration.CurrentInstance` is a process-wide mutable singleton shared by every `AddBetterSearch` call (*by inspection*) | Per-container configuration |

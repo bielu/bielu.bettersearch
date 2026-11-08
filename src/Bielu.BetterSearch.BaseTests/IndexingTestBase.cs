@@ -15,7 +15,7 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
 
         //Assert
-        (await indexingProviderAsync.IndexExistsAsync(index)).Value.ShouldBeTrue();
+        await IndexShouldExistAsync(index, true);
     }
     [Fact]
     public async Task CanDeleteIndexAsyncTest()
@@ -28,7 +28,7 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         (await indexingProviderAsync.DeleteIndexAsync(index)).IsSuccess.ShouldBeTrue();
 
         //Assert
-        (await indexingProviderAsync.IndexExistsAsync(index)).Value.ShouldBeFalse();
+        await IndexShouldExistAsync(index, false);
     }
     [Fact]
     public async Task CanCheckIfIndexExistsAsyncTest()
@@ -37,12 +37,8 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         var index = "test-index-1";
         (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
 
-        //Act
-        var exists = await indexingProviderAsync.IndexExistsAsync(index);
-
-        //Assert
-        exists.IsSuccess.ShouldBeTrue();
-        exists.Value.ShouldBeTrue();
+        //Act and Assert
+        await IndexShouldExistAsync(index, true);
     }
     [Fact]
     public async Task IndexExistsAsync_MissingIndex_ReturnsFalse()
@@ -50,12 +46,8 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         //Arrange
         var index = $"missing-{Guid.NewGuid():N}";
 
-        //Act
-        var exists = await indexingProviderAsync.IndexExistsAsync(index);
-
-        //Assert
-        exists.IsSuccess.ShouldBeTrue();
-        exists.Value.ShouldBeFalse();
+        //Act and Assert
+        await IndexShouldExistAsync(index, false);
     }
     [Fact]
     public async Task EnsureIndexWorksWhenIndexExistsAsyncTest()
@@ -68,19 +60,34 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
 
         //Assert
-        (await indexingProviderAsync.IndexExistsAsync(index)).Value.ShouldBeTrue();
+        await IndexShouldExistAsync(index, true);
     }
     [Fact]
     public async Task EnsureIndexWorksWhenIndexNotExistsAsyncTest()
     {
         //Arrange
         var index = $"ensure-{Guid.NewGuid():N}";
+        try
+        {
+            //Act
+            (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
 
-        //Act
-        (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
+            //Assert
+            await IndexShouldExistAsync(index, true);
+        }
+        finally
+        {
+            // Best-effort cleanup, so the shared engines don't keep the index.
+            await indexingProviderAsync.DeleteIndexAsync(index);
+        }
+    }
 
-        //Assert
-        (await indexingProviderAsync.IndexExistsAsync(index)).Value.ShouldBeTrue();
+    /// <summary>Checks <c>IndexExistsAsync</c> succeeds, showing the provider's errors when it does not, and that it reads <paramref name="expected"/>.</summary>
+    private async Task IndexShouldExistAsync(string index, bool expected)
+    {
+        var exists = await indexingProviderAsync.IndexExistsAsync(index);
+        exists.IsSuccess.ShouldBeTrue(string.Join("; ", exists.Errors.Select(error => error.Message)));
+        exists.Value.ShouldBe(expected);
     }
     [Fact]
     public async Task IndexDocumentAsyncTest()
@@ -90,6 +97,131 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
 
         //Act
         (await serviceAsync.IndexDocumentAsync(document)).IsSuccess.ShouldBeTrue();
+    }
+    [Fact]
+    public async Task IndexDocumentAsync_NullField_Fails()
+    {
+        var document = new SearchDocument
+        {
+            Id = "1",
+            Type = "TestDocument",
+            Index = "test-index-1",
+            Fields = new Dictionary<string, IList<object>> { { "Name", ["Jane"] }, { "Tags", null! } }
+        };
+
+        var result = await serviceAsync.IndexDocumentAsync(document);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Tags");
+    }
+    [Fact]
+    public async Task IndexDocumentAsync_NullFieldsDictionary_Fails()
+    {
+        var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index-1", Fields = null! };
+
+        var result = await serviceAsync.IndexDocumentAsync(document);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("empty dictionary");
+    }
+    [Fact]
+    public async Task IndexDocumentAsync_NullValueInField_Fails()
+    {
+        var document = new SearchDocument
+        {
+            Id = "1",
+            Type = "TestDocument",
+            Index = "test-index-1",
+            Fields = new Dictionary<string, IList<object>> { { "Name", ["Jane"] }, { "Tags", ["a", null!] } }
+        };
+
+        var result = await serviceAsync.IndexDocumentAsync(document);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Tags");
+    }
+    [Fact]
+    public async Task IndexDocumentAsync_NullField_CompletesObservers()
+    {
+        var observer = new RecordingObserver();
+        using var subscription = serviceAsync.Subscribe(observer);
+        var document = new SearchDocument
+        {
+            Id = "1",
+            Type = "TestDocument",
+            Index = "test-index-1",
+            Fields = new Dictionary<string, IList<object>> { { "Tags", null! } }
+        };
+
+        (await serviceAsync.IndexDocumentAsync(document)).IsFailed.ShouldBeTrue();
+
+        observer.Indexed.ShouldBeEmpty();
+        observer.Completed.ShouldBe(1);
+    }
+    [Fact]
+    public async Task IndexDocumentAsync_ObserverUnsubscribesOnCompleted_ReturnsFailedResult()
+    {
+        var observer = new UnsubscribingObserver();
+        observer.Subscription = serviceAsync.Subscribe(observer);
+        using var otherSubscription = serviceAsync.Subscribe(new RecordingObserver());
+        var document = new SearchDocument
+        {
+            Id = "1",
+            Type = "TestDocument",
+            Index = "test-index-1",
+            Fields = new Dictionary<string, IList<object>> { { "Tags", null! } }
+        };
+
+        var result = await serviceAsync.IndexDocumentAsync(document);
+
+        result.IsFailed.ShouldBeTrue();
+        observer.Completed.ShouldBe(1);
+    }
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_NullFieldInLaterDocument_IndexesNone()
+    {
+        var index = $"batch-{Guid.NewGuid():N}";
+        (await indexingProviderAsync.CreateIndexAsync(index, Token)).IsSuccess.ShouldBeTrue();
+        try
+        {
+            var observer = new RecordingObserver();
+            using var subscription = serviceAsync.Subscribe(observer);
+            var documents = new List<SearchDocument>
+            {
+                new() { Id = "1", Type = "TestDocument", Index = index },
+                new() { Id = "2", Type = "TestDocument", Index = index },
+                new()
+                {
+                    Id = "3",
+                    Type = "TestDocument",
+                    Index = index,
+                    Fields = new Dictionary<string, IList<object>> { { "Tags", null! } }
+                },
+            };
+
+            var result = await serviceAsync.IndexMultipleDocumentsAsync(documents, Token);
+
+            result.IsFailed.ShouldBeTrue();
+            result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Document 3");
+            observer.Indexed.ShouldBeEmpty();
+            observer.Completed.ShouldBe(1);
+            // Documents 1 and 2 must not have reached the engine either.
+            (await CountDocumentsAsync(index)).ShouldBe(0);
+        }
+        finally
+        {
+            await indexingProviderAsync.DeleteIndexAsync(index, Token);
+        }
+    }
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_NullDocument_Fails()
+    {
+        var documents = new List<SearchDocument> { new() { Id = "1", Type = "TestDocument", Index = "test-index-1" }, null! };
+
+        var result = await serviceAsync.IndexMultipleDocumentsAsync(documents);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("document is null");
     }
     [Fact]
     public async Task IndexDocumentsAsyncTest()
@@ -201,5 +333,28 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         //Assert
         result.IsSuccess.ShouldBe(RemovingFromMissingIndexSucceeds);
         (await indexingProviderAsync.IndexExistsAsync(index, Token)).Value.ShouldBeFalse();
+    }
+
+    /// <summary>Disposes its subscription when completed, as Rx observers commonly do.</summary>
+    private sealed class UnsubscribingObserver : IObserver<SearchDocument>
+    {
+        public IDisposable? Subscription { get; set; }
+        public int Completed { get; private set; }
+        public void OnCompleted()
+        {
+            Completed++;
+            Subscription?.Dispose();
+        }
+        public void OnError(Exception error) { }
+        public void OnNext(SearchDocument value) { }
+    }
+
+    private sealed class RecordingObserver : IObserver<SearchDocument>
+    {
+        public List<SearchDocument> Indexed { get; } = [];
+        public int Completed { get; private set; }
+        public void OnCompleted() => Completed++;
+        public void OnError(Exception error) { }
+        public void OnNext(SearchDocument value) => Indexed.Add(value);
     }
 }
