@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+﻿using System.Globalization;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
@@ -18,7 +19,7 @@ public class TermSubQueryTranslator : ISubQueryTranslator<IQuery>
             return Task.FromResult(Result.Fail<IQuery>("Query is not a term query"));
         }
 
-        var value = (termQuery.Value?.ToString() ?? string.Empty).ToUpperInvariant();
+        var value = (Convert.ToString(termQuery.Value, CultureInfo.InvariantCulture) ?? string.Empty).ToUpperInvariant();
         return Task.FromResult(Result.Ok<IQuery>(new Query(new ExactWordQueryPart(value))));
     }
 }

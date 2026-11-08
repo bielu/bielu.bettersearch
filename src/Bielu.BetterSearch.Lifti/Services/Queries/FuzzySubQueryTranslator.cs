@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+﻿using System.Globalization;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
@@ -18,7 +19,7 @@ public class FuzzySubQueryTranslator : ISubQueryTranslator<IQuery>
             return Task.FromResult(Result.Fail<IQuery>("Query is not a fuzzy query"));
         }
 
-        var value = (fuzzyQuery.Value?.ToString() ?? string.Empty).ToUpperInvariant();
+        var value = (Convert.ToString(fuzzyQuery.Value, CultureInfo.InvariantCulture) ?? string.Empty).ToUpperInvariant();
         ushort maxEdits = fuzzyQuery.Fuziness != null
             ? (ushort)Math.Max(fuzzyQuery.Fuziness.Item1, fuzzyQuery.Fuziness.Item2)
             : (ushort)2;

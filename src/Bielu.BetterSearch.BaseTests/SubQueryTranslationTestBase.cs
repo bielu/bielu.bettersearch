@@ -1,6 +1,8 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+﻿using System.Globalization;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using FluentResults;
 using Shouldly;
 
 namespace Bielu.BetterSearch.Tests;
@@ -26,6 +28,35 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
         var translator = translators.First(t => t.CanTranslate(subQuery));
         var result = await translator.TranslateAsync(subQuery, translators);
         result.IsFailed.ShouldBeTrue($"because {subQuery.GetType().Name} is not supported by this provider");
+    }
+
+    /// <summary>The translated query as text, as it is sent to the engine, so a test can check the values it carries.</summary>
+    protected abstract string Render(T translated);
+
+    /// <summary>Translates under pl-PL, which writes 3.5 as "3,5", so a culture-dependent value shows in the result.</summary>
+    protected async Task<Result<T>> TranslateUnderCommaDecimalCultureAsync(ISearchSubQuery subQuery)
+    {
+        var culture = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = new CultureInfo("pl-PL");
+        try
+        {
+            var translator = translators.First(t => t.CanTranslate(subQuery));
+            return await translator.TranslateAsync(subQuery, translators);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = culture;
+        }
+    }
+
+    private async Task SubQueryShouldSendInvariantValueAsync(ISearchSubQuery subQuery)
+    {
+        var result = await TranslateUnderCommaDecimalCultureAsync(subQuery);
+
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+        var rendered = Render(result.Value);
+        rendered.ShouldContain("3.5");
+        rendered.ShouldNotContain("3,5");
     }
 
     [Fact]
@@ -77,6 +108,14 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
         var subQuery = new PrefixSubQuery { Field = "Name", Value = "ja" };
         await SubQueryShouldBeTranslatableAsync(subQuery);
     }
+
+    [Fact]
+    public virtual async Task PrefixPhraseSubQuery_CommaDecimalCulture_SendsInvariantValue()
+        => await SubQueryShouldSendInvariantValueAsync(new PrefixPhraseSubQuery { Field = "Name", Value = 3.5 });
+
+    [Fact]
+    public virtual async Task PrefixSubQuery_CommaDecimalCulture_SendsInvariantValue()
+        => await SubQueryShouldSendInvariantValueAsync(new PrefixSubQuery { Field = "Name", Value = 3.5 });
 
     [Fact]
     public virtual async Task SpatialSearchQueryShouldBeTranslatable()

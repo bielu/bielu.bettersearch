@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+﻿using System.Globalization;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
@@ -18,7 +19,7 @@ public class PrefixPhraseSubQueryTranslator : ISubQueryTranslator<IQuery>
             return Task.FromResult(Result.Fail<IQuery>("Query is not a prefix phrase query"));
         }
 
-        var value = (prefixPhraseQuery.Value?.ToString() ?? string.Empty).ToUpperInvariant();
+        var value = (Convert.ToString(prefixPhraseQuery.Value, CultureInfo.InvariantCulture) ?? string.Empty).ToUpperInvariant();
         var part = new WildcardQueryPart(
             WildcardQueryFragment.CreateText(value),
             WildcardQueryFragment.MultiCharacter);

@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+﻿using System.Globalization;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
@@ -26,7 +27,7 @@ public class TermsSubQueryTranslator : ISubQueryTranslator<IQuery>
         IQueryPart? combined = null;
         foreach (var value in termsQuery.Value)
         {
-            var part = new ExactWordQueryPart((value?.ToString() ?? string.Empty).ToUpperInvariant());
+            var part = new ExactWordQueryPart((Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty).ToUpperInvariant());
             combined = combined == null ? part : new OrQueryOperator(combined, part);
         }
 
