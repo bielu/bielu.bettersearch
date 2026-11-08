@@ -6,7 +6,31 @@ public class MeilisearchOptions
 {
     public static string MeilisearchOptionsKey { get; } = "Bielu:BetterSearch:Meilisearch";
     public MeilisearchIndexSettings SharedIndexSettings { get; set; } = new();
-    public Dictionary<string, MeilisearchIndexSettings>? Indexes { get; set; }
+    private Dictionary<string, MeilisearchIndexSettings>? _indexes = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Settings for single indexes, by index name. Names match whatever their case, as configuration keys do,
+    /// so <c>Indexes:People</c> applies to the index <c>people</c>. An assigned dictionary is copied into a
+    /// case-insensitive one; when two of its keys differ only in case, the last one wins.
+    /// </summary>
+    public Dictionary<string, MeilisearchIndexSettings>? Indexes
+    {
+        get => _indexes;
+        set => _indexes = value == null || value.Comparer == StringComparer.OrdinalIgnoreCase
+            ? value
+            : CaseInsensitiveCopy(value);
+    }
+
+    private static Dictionary<string, MeilisearchIndexSettings> CaseInsensitiveCopy(Dictionary<string, MeilisearchIndexSettings> indexes)
+    {
+        var copy = new Dictionary<string, MeilisearchIndexSettings>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, settings) in indexes)
+        {
+            copy[name] = settings;
+        }
+
+        return copy;
+    }
 
     /// <summary>
     /// How long to wait for Meilisearch to finish a write. Meilisearch queues every write as a task;

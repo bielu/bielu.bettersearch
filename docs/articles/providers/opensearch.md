@@ -9,7 +9,8 @@ post filters and scores.
 > **What won't work**
 >
 > - **Facets and highlighting** can be expressed, but a query that asks for them returns a failed `Result`.
-> - **Bulk indexing**: `IndexMultipleDocumentsAsync` indexes one document at a time.
+> - **Bulk indexing**: Core's `IndexingServiceAsync.IndexMultipleDocumentsAsync` indexes one document at a time,
+>   so this provider's `BulkAsync` path is never used.
 > - **Remove all documents** reports a count of 0.
 
 ## Install
@@ -58,7 +59,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
 | `SharedIndexSettings` | Connection used for every index without its own entry |
 | `ConnectionString` | Cluster URL, `http` or `https`; a missing or invalid one makes each call for that index return a failed `Result` |
 | `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`) or `APIKEY` (an OpenSearch 3.x API key in `ApiKey`, sent as `Authorization: ApiKey <key>`) |
-| `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call |
+| `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people` |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. It must be greater than 0, or every search fails with a configuration error |
 
 You can also set the options in code with `services.Configure<OpenSearchOptions>(...)`.
@@ -70,6 +71,8 @@ Documents are stored with their values under `fields`, as with Elasticsearch, so
 
 - **Text fields are analyzed.** `TermQuery` and `PrefixQuery` match analyzed tokens and ignore ASCII case only.
   Use `Field.keyword` to match the whole value.
+- **`PrefixQuery` needs a text or keyword field, and `PrefixPhraseQuery` a text field.** On a field holding
+  numbers or dates, OpenSearch rejects the query and the search returns a failed `Result`.
 - **`StringRange` bounds are case-sensitive.** They are compared to the indexed tokens as given, so on an
   analyzed field, whose tokens are lower-cased, `"a"`–`"z"` matches `Jane` but `"A"`–`"Z"` doesn't. Pass
   lower-case bounds, or use `Field.keyword` to compare whole values.
@@ -78,6 +81,13 @@ Documents are stored with their values under `fields`, as with Elasticsearch, so
 - **`LuceneQuery`** field names need the `fields.` prefix.
 - **`FuzzyQuery`** allows at most 2 edits, and uses `AUTO` when `Fuziness` is unset.
 - **Total hit count** is exact up to `MaxResultWindow` matches, then a lower bound.
+
+## Removing documents
+
+`DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.
+
+- **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
+- **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result`.
 
 Unlike Elasticsearch, index operations report what happened: creating an existing index is success with
 `false`, and any other rejection, such as a 403, is a failed `Result`. The

@@ -7,6 +7,8 @@ namespace Bielu.BetterSearch.Lifti.Tests;
 public class IndexingTests(IIndexingServiceAsync serviceAsync, IIndexingProviderAsync providerAsync, ILiftiIndexManager indexManager)
     : IndexingTestBase(serviceAsync, providerAsync)
 {
+    // Decided in #40: Lifti indexes live in memory, so every index is missing after a restart. Removing a document
+    // from one reports success, as the document is already gone, instead of failing like the other providers.
     protected override bool RemovingFromMissingIndexSucceeds => true;
 
     protected override async Task<long> CountDocumentsAsync(string index) =>

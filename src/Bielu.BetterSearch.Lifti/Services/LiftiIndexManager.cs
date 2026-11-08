@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using Bielu.BetterSearch.Abstractions.Query;
 using FluentResults;
 using Lifti;
 
@@ -22,9 +23,9 @@ public class LiftiIndexManager : ILiftiIndexManager
         var index = new FullTextIndexBuilder<string>().WithObjectTokenization<SearchDocument>(options =>
             options.WithKey(x => x.Id)
                 .WithDynamicFields("Fields",
-                    c => (c.Fields ?? new Dictionary<string, IList<object>>()).ToDictionary(
+                    c => c.Fields.ToDictionary(
                         x => x.Key,
-                        x => string.Join(" ", x.Value ?? [])
+                        x => string.Join(" ", (x.Value ?? []).Select(QueryValueText.From))
                     )
                 )
         ).Build();
