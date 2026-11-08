@@ -167,4 +167,127 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         result.IsSuccess.ShouldBe(RemovingFromMissingIndexSucceeds);
         (await indexingProviderAsync.IndexExistsAsync(index, Token)).Value.ShouldBeFalse();
     }
+
+    [Fact]
+    public async Task IndexDocumentAsync_Subscribed_SendsOnNextForEachIndexedDocumentAndKeepsStreamOpen()
+    {
+        //Arrange
+        var index = $"observe-{Guid.NewGuid():N}";
+        var first = new SearchDocument { Id = "1", Type = "TestDocument", Index = index, };
+        var second = new SearchDocument { Id = "2", Type = "TestDocument", Index = index, };
+        var observer = new RecordingObserver<SearchDocument>();
+        using var subscription = serviceAsync.Subscribe(observer);
+        try
+        {
+            //Act
+            (await serviceAsync.IndexDocumentAsync(first, Token)).IsSuccess.ShouldBeTrue();
+            (await serviceAsync.IndexDocumentAsync(second, Token)).IsSuccess.ShouldBeTrue();
+
+            //Assert
+            observer.Values.ShouldBe([first, second]);
+            observer.CompletedCount.ShouldBe(0);
+            observer.Errors.ShouldBeEmpty();
+        }
+        finally
+        {
+            await indexingProviderAsync.DeleteIndexAsync(index, Token);
+        }
+    }
+
+    [Fact]
+    public async Task IndexDocumentAsync_AfterUnsubscribe_SendsNothing()
+    {
+        //Arrange
+        var index = $"observe-{Guid.NewGuid():N}";
+        var observer = new RecordingObserver<SearchDocument>();
+        serviceAsync.Subscribe(observer).Dispose();
+        try
+        {
+            //Act
+            (await serviceAsync.IndexDocumentAsync(new SearchDocument { Id = "1", Type = "TestDocument", Index = index, }, Token))
+                .IsSuccess.ShouldBeTrue();
+
+            //Assert
+            observer.Values.ShouldBeEmpty();
+            observer.CompletedCount.ShouldBe(0);
+        }
+        finally
+        {
+            await indexingProviderAsync.DeleteIndexAsync(index, Token);
+        }
+    }
+
+    [Fact]
+    public async Task RemoveDocumentAsync_Subscribed_SendsOnNextForEachRemovalAndKeepsStreamOpen()
+    {
+        //Arrange
+        var index = $"observe-{Guid.NewGuid():N}";
+        var observer = new RecordingObserver<DeleteDocumentRequest>();
+        try
+        {
+            (await serviceAsync.IndexDocumentAsync(new SearchDocument { Id = "1", Type = "TestDocument", Index = index, }, Token))
+                .IsSuccess.ShouldBeTrue();
+            using var subscription = serviceAsync.Subscribe(observer);
+            var first = new DeleteDocumentRequest() { Id = "1", Type = index, };
+            var second = new DeleteDocumentRequest() { Id = "1", Type = index, };
+
+            //Act
+            (await serviceAsync.RemoveDocumentAsync(first, Token)).IsSuccess.ShouldBeTrue();
+            (await serviceAsync.RemoveDocumentAsync(second, Token)).IsSuccess.ShouldBeTrue();
+
+            //Assert
+            observer.Values.ShouldBe([first, second]);
+            observer.CompletedCount.ShouldBe(0);
+            observer.Errors.ShouldBeEmpty();
+        }
+        finally
+        {
+            await indexingProviderAsync.DeleteIndexAsync(index, Token);
+        }
+    }
+
+    [Fact]
+    public async Task RemoveDocumentAsync_MissingIndex_SendsOnNextOnlyWhenRemovalSucceeds()
+    {
+        //Arrange
+        var observer = new RecordingObserver<DeleteDocumentRequest>();
+        using var subscription = serviceAsync.Subscribe(observer);
+        var request = new DeleteDocumentRequest() { Id = "1", Type = $"remove-{Guid.NewGuid():N}", };
+
+        //Act
+        var result = await serviceAsync.RemoveDocumentAsync(request, Token);
+
+        //Assert
+        result.IsSuccess.ShouldBe(RemovingFromMissingIndexSucceeds);
+        observer.Values.Count.ShouldBe(RemovingFromMissingIndexSucceeds ? 1 : 0);
+        observer.CompletedCount.ShouldBe(0);
+        observer.Errors.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_Subscribed_SendsOnNextAndKeepsStreamOpen()
+    {
+        //Arrange
+        var index = $"observe-{Guid.NewGuid():N}";
+        var observer = new RecordingObserver<DeleteAllDocumentsRequest>();
+        try
+        {
+            (await serviceAsync.IndexDocumentAsync(new SearchDocument { Id = "1", Type = "TestDocument", Index = index, }, Token))
+                .IsSuccess.ShouldBeTrue();
+            using var subscription = serviceAsync.Subscribe(observer);
+            var request = new DeleteAllDocumentsRequest() { IndexName = index, };
+
+            //Act
+            (await serviceAsync.RemoveAllDocumentsAsync(request, Token)).IsSuccess.ShouldBeTrue();
+
+            //Assert
+            observer.Values.ShouldBe([request]);
+            observer.CompletedCount.ShouldBe(0);
+            observer.Errors.ShouldBeEmpty();
+        }
+        finally
+        {
+            await indexingProviderAsync.DeleteIndexAsync(index, Token);
+        }
+    }
 }

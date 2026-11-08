@@ -4,7 +4,7 @@ using FluentResults;
 namespace Bielu.BetterSearch.Services;
 
 public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocumentValidatorAsync documentValidator)
-    : IIndexingServiceAsync
+    : IIndexingServiceAsync, IDisposable
 {
     // ReSharper disable once FieldCanBeMadeReadOnly.Local
     private List<IObserver<SearchDocument>> _indexingObservers = new();
@@ -36,22 +36,16 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
 
         if (validationResult.Value == false)
         {
-            //not valid to do it in checks
-            //indexing finished
-            foreach (var observer in _indexingObservers)
-            {
-                observer.OnCompleted();
-            }
-
             return Result.Fail("Document is not valid");
         }
 
-        foreach (var observer in _indexingObservers)
+        var result = await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
+        if (result.IsSuccess)
         {
-            observer.OnNext(document);
+            Notify(_indexingObservers, document);
         }
 
-        return await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
+        return result;
     }
 
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
@@ -72,16 +66,10 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
     public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
         CancellationToken cancellationToken = default)
     {
-        foreach (var observer in _deleteDocumentObservers)
-        {
-            observer.OnNext(document);
-        }
-
         var result = await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken).ConfigureAwait(false);
-        //indexing finished
-        foreach (var observer in _deleteDocumentObservers)
+        if (result.IsSuccess)
         {
-            observer.OnCompleted();
+            Notify(_deleteDocumentObservers, document);
         }
 
         return result;
@@ -90,16 +78,10 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
 
     public async Task<Result<int>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
     {
-        foreach (var observer in _deleteAllDocumentsObservers)
-        {
-            observer.OnNext(request);
-        }
-
         var result = await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken).ConfigureAwait(false);
-        //indexing finished
-        foreach (var observer in _deleteAllDocumentsObservers)
+        if (result.IsSuccess)
         {
-            observer.OnCompleted();
+            Notify(_deleteAllDocumentsObservers, request);
         }
 
         return result.ToResult();
@@ -123,5 +105,34 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
         }
 
         return new Unsubscriber<DeleteAllDocumentsRequest>(_deleteAllDocumentsObservers, observer);
+    }
+
+    /// <summary>Ends every stream: each observer gets <see cref="IObserver{T}.OnCompleted"/> once and is unsubscribed.</summary>
+#pragma warning disable CA1816
+    public void Dispose()
+#pragma warning restore CA1816
+    {
+        Complete(_indexingObservers);
+        Complete(_deleteDocumentObservers);
+        Complete(_deleteAllDocumentsObservers);
+    }
+
+    // Iterate a copy, so an observer can unsubscribe from inside its own callback.
+    private static void Notify<T>(List<IObserver<T>> observers, T value)
+    {
+        foreach (var observer in observers.ToArray())
+        {
+            observer.OnNext(value);
+        }
+    }
+
+    private static void Complete<T>(List<IObserver<T>> observers)
+    {
+        var completed = observers.ToArray();
+        observers.Clear();
+        foreach (var observer in completed)
+        {
+            observer.OnCompleted();
+        }
     }
 }

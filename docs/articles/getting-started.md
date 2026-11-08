@@ -94,6 +94,29 @@ the `Score` the engine gave it. `Page` counts from 1. A cancelled search throws 
 rather than returning a failed `Result`. The [feature matrix](feature-matrix.md) compares every provider side
 by side.
 
+## Watch indexing
+
+`IIndexingServiceAsync` is an `IObservable` of `SearchDocument`, `DeleteDocumentRequest` and
+`DeleteAllDocumentsRequest`. All three streams follow one contract:
+
+- `OnNext` is sent once for each operation that succeeded, after the provider has done it: a document indexed,
+  a document removed, an index emptied.
+- A document the validator rejects, or an operation the provider fails, sends nothing. The returned `Result`
+  carries the reason.
+- `OnError` is never sent. `OnCompleted` is sent once, when the service is disposed, so a stream stays open for
+  every operation the service performs. Dispose the value `Subscribe` returns to stop earlier.
+
+```csharp
+using var subscription = indexing.Subscribe(new IndexedLogger());
+
+sealed class IndexedLogger : IObserver<SearchDocument>
+{
+    public void OnNext(SearchDocument document) => Console.WriteLine($"Indexed {document.Id}");
+    public void OnError(Exception error) { }
+    public void OnCompleted() { }
+}
+```
+
 ## Filter by culture
 
 To search one culture, index it in the plain `Culture` field and filter on it with the fluent API
