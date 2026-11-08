@@ -9,6 +9,9 @@ public class QueryTranslationResultsUnitTests(
     IIndexingProviderAsync indexingProviderAsync)
     : QueryResultBaseTests(serviceAsync, indexingServiceAsync, indexingProviderAsync)
 {
+    /// <summary>Lifti's hits hold only the document id.</summary>
+    protected override bool ReturnsStoredFields => false;
+
     /// <summary>Lifti has no query for every document, so it cannot return the complement.</summary>
     [Fact]
     public override async Task SearchAsync_MustNotOnly_ReturnsTheComplement() => await SearchAsync_MustNotOnly_ShouldFailAsync();

@@ -61,6 +61,9 @@ public abstract class QueryResultBaseTests(
     /// <summary>Called once the example documents are indexed, for engines that must refresh before they can be searched.</summary>
     protected virtual Task DocumentsIndexedAsync(string index) => Task.CompletedTask;
 
+    /// <summary>Whether hits carry the document's stored fields in <c>CustomProperties</c>.</summary>
+    protected virtual bool ReturnsStoredFields => true;
+
     [Fact]
     public async Task CanSearchWithPrefixQueryAsyncTest()
     {
@@ -173,9 +176,10 @@ public abstract class QueryResultBaseTests(
         result.IsSuccess.ShouldBeTrue();
         var hit = result.Value.Items.ShouldHaveSingleItem();
         hit.Document.Id.ShouldBe("null-1");
-        if (hit.Document.CustomProperties.TryGetValue("Tags", out var tags))
+        if (ReturnsStoredFields)
         {
-            tags.ShouldBeEmpty();
+            hit.Document.CustomProperties.ShouldContainKey("Tags");
+            hit.Document.CustomProperties["Tags"].ShouldBeEmpty();
         }
     }
 
