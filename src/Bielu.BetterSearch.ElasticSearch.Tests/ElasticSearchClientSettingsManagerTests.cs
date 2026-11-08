@@ -52,4 +52,37 @@ public class ElasticSearchClientSettingsManagerTests
 
         GetSettings(options, "people").NodePool.Nodes.Single().Uri.ShouldBe(new Uri("http://shared:9200"));
     }
+
+    [Fact]
+    public void GetOrCreateClientSettings_IndexWithoutConnectionString_LeavesOptionsUnchanged()
+    {
+        var people = new ElasticSearchIndexSettings { IndexName = "people" };
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings { ConnectionString = "http://shared:9200" },
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = people },
+        };
+
+        GetSettings(options, "people").NodePool.Nodes.Single().Uri.ShouldBe(new Uri("http://shared:9200"));
+
+        people.ConnectionString.ShouldBeNull();
+    }
+
+    [Fact]
+    public void GetOrCreateSharedClientSettings_IndexNamedDefault_UsesSharedConnectionString()
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings { ConnectionString = "http://shared:9200" },
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings>
+            {
+                ["default"] = new() { ConnectionString = "http://other:9200" },
+            },
+        };
+
+        IElasticsearchClientSettings settings =
+            new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(options)).GetOrCreateSharedClientSettings();
+
+        settings.NodePool.Nodes.Single().Uri.ShouldBe(new Uri("http://shared:9200"));
+    }
 }

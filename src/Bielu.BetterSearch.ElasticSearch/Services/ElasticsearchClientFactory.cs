@@ -10,22 +10,25 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 
 /// <summary>
 /// Creates one long-lived client per connection, as Elastic recommends: a shared client for every index
-/// without a connection string of its own, and one for each index that has one.
+/// without a connection string of its own, and one for each index that has one. Index names match whatever
+/// their case, as the settings do, and the shared client is held apart so no index name can take its place.
 /// </summary>
 public class ElasticsearchClientFactory(IElasticSearchClientSettingsManager searchClientSettingsManager, IOptionsMonitor<ElasticSearchOptions> optionsMonitor) : IClientFactoryAsync<ElasticsearchClient>
 {
-    private const string DefaultKey = "default";
-    private readonly ConcurrentDictionary<string, Lazy<ElasticsearchClient>> _clients = new();
+    private readonly ConcurrentDictionary<string, Lazy<ElasticsearchClient>> _clients = new(StringComparer.OrdinalIgnoreCase);
+    private Lazy<ElasticsearchClient>? _sharedClient;
 
     public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName)
     {
-        var key = optionsMonitor.CurrentValue.Indexes == null || !optionsMonitor.CurrentValue.Indexes.TryGetValue(indexName, out var indexSettings) ||
-            string.IsNullOrWhiteSpace(indexSettings.ConnectionString)
-            ? DefaultKey
-            : indexName;
+        var indexes = optionsMonitor.CurrentValue.Indexes;
+        var hasOwnConnection = indexes != null && indexes.TryGetValue(indexName, out var indexSettings) &&
+                               !string.IsNullOrWhiteSpace(indexSettings.ConnectionString);
 
-        var client = _clients.GetOrAdd(key, settingsKey => new Lazy<ElasticsearchClient>(() =>
-            new ElasticsearchClient(searchClientSettingsManager.GetOrCreateClientSettings(settingsKey))));
+        var client = hasOwnConnection
+            ? _clients.GetOrAdd(indexName, name => new Lazy<ElasticsearchClient>(() =>
+                new ElasticsearchClient(searchClientSettingsManager.GetOrCreateClientSettings(name))))
+            : LazyInitializer.EnsureInitialized(ref _sharedClient, () => new Lazy<ElasticsearchClient>(() =>
+                new ElasticsearchClient(searchClientSettingsManager.GetOrCreateSharedClientSettings())));
         return Task.FromResult(client.Value);
     }
 }

@@ -18,6 +18,9 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
         return ParseSettings(indexSpecific, options.SharedIndexSettings);
     }
 
+    public ElasticsearchClientSettings GetOrCreateSharedClientSettings() =>
+        ParseMergedSettings(optionsMonitor.CurrentValue.SharedIndexSettings);
+
     private static ElasticsearchClientSettings ParseSettings(ElasticSearchIndexSettings? indexSpecific,
         ElasticSearchIndexSettings shared)
     {
@@ -32,12 +35,25 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     private static ElasticSearchIndexSettings MergeSettings(ElasticSearchIndexSettings indexSpecific,
         ElasticSearchIndexSettings shared)
     {
-        if (string.IsNullOrWhiteSpace(indexSpecific.ConnectionString))
+        if (!string.IsNullOrWhiteSpace(indexSpecific.ConnectionString))
         {
-            indexSpecific.ConnectionString = shared.ConnectionString;
+            return indexSpecific;
         }
 
-        return indexSpecific;
+        // Merge into a copy: the monitored options are shared, so writing the inherited URL into them would
+        // make it look like the index's own connection string until the options reload.
+        return new ElasticSearchIndexSettings
+        {
+            IndexName = indexSpecific.IndexName,
+            AliasName = indexSpecific.AliasName,
+            TypeName = indexSpecific.TypeName,
+            AliasingEnabled = indexSpecific.AliasingEnabled,
+            IndexingEnabled = indexSpecific.IndexingEnabled,
+            DevMode = indexSpecific.DevMode,
+            ConnectionString = shared.ConnectionString,
+            AuthenticationType = indexSpecific.AuthenticationType,
+            AuthenticationDetails = indexSpecific.AuthenticationDetails,
+        };
     }
 
     private static ElasticsearchClientSettings ParseMergedSettings(ElasticSearchIndexSettings finalSearchIndexSettings)
