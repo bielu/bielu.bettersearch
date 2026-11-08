@@ -18,7 +18,7 @@ public class PrefixPhraseSubQueryTranslator : ISubQueryTranslator<IQuery>
             return Task.FromResult(Result.Fail<IQuery>("Query is not a prefix phrase query"));
         }
 
-        var value = (prefixPhraseQuery.Value?.ToString() ?? string.Empty).ToUpperInvariant();
+        var value = QueryValueText.From(prefixPhraseQuery.Value).ToUpperInvariant();
         var part = new WildcardQueryPart(
             WildcardQueryFragment.CreateText(value),
             WildcardQueryFragment.MultiCharacter);

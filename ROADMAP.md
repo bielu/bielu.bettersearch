@@ -28,7 +28,7 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Core | `IndexMultipleDocumentsAsync` indexes one at a time, so the provider bulk path is never used (*by inspection*) | Bulk indexing |
 | Core | `SearchApplicationConfiguration.CurrentInstance` is a process-wide mutable singleton shared by every `AddBetterSearch` call (*by inspection*) | Per-container configuration |
 | Core | Services are registered twice, once by the provider and once by `AddBetterSearch` | Once |
-| Core | Observers get `OnCompleted` after each operation and never `OnError`, breaking the `IObserver` contract, and live on a scoped service (*by inspection*) | See phase 1 |
+| Core | Indexing observers live on a scoped service, so a subscription only sees the operations of its own scope (*by inspection*) | See phase 1 |
 | Models | `new TermSubQuery().Occurance` is `0`, which is not a defined enum value | A defined default |
 | Lifti search | `Page` and `PageSize` are ignored; hits contain only an id | Paged hits with fields |
 | Fluent API | `.Should()` on a sub-query configurator is silently lost, and `.Must()`, `.MustNot()` and `.Filter()` take the same path | The chosen occurrence |
@@ -69,7 +69,7 @@ Breaking, and cheapest now.
 - Resolve the nullable warnings by making the model honest about what is required.
 - Stop catching `OperationCanceledException` in the indexing providers, and keep exceptions through `ExceptionalError`. (Done in #17: `SearchAsync` and the validator take a `CancellationToken`, and a cancelled search throws.)
 - Remove the global configuration singleton and the duplicate registrations. Add the missing `SetDocumentValidatorType`.
-- Replace the `IObservable` surface with something that fits its use, such as an indexing pipeline or events, or remove it.
+- Replace the `IObservable` surface with something that fits its use, such as an indexing pipeline or events, or remove it. (The `IObserver` contract is fixed in #56: `OnNext` after each successful operation, nothing for a rejection or failure, `OnCompleted` only when the service is disposed.)
 - Pass bulk through to the provider from `IndexMultipleDocumentsAsync`.
 - Deduplicate the fluent API and fix the lost occurrence, with its first tests.
 - Decide the `SHOULD` semantics: follow Lucene, and write them down.

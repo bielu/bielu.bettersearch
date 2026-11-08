@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using Bielu.BetterSearch.Abstractions.Query;
 using FluentResults;
 using Lifti;
 
@@ -24,7 +25,7 @@ public class LiftiIndexManager : ILiftiIndexManager
                 .WithDynamicFields("Fields",
                     c => c.Fields.ToDictionary(
                         x => x.Key,
-                        x => string.Join(" ", x.Value ?? [])
+                        x => string.Join(" ", (x.Value ?? []).Select(QueryValueText.From))
                     )
                 )
         ).Build();

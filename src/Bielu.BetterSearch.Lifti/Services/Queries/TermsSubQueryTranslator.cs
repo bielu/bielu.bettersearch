@@ -26,7 +26,7 @@ public class TermsSubQueryTranslator : ISubQueryTranslator<IQuery>
         IQueryPart? combined = null;
         foreach (var value in termsQuery.Value)
         {
-            var part = new ExactWordQueryPart((value?.ToString() ?? string.Empty).ToUpperInvariant());
+            var part = new ExactWordQueryPart(QueryValueText.From(value).ToUpperInvariant());
             combined = combined == null ? part : new OrQueryOperator(combined, part);
         }
 

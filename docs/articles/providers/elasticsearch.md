@@ -62,7 +62,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddElas
 | `SharedIndexSettings` | Connection used for every index without its own connection string |
 | `ConnectionString` | Cluster URL |
 | `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`), `CLOUD` (Elastic Cloud: the cloud id in `Id`, with `Username` and `Password`) or `CLOUDAPI` (the cloud id in `Id`, with an `ApiKey`) |
-| `Indexes` | Per-index settings. An entry with its own `ConnectionString` gets its own client and uses only its own authentication; an entry without one uses the shared settings |
+| `Indexes` | Per-index settings. An entry with its own `ConnectionString` gets its own client and uses only its own authentication; an entry without one uses the shared settings. Keys match index names whatever their case, so `People` applies to the index `people` |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. A page past it returns a failed `Result` |
 
 You can also set the options in code with `services.Configure<ElasticSearchOptions>(...)`.
@@ -74,6 +74,8 @@ Metadata fields such as `_id` and `_score` pass through unchanged.
 
 - **Text fields are analyzed.** `TermQuery` and `PrefixQuery` match analyzed tokens and ignore ASCII case only
   (`Żółw` does not match `żółw`). Use `Field.keyword` to match the whole value.
+- **`PrefixQuery` needs a text or keyword field, and `PrefixPhraseQuery` a text field.** On a field holding
+  numbers or dates, Elasticsearch rejects the query and the search returns a failed `Result`.
 - **`StringRange` bounds are case-sensitive.** They are compared to the indexed tokens as given, so on an
   analyzed field, whose tokens are lower-cased, `"a"`–`"z"` matches `Jane` but `"A"`–`"Z"` doesn't. Pass
   lower-case bounds, or use `Field.keyword` to compare whole values.

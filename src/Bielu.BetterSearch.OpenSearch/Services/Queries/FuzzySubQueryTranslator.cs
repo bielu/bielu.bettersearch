@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Query.SubQueries;
+﻿using Bielu.BetterSearch.Abstractions.Query;
+using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
 using OpenSearch.Client;
@@ -36,7 +37,7 @@ internal sealed class FuzzySubQueryTranslator : OpenSearchSubQueryTranslator<Fuz
         return Task.FromResult(Result.Ok<QueryContainer>(new MatchQuery
         {
             Field = field.Value,
-            Query = Convert.ToString(query.Value, System.Globalization.CultureInfo.InvariantCulture),
+            Query = QueryValueText.From(query.Value),
             Operator = Operator.And,
             Fuzziness = fuzziness,
             FuzzyTranspositions = query.Transposition,

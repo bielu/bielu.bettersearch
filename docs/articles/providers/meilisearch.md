@@ -9,6 +9,8 @@ which matches or doesn't, so hits aren't ranked. Paging, sorting and post filter
 >
 > - **`FuzzyQuery`** returns a failed `Result`: filters only match exact values, and Meilisearch's typo
 >   tolerance applies to the whole search text, not one field.
+> - **`PrefixQuery` and `PrefixPhraseQuery`** with a value that isn't a string, such as a number, return a
+>   failed `Result`.
 > - **`LuceneQuery`** returns a failed `Result`: Meilisearch has no Lucene syntax.
 > - **Relevance scores**: every hit has the same `Score`.
 > - **Facets and highlighting** can be expressed, but a query that asks for them returns a failed `Result`.
@@ -60,7 +62,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeil
 | `SharedIndexSettings` | Server used for every index without its own connection string |
 | `ConnectionString` | Server URL, such as `http://localhost:7700` |
 | `ApiKey` | The master key or an API key; leave it empty when the server has none |
-| `Indexes` | Per-index settings. An entry with its own `ConnectionString` uses only its own key; an entry without one uses the shared server, with its own `ApiKey` if set or the shared one |
+| `Indexes` | Per-index settings. An entry with its own `ConnectionString` uses only its own key; an entry without one uses the shared server, with its own `ApiKey` if set or the shared one. Keys match index names whatever their case, so `People` applies to the index `people` |
 | `TaskTimeout` | How long to wait for a write task to finish, 30 seconds by default. A timeout fails the `Result` but doesn't cancel the task, so the write may still be applied |
 | `MaxTotalHits` | Deepest result a search may page to, 10,000 by default; the provider sets it as each index's `pagination.maxTotalHits` |
 | `SettingsCheckInterval` | How long a write trusts an index's settings before checking them again, 5 seconds by default |
