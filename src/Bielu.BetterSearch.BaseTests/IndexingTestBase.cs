@@ -299,7 +299,8 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         {
             // Best-effort cleanup: the result is ignored. A failed delete is expected when the index
             // was never created, but it can also be a server error, so it proves nothing about absence.
-            await indexingProviderAsync.DeleteIndexAsync(index, Token);
+            // CancellationToken.None, so a cancelled run cannot throw here and hide the assertion failure.
+            await indexingProviderAsync.DeleteIndexAsync(index, CancellationToken.None);
         }
     }
 
