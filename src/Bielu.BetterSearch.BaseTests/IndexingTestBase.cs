@@ -121,6 +121,25 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         observer.Completed.ShouldBe(1);
     }
     [Fact]
+    public async Task IndexDocumentAsync_ObserverUnsubscribesOnCompleted_ReturnsFailedResult()
+    {
+        var observer = new UnsubscribingObserver();
+        observer.Subscription = serviceAsync.Subscribe(observer);
+        using var otherSubscription = serviceAsync.Subscribe(new RecordingObserver());
+        var document = new SearchDocument
+        {
+            Id = "1",
+            Type = "TestDocument",
+            Index = "test-index-1",
+            Fields = new Dictionary<string, IList<object>> { { "Tags", null! } }
+        };
+
+        var result = await serviceAsync.IndexDocumentAsync(document);
+
+        result.IsFailed.ShouldBeTrue();
+        observer.Completed.ShouldBe(1);
+    }
+    [Fact]
     public async Task IndexMultipleDocumentsAsync_NullFieldInLaterDocument_IndexesNone()
     {
         var index = $"batch-{Guid.NewGuid():N}";
@@ -272,6 +291,20 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         //Assert
         result.IsSuccess.ShouldBe(RemovingFromMissingIndexSucceeds);
         (await indexingProviderAsync.IndexExistsAsync(index, Token)).Value.ShouldBeFalse();
+    }
+
+    /// <summary>Disposes its subscription when completed, as Rx observers commonly do.</summary>
+    private sealed class UnsubscribingObserver : IObserver<SearchDocument>
+    {
+        public IDisposable? Subscription { get; set; }
+        public int Completed { get; private set; }
+        public void OnCompleted()
+        {
+            Completed++;
+            Subscription?.Dispose();
+        }
+        public void OnError(Exception error) { }
+        public void OnNext(SearchDocument value) { }
     }
 
     private sealed class RecordingObserver : IObserver<SearchDocument>

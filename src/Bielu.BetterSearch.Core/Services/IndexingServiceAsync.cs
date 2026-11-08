@@ -78,7 +78,8 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
             return Result.Fail("Document is not valid");
         }
 
-        foreach (var observer in _indexingObservers)
+        // A snapshot, because an observer may dispose its subscription while it is notified.
+        foreach (var observer in _indexingObservers.ToArray())
         {
             observer.OnNext(document);
         }
@@ -88,7 +89,8 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
 
     private void CompleteIndexingObservers()
     {
-        foreach (var observer in _indexingObservers)
+        // A snapshot, because an observer may dispose its subscription while it is notified.
+        foreach (var observer in _indexingObservers.ToArray())
         {
             observer.OnCompleted();
         }

@@ -64,6 +64,13 @@ public abstract class QueryResultBaseTests(
     /// <summary>Whether hits carry the document's stored fields in <c>CustomProperties</c>.</summary>
     protected virtual bool ReturnsStoredFields => true;
 
+    /// <summary>
+    /// The ids of every document in <paramref name="index"/>. Searches with an empty query; override it for
+    /// engines that cannot return every document.
+    /// </summary>
+    protected virtual async Task<IReadOnlyCollection<string>> IndexedIdsAsync(string index) =>
+        await SearchIdsAsync(new SearchQuery { Index = index });
+
     [Fact]
     public async Task CanSearchWithPrefixQueryAsyncTest()
     {
@@ -203,6 +210,7 @@ public abstract class QueryResultBaseTests(
         var result = await serviceAsync.SearchAsync(new SearchQuery { Index = index });
 
         result.IsSuccess.ShouldBeTrue();
+        (await IndexedIdsAsync(index)).ShouldBe(["null-fields-1"]);
         if (ReturnsStoredFields)
         {
             var hit = result.Value.Items.ShouldHaveSingleItem();

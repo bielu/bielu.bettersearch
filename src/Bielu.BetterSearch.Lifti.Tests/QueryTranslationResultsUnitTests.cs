@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Lifti.Services;
 using Bielu.BetterSearch.Tests;
 
 namespace Bielu.BetterSearch.Lifti.Tests;
@@ -6,11 +7,16 @@ namespace Bielu.BetterSearch.Lifti.Tests;
 public class QueryTranslationResultsUnitTests(
     ISearchServiceAsync serviceAsync,
     IIndexingServiceAsync indexingServiceAsync,
-    IIndexingProviderAsync indexingProviderAsync)
+    IIndexingProviderAsync indexingProviderAsync,
+    ILiftiIndexManager indexManager)
     : QueryResultBaseTests(serviceAsync, indexingServiceAsync, indexingProviderAsync)
 {
     /// <summary>Lifti's hits hold only the document id.</summary>
     protected override bool ReturnsStoredFields => false;
+
+    /// <summary>Lifti has no query for every document, so the ids come from the index itself.</summary>
+    protected override async Task<IReadOnlyCollection<string>> IndexedIdsAsync(string index) =>
+        (await indexManager.GetIndexAsync(index)).Value?.Metadata.GetIndexedDocuments().Select(document => document.Key).ToList() ?? [];
 
     /// <summary>Lifti has no query for every document, so it cannot return the complement.</summary>
     [Fact]
