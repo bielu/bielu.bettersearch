@@ -16,6 +16,7 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
         var translator = translators.First(t => t.CanTranslate(subQuery));
         var result = await translator.TranslateAsync(subQuery, translators);
         result.IsSuccess.ShouldBeTrue($"because translation of {subQuery.GetType().Name} should be successful");
+        ((object?)result.Value).ShouldNotBeNull($"because translation of {subQuery.GetType().Name} should return a query");
     }
 
     protected async Task SubQueryTranslationShouldFailAsync(ISearchSubQuery subQuery)
@@ -26,6 +27,8 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
         var translator = translators.First(t => t.CanTranslate(subQuery));
         var result = await translator.TranslateAsync(subQuery, translators);
         result.IsFailed.ShouldBeTrue($"because {subQuery.GetType().Name} is not supported by this provider");
+        result.Errors.ShouldNotBeEmpty();
+        result.Errors[0].Message.ShouldNotBeNullOrWhiteSpace();
     }
 
     [Fact]

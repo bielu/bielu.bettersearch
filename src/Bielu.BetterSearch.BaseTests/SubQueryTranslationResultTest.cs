@@ -49,7 +49,7 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
 
         foreach (var document in documents)
         {
-            await indexingServiceAsync.IndexDocumentAsync(document);
+            (await indexingServiceAsync.IndexDocumentAsync(document)).IsSuccess.ShouldBeTrue();
         }
 
         await DocumentsIndexedAsync(index);
@@ -108,6 +108,7 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
         result.IsSuccess.ShouldBeTrue();
         result.Value.Items.Count().ShouldBe(2);
         result.Value.Items.ShouldAllBe(item => item.Score > 0);
+        result.Value.Pagination.TotalCount.ShouldBe(2);
     }
 
     [Fact]
@@ -153,6 +154,17 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
     [Fact]
     public virtual async Task SearchAsync_FluentCultureFilter_ReturnsOnlyThatCulture()
     {
+        var ids = await SearchFluentCultureFilterAsync();
+
+        ids.ShouldBe(["1"]);
+    }
+
+    /// <summary>
+    /// Indexes three pages in three cultures and returns the ids a fluent en-US culture filter finds.
+    /// Document 2's title holds the en-US culture value, so a filter that ignores its field matches it too.
+    /// </summary>
+    protected async Task<List<string>> SearchFluentCultureFilterAsync()
+    {
         var index = $"query-results-{Guid.NewGuid():N}";
         SearchDocument Page(string id, string title, string culture) => new()
         {
@@ -164,7 +176,6 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
                 { CultureField.Name, [CultureField.Value(culture)] }
             }
         };
-        // Document 2's title holds the en-US culture value, so a filter that ignores its field matches it too.
         var pages = new[]
         {
             Page("1", "Welcome page", "en-US"),
@@ -183,9 +194,7 @@ public abstract class QueryResultBaseTests(ISearchServiceAsync serviceAsync, IIn
                 .CreateTermQuery(term => term.WithField("Title").WithValue("welcome"))
                 .FilterByCulture("en-US"));
 
-        var ids = await SearchIdsAsync(query);
-
-        ids.ShouldBe(["1"]);
+        return await SearchIdsAsync(query);
     }
 
     [Fact]

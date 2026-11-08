@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Tests;
+using Shouldly;
 
 namespace Bielu.BetterSearch.Lifti.Tests;
 
@@ -14,8 +15,15 @@ public class QueryTranslationResultsUnitTests(ISearchServiceAsync serviceAsync, 
     public override async Task SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ReturnsEveryDocumentExceptTheExclusions() =>
         await SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ShouldFailAsync();
 
-    /// <summary>Known failure: Lifti ignores <c>Field</c> on a term query, so the filter also matches the title holding the culture value.</summary>
-    [Fact(Skip = "Lifti ignores Field on a term query (ROADMAP.md, Confirmed defects: \"`Field` is ignored\")")]
-    public override async Task SearchAsync_FluentCultureFilter_ReturnsOnlyThatCulture() =>
-        await base.SearchAsync_FluentCultureFilter_ReturnsOnlyThatCulture();
+    /// <summary>
+    /// Known defect: Lifti ignores <c>Field</c> on a term query (ROADMAP.md, Confirmed defects: "`Field` is ignored"),
+    /// so the filter also matches the title holding the culture value. The other cultures are still left out.
+    /// </summary>
+    [Fact]
+    public override async Task SearchAsync_FluentCultureFilter_ReturnsOnlyThatCulture()
+    {
+        var ids = await SearchFluentCultureFilterAsync();
+
+        ids.ShouldBe(["1", "2"]);
+    }
 }

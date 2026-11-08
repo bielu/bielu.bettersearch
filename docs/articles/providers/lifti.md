@@ -15,6 +15,7 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 > - **`LuceneQuery`** is not supported.
 > - **Fields are ignored**: term, terms, fuzzy, prefix and phrase prefix queries match the value in any field,
 >   and accented terms don't match.
+> - **Phrase prefix** only works for one word: a value of several words, such as `jane d`, matches nothing.
 > - **Hits** only carry the document id and `Score`; no stored fields.
 > - **Persistence**: the index is lost on restart, and creating an index that exists replaces it, losing its
 >   documents.

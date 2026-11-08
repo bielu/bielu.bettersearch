@@ -13,6 +13,9 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
 
         //Act
         (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
+
+        //Assert
+        (await indexingProviderAsync.IndexExistsAsync(index)).Value.ShouldBeTrue();
     }
     [Fact]
     public async Task CanDeleteIndexAsyncTest()
@@ -23,6 +26,9 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
 
         //Act
         (await indexingProviderAsync.DeleteIndexAsync(index)).IsSuccess.ShouldBeTrue();
+
+        //Assert
+        (await indexingProviderAsync.IndexExistsAsync(index)).Value.ShouldBeFalse();
     }
     [Fact]
     public async Task CanCheckIfIndexExistsAsyncTest()
@@ -32,7 +38,24 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
 
         //Act
-        (await indexingProviderAsync.IndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
+        var exists = await indexingProviderAsync.IndexExistsAsync(index);
+
+        //Assert
+        exists.IsSuccess.ShouldBeTrue();
+        exists.Value.ShouldBeTrue();
+    }
+    [Fact]
+    public async Task IndexExistsAsync_MissingIndex_ReturnsFalse()
+    {
+        //Arrange
+        var index = $"missing-{Guid.NewGuid():N}";
+
+        //Act
+        var exists = await indexingProviderAsync.IndexExistsAsync(index);
+
+        //Assert
+        exists.IsSuccess.ShouldBeTrue();
+        exists.Value.ShouldBeFalse();
     }
     [Fact]
     public async Task EnsureIndexWorksWhenIndexExistsAsyncTest()
@@ -43,13 +66,21 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         //Act
         (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
         (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
+
+        //Assert
+        (await indexingProviderAsync.IndexExistsAsync(index)).Value.ShouldBeTrue();
     }
     [Fact]
     public async Task EnsureIndexWorksWhenIndexNotExistsAsyncTest()
     {
         //Arrange
-        var index = "test-index-1";
+        var index = $"ensure-{Guid.NewGuid():N}";
+
+        //Act
         (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
+
+        //Assert
+        (await indexingProviderAsync.IndexExistsAsync(index)).Value.ShouldBeTrue();
     }
     [Fact]
     public async Task IndexDocumentAsyncTest()
@@ -71,7 +102,11 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         };
 
         //Act
-        (await serviceAsync.IndexMultipleDocumentsAsync(documents)).IsSuccess.ShouldBeTrue();
+        var indexed = await serviceAsync.IndexMultipleDocumentsAsync(documents);
+
+        //Assert
+        indexed.IsSuccess.ShouldBeTrue();
+        indexed.Value.ShouldBe(documents.Count);
     }
     [Fact]
     public async Task DeleteDocumentAsyncTest()
