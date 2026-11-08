@@ -257,21 +257,32 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
     }
 
     [Fact]
-    public async Task RemoveDocumentAsync_MissingIndex_ReturnsDocumentedResult()
+    public async Task RemoveDocumentAsync_MissingIndex_DoesNotCreateIndex()
     {
         //Arrange
         var index = $"remove-{Guid.NewGuid():N}";
-
-        //Act
-        var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
+        try
         {
-            Id = "1",
-            Type = index,
-        }, Token);
+            //Act
+            var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
+            {
+                Id = "1",
+                Type = index,
+            }, Token);
 
-        //Assert
-        result.IsSuccess.ShouldBe(RemovingFromMissingIndexSucceeds);
-        (await indexingProviderAsync.IndexExistsAsync(index, Token)).Value.ShouldBeFalse();
+            //Assert
+            result.IsSuccess.ShouldBe(RemovingFromMissingIndexSucceeds);
+            var exists = await indexingProviderAsync.IndexExistsAsync(index, Token);
+            exists.IsSuccess.ShouldBeTrue(string.Join("; ", exists.Errors.Select(error => error.Message)));
+            exists.Value.ShouldBeFalse();
+        }
+        finally
+        {
+            // Best-effort cleanup: the result is ignored. A failed delete is expected when the index
+            // was never created, but it can also be a server error, so it proves nothing about absence.
+            // CancellationToken.None, so a cancelled run cannot throw here and hide the assertion failure.
+            await indexingProviderAsync.DeleteIndexAsync(index, CancellationToken.None);
+        }
     }
 
     [Fact]
