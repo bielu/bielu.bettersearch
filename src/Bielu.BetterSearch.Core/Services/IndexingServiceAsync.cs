@@ -117,12 +117,16 @@ public class IndexingServiceAsync(IIndexingProviderAsync indexingProvider, IDocu
         Complete(_deleteAllDocumentsObservers);
     }
 
-    // Iterate a copy, so an observer can unsubscribe from inside its own callback.
+    // Iterate a copy, so an observer can unsubscribe from inside its own callback. Skip any observer that left
+    // during this dispatch, so a Dispose from inside OnNext can't be followed by OnNext to an already completed observer.
     private static void Notify<T>(List<IObserver<T>> observers, T value)
     {
         foreach (var observer in observers.ToArray())
         {
-            observer.OnNext(value);
+            if (observers.Contains(observer))
+            {
+                observer.OnNext(value);
+            }
         }
     }
 

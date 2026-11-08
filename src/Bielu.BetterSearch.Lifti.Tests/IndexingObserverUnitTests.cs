@@ -103,6 +103,40 @@ public class IndexingObserverUnitTests
         other.Values.Count.ShouldBe(2);
     }
 
+    [Fact]
+    public async Task IndexDocumentAsync_ObserverDisposesServiceInOnNext_LaterObserversGetNoOnNextAfterOnCompleted()
+    {
+        //Arrange
+        var service = CreateService(new DummyDocumentValidatorAsync());
+        var disposing = new DisposingObserver(service);
+        var later = new RecordingObserver<SearchDocument>();
+        service.Subscribe(disposing);
+        service.Subscribe(later);
+
+        //Act
+        (await service.IndexDocumentAsync(new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index", }, Token))
+            .IsSuccess.ShouldBeTrue();
+
+        //Assert
+        disposing.Count.ShouldBe(1);
+        later.CompletedCount.ShouldBe(1);
+        later.Values.ShouldBeEmpty();
+    }
+
+    private sealed class DisposingObserver(IDisposable service) : IObserver<SearchDocument>
+    {
+        public int Count { get; private set; }
+
+        public void OnNext(SearchDocument value)
+        {
+            Count++;
+            service.Dispose();
+        }
+
+        public void OnCompleted() { }
+        public void OnError(Exception error) { }
+    }
+
     private sealed class RejectingValidator(bool fail, SearchDocument? only = null) : IDocumentValidatorAsync
     {
         public Task<Result<bool>> ValidateDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
