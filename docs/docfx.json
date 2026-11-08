@@ -11,6 +11,7 @@
             "src/Bielu.BetterSearch.FluentApi/*.csproj",
             "src/Bielu.BetterSearch.ElasticSearch/*.csproj",
             "src/Bielu.BetterSearch.OpenSearch/*.csproj",
+            "src/Bielu.BetterSearch.Meilisearch/*.csproj",
             "src/Bielu.BetterSearch.Lifti/*.csproj"
           ]
         }
@@ -42,7 +43,6 @@
       {
         "src": "..",
         "files": [
-          "FEATURE_MATRIX.md",
           "ROADMAP.md"
         ],
         "dest": "articles"
