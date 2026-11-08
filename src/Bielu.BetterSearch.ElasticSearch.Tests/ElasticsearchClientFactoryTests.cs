@@ -17,7 +17,7 @@ public class ElasticsearchClientFactoryTests
         client.ElasticsearchClientSettings.NodePool.Nodes.Single().Uri;
 
     [Fact]
-    public async Task GetOrCreateClientAsync_IndexWithoutConnectionString_SeesSharedConnectionStringChange()
+    public async Task GetOrCreateClientAsync_IndexWithoutConnectionString_UsesSharedClientAndLeavesOptionsUnchanged()
     {
         var options = new ElasticSearchOptions
         {
