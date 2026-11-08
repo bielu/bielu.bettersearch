@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="Bielu.BetterSearch.Abstractions.Tests/Bielu.BetterSearch.Abstractions.Tests.csproj" />
   <Project Path="Bielu.BetterSearch.Abstractions/Bielu.BetterSearch.Abstractions.csproj" />
   <Project Path="Bielu.BetterSearch.BaseTests/Bielu.BetterSearch.BaseTests.csproj" />
   <Project Path="Bielu.BetterSearch.Core/Bielu.BetterSearch.Core.csproj" />

@@ -9,6 +9,8 @@ which matches or doesn't, so hits aren't ranked. Paging, sorting and post filter
 >
 > - **`FuzzyQuery`** returns a failed `Result`: filters only match exact values, and Meilisearch's typo
 >   tolerance applies to the whole search text, not one field.
+> - **`PrefixQuery` and `PrefixPhraseQuery`** with a value that isn't a string, such as a number, return a
+>   failed `Result`.
 > - **`LuceneQuery`** returns a failed `Result`: Meilisearch has no Lucene syntax.
 > - **Relevance scores**: every hit has the same `Score`.
 > - **Facets and highlighting** can be expressed, but a query that asks for them returns a failed `Result`.

@@ -18,7 +18,7 @@ public class TermSubQueryTranslator : ISubQueryTranslator<IQuery>
             return Task.FromResult(Result.Fail<IQuery>("Query is not a term query"));
         }
 
-        var value = (termQuery.Value?.ToString() ?? string.Empty).ToUpperInvariant();
+        var value = QueryValueText.From(termQuery.Value).ToUpperInvariant();
         return Task.FromResult(Result.Ok<IQuery>(new Query(new ExactWordQueryPart(value))));
     }
 }
