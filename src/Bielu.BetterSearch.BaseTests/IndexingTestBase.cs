@@ -297,7 +297,8 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         }
         finally
         {
-            // A failed delete means the index is not there, which is the expected outcome.
+            // Best-effort cleanup: the result is ignored. A failed delete is expected when the index
+            // was never created, but it can also be a server error, so it proves nothing about absence.
             await indexingProviderAsync.DeleteIndexAsync(index, Token);
         }
     }
