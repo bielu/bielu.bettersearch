@@ -33,6 +33,9 @@ public class LiftiIndexManager : ILiftiIndexManager
         return Task.FromResult(Result.Ok<IFullTextIndex<string>?>(index));
     }
 
+    public Task<Result<IFullTextIndex<string>?>> GetIndexAsync(string key) =>
+        Task.FromResult(Result.Ok(_indices.TryGetValue(key, out var index) ? index : null));
+
     public Task<Result<bool>> ExistsAsync(string name) => Task.FromResult(Result.Ok(_indices.ContainsKey(name)));
 
     public Task<Result<bool>> DeleteIndexAsync(string name) => Task.FromResult(Result.Ok(_indices.TryRemove(name, out _)));
