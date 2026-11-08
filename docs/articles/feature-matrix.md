@@ -22,7 +22,7 @@ Meilisearch queries run as filters, which compare whole values, so the provider 
 | **DateRangeQuery** | ✅ | ✅ | ✅ a date without a time zone is UTC | ❌ |
 | **NumericRange** | ✅ | ✅ | ✅ | ❌ |
 | **LongRange** | ✅ | ✅ | ⚠️ Meilisearch compares numbers as doubles, so values past 2^53 lose precision | ❌ |
-| **StringRange** | ⚠️ compares analyzed tokens; use `Field.keyword` for whole values | ⚠️ compares analyzed tokens; use `Field.keyword` for whole values | ⚠️ compares lower-cased words, and one word must lie inside the range, as on Elasticsearch; use `fields.Name` for whole values, which compare ignoring case | ❌ |
+| **StringRange** | ⚠️ compares analyzed tokens to the bounds as given, so bounds are case-sensitive (`"A"`–`"Z"` misses the token `jane`); use `Field.keyword` for whole values | ⚠️ compares analyzed tokens to the bounds as given, so bounds are case-sensitive (`"A"`–`"Z"` misses the token `jane`); use `Field.keyword` for whole values | ⚠️ compares lower-cased words, and one word must lie inside the range, as on Elasticsearch; use `fields.Name` for whole values, which compare ignoring case | ❌ |
 | **SpatialSearchQuery** | ⚠️ the field must be mapped as `geo_point`; dynamic mapping doesn't create one | ⚠️ the field must be mapped as `geo_point`; dynamic mapping doesn't create one | ⚠️ only on the field named by `MeilisearchOptions.GeoField`, as Meilisearch filters by distance on one `_geo` attribute; that field holds one point, a `"lat,lon"` string or a dictionary with `lat` and `lon`, and the provider copies it to `_geo`; unset, a failed `Result` | ❌ |
 
 ## Boolean semantics

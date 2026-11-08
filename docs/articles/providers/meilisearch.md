@@ -15,7 +15,7 @@ which matches or doesn't, so hits aren't ranked. Paging, sorting and post filter
 > - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
 > - **Remove all documents** reports a count of 0 through the service.
 >
-> A missing connection string throws rather than returns a failed `Result`.
+> A missing connection string makes each search and write for that index return a failed `Result`.
 
 ## Install
 

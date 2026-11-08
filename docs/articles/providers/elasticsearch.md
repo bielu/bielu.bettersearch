@@ -13,7 +13,8 @@ filters and scores.
 >   and `RemoveAllDocumentsAsync` reports a count of 0.
 > - **Bulk indexing**: `IndexMultipleDocumentsAsync` indexes one document at a time.
 >
-> Invalid or missing connection settings throw rather than return a failed `Result`.
+> Invalid or missing connection settings throw from searching, indexing and deleting; only
+> `IndexExistsAsync` and `CreateIndexAsync` turn them into a failed `Result`.
 
 ## Install
 
@@ -71,8 +72,11 @@ You can also set the options in code with `services.Configure<ElasticSearchOptio
 Documents are stored with their values under `fields`, so a query on `Name` searches `fields.Name`.
 Metadata fields such as `_id` and `_score` pass through unchanged.
 
-- **Text fields are analyzed.** `TermQuery`, `PrefixQuery` and `StringRange` match analyzed tokens and ignore
-  ASCII case only (`Żółw` does not match `żółw`). Use `Field.keyword` to match or compare the whole value.
+- **Text fields are analyzed.** `TermQuery` and `PrefixQuery` match analyzed tokens and ignore ASCII case only
+  (`Żółw` does not match `żółw`). Use `Field.keyword` to match the whole value.
+- **`StringRange` bounds are case-sensitive.** They are compared to the indexed tokens as given, so on an
+  analyzed field, whose tokens are lower-cased, `"a"`–`"z"` matches `Jane` but `"A"`–`"Z"` doesn't. Pass
+  lower-case bounds, or use `Field.keyword` to compare whole values.
 - **Sorting on a text field** is rejected by Elasticsearch; sort on `Field.keyword`.
 - **`SpatialSearchQuery`** needs the field mapped as `geo_point`; dynamic mapping doesn't create one.
 - **`LuceneQuery`** field names need the `fields.` prefix.

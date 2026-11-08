@@ -68,8 +68,11 @@ You can also set the options in code with `services.Configure<OpenSearchOptions>
 Documents are stored with their values under `fields`, as with Elasticsearch, so a query on `Name` searches
 `fields.Name`.
 
-- **Text fields are analyzed.** `TermQuery`, `PrefixQuery` and `StringRange` match analyzed tokens and ignore
-  ASCII case only. Use `Field.keyword` to match or compare the whole value.
+- **Text fields are analyzed.** `TermQuery` and `PrefixQuery` match analyzed tokens and ignore ASCII case only.
+  Use `Field.keyword` to match the whole value.
+- **`StringRange` bounds are case-sensitive.** They are compared to the indexed tokens as given, so on an
+  analyzed field, whose tokens are lower-cased, `"a"`–`"z"` matches `Jane` but `"A"`–`"Z"` doesn't. Pass
+  lower-case bounds, or use `Field.keyword` to compare whole values.
 - **Sorting on a text field** is rejected by OpenSearch; sort on `Field.keyword`.
 - **`SpatialSearchQuery`** needs the field mapped as `geo_point`; dynamic mapping doesn't create one.
 - **`LuceneQuery`** field names need the `fields.` prefix.
