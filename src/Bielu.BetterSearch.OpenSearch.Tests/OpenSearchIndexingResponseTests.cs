@@ -94,6 +94,26 @@ public sealed class OpenSearchIndexingResponseTests
     }
 
     [Fact]
+    public async Task RemoveDocumentAsync_DocumentNotFound_ReturnsSuccess()
+    {
+        var provider = Provider("""{"_index":"people","_id":"1","_version":1,"result":"not_found","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":0,"_primary_term":1}""", 404);
+
+        var result = await provider.RemoveDocumentAsync("1", "people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task RemoveDocumentAsync_IndexNotFound_ReturnsFailure()
+    {
+        var provider = Provider("""{"error":{"root_cause":[{"type":"index_not_found_exception","reason":"no such index [people]"}],"type":"index_not_found_exception","reason":"no such index [people]"},"status":404}""", 404);
+
+        var result = await provider.RemoveDocumentAsync("1", "people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task CreateIndexAsync_Forbidden_ReturnsFailureWithTheCause()
     {
         var provider = Provider("""{"error":{"root_cause":[{"type":"security_exception","reason":"no permissions for [indices:admin/create]"}],"type":"security_exception","reason":"no permissions for [indices:admin/create]"},"status":403}""", 403);
