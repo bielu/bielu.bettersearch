@@ -1,4 +1,4 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+﻿using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Tests;
 using Shouldly;
 

@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
 
-namespace Bielu.BetterSearch.Abstractions.Query;
+namespace Bielu.BetterSearch.Services;
 
 /// <summary>
 /// Turns a query or field value into text the same way on every machine, whatever its culture, so

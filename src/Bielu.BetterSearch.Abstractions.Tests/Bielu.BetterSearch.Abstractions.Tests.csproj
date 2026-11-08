@@ -23,4 +23,9 @@
       <ProjectReference Include="..\Bielu.BetterSearch.BaseTests\Bielu.BetterSearch.BaseTests.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <!-- Compiled into each provider; linked here so its tests stay in one place. -->
+      <Compile Include="..\Shared\QueryValueText.cs" Link="Services\QueryValueText.cs" />
+    </ItemGroup>
+
 </Project>

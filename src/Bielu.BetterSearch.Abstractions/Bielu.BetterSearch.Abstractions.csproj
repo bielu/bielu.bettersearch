@@ -11,9 +11,6 @@
 
     <ItemGroup>
       <InternalsVisibleTo Include="Bielu.BetterSearch.Abstractions.Tests" />
-      <InternalsVisibleTo Include="Bielu.BetterSearch.ElasticSearch" />
-      <InternalsVisibleTo Include="Bielu.BetterSearch.Lifti" />
-      <InternalsVisibleTo Include="Bielu.BetterSearch.OpenSearch" />
     </ItemGroup>
 
 </Project>

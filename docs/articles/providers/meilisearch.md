@@ -92,6 +92,8 @@ filterable and sortable attributes the provider needs to the index settings, kee
   `fields.Name` it matches the whole value, also ignoring case. A string that reads as a number or boolean
   also matches that value.
 - **`PrefixPhraseQuery`** matches at most 16 words.
+- **Numbers** in a filter are written as on every other provider (`3.5`, never `3,5`), except that a positive
+  exponent drops its `+` (`1E20`, not `1E+20`), as Meilisearch filters don't read `1E+20`.
 - **`LongRange`** values past 2^53 lose precision, as Meilisearch compares numbers as doubles.
 - **Dates** without a time zone are read as UTC.
 - **Field names** can only contain letters, digits, `_`, `-` and `.`, and **document ids** letters, digits, `-`

@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+﻿using Bielu.BetterSearch.Services;
 using FluentResults;
 
 namespace Bielu.BetterSearch.Meilisearch.Services;
@@ -56,18 +56,15 @@ internal static class MeilisearchFieldNames
     public static string Quote(string value) =>
         "\"" + value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
 
-    /// <summary>A number as a filter literal, or <c>null</c> when <paramref name="value"/> is not a number.</summary>
-    public static string? Number(object? value) => value switch
-    {
-        byte or sbyte or short or ushort or int or uint or long or ulong or decimal =>
-            Convert.ToString(value, CultureInfo.InvariantCulture),
-        float number => Exponent(number.ToString("R", CultureInfo.InvariantCulture)),
-        double number => Exponent(number.ToString("R", CultureInfo.InvariantCulture)),
-        _ => null
-    };
-
-    /// <summary>Meilisearch reads <c>1E16</c> but not <c>1E+16</c>.</summary>
-    private static string Exponent(string number) => number.Replace("E+", "E", StringComparison.Ordinal);
+    /// <summary>
+    /// A number as a filter literal, or <c>null</c> when <paramref name="value"/> is not a number. The text is
+    /// <see cref="QueryValueText"/>'s, as on every provider, except that Meilisearch filters read <c>1E20</c> but not
+    /// <c>1E+20</c>, so a positive exponent drops its <c>+</c>.
+    /// </summary>
+    public static string? Number(object? value) => value is byte or sbyte or short or ushort or int or uint or long or ulong
+        or decimal or float or double
+        ? QueryValueText.From(value).Replace("E+", "E", StringComparison.Ordinal)
+        : null;
 
     /// <summary>
     /// Values of <paramref name="attribute"/> between the bounds present; <c>EXISTS</c> when neither is. With both
