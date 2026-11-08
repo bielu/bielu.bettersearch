@@ -89,7 +89,7 @@ Breaking, and cheapest now.
 
 ### Phase 4: stabilize
 
-- One conformance suite covering every query type and boolean combination, run against both providers. `FEATURE_MATRIX.md` becomes a record of its results.
+- One conformance suite covering every query type and boolean combination, run against both providers. the feature matrix (`docs/articles/feature-matrix.md`) becomes a record of its results.
 - OpenTelemetry traces and metrics, as in `Bielu.PersistentQueues`.
 - Facets and highlighting, or remove them from the query model for 1.0.
 - Turn on `Microsoft.CodeAnalysis.PublicApiAnalyzers`, enable CS1591 and document the public API.
@@ -103,7 +103,7 @@ Breaking, and cheapest now.
 
 ## Exit criteria for 1.0
 
-- Both providers pass one conformance suite, and `FEATURE_MATRIX.md` has no ⚠️.
+- Both providers pass one conformance suite, and the feature matrix (`docs/articles/feature-matrix.md`) has no ⚠️.
 - No `NotImplementedException` on a public path, and no compiler or analyzer warnings.
 - Public API tracked and documented; 70%+ line coverage on library code.
 - At least one real consumer has run a release candidate.

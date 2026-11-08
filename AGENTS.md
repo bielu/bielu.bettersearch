@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository. Human contributors sho
 
 ## What this project is
 
-`Bielu.BetterSearch` is a **provider-agnostic search abstraction** for .NET: a query model and service interfaces, with engine-specific providers behind them. It is in beta. [ROADMAP.md](./ROADMAP.md) is the plan for reaching a stable release, and [FEATURE_MATRIX.md](./FEATURE_MATRIX.md) records what each provider really supports; keep both accurate.
+`Bielu.BetterSearch` is a **provider-agnostic search abstraction** for .NET: a query model and service interfaces, with engine-specific providers behind them. It is in beta. [ROADMAP.md](./ROADMAP.md) is the plan for reaching a stable release, and [docs/articles/feature-matrix.md](./docs/articles/feature-matrix.md) records what each provider really supports; keep both accurate.
 
 ## Repository layout
 
@@ -75,5 +75,5 @@ Releases are driven by [changesets](https://github.com/changesets/changesets) in
 2. `dotnet test` passes.
 3. `dotnet format --verify-no-changes src/Bielu.BetterSearch.slnx` reports nothing new.
 4. A changeset is included.
-5. `README.md` and `FEATURE_MATRIX.md` are updated when behavior or public APIs change.
+5. `README.md`, `docs/articles/feature-matrix.md` and the provider pages in `docs/articles/providers/` are updated when behavior or public APIs change.
 6. Target the `main` branch.

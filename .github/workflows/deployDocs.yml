@@ -6,7 +6,6 @@ on:
     paths:
       - "docs/**"
       - "src/**"
-      - "FEATURE_MATRIX.md"
       - "ROADMAP.md"
       - "Directory.Packages.props"
       - "version.props"

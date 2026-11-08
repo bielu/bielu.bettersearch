@@ -1,6 +1,16 @@
 - name: Getting Started
   href: getting-started.md
+- name: Providers
+  items:
+    - name: Elasticsearch
+      href: providers/elasticsearch.md
+    - name: OpenSearch
+      href: providers/opensearch.md
+    - name: Meilisearch
+      href: providers/meilisearch.md
+    - name: Lifti (in memory)
+      href: providers/lifti.md
 - name: Feature Matrix
-  href: ../../FEATURE_MATRIX.md
+  href: feature-matrix.md
 - name: Roadmap
   href: ../../ROADMAP.md

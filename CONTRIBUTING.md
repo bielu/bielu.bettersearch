@@ -26,7 +26,7 @@ dotnet run --project src/examples/Bielu.BetterSearch.Examples.AppHost
 
 1. Target `main`.
 2. Make sure the build adds no new warnings and the tests pass.
-3. Update `README.md` and `FEATURE_MATRIX.md` when behavior or public APIs change.
+3. Update `README.md`, `docs/articles/feature-matrix.md` and the provider pages in `docs/articles/providers/` when behavior or public APIs change.
 4. Add a changeset: `npx changeset`, or `npx changeset add --empty` for changes that ship nothing. A
    NuGet dependency bump ships in the packages, so it needs a normal changeset. CI fails a PR without
    one, except Dependabot and Version Packages PRs.
