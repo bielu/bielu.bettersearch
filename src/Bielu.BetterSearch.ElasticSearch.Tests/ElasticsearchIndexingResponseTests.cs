@@ -18,6 +18,12 @@ public sealed class ElasticsearchIndexingResponseTests
         public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName) => Task.FromResult(client);
     }
 
+    private sealed class ThrowingClientFactory : IClientFactoryAsync<ElasticsearchClient>
+    {
+        public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName) =>
+            throw new InvalidOperationException("bad connection string");
+    }
+
     private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode)
     {
         var invoker = new InMemoryRequestInvoker(Encoding.UTF8.GetBytes(json), statusCode, null, "application/json",
@@ -46,5 +52,16 @@ public sealed class ElasticsearchIndexingResponseTests
         var result = await provider.RemoveDocumentAsync("1", "people", Token);
 
         result.IsFailed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task RemoveDocumentAsync_ClientFactoryThrows_ReturnsFailure()
+    {
+        var provider = new ElasticSearchIndexingProviderAsync(new ThrowingClientFactory(), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
+
+        var result = await provider.RemoveDocumentAsync("1", "people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Select(e => e.Message).ShouldBe(["bad connection string"]);
     }
 }

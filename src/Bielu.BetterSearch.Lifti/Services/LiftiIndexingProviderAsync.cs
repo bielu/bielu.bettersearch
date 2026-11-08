@@ -47,20 +47,19 @@ public class LiftiIndexingProviderAsync(
     {
         try
         {
-            // Matches the other providers: a missing index is a caller mistake, not an already removed document.
-            var exists = await liftiIndexManager.ExistsAsync(type).ConfigureAwait(false);
-            if (exists.IsFailed)
+            // Lifti indexes live in memory, so after a restart an index is missing until something writes to it.
+            // A missing index holds no documents, so the document is already gone; the index is not created.
+            var index = await liftiIndexManager.GetIndexAsync(type).ConfigureAwait(false);
+            if (index.IsFailed)
             {
-                return exists.ToResult();
+                return index.ToResult();
             }
 
-            if (!exists.Value)
+            if (index.Value is not null)
             {
-                return Result.Fail($"Index {type} does not exist.");
+                await index.Value.RemoveAsync(id, cancellationToken).ConfigureAwait(false);
             }
 
-            var index = await clientFactory.GetOrCreateClientAsync(type).ConfigureAwait(false);
-            await index.RemoveAsync(id, cancellationToken).ConfigureAwait(false);
             return Result.Ok();
         }
         catch (Exception e)
