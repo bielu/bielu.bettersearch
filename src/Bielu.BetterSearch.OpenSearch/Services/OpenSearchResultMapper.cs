@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using OpenSearch.Client;
 
 namespace Bielu.BetterSearch.OpenSearch.Services;
@@ -21,8 +22,6 @@ internal sealed class OpenSearchResultMapper : IResultMapper<ISearchResponse<Sea
     {
         Id = hit.Id ?? hit.Source?.Id ?? string.Empty,
         ContentType = hit.Source?.Type ?? string.Empty,
-        CustomProperties = hit.Source?.Fields?.ToDictionary(
-            field => field.Key,
-            field => field.Value?.Where(value => value is not null).ToList() ?? []) ?? []
+        CustomProperties = StoredFields.ToCustomProperties(hit.Source?.Fields)
     }, hit.Score);
 }

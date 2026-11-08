@@ -77,14 +77,14 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Tags");
     }
     [Fact]
-    public async Task IndexDocumentAsync_NullFieldsDictionary_Fails()
+    public async Task IndexDocumentAsync_NullFieldsDictionary_IndexesADocumentWithNoFields()
     {
         var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index-1", Fields = null! };
 
         var result = await serviceAsync.IndexDocumentAsync(document);
 
-        result.IsFailed.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("empty dictionary");
+        document.Fields.ShouldBeEmpty();
+        result.IsSuccess.ShouldBeTrue();
     }
     [Fact]
     public async Task IndexDocumentAsync_NullValueInField_Fails()

@@ -1,8 +1,8 @@
-﻿using System.Text.Json;
-using Bielu.BetterSearch.Abstractions.Models;
+﻿using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 using Microsoft.Extensions.Options;
 using MeilisearchApiError = Meilisearch.MeilisearchApiError;
@@ -138,20 +138,6 @@ public sealed class MeilisearchSearchProviderAsync(
     {
         Id = hit.Id,
         ContentType = hit.Type ?? string.Empty,
-        CustomProperties = hit.Fields?.ToDictionary(
-            field => field.Key,
-            field => field.Value?.Select(ToClrValue).Where(value => value is not null).ToList() ?? []) ?? []
+        CustomProperties = StoredFields.ToCustomProperties(hit.Fields)
     }, hit.RankingScore);
-
-    /// <summary>Values are deserialized as <see cref="JsonElement"/>; callers get plain values, as from Elasticsearch.</summary>
-    private static object ToClrValue(object? value) => value switch
-    {
-        JsonElement { ValueKind: JsonValueKind.String } element => element.GetString()!,
-        JsonElement { ValueKind: JsonValueKind.Number } element => element.TryGetInt64(out var number) ? (object)number : element.GetDouble(),
-        JsonElement { ValueKind: JsonValueKind.True } => true,
-        JsonElement { ValueKind: JsonValueKind.False } => false,
-        JsonElement { ValueKind: JsonValueKind.Null or JsonValueKind.Undefined } => null!,
-        JsonElement element => element.Clone(),
-        _ => value!
-    };
 }
