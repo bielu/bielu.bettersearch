@@ -276,21 +276,30 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
     }
 
     [Fact]
-    public async Task RemoveDocumentAsync_MissingIndex_ReturnsDocumentedResult()
+    public async Task RemoveDocumentAsync_MissingIndex_DoesNotCreateIndex()
     {
         //Arrange
         var index = $"remove-{Guid.NewGuid():N}";
-
-        //Act
-        var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
+        try
         {
-            Id = "1",
-            Type = index,
-        }, Token);
+            //Act
+            var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
+            {
+                Id = "1",
+                Type = index,
+            }, Token);
 
-        //Assert
-        result.IsSuccess.ShouldBe(RemovingFromMissingIndexSucceeds);
-        (await indexingProviderAsync.IndexExistsAsync(index, Token)).Value.ShouldBeFalse();
+            //Assert
+            result.IsSuccess.ShouldBe(RemovingFromMissingIndexSucceeds);
+            var exists = await indexingProviderAsync.IndexExistsAsync(index, Token);
+            exists.IsSuccess.ShouldBeTrue(string.Join("; ", exists.Errors.Select(error => error.Message)));
+            exists.Value.ShouldBeFalse();
+        }
+        finally
+        {
+            // A failed delete means the index is not there, which is the expected outcome.
+            await indexingProviderAsync.DeleteIndexAsync(index, Token);
+        }
     }
 
     /// <summary>Disposes its subscription when completed, as Rx observers commonly do.</summary>
