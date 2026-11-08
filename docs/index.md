@@ -5,7 +5,7 @@ search engine you configure.
 
 > [!WARNING]
 > **Beta, not production ready.** The public API will change before 1.0. The
-> [feature matrix](../FEATURE_MATRIX.md) records what each provider really supports, and the
+> [feature matrix](articles/feature-matrix.md) records what each provider really supports, and the
 > [roadmap](../ROADMAP.md) is the plan for reaching a stable release.
 
 <div class="landing-cards">
@@ -14,8 +14,9 @@ search engine you configure.
 
 ## One query model
 
-Build a `SearchQuery` from term, prefix, fuzzy, range, geo-distance and nested boolean sub-queries, or
-with the fluent API, and get the same results from every provider.
+Build a `SearchQuery` from term, terms, prefix, phrase prefix, fuzzy, date, numeric and string range,
+geo-distance, raw Lucene and nested boolean sub-queries, or with the fluent API. Boolean logic follows
+Lucene semantics on every provider.
 
 [Get started →](articles/getting-started.md)
 
@@ -36,11 +37,11 @@ the core, and every provider runs the same shared tests.
 
 ## Errors as results
 
-Searching and indexing are designed to return [FluentResults](https://github.com/altmann/FluentResults)
-`Result`s, so anything a caller can act on is a failed result rather than an exception. Not every
-unsupported option fails yet: Lifti ignores paging, sorting and post filters, as the
-[feature matrix](../FEATURE_MATRIX.md) records. In this beta some paths still throw; the [roadmap](../ROADMAP.md) lists
-known defects.
+Searching and indexing return [FluentResults](https://github.com/altmann/FluentResults) `Result`s, so a
+query a provider can't run is a failed result rather than an exception. Elasticsearch, OpenSearch and
+Meilisearch fail a query that asks for facets or highlighting; Lifti ignores paging, sorting, post filters,
+facets and highlighting. In this beta some paths still throw; the [roadmap](../ROADMAP.md) lists known
+defects.
 
 [API reference →](api/index.md)
 
@@ -50,7 +51,7 @@ known defects.
 
 ## Providers
 
-Each provider is its own NuGet package. The [feature matrix](../FEATURE_MATRIX.md) records exactly what
+Each provider is its own NuGet package. The [feature matrix](articles/feature-matrix.md) records exactly what
 each one supports today.
 
 <div class="landing-cards provider-cards">
@@ -60,8 +61,10 @@ each one supports today.
 ### Elasticsearch <span class="provider-status available">Available</span>
 
 [Bielu.BetterSearch.ElasticSearch](https://www.nuget.org/packages/Bielu.BetterSearch.ElasticSearch/)
-runs on an [Elasticsearch](https://www.elastic.co/elasticsearch) cluster. Check the feature matrix for
-the query types and search features it supports.
+runs on an [Elasticsearch](https://www.elastic.co/elasticsearch) cluster, configured from
+`Bielu:BetterSearch:ElasticSearch`, with paging, sorting, post filters and scores.
+
+[Setup and limitations →](articles/providers/elasticsearch.md)
 
 ```csharp
 search.AddElasticSearch()
@@ -77,8 +80,27 @@ search.AddElasticSearch()
 runs on an [OpenSearch](https://opensearch.org/) cluster, configured from `Bielu:BetterSearch:OpenSearch`
 with basic or API key authentication. It translates queries the same way as the Elasticsearch provider.
 
+[Setup and limitations →](articles/providers/opensearch.md)
+
 ```csharp
 search.AddOpenSearch()
+```
+
+</div>
+
+<div class="landing-card">
+
+### Meilisearch <span class="provider-status available">Available</span>
+
+[Bielu.BetterSearch.Meilisearch](https://www.nuget.org/packages/Bielu.BetterSearch.Meilisearch/)
+runs on a [Meilisearch](https://www.meilisearch.com/) server, configured from
+`Bielu:BetterSearch:Meilisearch`. Queries run as filters, so hits aren't ranked, and fuzzy and raw Lucene
+queries return a failed `Result`.
+
+[Setup and limitations →](articles/providers/meilisearch.md)
+
+```csharp
+search.AddMeilisearch()
 ```
 
 </div>
@@ -88,8 +110,10 @@ search.AddOpenSearch()
 ### Lifti <span class="provider-status available">Available</span>
 
 [Bielu.BetterSearch.Lifti](https://www.nuget.org/packages/Bielu.BetterSearch.Lifti/) is an in-memory
-index built on [LIFTI](https://github.com/mikegoatly/lifti), for tests and small data sets. It is due to
-be replaced by Lucene.NET.
+index built on [LIFTI](https://github.com/mikegoatly/lifti), for tests and small data sets. It needs no
+configuration and is due to be replaced by Lucene.NET.
+
+[Setup and limitations →](articles/providers/lifti.md)
 
 ```csharp
 search.AddLiftiSearch()
