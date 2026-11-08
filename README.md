@@ -16,7 +16,7 @@ provider package, with no change to the core.
 📖 **Full documentation: [https://search.bielu.pl/](https://search.bielu.pl/)**
 
 > **Status: beta, not production ready.** The public API will change before 1.0. The
-> [roadmap](ROADMAP.md) is the plan for a stable release, and the [feature matrix](FEATURE_MATRIX.md)
+> [roadmap](ROADMAP.md) is the plan for a stable release, and the [feature matrix](docs/articles/feature-matrix.md)
 > records what each provider really supports.
 
 ## Quick start
@@ -41,7 +41,7 @@ Elasticsearch, configured from `Bielu:BetterSearch:ElasticSearch`:
 using Bielu.BetterSearch.DepedencyInjection;
 using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
 
-builder.Services.AddBetterSearch(search => search.AddElasticSearch());
+builder.Services.AddBetterSearch(builder.Configuration, search => search.AddElasticSearch());
 ```
 
 OpenSearch, configured from `Bielu:BetterSearch:OpenSearch`:
@@ -107,7 +107,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeil
 ranks, so fuzzy and raw Lucene queries return a failed `Result`. Spatial queries work on one field, named by
 `"GeoField"` under `Meilisearch`, holding a `"lat,lon"` string or a dictionary with `lat` and `lon`. Phrase
 prefix queries store word runs for every text field; list the fields that need them in `"PhraseFields"` to keep
-long texts small, and re-index after adding a field to it (see the [feature matrix](FEATURE_MATRIX.md)).
+long texts small, and re-index after adding a field to it (see the [feature matrix](docs/articles/feature-matrix.md)).
 
 Or in memory:
 
@@ -160,7 +160,7 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
   and post filters on Meilisearch
 - ✅ **Errors as results**: searching and indexing return [FluentResults](https://github.com/altmann/FluentResults)
   `Result`s. Elasticsearch, OpenSearch and Meilisearch fail a query that asks for facets or highlighting, but Lifti ignores paging,
-  sorting, post filters, facets and highlighting, so check the [feature matrix](FEATURE_MATRIX.md) for what
+  sorting, post filters, facets and highlighting, so check the [feature matrix](docs/articles/feature-matrix.md) for what
   your provider applies
 - ✅ **Shared provider tests**: provider-agnostic behavior tests in `BaseTests` run against every provider
 - ✅ **.NET Aspire AppHost** that starts Elasticsearch, OpenSearch and Meilisearch for local development and the
@@ -168,7 +168,7 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
   indexes and trying queries
 
 Facets and highlighting can be expressed but no provider runs them yet. See the
-[feature matrix](FEATURE_MATRIX.md) for the full picture.
+[feature matrix](docs/articles/feature-matrix.md) for the full picture.
 
 ## Packages
 
@@ -192,7 +192,7 @@ Facets and highlighting can be expressed but no provider runs them yet. See the
 ## Documentation
 
 - [Getting Started](https://search.bielu.pl/articles/getting-started.html)
-- [Feature matrix](https://search.bielu.pl/articles/FEATURE_MATRIX.html)
+- [Feature matrix](https://search.bielu.pl/articles/feature-matrix.html)
 - [Roadmap](https://search.bielu.pl/articles/ROADMAP.html)
 - [API reference](https://search.bielu.pl/api/index.html)
 
