@@ -160,12 +160,15 @@ public abstract class QueryResultBaseTests(
     public async Task SearchAsync_StoredNullField_ReturnsTheHitWithAnEmptyField()
     {
         var index = $"query-results-{Guid.NewGuid():N}";
-        // The service rejects a null field, so store it as another writer to the index would.
+        // The service rejects a null field or value, so store it as another writer to the index would.
         (await indexingProviderAsync.IndexDocumentAsync(new SearchDocument
         {
             Id = "null-1",
             Index = index,
-            Fields = new Dictionary<string, IList<object>> { { "Name", ["Null Field"] }, { "Tags", null! } }
+            Fields = new Dictionary<string, IList<object>>
+            {
+                { "Name", ["Null Field"] }, { "Tags", null! }, { "Labels", ["a", null!] }
+            }
         })).IsSuccess.ShouldBeTrue();
         await DocumentsIndexedAsync(index);
         var query = new SearchQuery { Index = index };
@@ -180,6 +183,7 @@ public abstract class QueryResultBaseTests(
         {
             hit.Document.CustomProperties.ShouldContainKey("Tags");
             hit.Document.CustomProperties["Tags"].ShouldBeEmpty();
+            hit.Document.CustomProperties["Labels"].ShouldBe(["a"]);
         }
     }
 
