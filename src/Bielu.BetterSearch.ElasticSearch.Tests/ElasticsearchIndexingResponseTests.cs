@@ -24,11 +24,12 @@ public sealed class ElasticsearchIndexingResponseTests
         public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName) => throw exception;
     }
 
-    private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode)
+    private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false)
     {
         var invoker = new InMemoryRequestInvoker(Encoding.UTF8.GetBytes(json), statusCode, null, "application/json",
             new Dictionary<string, IEnumerable<string>> { ["X-Elastic-Product"] = ["Elasticsearch"] });
-        var settings = new ElasticsearchClientSettings(new SingleNodePool(new Uri("http://localhost:9200")), invoker);
+        var settings = new ElasticsearchClientSettings(new SingleNodePool(new Uri("http://localhost:9200")), invoker)
+            .ThrowExceptions(throwExceptions);
         return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
     }
 
@@ -52,6 +53,17 @@ public sealed class ElasticsearchIndexingResponseTests
         var result = await provider.RemoveDocumentAsync("1", "people", Token);
 
         result.IsFailed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task RemoveDocumentAsync_RequestThrows_ReturnsFailureCausedByTheException()
+    {
+        var provider = Provider("""{"error":"unavailable","status":503}""", 503, throwExceptions: true);
+
+        var result = await provider.RemoveDocumentAsync("1", "people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<TransportException>();
     }
 
     public static TheoryData<string> IndexingMethods =>

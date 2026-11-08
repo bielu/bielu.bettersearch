@@ -53,12 +53,19 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
             return client.ToResult();
         }
 
-        var indexResult = await client.Value.DeleteAsync(new DeleteRequest(type, id), cancellationToken).ConfigureAwait(false);
-        // Deletes are idempotent: a document that is not there is already gone. A missing index is still a failure,
-        // and Elasticsearch reports it with an error rather than a not_found result.
-        var removed = indexResult.ElasticsearchServerError is null
-            && (indexResult.IsSuccess() || indexResult.Result == Elastic.Clients.Elasticsearch.Result.NotFound);
-        return removed ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
+        try
+        {
+            var indexResult = await client.Value.DeleteAsync(new DeleteRequest(type, id), cancellationToken).ConfigureAwait(false);
+            // Deletes are idempotent: a document that is not there is already gone. A missing index is still a failure,
+            // and Elasticsearch reports it with an error rather than a not_found result.
+            var removed = indexResult.ElasticsearchServerError is null
+                && (indexResult.IsSuccess() || indexResult.Result == Elastic.Clients.Elasticsearch.Result.NotFound);
+            return removed ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result.Fail(new Error(e.Message).CausedBy(e));
+        }
     }
 
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
