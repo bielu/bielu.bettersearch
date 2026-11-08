@@ -75,6 +75,9 @@ for that one index and takes the rest from the shared settings (set `"Authentica
 turn the shared authentication off for that index), and `MaxResultWindow` (10,000 by default)
 should match the indexes' `index.max_result_window`.
 
+In every provider, keys under `Indexes` match index names whatever their case, so `Indexes:People` applies
+to the index `people`.
+
 Meilisearch, configured from `Bielu:BetterSearch:Meilisearch`:
 
 ```csharp
