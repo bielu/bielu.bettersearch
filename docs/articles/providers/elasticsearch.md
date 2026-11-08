@@ -11,7 +11,8 @@ filters and scores.
 > - **Index operations report odd values**: creating an index the cluster rejects is success with `false`,
 >   deleting an index returns `false` even when it worked, a transport error reads as "index does not exist",
 >   and `RemoveAllDocumentsAsync` reports a count of 0.
-> - **Bulk indexing**: `IndexMultipleDocumentsAsync` indexes one document at a time.
+> - **Bulk indexing**: Core's `IndexingServiceAsync.IndexMultipleDocumentsAsync` indexes one document at a time,
+>   so this provider's `BulkAsync` path is never used.
 >
 > Invalid or missing connection settings throw from searching and indexing; `RemoveDocumentAsync`,
 > `IndexExistsAsync` and `CreateIndexAsync` turn them into a failed `Result`.

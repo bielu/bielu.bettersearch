@@ -9,7 +9,8 @@ post filters and scores.
 > **What won't work**
 >
 > - **Facets and highlighting** can be expressed, but a query that asks for them returns a failed `Result`.
-> - **Bulk indexing**: `IndexMultipleDocumentsAsync` indexes one document at a time.
+> - **Bulk indexing**: Core's `IndexingServiceAsync.IndexMultipleDocumentsAsync` indexes one document at a time,
+>   so this provider's `BulkAsync` path is never used.
 > - **Remove all documents** reports a count of 0.
 
 ## Install
