@@ -9,7 +9,7 @@ using Shouldly;
 namespace Bielu.BetterSearch.Lifti.Tests;
 
 /// <summary>Checks the Lifti indexing provider's own behavior, beyond what <c>IndexingTestBase</c> covers.</summary>
-public sealed class LiftiIndexingProviderTests(IIndexingProviderAsync indexingProvider, ISearchServiceAsync searchService)
+public sealed class LiftiIndexingProviderTests(IIndexingProviderAsync indexingProvider, ISearchServiceAsync searchService, ILiftiIndexManager indexManager)
 {
     /// <summary>An index manager that cannot create an index, so every write that needs one fails.</summary>
     private sealed class FailingIndexManager : ILiftiIndexManager
@@ -80,7 +80,7 @@ public sealed class LiftiIndexingProviderTests(IIndexingProviderAsync indexingPr
 
         (await indexingProvider.IndexDocumentAsync(new SearchDocument { Id = "1", Index = index }, Token)).IsSuccess.ShouldBeTrue();
 
-        (await indexingProvider.IndexExistsAsync(index, Token)).Value.ShouldBeTrue();
+        (await indexManager.GetOrCreateIndexAsync(index)).Value.Count.ShouldBe(1);
         (await SearchIdsAsync(index, "anything")).ShouldBeEmpty();
     }
 

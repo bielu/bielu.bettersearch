@@ -423,31 +423,49 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
         result.Value.Pagination.PageSize.ShouldBe(0);
     }
 
+    /// <summary>Hits stay in score order: the younger document scores higher, so honoring <c>Age DESC</c> would put the older one first.</summary>
     [Fact]
     public async Task SearchAsync_SortOrder_IsIgnored()
     {
-        var index = await CreatePeopleAsync();
+        var index = $"search-{Guid.NewGuid():N}";
+        (await indexingProvider.IndexMultipleDocumentsAsync(
+        [
+            new SearchDocument { Id = "older", Index = index, Fields = new Dictionary<string, IList<object>> { { "Name", ["doe and some other words here"] }, { "Age", [60] } } },
+            new SearchDocument { Id = "younger", Index = index, Fields = new Dictionary<string, IList<object>> { { "Name", ["doe doe doe"] }, { "Age", [20] } } }
+        ], Token)).IsSuccess.ShouldBeTrue();
         var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" });
         query.SortOrder = [new SortField { FieldName = "Age", Desc = true }];
 
         var result = await searchService.SearchAsync(query, Token);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.Items.Select(item => item.Document.Id).Order(StringComparer.Ordinal).ShouldBe(["2", "Up-1"]);
+        result.Value.Items.Select(item => item.Document.Id).ShouldBe(["younger", "older"]);
     }
 
+    /// <summary>
+    /// The post filter would exclude <c>Up-1</c> (not in Krakow) if it were applied, and the hits, their order and
+    /// their scores match the same query without these options. The result model has no facets or highlights to carry.
+    /// </summary>
     [Fact]
     public async Task SearchAsync_FacetsHighlightingAndPostFilter_AreIgnored()
     {
         var index = await CreatePeopleAsync();
+        var plain = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" }), Token);
         var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" });
         query.FacetQueries = [new TermAggregation { AggregationName = "cities", TermFieldName = "City" }];
         query.HighlightQueries = [new BaseHighlightQuery { Field = "Name" }];
-        query.PostFilterQuery[Occurance.MUST] = [new BoolSearchSubQuery()];
+        var krakow = new BoolSearchSubQuery();
+        krakow.Add(Occurance.MUST, new TermSubQuery { Field = "City", Value = "krakow" });
+        query.PostFilterQuery[Occurance.MUST] = [krakow];
 
-        var ids = await SearchIdsAsync(query);
+        var result = await searchService.SearchAsync(query, Token);
 
-        ids.ShouldBe(["2", "Up-1"]);
+        plain.IsSuccess.ShouldBeTrue();
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Items.Select(item => item.Document.Id).Order(StringComparer.Ordinal).ShouldBe(["2", "Up-1"]);
+        result.Value.Items.Select(item => (item.Document.Id, item.Score))
+            .ShouldBe(plain.Value.Items.Select(item => (item.Document.Id, item.Score)));
+        result.Value.Pagination.TotalCount.ShouldBe(2);
     }
 
     [Fact]
