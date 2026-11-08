@@ -18,7 +18,7 @@ public class FuzzySubQueryTranslator : ISubQueryTranslator<IQuery>
             return Task.FromResult(Result.Fail<IQuery>("Query is not a fuzzy query"));
         }
 
-        var value = LiftiText.From(fuzzyQuery.Value).ToUpperInvariant();
+        var value = QueryValueText.From(fuzzyQuery.Value).ToUpperInvariant();
         ushort maxEdits = fuzzyQuery.Fuziness != null
             ? (ushort)Math.Max(fuzzyQuery.Fuziness.Item1, fuzzyQuery.Fuziness.Item2)
             : (ushort)2;

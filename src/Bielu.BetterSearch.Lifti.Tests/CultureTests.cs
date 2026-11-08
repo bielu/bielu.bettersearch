@@ -62,4 +62,29 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
         result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
         result.Value.Items.ShouldBeEmpty();
     }
+
+    [Fact]
+    public async Task SearchAsync_FuzzyForDecimal_MatchesNearbyInteger()
+    {
+        // "3.5" is two edits from the word "35", while the decimal itself is indexed as "3" and "5". The
+        // feature matrix documents this; the test fails if Lifti changes it, so the docs get updated.
+        var index = $"culture-{Guid.NewGuid():N}";
+        foreach (var (id, price) in new[] { ("decimal", 3.5), ("integer", 35d) })
+        {
+            var indexed = await indexingService.IndexDocumentAsync(new SearchDocument
+            {
+                Id = id,
+                Index = index,
+                Fields = new Dictionary<string, IList<object>> { { "Price", [price] } }
+            }, TestContext.Current.CancellationToken);
+            indexed.IsSuccess.ShouldBeTrue();
+        }
+
+        var query = new SearchQuery { Index = index };
+        query.Add(Occurance.MUST, new FuzzyQuery { Field = "Price", Value = 3.5 });
+        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+        result.Value.Items.Select(item => item.Document.Id).ShouldBe(["integer"]);
+    }
 }

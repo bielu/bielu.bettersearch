@@ -18,7 +18,7 @@ public class TermSubQueryTranslator : ISubQueryTranslator<IQuery>
             return Task.FromResult(Result.Fail<IQuery>("Query is not a term query"));
         }
 
-        var value = LiftiText.From(termQuery.Value).ToUpperInvariant();
+        var value = QueryValueText.From(termQuery.Value).ToUpperInvariant();
         return Task.FromResult(Result.Ok<IQuery>(new Query(new ExactWordQueryPart(value))));
     }
 }

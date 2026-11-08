@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Query.SubQueries;
+﻿using Bielu.BetterSearch.Abstractions.Query;
+using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using FluentResults;
@@ -16,7 +17,7 @@ internal sealed class PrefixSubQueryTranslator : ElasticSearchSubQueryTranslator
             return Task.FromResult(field.ToResult<EsQuery>());
         }
 
-        var value = ElasticSearchFieldNames.Text(query.Value);
+        var value = QueryValueText.From(query.Value);
         if (string.IsNullOrEmpty(value))
         {
             return Task.FromResult(Result.Fail<EsQuery>($"{nameof(PrefixSubQuery)} needs a Value."));

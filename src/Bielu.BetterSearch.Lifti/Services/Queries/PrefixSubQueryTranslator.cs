@@ -18,7 +18,7 @@ public class PrefixSubQueryTranslator : ISubQueryTranslator<IQuery>
             return Task.FromResult(Result.Fail<IQuery>("Query is not a prefix query"));
         }
 
-        var value = LiftiText.From(prefixQuery.Value).ToUpperInvariant();
+        var value = QueryValueText.From(prefixQuery.Value).ToUpperInvariant();
         var part = new WildcardQueryPart(
             WildcardQueryFragment.CreateText(value),
             WildcardQueryFragment.MultiCharacter);

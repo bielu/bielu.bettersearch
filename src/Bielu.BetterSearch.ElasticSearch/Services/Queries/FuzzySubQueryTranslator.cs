@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Query.SubQueries;
+﻿using Bielu.BetterSearch.Abstractions.Query;
+using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Elastic.Clients.Elasticsearch;
 using FluentResults;
@@ -38,7 +39,7 @@ internal sealed class FuzzySubQueryTranslator : ElasticSearchSubQueryTranslator<
         return Task.FromResult(Result.Ok<EsQuery>(new MatchQuery
         {
             Field = field.Value,
-            Query = FieldValue.FromValue(query.Value),
+            Query = QueryValueText.From(query.Value),
             Operator = Operator.And,
             Fuzziness = fuzziness,
             FuzzyTranspositions = query.Transposition,
