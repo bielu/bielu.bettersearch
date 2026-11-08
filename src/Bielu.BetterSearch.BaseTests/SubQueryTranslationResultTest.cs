@@ -188,6 +188,30 @@ public abstract class QueryResultBaseTests(
     }
 
     [Fact]
+    public async Task SearchAsync_StoredNullFields_ReturnsTheHitWithNoFields()
+    {
+        var index = $"query-results-{Guid.NewGuid():N}";
+        // The service rejects null fields, so store the document as another writer to the index would.
+        (await indexingProviderAsync.IndexDocumentAsync(new SearchDocument
+        {
+            Id = "null-fields-1",
+            Index = index,
+            Fields = null!
+        })).IsSuccess.ShouldBeTrue();
+        await DocumentsIndexedAsync(index);
+
+        var result = await serviceAsync.SearchAsync(new SearchQuery { Index = index });
+
+        result.IsSuccess.ShouldBeTrue();
+        if (ReturnsStoredFields)
+        {
+            var hit = result.Value.Items.ShouldHaveSingleItem();
+            hit.Document.Id.ShouldBe("null-fields-1");
+            hit.Document.CustomProperties.ShouldBeEmpty();
+        }
+    }
+
+    [Fact]
     public virtual async Task SearchAsync_FluentCultureFilter_ReturnsOnlyThatCulture()
     {
         var index = $"query-results-{Guid.NewGuid():N}";

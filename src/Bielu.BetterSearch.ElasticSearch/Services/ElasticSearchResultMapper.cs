@@ -23,7 +23,7 @@ public class ElasticSearchResultMapper : IResultMapper<SearchResponse<SearchDocu
     {
         Id = hit.Id ?? hit.Source?.Id ?? string.Empty,
         ContentType = hit.Source?.Type ?? string.Empty,
-        CustomProperties = hit.Source?.Fields.ToDictionary(
+        CustomProperties = hit.Source?.Fields?.ToDictionary(
             field => field.Key,
             field => field.Value?.Select(ToClrValue).Where(value => value is not null).ToList() ?? []) ?? []
     }, hit.Score);
