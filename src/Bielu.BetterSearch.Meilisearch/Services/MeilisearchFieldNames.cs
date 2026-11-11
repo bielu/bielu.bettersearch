@@ -58,13 +58,27 @@ internal static class MeilisearchFieldNames
 
     /// <summary>
     /// A number as a filter literal, or <c>null</c> when <paramref name="value"/> is not a number. The text is
-    /// <see cref="QueryValueText"/>'s, as on every provider, except that Meilisearch filters read <c>1E20</c> but not
+    /// <see cref="QueryValueText"/>'s, in the invariant culture, except that Meilisearch filters read <c>1E20</c> but not
     /// <c>1E+20</c>, so a positive exponent drops its <c>+</c>.
     /// </summary>
-    public static string? Number(object? value) => value is byte or sbyte or short or ushort or int or uint or long or ulong
-        or decimal or float or double
+    public static string? Number(object? value) => IsNumber(value)
         ? QueryValueText.From(value).Replace("E+", "E", StringComparison.Ordinal)
         : null;
+
+    /// <summary>Whether <paramref name="value"/> is of a numeric type.</summary>
+    public static bool IsNumber(object? value) =>
+        value is byte or sbyte or short or ushort or int or uint or long or ulong or decimal or float or double;
+
+    /// <summary>
+    /// A failure when <paramref name="value"/> is <c>NaN</c> or an infinity, which a Meilisearch filter cannot hold:
+    /// it reads <c>NaN</c> and <c>Infinity</c> as text, so the filter would succeed and match nothing.
+    /// </summary>
+    public static Result RequireFinite(object? value, string queryName) => value switch
+    {
+        double number when !double.IsFinite(number) => Result.Fail($"{queryName} value {QueryValueText.From(number)} is not a finite number, which Meilisearch filters cannot compare."),
+        float number when !float.IsFinite(number) => Result.Fail($"{queryName} value {QueryValueText.From(number)} is not a finite number, which Meilisearch filters cannot compare."),
+        _ => Result.Ok()
+    };
 
     /// <summary>
     /// Values of <paramref name="attribute"/> between the bounds present; <c>EXISTS</c> when neither is. With both

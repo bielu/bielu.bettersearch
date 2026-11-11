@@ -1,10 +1,12 @@
-﻿using Bielu.BetterSearch.Services;
-using Bielu.BetterSearch.Tests;
-using Shouldly;
+﻿using Shouldly;
 
-namespace Bielu.BetterSearch.Abstractions.Tests;
+namespace Bielu.BetterSearch.Tests;
 
-public class QueryValueTextTests
+/// <summary>
+/// Tests the <c>QueryValueText</c> each provider compiles from <c>src/Shared</c>. Each provider's test project
+/// derives from this and passes its own copy, so the tests run against code that ships.
+/// </summary>
+public abstract class QueryValueTextTestBase
 {
     public static TheoryData<object?, string> Values => new()
     {
@@ -24,11 +26,14 @@ public class QueryValueTextTests
         { new TimeOnly(13, 5), "13:05" }
     };
 
+    /// <summary>The provider's <c>QueryValueText.From</c>.</summary>
+    protected abstract string From(object? value);
+
     [Theory]
     [MemberData(nameof(Values))]
     public void From_CommaDecimalCulture_WritesInvariantText(object? value, string expected)
     {
         using var _ = CultureScope.CommaDecimal();
-        QueryValueText.From(value).ShouldBe(expected);
+        From(value).ShouldBe(expected);
     }
 }

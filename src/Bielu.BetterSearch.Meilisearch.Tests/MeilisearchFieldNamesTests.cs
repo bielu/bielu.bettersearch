@@ -7,27 +7,28 @@ namespace Bielu.BetterSearch.Meilisearch.Tests;
 
 public class MeilisearchFieldNamesTests
 {
-    public static TheoryData<object, string> Numbers => new()
+    // The shared text, then the filter literal, which differs only in dropping a positive exponent's +.
+    public static TheoryData<object, string, string> Numbers => new()
     {
-        { 35, "35" },
-        { 35L, "35" },
-        { (byte)35, "35" },
-        { 3.5m, "3.5" },
-        { 3.5, "3.5" },
-        { 3.5f, "3.5" },
-        { 1e20, "1E20" },
-        { 1e-20, "1E-20" },
-        { -1e20f, "-1E20" }
+        { 35, "35", "35" },
+        { 35L, "35", "35" },
+        { (byte)35, "35", "35" },
+        { 3.5m, "3.5", "3.5" },
+        { 3.5, "3.5", "3.5" },
+        { 3.5f, "3.5", "3.5" },
+        { 1e20, "1E+20", "1E20" },
+        { 1e-20, "1E-20", "1E-20" },
+        { -1e20f, "-1E+20", "-1E20" }
     };
 
     [Theory]
     [MemberData(nameof(Numbers))]
-    public void Number_CommaDecimalCulture_WritesSharedTextWithoutExponentPlus(object value, string expected)
+    public void Number_CommaDecimalCulture_WritesSharedTextWithoutExponentPlus(object value, string sharedText, string expected)
     {
         using var _ = CultureScope.CommaDecimal();
 
+        QueryValueText.From(value).ShouldBe(sharedText);
         MeilisearchFieldNames.Number(value).ShouldBe(expected);
-        QueryValueText.From(value).Replace("E+", "E", StringComparison.Ordinal).ShouldBe(expected);
     }
 
     [Theory]

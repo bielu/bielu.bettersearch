@@ -318,6 +318,40 @@ public sealed class MeilisearchSearchTests(
     }
 
     [Fact]
+    public async Task SearchAsync_NumberWithPositiveExponent_MatchesTheValue()
+    {
+        // .NET writes 1e20 as 1E+20, which a Meilisearch filter rejects; the provider sends 1E20.
+        var index = $"search-{Guid.NewGuid():N}";
+        SearchDocument Amount(string id, double amount) => new()
+        {
+            Id = id,
+            Index = index,
+            Fields = new Dictionary<string, IList<object>> { { "Amount", [amount] } }
+        };
+        try
+        {
+            (await indexingProvider.IndexMultipleDocumentsAsync([Amount("1", 1e20), Amount("2", 1e19)], Token)).Value.ShouldBe(2);
+
+            var term = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Amount", Value = 1e20 }));
+            var terms = await SearchIdsAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "Amount", Value = [1e20, 1e21] }));
+
+            term.ShouldBe(["1"]);
+            terms.ShouldBe(["1"]);
+        }
+        finally
+        {
+            try
+            {
+                await indexingProvider.DeleteIndexAsync(index, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Cleanup must not hide the test's own failure.
+            }
+        }
+    }
+
+    [Fact]
     public async Task SearchAsync_TermQueryOnStoredValue_IgnoresCase()
     {
         var index = await CreatePeopleAsync();

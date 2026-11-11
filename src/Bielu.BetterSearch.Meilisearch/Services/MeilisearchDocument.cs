@@ -101,7 +101,7 @@ internal sealed partial class MeilisearchDocument
     {
         string text => double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : null,
         null or bool => null,
-        IConvertible number when MeilisearchFieldNames.Number(number) != null => Convert.ToDouble(number, CultureInfo.InvariantCulture),
+        IConvertible number when MeilisearchFieldNames.IsNumber(number) => Convert.ToDouble(number, CultureInfo.InvariantCulture),
         _ => null
     };
 
