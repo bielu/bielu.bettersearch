@@ -88,6 +88,9 @@ Documents are stored with their values under `fields`, as with Elasticsearch, so
 
 - **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
 - **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result`.
+- **Several documents**: `RemoveDocumentsAsync(index, ids)` sends one bulk request and returns how many
+  documents it removed; an id that is not there is not counted. When items fail, the `Result` fails naming
+  their ids, and the other documents are already removed. A missing index returns a failed `Result` naming the ids.
 
 Unlike Elasticsearch, index operations report what happened: creating an existing index is success with
 `false`, and any other rejection, such as a 403, is a failed `Result`. The

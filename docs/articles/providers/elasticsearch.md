@@ -93,5 +93,8 @@ Metadata fields such as `_id` and `_score` pass through unchanged.
 
 - **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
 - **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result`.
+- **Several documents**: `RemoveDocumentsAsync(index, ids)` sends one bulk request and returns how many
+  documents it removed; an id that is not there is not counted. When items fail, the `Result` fails naming
+  their ids, and the other documents are already removed. A missing index returns a failed `Result` naming the ids.
 
 The [feature matrix](../feature-matrix.md) has the full detail.

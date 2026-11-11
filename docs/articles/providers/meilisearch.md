@@ -104,5 +104,8 @@ filterable and sortable attributes the provider needs to the index settings, kee
 
 - **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
 - **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result` with Meilisearch's error.
+- **Several documents**: `RemoveDocumentsAsync(index, ids)` sends one deletion task and returns how many
+  documents it removed. Meilisearch applies the task or fails it as a whole, so a failure names every id. A
+  missing index returns a failed `Result` naming the ids, with Meilisearch's error.
 
 The [feature matrix](../feature-matrix.md) has the full detail.

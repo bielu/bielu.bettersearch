@@ -27,7 +27,7 @@ public sealed class ElasticsearchIndexingResponseTests
     private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false)
     {
         var invoker = new InMemoryRequestInvoker(Encoding.UTF8.GetBytes(json), statusCode, null, "application/json",
-            new Dictionary<string, IEnumerable<string>> { ["X-Elastic-Product"] = ["Elasticsearch"] });
+            new Dictionary<string, IEnumerable<string>> { ["x-elastic-product"] = ["Elasticsearch"] });
         var settings = new ElasticsearchClientSettings(new SingleNodePool(new Uri("http://localhost:9200")), invoker)
             .ThrowExceptions(throwExceptions);
         return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
@@ -66,11 +66,45 @@ public sealed class ElasticsearchIndexingResponseTests
         result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<TransportException>();
     }
 
+    [Fact]
+    public async Task RemoveDocumentsAsync_OneItemFails_ReturnsFailureNamingOnlyThatId()
+    {
+        var provider = Provider("""{"took":5,"errors":true,"items":[{"delete":{"_index":"people","_id":"1","_version":2,"result":"deleted","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":1,"_primary_term":1,"status":200}},{"delete":{"_index":"people","_id":"2","_version":1,"result":"not_found","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":2,"_primary_term":1,"status":404}},{"delete":{"_index":"people","_id":"3","status":409,"error":{"type":"version_conflict_engine_exception","reason":"[3]: version conflict","index":"people"}}}]}""", 200);
+
+        var result = await provider.RemoveDocumentsAsync("people", ["1", "2", "3"], Token);
+
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Message.ShouldBe("Removing documents from people failed for ids 3: [3]: version conflict. 1 of 3 documents were removed.");
+        error.Metadata["ids"].ShouldBe(new List<string> { "3" });
+    }
+
+    [Fact]
+    public async Task RemoveDocumentsAsync_DeletedAndNotFound_CountsOnlyTheDeleted()
+    {
+        var provider = Provider("""{"took":5,"errors":false,"items":[{"delete":{"_index":"people","_id":"1","_version":2,"result":"deleted","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":1,"_primary_term":1,"status":200}},{"delete":{"_index":"people","_id":"2","_version":1,"result":"not_found","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":2,"_primary_term":1,"status":404}}]}""", 200);
+
+        var result = await provider.RemoveDocumentsAsync("people", ["1", "2"], Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RemoveDocumentsAsync_RequestRejected_ReturnsFailure()
+    {
+        var provider = Provider("""{"error":{"type":"security_exception","reason":"no permissions"},"status":403}""", 403);
+
+        var result = await provider.RemoveDocumentsAsync("people", ["1", "2"], Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("403");
+    }
+
     public static TheoryData<string> IndexingMethods =>
     [
         nameof(IIndexingProviderAsync.IndexDocumentAsync),
         nameof(IIndexingProviderAsync.IndexMultipleDocumentsAsync),
         nameof(IIndexingProviderAsync.RemoveDocumentAsync),
+        nameof(IIndexingProviderAsync.RemoveDocumentsAsync),
         nameof(IIndexingProviderAsync.RemoveAllDocumentsAsync),
         nameof(IIndexingProviderAsync.EnsureIndexExistsAsync),
         nameof(IIndexingProviderAsync.DeleteIndexAsync),
@@ -86,6 +120,7 @@ public sealed class ElasticsearchIndexingResponseTests
             nameof(IIndexingProviderAsync.IndexDocumentAsync) => await provider.IndexDocumentAsync(document, cancellationToken),
             nameof(IIndexingProviderAsync.IndexMultipleDocumentsAsync) => await provider.IndexMultipleDocumentsAsync([document], cancellationToken),
             nameof(IIndexingProviderAsync.RemoveDocumentAsync) => await provider.RemoveDocumentAsync("1", "people", cancellationToken),
+            nameof(IIndexingProviderAsync.RemoveDocumentsAsync) => await provider.RemoveDocumentsAsync("people", ["1", "2"], cancellationToken),
             nameof(IIndexingProviderAsync.RemoveAllDocumentsAsync) => await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, cancellationToken),
             nameof(IIndexingProviderAsync.EnsureIndexExistsAsync) => await provider.EnsureIndexExistsAsync("people", cancellationToken),
             nameof(IIndexingProviderAsync.DeleteIndexAsync) => await provider.DeleteIndexAsync("people", cancellationToken),

@@ -10,6 +10,8 @@ public class DummyIndexingProviderAsync : IIndexingProviderAsync
 
     public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) => throw new NotImplementedException();
 
+    public Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids, CancellationToken cancellationToken = default) => throw new NotImplementedException();
+
     public Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
         CancellationToken cancellationToken = default) => throw new NotImplementedException();
 

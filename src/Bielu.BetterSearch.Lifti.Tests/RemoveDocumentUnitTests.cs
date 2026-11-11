@@ -32,6 +32,31 @@ public class RemoveDocumentUnitTests
     }
 
     [Fact]
+    public async Task RemoveDocumentsAsync_IndexLookupFails_ReturnsOriginalErrors()
+    {
+        var manager = new FakeLiftiIndexManager("lookup failed", creationThrows: true);
+        var provider = new LiftiIndexingProviderAsync(new LiftiClientFactoryAsync(manager), manager);
+
+        var result = await provider.RemoveDocumentsAsync("test-index", ["1", "2"], TestContext.Current.CancellationToken);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Select(e => e.Message).ShouldBe(["lookup failed"]);
+    }
+
+    [Fact]
+    public async Task RemoveDocumentsAsync_MissingIndex_ReturnsZeroWithoutCreatingIndex()
+    {
+        var manager = new LiftiIndexManager();
+        var provider = new LiftiIndexingProviderAsync(new LiftiClientFactoryAsync(manager), manager);
+
+        var result = await provider.RemoveDocumentsAsync("test-index", ["1", "2"], TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(0);
+        (await manager.ExistsAsync("test-index")).Value.ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task GetIndexAsync_DefaultImplementation_MissingIndex_ReturnsNull()
     {
         ILiftiIndexManager manager = new DefaultLookupLiftiIndexManagerWrapper(new LiftiIndexManager());

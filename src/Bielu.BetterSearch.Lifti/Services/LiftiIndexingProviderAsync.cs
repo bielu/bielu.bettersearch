@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 using Lifti;
 
@@ -65,6 +66,50 @@ public class LiftiIndexingProviderAsync(
         catch (Exception e)
         {
             return Result.Fail(e.Message);
+        }
+    }
+
+    public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var distinctIds = DocumentIds.Distinct(ids);
+        if (distinctIds.IsFailed || distinctIds.Value.Count == 0)
+        {
+            return distinctIds.IsFailed ? distinctIds.ToResult<int>() : Result.Ok(0);
+        }
+
+        try
+        {
+            // As in RemoveDocumentAsync, a missing index holds no documents and is not created.
+            var liftiIndex = await liftiIndexManager.GetIndexAsync(index).ConfigureAwait(false);
+            if (liftiIndex.IsFailed)
+            {
+                return liftiIndex.ToResult<int>();
+            }
+
+            var removed = 0;
+            for (var i = 0; liftiIndex.Value is not null && i < distinctIds.Value.Count; i++)
+            {
+                try
+                {
+                    if (await liftiIndex.Value.RemoveAsync(distinctIds.Value[i], cancellationToken).ConfigureAwait(false))
+                    {
+                        removed++;
+                    }
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    // The ids before this one are already removed; this one and the rest are not.
+                    return Result.Fail<int>(DocumentIds.FailedError(index, removed, distinctIds.Value.Count,
+                        distinctIds.Value.Skip(i).ToList(), e.Message).CausedBy(e));
+                }
+            }
+
+            return Result.Ok(removed);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result.Fail<int>(new Error(e.Message).CausedBy(e));
         }
     }
 

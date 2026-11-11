@@ -1,5 +1,7 @@
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
+using Elastic.Clients.Elasticsearch.Core.Bulk;
 using Elastic.Clients.Elasticsearch.IndexManagement;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using FluentResults;
@@ -65,6 +67,52 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
         catch (Exception e) when (e is not OperationCanceledException)
         {
             return Result.Fail(new Error(e.Message).CausedBy(e));
+        }
+    }
+
+    public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var distinctIds = DocumentIds.Distinct(ids);
+        if (distinctIds.IsFailed || distinctIds.Value.Count == 0)
+        {
+            return distinctIds.IsFailed ? distinctIds.ToResult<int>() : Result.Ok(0);
+        }
+
+        var client = await clientFactory.TryGetClientAsync(index, cancellationToken).ConfigureAwait(false);
+        if (client.IsFailed)
+        {
+            return client.ToResult<int>();
+        }
+
+        try
+        {
+            var request = new BulkRequest(index)
+            {
+                Operations = new BulkOperationsCollection(distinctIds.Value.Select(id => new BulkDeleteOperation(id))),
+            };
+            var response = await client.Value.BulkAsync(request, cancellationToken).ConfigureAwait(false);
+            // A request rejected as a whole, such as a 403, has no items.
+            if (response.Items is null || response.Items.Count != distinctIds.Value.Count)
+            {
+                return Result.Fail<int>(new Error(response.DebugInformation));
+            }
+
+            // As in RemoveDocumentAsync, a not_found item without an error is already gone. A missing index is an
+            // error on each item.
+            var removed = response.Items.Count(item => item.Error is null && item.Result == "deleted");
+            var failed = response.Items.Where(item => item.Error is not null || (item.Status is < 200 or >= 300 && item.Result != "not_found")).ToList();
+            if (failed.Count > 0)
+            {
+                return Result.Fail<int>(DocumentIds.FailedError(index, removed, distinctIds.Value.Count,
+                    failed.Select(item => item.Id ?? "(unknown)").ToList(), failed[0].Error?.Reason ?? $"status {failed[0].Status}"));
+            }
+
+            return Result.Ok(removed);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result.Fail<int>(new Error(e.Message).CausedBy(e));
         }
     }
 

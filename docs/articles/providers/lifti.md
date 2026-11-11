@@ -69,5 +69,7 @@ There is nothing to configure.
   holds no documents, so the document is already gone. Reporting a failure there would make callers log errors
   or retry deletes that are already done. A misspelled index name therefore goes unnoticed, unlike on the other
   providers.
+- **Several documents**: `RemoveDocumentsAsync(index, ids)` removes the ids one by one and returns how many
+  were removed. A missing index succeeds with 0 and is not created, as with `RemoveDocumentAsync`.
 
 The [feature matrix](../feature-matrix.md) has the full detail.

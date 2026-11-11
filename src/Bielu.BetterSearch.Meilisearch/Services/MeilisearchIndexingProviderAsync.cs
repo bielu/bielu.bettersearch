@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -53,6 +54,31 @@ public sealed class MeilisearchIndexingProviderAsync(
     {
         var task = await RunTaskAsync(type, client => client.Index(type).DeleteOneDocumentAsync(id, cancellationToken), cancellationToken).ConfigureAwait(false);
         return task.ToResult();
+    }
+
+    public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var distinctIds = DocumentIds.Distinct(ids);
+        if (distinctIds.IsFailed || distinctIds.Value.Count == 0)
+        {
+            return distinctIds.IsFailed ? distinctIds.ToResult<int>() : Result.Ok(0);
+        }
+
+        // One deletion task: Meilisearch applies it whole or fails it whole, so there are no per-id failures.
+        var task = await RunTaskAsync(index, client => client.Index(index).DeleteDocumentsAsync(distinctIds.Value, cancellationToken), cancellationToken).ConfigureAwait(false);
+        if (task.IsFailed)
+        {
+            // Keeps Meilisearch's code in the code metadata, as the other writes do.
+            var error = DocumentIds.FailedError(index, 0, distinctIds.Value.Count, distinctIds.Value, task.Errors[0].Message)
+                .WithMetadata(task.Errors[0].Metadata.Where(entry => entry.Key != "ids").ToDictionary())
+                .CausedBy(task.Errors);
+            return Result.Fail<int>(error);
+        }
+
+        return GetDeletedDocuments(task.Value) is { } deleted
+            ? Result.Ok((int)deleted)
+            : Result.Fail<int>($"Meilisearch task {task.Value.Uid} removed documents from {index} but did not report how many.");
     }
 
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
