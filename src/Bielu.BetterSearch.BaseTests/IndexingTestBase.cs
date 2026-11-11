@@ -9,47 +9,126 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
     public async Task CanCreateIndexAsyncTest()
     {
         //Arrange
-        var index = "test-index-1";
+        var index = UniqueIndex();
+        try
+        {
+            //Act
+            (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
 
-        //Act
-        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
+            //Assert
+            await IndexShouldExistAsync(index, true);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
     }
     [Fact]
     public async Task CanDeleteIndexAsyncTest()
     {
         //Arrange
-        var index = "test-index-1";
-        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
+        var index = UniqueIndex();
+        try
+        {
+            (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
 
-        //Act
-        (await indexingProviderAsync.DeleteIndexAsync(index)).IsSuccess.ShouldBeTrue();
+            //Act
+            (await indexingProviderAsync.DeleteIndexAsync(index)).IsSuccess.ShouldBeTrue();
+
+            //Assert
+            await IndexShouldExistAsync(index, false);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
     }
     [Fact]
     public async Task CanCheckIfIndexExistsAsyncTest()
     {
         //Arrange
-        var index = "test-index-1";
-        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
+        var index = UniqueIndex();
+        try
+        {
+            (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
 
-        //Act
-        (await indexingProviderAsync.IndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
+            //Act and Assert
+            await IndexShouldExistAsync(index, true);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+    [Fact]
+    public async Task IndexExistsAsync_MissingIndex_ReturnsFalse()
+    {
+        //Arrange
+        var index = UniqueIndex();
+
+        //Act and Assert
+        await IndexShouldExistAsync(index, false);
     }
     [Fact]
     public async Task EnsureIndexWorksWhenIndexExistsAsyncTest()
     {
         //Arrange
-        var index = "test-index-1";
+        var index = UniqueIndex();
+        try
+        {
+            //Act
+            (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
+            (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
 
-        //Act
-        (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
-        (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
+            //Assert
+            await IndexShouldExistAsync(index, true);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
     }
     [Fact]
     public async Task EnsureIndexWorksWhenIndexNotExistsAsyncTest()
     {
         //Arrange
-        var index = "test-index-1";
-        (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
+        var index = UniqueIndex();
+        try
+        {
+            //Act
+            (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
+
+            //Assert
+            await IndexShouldExistAsync(index, true);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    /// <summary>An index name no other test uses, so tests sharing an engine can't change what it holds.</summary>
+    private static string UniqueIndex() => $"test-index-{Guid.NewGuid():N}";
+
+    /// <summary>Checks <c>IndexExistsAsync</c> succeeds, showing the provider's errors when it does not, and that it reads <paramref name="expected"/>.</summary>
+    private async Task IndexShouldExistAsync(string index, bool expected)
+    {
+        var exists = await indexingProviderAsync.IndexExistsAsync(index);
+        exists.IsSuccess.ShouldBeTrue(string.Join("; ", exists.Errors.Select(error => error.Message)));
+        exists.Value.ShouldBe(expected);
+    }
+
+    /// <summary>Best-effort cleanup, so the shared engines don't keep the index; a failure here must not hide the test's own.</summary>
+    private async Task DeleteIndexQuietlyAsync(string index)
+    {
+        try
+        {
+            await indexingProviderAsync.DeleteIndexAsync(index, Token);
+        }
+        catch (Exception)
+        {
+            // Ignored: the index may never have been created, or the engine may be unreachable.
+        }
     }
     [Fact]
     public async Task IndexDocumentAsyncTest()
@@ -177,7 +256,11 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         };
 
         //Act
-        (await serviceAsync.IndexMultipleDocumentsAsync(documents)).IsSuccess.ShouldBeTrue();
+        var indexed = await serviceAsync.IndexMultipleDocumentsAsync(documents);
+
+        //Assert
+        indexed.IsSuccess.ShouldBeTrue();
+        indexed.Value.ShouldBe(documents.Count);
     }
     [Fact]
     public async Task DeleteDocumentAsyncTest()

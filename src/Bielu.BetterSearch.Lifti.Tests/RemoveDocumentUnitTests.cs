@@ -10,7 +10,7 @@ public class RemoveDocumentUnitTests
     [Fact]
     public async Task RemoveDocumentAsync_IndexLookupFails_ReturnsOriginalErrors()
     {
-        var manager = new FailingLookupIndexManager("lookup failed");
+        var manager = new FakeLiftiIndexManager("lookup failed", creationThrows: true);
         var provider = new LiftiIndexingProviderAsync(new LiftiClientFactoryAsync(manager), manager);
 
         var result = await provider.RemoveDocumentAsync("1", "test-index", TestContext.Current.CancellationToken);
@@ -78,21 +78,5 @@ public class RemoveDocumentUnitTests
             existsError is null ? inner.ExistsAsync(name) : Task.FromResult(Result.Fail<bool>(existsError));
 
         public Task<Result<bool>> DeleteIndexAsync(string name) => inner.DeleteIndexAsync(name);
-    }
-
-    private sealed class FailingLookupIndexManager(string error) : ILiftiIndexManager
-    {
-        public Task<Result<IFullTextIndex<string>>> GetOrCreateIndexAsync(string key) =>
-            throw new InvalidOperationException("The index must not be created.");
-
-        public Task<Result<IFullTextIndex<string>?>> CreateIndexAsync(string key) =>
-            throw new InvalidOperationException("The index must not be created.");
-
-        public Task<Result<IFullTextIndex<string>?>> GetIndexAsync(string key) =>
-            Task.FromResult(Result.Fail<IFullTextIndex<string>?>(error));
-
-        public Task<Result<bool>> ExistsAsync(string name) => Task.FromResult(Result.Ok(false));
-
-        public Task<Result<bool>> DeleteIndexAsync(string name) => Task.FromResult(Result.Ok(false));
     }
 }
