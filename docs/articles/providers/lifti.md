@@ -15,6 +15,7 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 > - **`LuceneQuery`** is not supported.
 > - **Fields are ignored**: term, terms, fuzzy, prefix and phrase prefix queries match the value in any field,
 >   and accented terms don't match.
+> - **Phrase prefix** only works for one word: a value of several words, such as `jane d`, matches nothing.
 > - **Decimals and dates** are turned into text the same way on every machine and split into words at
 >   punctuation and spaces, so `3.5` is indexed as the words `3` and `5`. A term, terms or prefix query for a
 >   whole decimal or date matches nothing, and a fuzzy one for a decimal can match a different number (`3.5`
@@ -23,6 +24,8 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 > - **Hits** only carry the document id and `Score`; no stored fields.
 > - **Persistence**: the index is lost on restart, and creating an index that exists replaces it, losing its
 >   documents.
+> - **Missing index**: searching an index that does not exist creates it and returns no hits, where the other
+>   providers return a failed `Result`.
 > - **Removing from a missing index succeeds**: `RemoveDocumentAsync` on an index that does not exist returns
 >   success, where the other providers return a failed `Result`. See [Removing documents](#removing-documents).
 > - **Cancelling a running search**: the token is only checked before the search starts; once running, it

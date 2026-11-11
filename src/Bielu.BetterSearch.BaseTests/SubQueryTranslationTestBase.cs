@@ -23,12 +23,15 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
     {
         var result = await TranslateAsync(subQuery);
         result.IsSuccess.ShouldBeTrue($"because translation of {subQuery.GetType().Name} should be successful");
+        ((object?)result.Value).ShouldNotBeNull($"because translation of {subQuery.GetType().Name} should return a query");
     }
 
     protected async Task SubQueryTranslationShouldFailAsync(ISearchSubQuery subQuery)
     {
         var result = await TranslateAsync(subQuery);
         result.IsFailed.ShouldBeTrue($"because {subQuery.GetType().Name} is not supported by this provider");
+        result.Errors.ShouldNotBeEmpty();
+        result.Errors[0].Message.ShouldNotBeNullOrWhiteSpace();
     }
 
     /// <summary>The translated query as text, as it is sent to the engine, so a test can check the values it carries.</summary>
