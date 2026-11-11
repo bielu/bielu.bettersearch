@@ -14,6 +14,10 @@
     </ItemGroup>
 
     <ItemGroup>
+      <InternalsVisibleTo Include="Bielu.BetterSearch.ElasticSearch.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
       <!-- Compiled into each provider rather than shared from Core, so a provider never calls into another package's internals. -->
       <Compile Include="..\Shared\StoredFields.cs" Link="Services\StoredFields.cs" />
     </ItemGroup>

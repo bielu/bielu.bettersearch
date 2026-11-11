@@ -9,11 +9,24 @@ namespace Bielu.BetterSearch.ElasticSearch.Tests;
 
 public class ElasticSearchClientSettingsManagerTests
 {
-    private static IElasticsearchClientSettings GetSettings(ElasticSearchOptions options, string index) =>
-        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(options)).GetOrCreateClientSettings(index);
+    private static IElasticsearchClientSettings GetSettings(ElasticSearchOptions options, string index)
+    {
+        var manager = new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(options));
+        return manager.CreateClientSettings(manager.GetConnectionSettings(index));
+    }
+
+    private static ElasticSearchIndexSettings GetConnectionSettings(ElasticSearchOptions options, string index) =>
+        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(options)).GetConnectionSettings(index);
+
+    private static ElasticSearchIndexSettings PasswordSettings(string connectionString, string password) => new()
+    {
+        ConnectionString = connectionString,
+        AuthenticationType = AuthenticationType.PASSWORD,
+        AuthenticationDetails = new AuthenticationDetails { Username = "elastic", Password = password },
+    };
 
     [Fact]
-    public void GetOrCreateClientSettings_BoundIndexKeyCasingDiffers_UsesIndexSettings()
+    public void GetConnectionSettings_BoundIndexKeyCasingDiffers_UsesIndexSettings()
     {
         var options = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -28,7 +41,7 @@ public class ElasticSearchClientSettingsManagerTests
     }
 
     [Fact]
-    public void GetOrCreateClientSettings_AssignedIndexKeyCasingDiffers_UsesIndexSettings()
+    public void GetConnectionSettings_AssignedIndexKeyCasingDiffers_UsesIndexSettings()
     {
         var options = new ElasticSearchOptions
         {
@@ -43,7 +56,7 @@ public class ElasticSearchClientSettingsManagerTests
     }
 
     [Fact]
-    public void GetOrCreateClientSettings_NoIndexSettings_UsesSharedConnectionString()
+    public void GetConnectionSettings_NoIndexSettings_UsesSharedConnectionString()
     {
         var options = new ElasticSearchOptions
         {
@@ -54,7 +67,7 @@ public class ElasticSearchClientSettingsManagerTests
     }
 
     [Fact]
-    public void GetOrCreateClientSettings_IndexWithoutConnectionString_LeavesOptionsUnchanged()
+    public void GetConnectionSettings_IndexWithoutConnectionString_LeavesOptionsUnchanged()
     {
         var people = new ElasticSearchIndexSettings { IndexName = "people" };
         var options = new ElasticSearchOptions
@@ -69,7 +82,7 @@ public class ElasticSearchClientSettingsManagerTests
     }
 
     [Fact]
-    public void GetOrCreateSharedClientSettings_IndexNamedDefault_UsesSharedConnectionString()
+    public void GetConnectionSettings_IndexNamedDefault_OtherIndexesUseSharedConnectionString()
     {
         var options = new ElasticSearchOptions
         {
@@ -80,9 +93,76 @@ public class ElasticSearchClientSettingsManagerTests
             },
         };
 
-        IElasticsearchClientSettings settings =
-            new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(options)).GetOrCreateSharedClientSettings();
+        GetConnectionSettings(options, "people").ConnectionString.ShouldBe("http://shared:9200");
+        GetConnectionSettings(options, "default").ConnectionString.ShouldBe("http://other:9200");
+    }
 
-        settings.NodePool.Nodes.Single().Uri.ShouldBe(new Uri("http://shared:9200"));
+    [Fact]
+    public void GetConnectionSettings_IndexWithoutConnectionStringOrAuthentication_InheritsSharedAuthentication()
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = PasswordSettings("https://shared:9200", "secret"),
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() { IndexName = "people" } },
+        };
+
+        var settings = GetConnectionSettings(options, "people");
+
+        settings.ConnectionString.ShouldBe("https://shared:9200");
+        settings.AuthenticationType.ShouldBe(AuthenticationType.PASSWORD);
+        settings.AuthenticationDetails.ShouldNotBeNull().Password.ShouldBe("secret");
+    }
+
+    [Fact]
+    public void GetConnectionSettings_IndexWithOwnConnectionStringOnly_InheritsSharedAuthentication()
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = PasswordSettings("https://shared:9200", "secret"),
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() { ConnectionString = "https://people:9200" } },
+        };
+
+        var settings = GetConnectionSettings(options, "people");
+
+        settings.ConnectionString.ShouldBe("https://people:9200");
+        settings.AuthenticationType.ShouldBe(AuthenticationType.PASSWORD);
+        settings.AuthenticationDetails.ShouldNotBeNull().Password.ShouldBe("secret");
+    }
+
+    [Fact]
+    public void GetConnectionSettings_IndexWithAuthenticationNone_TurnsSharedAuthenticationOff()
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = PasswordSettings("https://shared:9200", "secret"),
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings>
+            {
+                ["people"] = new() { AuthenticationType = AuthenticationType.NONE },
+            },
+        };
+
+        var settings = GetConnectionSettings(options, "people");
+
+        settings.ConnectionString.ShouldBe("https://shared:9200");
+        settings.AuthenticationType.ShouldBe(AuthenticationType.NONE);
+        settings.AuthenticationDetails.ShouldBeNull();
+    }
+
+    [Fact]
+    public void GetConnectionSettings_IndexWithOwnAuthentication_UsesItsOwn()
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = PasswordSettings("https://shared:9200", "shared-secret"),
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings>
+            {
+                ["people"] = PasswordSettings("https://people:9200", "people-secret"),
+            },
+        };
+
+        var settings = GetConnectionSettings(options, "people");
+
+        settings.ConnectionString.ShouldBe("https://people:9200");
+        settings.AuthenticationDetails.ShouldNotBeNull().Password.ShouldBe("people-secret");
     }
 }

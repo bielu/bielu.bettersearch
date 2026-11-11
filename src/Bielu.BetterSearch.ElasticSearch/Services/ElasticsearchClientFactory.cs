@@ -3,33 +3,49 @@ using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Elastic.Clients.Elasticsearch;
 using FluentResults;
-using Microsoft.Extensions.Options;
 using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.ElasticSearch.Services;
 
 /// <summary>
-/// Creates one long-lived client per connection, as Elastic recommends: a shared client for every index
-/// without a connection string of its own, and one for each index that has one. Index names match whatever
-/// their case, as the settings do, and the shared client is held apart so no index name can take its place.
+/// Creates one long-lived client per distinct connection, as Elastic recommends. Clients are keyed on the
+/// settings an index connects with, not its name: indexes with the same connection string and authentication
+/// share a client, and a changed setting, such as a rotated password, gets a new client on the next call.
+/// The client for the old setting stays cached until the application restarts, which suits settings that rarely change.
 /// </summary>
-public class ElasticsearchClientFactory(IElasticSearchClientSettingsManager searchClientSettingsManager, IOptionsMonitor<ElasticSearchOptions> optionsMonitor) : IClientFactoryAsync<ElasticsearchClient>
+public class ElasticsearchClientFactory(IElasticSearchClientSettingsManager searchClientSettingsManager) : IClientFactoryAsync<ElasticsearchClient>
 {
-    private readonly ConcurrentDictionary<string, Lazy<ElasticsearchClient>> _clients = new(StringComparer.OrdinalIgnoreCase);
-    private Lazy<ElasticsearchClient>? _sharedClient;
+    private readonly ConcurrentDictionary<ClientKey, Lazy<ElasticsearchClient>> _clients = new();
 
     public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName)
     {
-        var indexes = optionsMonitor.CurrentValue.Indexes;
-        var hasOwnConnection = indexes != null && indexes.TryGetValue(indexName, out var indexSettings) &&
-                               !string.IsNullOrWhiteSpace(indexSettings.ConnectionString);
-
-        var client = hasOwnConnection
-            ? _clients.GetOrAdd(indexName, name => new Lazy<ElasticsearchClient>(() =>
-                new ElasticsearchClient(searchClientSettingsManager.GetOrCreateClientSettings(name))))
-            : LazyInitializer.EnsureInitialized(ref _sharedClient, () => new Lazy<ElasticsearchClient>(() =>
-                new ElasticsearchClient(searchClientSettingsManager.GetOrCreateSharedClientSettings())));
+        var settings = searchClientSettingsManager.GetConnectionSettings(indexName);
+        // PublicationOnly does not cache an exception, so invalid settings fail each call until they are fixed.
+        var client = _clients.GetOrAdd(ClientKey.From(settings), _ => new Lazy<ElasticsearchClient>(
+            () => new ElasticsearchClient(searchClientSettingsManager.CreateClientSettings(settings)),
+            LazyThreadSafetyMode.PublicationOnly));
         return Task.FromResult(client.Value);
+    }
+
+    internal readonly record struct ClientKey(
+        string ConnectionString,
+        AuthenticationType? AuthenticationType,
+        string? Id,
+        string? Username,
+        string? Password,
+        string? ApiKey)
+    {
+        public static ClientKey From(ElasticSearchIndexSettings settings) => new(
+            settings.ConnectionString,
+            settings.AuthenticationType,
+            settings.AuthenticationDetails?.Id,
+            settings.AuthenticationDetails?.Username,
+            settings.AuthenticationDetails?.Password,
+            settings.AuthenticationDetails?.ApiKey);
+
+        // The generated ToString prints every member; keep the credentials out of logs and exception messages.
+        public override string ToString() =>
+            $"{nameof(ClientKey)} {{ {nameof(ConnectionString)} = {ConnectionString}, {nameof(AuthenticationType)} = {AuthenticationType} }}";
     }
 }
 

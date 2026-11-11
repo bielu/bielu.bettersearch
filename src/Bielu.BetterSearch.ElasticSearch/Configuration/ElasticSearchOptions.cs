@@ -43,7 +43,12 @@ public class ElasticSearchOptions
 public class ElasticSearchIndexSettings : IndexSettings
 {
     public string ConnectionString { get; set; }
-    public AuthenticationType AuthenticationType { get; set; }
+
+    /// <summary>
+    /// How to authenticate. Left unset on an <c>Indexes</c> entry, the index takes the shared authentication;
+    /// set it to <see cref="Configuration.AuthenticationType.NONE"/> there to turn the shared authentication off.
+    /// </summary>
+    public AuthenticationType? AuthenticationType { get; set; }
     public AuthenticationDetails? AuthenticationDetails { get; set; }
 }
 public enum AuthenticationType
