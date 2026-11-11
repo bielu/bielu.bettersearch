@@ -96,8 +96,10 @@ Metadata fields such as `_id` and `_score` pass through unchanged.
 ## Checking an index exists
 
 `IndexExistsAsync` is success with `true` on a 200 and `false` on a 404. Any other answer, such as a 401, 403
-or 5xx, or no answer at all, is a failed `Result` carrying the request's debug information and, when there is
-one, the original exception. `EnsureIndexExistsAsync` returns that failure rather than trying to create the
-index.
+or 5xx, or no answer at all, is a failed `Result`. Its message names the HTTP status when there was one, then
+the server's error, or the transport's exception when the server sent none, and that exception is attached as
+its cause. A request
+cancelled through the `CancellationToken` throws `OperationCanceledException`. `EnsureIndexExistsAsync` returns
+a failed check as it is rather than trying to create the index.
 
 The [feature matrix](../feature-matrix.md) has the full detail.
