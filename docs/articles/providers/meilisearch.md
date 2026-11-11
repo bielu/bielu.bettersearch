@@ -93,8 +93,9 @@ filterable and sortable attributes the provider needs to the index settings, kee
   also matches that value.
 - **`PrefixPhraseQuery`** matches at most 16 words.
 - **Numbers** in a filter are written in the invariant culture (`3.5`, never `3,5`), and a positive exponent drops
-  its `+` (`1E20`, not `1E+20`), as Meilisearch filters don't read `1E+20`. A `TermSubQuery` or `TermsSubQuery`
-  value of `NaN` or an infinity returns a failed `Result`, as Meilisearch reads those as text and would match nothing.
+  its `+` (`1E20`, not `1E+20`), as Meilisearch rejects `1E+20` in a filter. A `TermSubQuery` or `TermsSubQuery`
+  value of `NaN` or an infinity returns a failed `Result`, as a Meilisearch filter reads `NaN` and `Infinity` as text
+  and would match the strings `"NaN"` and `"Infinity"` rather than a number.
 - **`LongRange`** values past 2^53 lose precision, as Meilisearch compares numbers as doubles.
 - **Dates** without a time zone are read as UTC.
 - **Field names** can only contain letters, digits, `_`, `-` and `.`, and **document ids** letters, digits, `-`

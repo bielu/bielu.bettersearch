@@ -37,4 +37,25 @@ public class MeilisearchFieldNamesTests
     [InlineData(null)]
     public void Number_NotANumber_ReturnsNull(object? value) =>
         MeilisearchFieldNames.Number(value).ShouldBeNull();
+
+    [Theory]
+    [InlineData(double.NaN, "NaN")]
+    [InlineData(double.PositiveInfinity, "Infinity")]
+    [InlineData(float.NegativeInfinity, "-Infinity")]
+    public void RequireFinite_NonFiniteNumber_ReturnsFailureNamingTheValue(object value, string text)
+    {
+        var result = MeilisearchFieldNames.RequireFinite(value, "TermSubQuery");
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldBe($"TermSubQuery value {text} is not a finite number, which Meilisearch filters cannot compare.");
+    }
+
+    [Theory]
+    [InlineData(double.MaxValue)]
+    [InlineData(float.MinValue)]
+    [InlineData(35)]
+    [InlineData("NaN")]
+    [InlineData(null)]
+    public void RequireFinite_FiniteNumberOrNotANumber_ReturnsOk(object? value) =>
+        MeilisearchFieldNames.RequireFinite(value, "TermSubQuery").IsSuccess.ShouldBeTrue();
 }

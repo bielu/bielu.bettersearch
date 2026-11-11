@@ -71,14 +71,12 @@ internal static class MeilisearchFieldNames
 
     /// <summary>
     /// A failure when <paramref name="value"/> is <c>NaN</c> or an infinity, which a Meilisearch filter cannot hold:
-    /// it reads <c>NaN</c> and <c>Infinity</c> as text, so the filter would succeed and match nothing.
+    /// it reads <c>NaN</c> and <c>Infinity</c> as text, so the filter would match those strings rather than a number.
     /// </summary>
-    public static Result RequireFinite(object? value, string queryName) => value switch
-    {
-        double number when !double.IsFinite(number) => Result.Fail($"{queryName} value {QueryValueText.From(number)} is not a finite number, which Meilisearch filters cannot compare."),
-        float number when !float.IsFinite(number) => Result.Fail($"{queryName} value {QueryValueText.From(number)} is not a finite number, which Meilisearch filters cannot compare."),
-        _ => Result.Ok()
-    };
+    public static Result RequireFinite(object? value, string queryName) =>
+        value is double d && !double.IsFinite(d) || value is float f && !float.IsFinite(f)
+            ? Result.Fail($"{queryName} value {QueryValueText.From(value)} is not a finite number, which Meilisearch filters cannot compare.")
+            : Result.Ok();
 
     /// <summary>
     /// Values of <paramref name="attribute"/> between the bounds present; <c>EXISTS</c> when neither is. With both
