@@ -83,7 +83,7 @@ About a third of review findings are logic bugs that build, pass the tests and r
 - **State changes over time.** A cache, a static field, or a check that was trusted for N seconds: what happens when the index is deleted or recreated outside this process, when two app versions run side by side, when options change through `IOptionsMonitor`, or when settings change after documents were indexed? For Lifti, also ask what happens after a restart, when every index is empty.
 - **Defaults and inheritance.** If a default enum value (`NONE`, `0`) means "inherit", an index can't opt out. Check that a merge copies every inherited setting, including credentials. Validate config up front (empty secrets, a URI with no scheme, a page size of 0) and fail with a message that names the setting.
 - **The DI graph.** A provider must register only its own services, because `AddBetterSearch` registers the shared ones. Take dependencies through the registered interface, not the concrete class, so a replacement or decorator applies to the whole request.
-- **Verify engine behavior; don't recall it.** Claims about what Elasticsearch, OpenSearch or Meilisearch does (case handling, coercion, date formats, auth schemes, limits) have been wrong in both PRs and reviews. Check them against the engine running in the AppHost, and pin them with an integration test. Also keep the AppHost image's major version in step with the client package.
+- **Verify engine behavior; don't recall it.** Claims about what Elasticsearch, OpenSearch or Meilisearch does (case handling, coercion, date formats, auth schemes, limits) have been wrong in both PRs and reviews. Check them against the engine running in the AppHost, and pin them with an integration test. Also keep each AppHost image within the server versions its client package supports (see the comments in `AppHost.cs`). A matching major version isn't required.
 - **Cost at realistic sizes.** Think about 100k documents, 10k terms values, a page past 10,000, and a single-document write in a hot loop. Look for requests that grow without bound, one clause per value, an extra round trip on every write, and materializing all hits when one page was asked for.
 
 When you find a scenario that breaks, write the failing test first and then fix the code.
@@ -116,7 +116,7 @@ When you find a scenario that breaks, write the failing test first and then fix 
 
 ### Tests that can actually fail
 
-- **Revert the fix and run the test again.** It must fail. If it still passes, it isn't testing the change. Say in the PR that you checked this.
+- **Break the code and run the test again.** It must fail. For a bug fix, revert the fix. For a new feature, where a revert would remove the API the test needs, break the implementation instead (return the wrong value, drop a clause, skip the guard). If the test still passes, it isn't testing the change. Say in the PR that you checked this.
 - Make the assertion tell outcomes apart. Pick data where the correct and the incorrect behavior give different results. Don't sort results in a test about ordering. When you assert an error, check its message, using text only that error contains, not just `IsFailed`. Don't skip an assertion behind `TryGetValue`, because then a missing field passes.
 - A test's name must match what it does. A test named "nested" has to nest, and a test named "changes X" has to change X.
 - Use fixed inputs: no `DateTime.UtcNow` or random values in assertions.
@@ -151,6 +151,6 @@ Releases are driven by [changesets](https://github.com/changesets/changesets) in
 3. `dotnet format --verify-no-changes src/Bielu.BetterSearch.slnx` reports nothing new.
 4. A changeset is included.
 5. `README.md`, `docs/articles/feature-matrix.md` and the provider pages in `docs/articles/providers/` are updated when behavior or public APIs change, and every claim in them has been checked against the code.
-6. You have gone through [Common review findings](#common-review-findings). You have worked through each logic scenario that applies, the same change is in every provider, each new test fails with the fix reverted, and the integration tests of every engine you touched pass.
+6. You have gone through [Common review findings](#common-review-findings). You have worked through each logic scenario that applies, every provider has been checked and either has the change or the PR explains why not (an engine that can't support it returns a failed `Result` that the feature matrix records), each new test fails when the code it covers is broken, and the integration tests of every engine you touched pass.
 7. The branch is up to date with `main`, and the PR description lists every behavior change.
 8. Target the `main` branch.
