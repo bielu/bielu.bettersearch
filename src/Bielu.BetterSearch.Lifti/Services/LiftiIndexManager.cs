@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using Bielu.BetterSearch.Abstractions.Query;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 using Lifti;
 

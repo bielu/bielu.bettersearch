@@ -243,6 +243,23 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
         result.IsFailed.ShouldBeTrue();
     }
 
+    public static TheoryData<ISearchSubQuery, string> NonFiniteNumbers => new()
+    {
+        { new TermSubQuery { Field = "Price", Value = double.NaN }, "TermSubQuery value NaN is not a finite number" },
+        { new TermSubQuery { Field = "Price", Value = float.NegativeInfinity }, "TermSubQuery value -Infinity is not a finite number" },
+        { new TermsSubQuery { Field = "Price", Value = [1.0, double.PositiveInfinity] }, "TermsSubQuery value Infinity is not a finite number" }
+    };
+
+    [Theory]
+    [MemberData(nameof(NonFiniteNumbers))]
+    public async Task TranslateMainQueryAsync_NonFiniteNumber_ReturnsFailureNamingTheValue(ISearchSubQuery subQuery, string message)
+    {
+        var result = await translateService.TranslateMainQueryAsync(Query(Occurance.MUST, subQuery));
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain(message);
+    }
+
     [Theory]
     [InlineData(null, "_geoRadius(52.23, 21.01, 10000)")]
     [InlineData("m", "_geoRadius(52.23, 21.01, 10)")]

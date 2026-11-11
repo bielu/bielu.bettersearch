@@ -1,6 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using FluentResults;
 using EsQuery = Elastic.Clients.Elasticsearch.QueryDsl.Query;
