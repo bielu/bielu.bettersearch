@@ -29,7 +29,4 @@ internal sealed class MeilisearchQueryTranslationTests(IEnumerable<ISubQueryTran
 
     public override async Task FuzzyQueryShouldBeTranslatable()
         => await SubQueryTranslationShouldFailAsync(new FuzzyQuery { Field = "Name", Value = "jnae" });
-
-    public override async Task LuceneSubQueryShouldBeTranslatable()
-        => await SubQueryTranslationShouldFailAsync(new LuceneSubQuery { LuceneQuery = "Name:jane" });
 }

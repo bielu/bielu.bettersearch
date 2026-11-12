@@ -8,7 +8,7 @@ The repository tooling now matches the bielu ecosystem: .NET 10, current package
 
 - **The Elasticsearch provider searches** with every query type, paging, sorting, post filters and highlighting, but has no facets, and its index operations have the defects listed below.
 - **The OpenSearch provider searches** the same way as Elasticsearch, with every index operation and highlighting, but likewise has no facets.
-- **The Meilisearch provider searches** with every query type its filters can express, paging, sorting and post filters; spatial queries need `MeilisearchOptions.GeoField`; fuzzy and raw Lucene queries return a failed `Result`, and it has no facets; highlighting returns a failed `Result`, as Meilisearch marks only search text matches and the provider runs filters.
+- **The Meilisearch provider searches** with every query type its filters can express, paging, sorting and post filters; spatial queries need `MeilisearchOptions.GeoField`; fuzzy queries return a failed `Result`, raw Lucene queries are parsed with Lucene.NET's `QueryParser` and translated into filters where they can be, and it has no facets; highlighting returns a failed `Result`, as Meilisearch marks only search text matches and the provider runs filters.
 - **The in-memory provider gives wrong answers** for some queries (see below), and it is built on Lifti, which should be replaced.
 - **Half the query model does little.** Pagination, sorting, facets, highlighting and post filters can be expressed; only Elasticsearch, OpenSearch and Meilisearch read pagination, sorting and post filters, and only Elasticsearch and OpenSearch highlight.
 - **The tests pass while all of this is true.** They mostly assert `IsSuccess`, and `Result<bool>` can succeed with `false`.
@@ -51,7 +51,7 @@ Lifti is not archived, but its last release was v7.0.2 in December 2025, and the
 
 A spike on .NET 10 with `4.8.0-beta00018` ran term, prefix, fuzzy, numeric range, string range, `MUST` + `MUST_NOT`, `MUST` + `SHOULD`, filter context, raw query syntax and delete-then-search in memory, all with the expected results. The facet, highlighter and spatial packages were restored but not exercised.
 
-**The catch:** Lucene.NET 4.8 is still labelled beta, so a stable `Bielu.BetterSearch.Lucene` would depend on a prerelease (NuGet warning NU5104). `Examine.Lucene` lives with the same situation. The options are to accept it for that one package, or to keep that package on a prerelease version until Lucene.NET ships stable. Core and Abstractions are unaffected either way.
+**The catch:** Lucene.NET 4.8 is still labelled beta, so a stable `Bielu.BetterSearch.Lucene` would depend on a prerelease (NuGet warning NU5104). `Examine.Lucene` lives with the same situation. The options are to accept it for that one package, or to keep that package on a prerelease version until Lucene.NET ships stable. Core and Abstractions are unaffected either way. The Meilisearch provider already depends on `Lucene.Net.QueryParser` to translate raw Lucene queries, so it has the same catch.
 
 ## Phases
 
