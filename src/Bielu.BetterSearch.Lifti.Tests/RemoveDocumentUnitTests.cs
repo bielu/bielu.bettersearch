@@ -134,6 +134,73 @@ public class RemoveDocumentUnitTests
     }
 
     [Fact]
+    public async Task RemoveDocumentsAsync_CustomClientFactory_RemovesFromTheFactoryIndex()
+    {
+        var manager = new LiftiIndexManager();
+        var managerIndex = (await manager.GetOrCreateIndexAsync("test-index")).Value;
+        var factoryIndex = (await new LiftiIndexManager().GetOrCreateIndexAsync("test-index")).Value;
+        await managerIndex.AddAsync(Document("1"), TestContext.Current.CancellationToken);
+        await factoryIndex.AddAsync(Document("1"), TestContext.Current.CancellationToken);
+        await factoryIndex.AddAsync(Document("2"), TestContext.Current.CancellationToken);
+        var provider = new LiftiIndexingProviderAsync(new StubClientFactory(() => factoryIndex), manager);
+
+        var result = await provider.RemoveDocumentsAsync("test-index", ["1", "2"], TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(2);
+        factoryIndex.Count.ShouldBe(0);
+        managerIndex.Count.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RemoveDocumentsAsync_Cancelled_Throws(bool indexExists)
+    {
+        var manager = new LiftiIndexManager();
+        if (indexExists)
+        {
+            var index = (await manager.GetOrCreateIndexAsync("test-index")).Value;
+            await index.AddAsync(Document("1"), TestContext.Current.CancellationToken);
+        }
+
+        var provider = new LiftiIndexingProviderAsync(new LiftiClientFactoryAsync(manager), manager);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(() => provider.RemoveDocumentsAsync("test-index", ["1"], cancellation.Token));
+        (await manager.ExistsAsync("test-index")).Value.ShouldBe(indexExists);
+        if (indexExists)
+        {
+            (await manager.GetIndexAsync("test-index")).Value!.Count.ShouldBe(1);
+        }
+    }
+
+    [Fact]
+    public async Task RemoveDocumentsAsync_IndexDeletedAfterLookup_DoesNotRecreateIndex()
+    {
+        var manager = new GatedLookupLiftiIndexManager();
+        await manager.GetOrCreateIndexAsync("test-index");
+        // Two providers sharing one manager, as two DI scopes do.
+        var remover = new LiftiIndexingProviderAsync(new LiftiClientFactoryAsync(manager), manager);
+        var deleter = new LiftiIndexingProviderAsync(new LiftiClientFactoryAsync(manager), manager);
+
+        var remove = remover.RemoveDocumentsAsync("test-index", ["1", "2"], TestContext.Current.CancellationToken);
+        await manager.LookedUp.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var delete = deleter.DeleteIndexAsync("test-index", TestContext.Current.CancellationToken);
+        await Task.WhenAny(delete, Task.Delay(200, TestContext.Current.CancellationToken));
+        var deleteFinishedDuringRemove = delete.IsCompleted;
+        manager.Release.SetResult();
+
+        var removeResult = await remove;
+        removeResult.IsSuccess.ShouldBeTrue();
+        removeResult.Value.ShouldBe(0);
+        (await delete).Value.ShouldBeTrue();
+        deleteFinishedDuringRemove.ShouldBeFalse();
+        (await manager.ExistsAsync("test-index")).Value.ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task GetIndexAsync_MissingIndex_ReturnsNullWithoutCreatingIndex()
     {
         var manager = new LiftiIndexManager();

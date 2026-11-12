@@ -9,7 +9,7 @@ public class LiftiIndexingProviderAsync(
     IClientFactoryAsync<IFullTextIndex<string>> clientFactory,
     ILiftiIndexManager liftiIndexManager) : IIndexingProviderAsync
 {
-    // Removing a document, deleting an index and removing all documents take the index's lock, so none of them sees
+    // Removing documents, deleting an index and removing all documents take the index's lock, so none of them sees
     // the index half-way through another. The locks are shared by every provider on the same index manager.
     private readonly LiftiIndexLocks _locks = LiftiIndexLocks.For(liftiIndexManager);
 
@@ -82,6 +82,7 @@ public class LiftiIndexingProviderAsync(
     public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var distinctIds = DocumentIds.Distinct(ids);
         if (distinctIds.IsFailed || distinctIds.Value.Count == 0)
         {
@@ -90,19 +91,27 @@ public class LiftiIndexingProviderAsync(
 
         try
         {
-            // As in RemoveDocumentAsync, a missing index holds no documents and is not created.
-            var liftiIndex = await liftiIndexManager.GetIndexAsync(index).ConfigureAwait(false);
-            if (liftiIndex.IsFailed)
+            // As in RemoveDocumentAsync, the lock keeps a delete of this index out from between the lookup and the
+            // factory call, and a missing index holds no documents and is not created.
+            using var indexLock = await _locks.AcquireAsync(index, cancellationToken).ConfigureAwait(false);
+            var lookup = await liftiIndexManager.GetIndexAsync(index).ConfigureAwait(false);
+            if (lookup.IsFailed)
             {
-                return liftiIndex.ToResult<int>();
+                return lookup.ToResult<int>();
             }
 
+            if (lookup.Value is null)
+            {
+                return Result.Ok(0);
+            }
+
+            var liftiIndex = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
             var removed = 0;
-            for (var i = 0; liftiIndex.Value is not null && i < distinctIds.Value.Count; i++)
+            for (var i = 0; i < distinctIds.Value.Count; i++)
             {
                 try
                 {
-                    if (await liftiIndex.Value.RemoveAsync(distinctIds.Value[i], cancellationToken).ConfigureAwait(false))
+                    if (await liftiIndex.RemoveAsync(distinctIds.Value[i], cancellationToken).ConfigureAwait(false))
                     {
                         removed++;
                     }
