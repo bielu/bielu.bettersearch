@@ -1,0 +1,5 @@
+---
+"bielu-bettersearch": minor
+---
+
+The Meilisearch provider now translates `LuceneSubQuery` instead of failing it (#34). The string is parsed with Lucene.NET's `QueryParser` (`Lucene.Net.QueryParser` 4.8.0-beta00018, a prerelease, referenced by `Bielu.BetterSearch.Meilisearch` only) and turned into one filter: field terms, a trailing `*` prefix, ranges (numbers and ISO 8601 dates also compare as such), `_exists_:field`, `field:*` and `AND`/`OR`/`NOT`/`+`/`-` translate exactly. A fuzzy term and a quoted phrase of several words translate approximately, and the result carries the new public `Bielu.BetterSearch.Abstractions.Query.TranslationWarning` success reason, which `SearchServiceAsync` returns with the hits. A term without a field, an empty phrase, proximity, boosts, regular expressions, other wildcards and parentheses nested more than 32 deep return a failed `Result` that names the clause; a date without a time rounds as Elasticsearch rounds it, which an Elasticsearch integration test pins.
