@@ -38,7 +38,7 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
         }
     };
 
-    /// <summary>Runs <paramref name="test"/> on three people in an index of their own, deleted afterwards.</summary>
+    /// <summary>Runs <paramref name="test"/> on four people in an index of their own, deleted afterwards.</summary>
     private async Task WithPeopleAsync(Func<string, Task> test)
     {
         var index = $"highlight-{Guid.NewGuid():N}";
@@ -48,7 +48,8 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
             [
                 Person(index, "jane", "Jane Doe", "Krakow", "red apple", "green pear"),
                 Person(index, "john", "John Smith", "Warsaw", "blue plum"),
-                Person(index, "anna", "Anna Nowak", "Gdansk")
+                Person(index, "anna", "Anna Nowak", "Gdansk"),
+                Person(index, "tom", "Tom <b>Cat</b> & Jerry", "Lodz")
             ], Token);
             indexed.IsSuccess.ShouldBeTrue(string.Join("; ", indexed.Errors.Select(error => error.Message)));
             await RefreshAsync(index);
@@ -185,6 +186,24 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
     }
 
     [Fact]
+    public async Task SearchAsync_MarkupInTheText_IsEscapedSoOnlyTheTagsAreMarkup()
+    {
+        await WithPeopleAsync(async index =>
+        {
+            var query = SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "cat" });
+            query.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name" });
+
+            if (await HighlightAsync(query) is not { } hits)
+            {
+                return;
+            }
+
+            hits.Keys.ShouldBe(["tom"]);
+            hits["tom"].Highlights["Name"].ShouldBe(["Tom &lt;b&gt;<em>Cat</em>&lt;&#x2F;b&gt; &amp; Jerry"]);
+        });
+    }
+
+    [Fact]
     public async Task SearchAsync_HighlightWithoutField_ReturnsFailure()
     {
         var query = new SearchQuery { Index = $"highlight-{Guid.NewGuid():N}" };
@@ -204,12 +223,43 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
     }
 
     [Fact]
+    public async Task SearchAsync_SameFieldUnderItsEngineName_ReturnsFailure()
+    {
+        var query = new SearchQuery { Index = $"highlight-{Guid.NewGuid():N}" };
+        query.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name" });
+        query.HighlightQueries.Add(new BaseHighlightQuery { Field = "fields.Name" });
+
+        await ShouldFailAsync(query, "names field Name more than once, as field fields.Name");
+    }
+
+    [Fact]
+    public async Task SearchAsync_NullClauseInOwnHighlightQuery_ReturnsFailure()
+    {
+        var query = new SearchQuery { Index = $"highlight-{Guid.NewGuid():N}" };
+        query.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name", Queries = { [Occurance.MUST] = null! } });
+
+        await ShouldFailAsync(query, "The highlight query for field Name holds a null MUST clause");
+    }
+
+    [Fact]
     public async Task SearchAsync_NullHighlightQuery_ReturnsFailure()
     {
         var query = new SearchQuery { Index = $"highlight-{Guid.NewGuid():N}" };
         query.HighlightQueries.Add(null!);
 
         await ShouldFailAsync(query, "HighlightQueries holds a null entry");
+    }
+
+    [Fact]
+    public void Highlights_HitWithoutHighlights_CannotBeChangedForOtherHits()
+    {
+        var hit = new SearchHit(new BaseSearchModel(), null);
+        var other = new SearchHit(new BaseSearchModel(), null);
+
+        Should.Throw<NotSupportedException>(() =>
+            ((IDictionary<string, IReadOnlyList<string>>)hit.Highlights).Add("Name", ["<em>x</em>"]));
+
+        other.Highlights.ShouldBeEmpty();
     }
 
     [Fact]

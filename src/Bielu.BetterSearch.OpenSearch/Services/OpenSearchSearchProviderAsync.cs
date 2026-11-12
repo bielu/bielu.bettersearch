@@ -103,7 +103,7 @@ internal sealed class OpenSearchSearchProviderAsync(
     /// </summary>
     private async Task<Result<IHighlight?>> TranslateHighlightAsync(ISearchQuery query)
     {
-        var requested = Highlights.Requested(query);
+        var requested = Highlights.Requested(query, OpenSearchFieldNames.Resolve);
         if (requested.IsFailed || requested.Value.Count == 0)
         {
             return requested.IsFailed ? requested.ToResult<IHighlight?>() : Result.Ok<IHighlight?>(null);
@@ -112,10 +112,16 @@ internal sealed class OpenSearchSearchProviderAsync(
         var fields = new Dictionary<Field, IHighlightField>();
         foreach (var (field, request) in requested.Value)
         {
-            var highlightField = new HighlightField();
-            if (Highlights.OwnQuery(request) is { } ownQuery)
+            var ownQuery = Highlights.OwnQuery(request);
+            if (ownQuery.IsFailed)
             {
-                var translated = await queryTranslateServiceAsync.TranslateMainQueryAsync(new SearchQuery { Index = query.Index, Query = ownQuery }).ConfigureAwait(false);
+                return ownQuery.ToResult<IHighlight?>();
+            }
+
+            var highlightField = new HighlightField();
+            if (ownQuery.Value != null)
+            {
+                var translated = await queryTranslateServiceAsync.TranslateMainQueryAsync(new SearchQuery { Index = query.Index, Query = ownQuery.Value }).ConfigureAwait(false);
                 if (translated.IsFailed)
                 {
                     return translated.ToResult<IHighlight?>();
@@ -124,12 +130,14 @@ internal sealed class OpenSearchSearchProviderAsync(
                 highlightField.HighlightQuery = translated.Value;
             }
 
-            fields[OpenSearchFieldNames.Resolve(field)] = highlightField;
+            fields[field] = highlightField;
         }
 
         return Result.Ok<IHighlight?>(new Highlight
         {
             Fields = fields,
+            // Escapes the document text, so only the tags are markup.
+            Encoder = HighlighterEncoder.Html,
             PreTags = [SearchHit.HighlightPreTag],
             PostTags = [SearchHit.HighlightPostTag]
         });

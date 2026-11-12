@@ -99,8 +99,11 @@ the field name without the `fields.` prefix (`Name`, also when the request names
 - **A hit with nothing marked** has no entries, and a field with nothing marked has no entry.
 - **A multi-valued field** returns only the values that matched, each as its own fragment.
 - **Fragments** use Elasticsearch's default size and count.
+- **Fragments are HTML-escaped.** The document text is escaped (`<` becomes `&lt;`, `&` becomes `&amp;`), so the
+  `<em>` tags are the only markup and a fragment is safe to render as HTML.
 - **Invalid requests** return a failed `Result`: a `null` entry, an entry with neither `Field` nor
-  `IsAllField`, and two entries for the same field.
+  `IsAllField`, two entries for the same field, also under different names for it (`Name` and `fields.Name`),
+  and a `null` clause in a request's own `Queries`.
 
 ## Removing documents
 
