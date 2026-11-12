@@ -7,6 +7,7 @@
 
     <ItemGroup>
       <PackageReference Include="MeiliSearch" />
+      <PackageReference Include="Lucene.Net.QueryParser" />
       <PackageReference Include="Microsoft.Extensions.Configuration" />
       <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
       <PackageReference Include="Microsoft.Extensions.Options" />
@@ -22,6 +23,7 @@
       <Compile Include="..\Shared\StoredFields.cs" Link="Services\StoredFields.cs" />
       <Compile Include="..\Shared\DocumentIds.cs" Link="Services\DocumentIds.cs" />
       <Compile Include="..\Shared\QueryValueText.cs" Link="Services\QueryValueText.cs" />
+      <Compile Include="..\Shared\LuceneQueryParser.cs" Link="Services\LuceneQueryParser.cs" />
     </ItemGroup>
 
 </Project>

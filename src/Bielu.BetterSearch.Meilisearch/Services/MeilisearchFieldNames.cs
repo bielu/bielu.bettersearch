@@ -21,7 +21,7 @@ internal static class MeilisearchFieldNames
     /// <summary>Matches no document.</summary>
     public const string MatchNone = "id IN []";
 
-    private const string FieldsPrefix = Fields + ".";
+    public const string FieldsPrefix = Fields + ".";
 
     public static readonly string[] FilterableAttributes = ["id", "type", Fields, Tokens, Phrases, Dates, Geo];
     public static readonly string[] SortableAttributes = [Fields];
