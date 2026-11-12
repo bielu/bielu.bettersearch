@@ -3,12 +3,12 @@
 [Bielu.BetterSearch.OpenSearch](https://www.nuget.org/packages/Bielu.BetterSearch.OpenSearch/) runs queries
 on an [OpenSearch](https://opensearch.org/) cluster. It translates queries the same way as the
 [Elasticsearch provider](elasticsearch.md), so the same queries give the same results, with paging, sorting,
-post filters and scores.
+post filters, highlighting and scores.
 
 > [!WARNING]
 > **What won't work**
 >
-> - **Facets and highlighting** can be expressed, but a query that asks for them returns a failed `Result`.
+> - **Facets** can be expressed, but a query that asks for them returns a failed `Result`.
 > - **Bulk indexing**: Core's `IndexingServiceAsync.IndexMultipleDocumentsAsync` indexes one document at a time,
 >   so this provider's `BulkAsync` path is never used.
 > - **Remove all documents** reports a count of 0.
@@ -85,6 +85,25 @@ Documents are stored with their values under `fields`, as with Elasticsearch, so
 - **`LuceneQuery`** field names need the `fields.` prefix.
 - **`FuzzyQuery`** allows at most 2 edits, and uses `AUTO` when `Fuziness` is unset.
 - **Total hit count** is exact up to `MaxResultWindow` matches, then a lower bound.
+
+## Highlighting
+
+Each entry in `HighlightQueries` asks for the fragments of one field (`Field`) or of every field
+(`IsAllField`, sent as `fields.*`). The fragments come back on each hit, in `ISearchHit.Highlights`, keyed by
+the field name without the `fields.` prefix (`Name`, also when the request names `fields.Name`), with each matched term between `<em>` and `</em>`
+(`SearchHit.HighlightPreTag` and `HighlightPostTag`).
+
+- **Terms the main query matched in that field** are marked. With `IsAllField`, only the fields the query
+  matched have an entry. A request's own `Queries` replace the main query for that field, so they mark their
+  own terms; they don't change which documents are hits.
+- **A hit with nothing marked** has no entries, and a field with nothing marked has no entry.
+- **A multi-valued field** returns only the values that matched, each as its own fragment.
+- **Fragments** use OpenSearch's default size and count.
+- **Fragments are HTML-escaped.** The document text is escaped (`<` becomes `&lt;`, `&` becomes `&amp;`), so the
+  `<em>` tags are the only markup and a fragment is safe to render as HTML.
+- **Invalid requests** return a failed `Result`: a `null` entry, an entry with neither `Field` nor
+  `IsAllField`, two entries for the same field, also under different names for it (`Name` and `fields.Name`),
+  and a `null` clause in a request's own `Queries`.
 
 ## Removing documents
 

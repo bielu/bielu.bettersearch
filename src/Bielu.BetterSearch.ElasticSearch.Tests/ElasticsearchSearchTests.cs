@@ -1,7 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Fields;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.Aggregations;
-using Bielu.BetterSearch.Abstractions.Query.Highlighter;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Elastic.Clients.Elasticsearch;
@@ -601,17 +600,5 @@ public sealed class ElasticsearchSearchTests(
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("facets");
-    }
-
-    [Fact]
-    public async Task SearchAsync_Highlighting_ReturnsUnsupportedFailure()
-    {
-        var query = new SearchQuery { Index = "any" };
-        query.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name" });
-
-        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
-
-        result.IsFailed.ShouldBeTrue();
-        result.Errors.Single().Message.ShouldContain("highlighting");
     }
 }

@@ -1,7 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Fields;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.Aggregations;
-using Bielu.BetterSearch.Abstractions.Query.Highlighter;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Shouldly;
@@ -450,16 +449,16 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
 
     /// <summary>
     /// The post filter would exclude <c>Up-1</c> (not in Krakow) if it were applied, and the hits, their order and
-    /// their scores match the same query without these options. The result model has no facets or highlights to carry.
+    /// their scores match the same query without these options. The result model has no facets to carry. Highlighting
+    /// fails instead, as <see cref="LiftiHighlightingTests"/> shows.
     /// </summary>
     [Fact]
-    public async Task SearchAsync_FacetsHighlightingAndPostFilter_AreIgnored()
+    public async Task SearchAsync_FacetsAndPostFilter_AreIgnored()
     {
         var index = await CreatePeopleAsync();
         var plain = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" }), Token);
         var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" });
         query.FacetQueries = [new TermAggregation { AggregationName = "cities", TermFieldName = "City" }];
-        query.HighlightQueries = [new BaseHighlightQuery { Field = "Name" }];
         var krakow = new BoolSearchSubQuery();
         krakow.Add(Occurance.MUST, new TermSubQuery { Field = "City", Value = "krakow" });
         query.PostFilterQuery[Occurance.MUST] = [krakow];

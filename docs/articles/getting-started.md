@@ -90,7 +90,8 @@ public class PeopleSearch(IIndexingServiceAsync indexing, ISearchServiceAsync se
 
 `result` is a FluentResults `Result`: check `IsSuccess` before reading `Value`, and read `Errors` when a
 provider can't run the query. Each item is an `ISearchHit`: the stored `Document`, with its id unchanged, and
-the `Score` the engine gave it. `Page` counts from 1. A cancelled search throws `OperationCanceledException`
+the `Score` the engine gave it, and the `Highlights` that `HighlightQueries` asked for, on providers that
+highlight. `Page` counts from 1. A cancelled search throws `OperationCanceledException`
 rather than returning a failed `Result`. The [feature matrix](feature-matrix.md) compares every provider side
 by side.
 
