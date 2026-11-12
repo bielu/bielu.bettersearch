@@ -75,7 +75,7 @@ internal sealed class OpenSearchSearchProviderAsync(
         // OpenSearch.Client treats some error responses as valid, so a server error is a failure too.
         if (!response.IsValid || response.ServerError is not null)
         {
-            return Result.Fail<ISearchResult>(DescribeFailure(response));
+            return Result.Fail<ISearchResult>(OpenSearchFailures.Describe("search", response));
         }
 
         // Partial results are disallowed in the request; this guards against a cluster that returns them anyway.
@@ -141,19 +141,5 @@ internal sealed class OpenSearchSearchProviderAsync(
         }
 
         return request;
-    }
-
-    private static string DescribeFailure(ISearchResponse<SearchDocument> response)
-    {
-        var error = response.ServerError?.Error;
-        if (error == null)
-        {
-            return $"OpenSearch search failed: {response.OriginalException?.Message ?? response.DebugInformation}";
-        }
-
-        var cause = error.RootCause?.FirstOrDefault(rootCause => rootCause.Reason != error.Reason)?.Reason;
-        return cause == null
-            ? $"OpenSearch search failed ({error.Type}): {error.Reason}"
-            : $"OpenSearch search failed ({error.Type}): {error.Reason}: {cause}";
     }
 }

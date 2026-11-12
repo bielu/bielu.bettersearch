@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Text;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Services;
 using Elastic.Clients.Elasticsearch;
@@ -31,6 +34,23 @@ public sealed class ElasticsearchIndexingResponseTests
         var settings = new ElasticsearchClientSettings(new SingleNodePool(new Uri("http://localhost:9200")), invoker)
             .ThrowExceptions(throwExceptions);
         return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
+    }
+
+    /// <summary>A provider that talks to <paramref name="port"/> on this machine over the real HTTP transport.</summary>
+    private static ElasticSearchIndexingProviderAsync LocalProvider(int port)
+    {
+        var settings = new ElasticsearchClientSettings(new Uri($"http://127.0.0.1:{port}"));
+        return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
+    }
+
+    /// <summary>A port nothing listens on, so a connection to it is refused.</summary>
+    private static int ClosedPort()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
     }
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
@@ -97,6 +117,90 @@ public sealed class ElasticsearchIndexingResponseTests
         var result = await provider.RemoveDocumentsAsync("people", ["1", "2"], Token);
 
         result.Errors.ShouldHaveSingleItem().Message.ShouldContain("403");
+    }
+
+    [Theory]
+    [InlineData(200, true)]
+    [InlineData(404, false)]
+    public async Task IndexExistsAsync_ServerAnswers_ReturnsWhetherTheIndexExists(int statusCode, bool expected)
+    {
+        var provider = Provider("{}", statusCode);
+
+        var result = await provider.IndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData(401)]
+    [InlineData(503)]
+    public async Task IndexExistsAsync_RequestFails_ReturnsFailure(int statusCode)
+    {
+        var provider = Provider("{}", statusCode);
+
+        var result = await provider.IndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldStartWith("Elasticsearch index exists check failed");
+        result.Errors[0].Message.ShouldContain(statusCode.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        result.Errors[0].Message.ShouldNotContain("Audit trail");
+    }
+
+    [Fact]
+    public async Task IndexExistsAsync_ConnectionRefused_ReturnsFailureCausedByTheTransportException()
+    {
+        // With ThrowExceptions off, which is how the provider's clients are built, there is no status code and the
+        // transport's exception is only on the response.
+        var provider = LocalProvider(ClosedPort());
+
+        var result = await provider.IndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldStartWith("Elasticsearch index exists check failed");
+        result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<HttpRequestException>();
+    }
+
+    [Fact]
+    public async Task IndexExistsAsync_CancelledMidRequest_ThrowsOperationCanceledException()
+    {
+        // The server accepts the connection and never answers, so the request is still in flight when it is cancelled.
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            var provider = LocalProvider(((IPEndPoint)listener.LocalEndpoint).Port);
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+            cancellation.CancelAfter(TimeSpan.FromMilliseconds(500));
+
+            await Should.ThrowAsync<OperationCanceledException>(() => provider.IndexExistsAsync("people", cancellation.Token));
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task IndexExistsAsync_RequestThrows_ReturnsFailureCausedByTheException()
+    {
+        var provider = Provider("{}", 503, throwExceptions: true);
+
+        var result = await provider.IndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<TransportException>();
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_ExistsCheckFails_ReturnsTheCheckFailure()
+    {
+        var provider = Provider("{}", 401);
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldStartWith("Elasticsearch index exists check failed with HTTP 401");
     }
 
     public static TheoryData<string> IndexingMethods =>

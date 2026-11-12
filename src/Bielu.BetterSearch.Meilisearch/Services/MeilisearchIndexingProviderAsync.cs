@@ -91,7 +91,13 @@ public sealed class MeilisearchIndexingProviderAsync(
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {
         var exist = await IndexExistsAsync(index, cancellationToken).ConfigureAwait(false);
-        if (exist is { IsSuccess: true, Value: true })
+        // A failed check, such as a 401 or an unreachable server, is returned as it is rather than hidden behind a create attempt.
+        if (exist.IsFailed)
+        {
+            return exist;
+        }
+
+        if (exist.Value)
         {
             return Result.Ok(true);
         }
@@ -124,7 +130,7 @@ public sealed class MeilisearchIndexingProviderAsync(
         {
             return Result.Ok(false);
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
             return Result.Fail<bool>(new Error(e.Message).CausedBy(e));
         }

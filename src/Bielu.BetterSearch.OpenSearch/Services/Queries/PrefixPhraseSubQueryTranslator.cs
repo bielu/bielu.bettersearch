@@ -1,6 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 using OpenSearch.Client;
 using Result = FluentResults.Result;

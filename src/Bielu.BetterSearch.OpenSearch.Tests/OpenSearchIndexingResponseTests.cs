@@ -1,8 +1,12 @@
-﻿using System.Text;
+﻿using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Text;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
+using FluentResults;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using OpenSearch.Client;
@@ -43,6 +47,23 @@ public sealed class OpenSearchIndexingResponseTests
         return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
     }
 
+    /// <summary>A provider that talks to <paramref name="port"/> on this machine over the real HTTP connection.</summary>
+    private static OpenSearchIndexingProviderAsync LocalProvider(int port)
+    {
+        var settings = new ConnectionSettings(new Uri($"http://127.0.0.1:{port}"));
+        return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+    }
+
+    /// <summary>A port nothing listens on, so a connection to it is refused.</summary>
+    private static int ClosedPort()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
+    }
+
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     [Theory]
@@ -56,6 +77,56 @@ public sealed class OpenSearchIndexingResponseTests
         var result = await provider.IndexExistsAsync("people", Token);
 
         result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldStartWith("OpenSearch index exists check failed");
+        result.Errors.Single().Message.ShouldContain(statusCode.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        result.Errors.Single().Message.ShouldNotContain("Audit trail");
+    }
+
+    [Fact]
+    public async Task IndexExistsAsync_RequestThrows_ReturnsFailureCausedByTheException()
+    {
+        var connection = new InMemoryConnection([], 503);
+        var settings = new ConnectionSettings(new SingleNodeConnectionPool(new Uri("http://localhost:9200")), connection).ThrowExceptions();
+        var provider = new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+
+        var result = await provider.IndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<OpenSearchClientException>();
+    }
+
+    [Fact]
+    public async Task IndexExistsAsync_ConnectionRefused_ReturnsFailureCausedByTheTransportException()
+    {
+        // With ThrowExceptions off, which is how the provider's clients are built, there is no status code and the
+        // connection's exception is only on the response.
+        var provider = LocalProvider(ClosedPort());
+
+        var result = await provider.IndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldStartWith("OpenSearch index exists check failed");
+        result.Errors.Single().Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<HttpRequestException>();
+    }
+
+    [Fact]
+    public async Task IndexExistsAsync_CancelledMidRequest_ThrowsOperationCanceledException()
+    {
+        // The server accepts the connection and never answers, so the request is still in flight when it is cancelled.
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            var provider = LocalProvider(((IPEndPoint)listener.LocalEndpoint).Port);
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+            cancellation.CancelAfter(TimeSpan.FromMilliseconds(500));
+
+            await Should.ThrowAsync<OperationCanceledException>(() => provider.IndexExistsAsync("people", cancellation.Token));
+        }
+        finally
+        {
+            listener.Stop();
+        }
     }
 
     [Theory]
@@ -176,7 +247,7 @@ public sealed class OpenSearchIndexingResponseTests
         var result = await provider.EnsureIndexExistsAsync("people", Token);
 
         result.IsFailed.ShouldBeTrue();
-        result.Errors.Single().Message.ShouldContain("HEAD");
+        result.Errors.Single().Message.ShouldStartWith("OpenSearch index exists check failed with HTTP 401");
     }
 
     [Fact]
