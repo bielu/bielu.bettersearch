@@ -89,6 +89,15 @@ Documents are stored with their values under `fields`, as with Elasticsearch, so
 - **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
 - **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result`.
 
+## Checking an index exists
+
+`IndexExistsAsync` is success with `true` on a 200 and `false` on a 404. Any other answer, such as a 401, 403
+or 5xx, or no answer at all, is a failed `Result`. Its message names the HTTP status when there was one, then
+the server's error, or the transport's exception when the server sent none, and that exception is attached as
+its cause. A request
+cancelled through the `CancellationToken` throws `OperationCanceledException`. `EnsureIndexExistsAsync` returns
+a failed check as it is rather than trying to create the index.
+
 Unlike Elasticsearch, index operations report what happened: creating an existing index is success with
 `false`, and any other rejection, such as a 403, is a failed `Result`. The
 [feature matrix](../feature-matrix.md) has the full detail.

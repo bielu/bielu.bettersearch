@@ -1,0 +1,5 @@
+---
+"bielu-bettersearch": patch
+---
+
+Elasticsearch `IndexExistsAsync` now returns `true` on a 200 and `false` on a 404, and a failed `Result` for any other answer, such as an unreachable server, a 401, 403 or 5xx, where it used to report the index as missing (#70). OpenSearch already did; on both, the failure's message is now short (the HTTP status and the server's error, or the transport's exception when there was no answer) instead of the full debug dump, the transport's exception is attached as its cause, and a request cancelled through the token throws `OperationCanceledException` instead of returning a failed `Result`. OpenSearch `IndexExistsAsync` also returns a failed `Result` instead of throwing when the client throws. `EnsureIndexExistsAsync` on Elasticsearch and Meilisearch now returns a failed exists check as it is instead of trying to create the index, as OpenSearch does, and Meilisearch `IndexExistsAsync` lets cancellation propagate. Elasticsearch and OpenSearch search failures now name the HTTP status in their message, for example `Elasticsearch search failed with HTTP 400 (...)`.

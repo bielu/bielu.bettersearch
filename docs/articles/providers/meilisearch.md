@@ -109,4 +109,11 @@ filterable and sortable attributes the provider needs to the index settings, kee
 - **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
 - **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result` with Meilisearch's error.
 
+## Checking an index exists
+
+`IndexExistsAsync` is success with `false` when Meilisearch answers `index_not_found`. Any other error, such as a
+wrong API key or an unreachable server, is a failed `Result` caused by the client's exception, and a request
+cancelled through the `CancellationToken` throws `OperationCanceledException`. `EnsureIndexExistsAsync` returns a
+failed check as it is rather than trying to create the index.
+
 The [feature matrix](../feature-matrix.md) has the full detail.

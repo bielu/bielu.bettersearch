@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Shouldly;
 using MeilisearchClient = Meilisearch.MeilisearchClient;
+using MeilisearchMessageHandler = Meilisearch.MeilisearchMessageHandler;
 
 namespace Bielu.BetterSearch.Meilisearch.Tests;
 
@@ -439,6 +440,45 @@ public sealed class MeilisearchIndexingProviderTests(
         var result = await unreachable.CreateIndexAsync(UniqueIndex(), Token);
 
         result.IsFailed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_ExistsCheckFails_ReturnsTheCheckFailureWithoutCreating()
+    {
+        // Every request gets the same 401; a create attempt would be a second request.
+        var handler = new UnauthorizedHandler();
+        var provider = new MeilisearchIndexingProviderAsync(
+            new FixedClientFactory(new MeilisearchClient(new HttpClient(new MeilisearchMessageHandler(handler)) { BaseAddress = new Uri("http://127.0.0.1:7700/") }, "wrong-key")),
+            options,
+            NullLogger<MeilisearchIndexingProviderAsync>.Instance);
+
+        var result = await provider.EnsureIndexExistsAsync(UniqueIndex(), Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain("The provided API key is invalid.");
+        handler.Methods.ShouldBe([HttpMethod.Get]);
+    }
+
+    private sealed class FixedClientFactory(MeilisearchClient client) : IClientFactoryAsync<MeilisearchClient>
+    {
+        public Task<MeilisearchClient> GetOrCreateClientAsync(string indexName) => Task.FromResult(client);
+    }
+
+    private sealed class UnauthorizedHandler : HttpMessageHandler
+    {
+        public List<HttpMethod> Methods { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Methods.Add(request.Method);
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized)
+            {
+                Content = new StringContent(
+                    """{"message":"The provided API key is invalid.","code":"invalid_api_key","type":"auth","link":"https://docs.meilisearch.com/errors#invalid_api_key"}""",
+                    System.Text.Encoding.UTF8,
+                    "application/json"),
+            });
+        }
     }
 
     private static MeilisearchIndexingProviderAsync CreateProvider(string connectionString, string? apiKey)
