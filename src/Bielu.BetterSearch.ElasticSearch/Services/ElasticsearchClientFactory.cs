@@ -68,4 +68,48 @@ internal static class ElasticsearchClientFactoryExtensions
             return Result.Fail<ElasticsearchClient>(new Error(e.Message).CausedBy(e));
         }
     }
+
+    /// <summary>
+    /// Runs <paramref name="request"/> with the index's client, returning a failed <see cref="Result"/> that keeps the
+    /// exception when the client cannot be created or the request throws, as it does with <c>ThrowExceptions()</c> on.
+    /// </summary>
+    /// <remarks>An <see cref="OperationCanceledException"/> is rethrown rather than turned into a failure.</remarks>
+    public static async Task<Result<T>> TryWithClientAsync<T>(this IClientFactoryAsync<ElasticsearchClient> clientFactory, string indexName,
+        Func<ElasticsearchClient, Task<Result<T>>> request, CancellationToken cancellationToken)
+    {
+        var client = await clientFactory.TryGetClientAsync(indexName, cancellationToken).ConfigureAwait(false);
+        if (client.IsFailed)
+        {
+            return client.ToResult<T>();
+        }
+
+        try
+        {
+            return await request(client.Value).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result.Fail<T>(new Error(e.Message).CausedBy(e));
+        }
+    }
+
+    /// <inheritdoc cref="TryWithClientAsync{T}"/>
+    public static async Task<Result> TryWithClientAsync(this IClientFactoryAsync<ElasticsearchClient> clientFactory, string indexName,
+        Func<ElasticsearchClient, Task<Result>> request, CancellationToken cancellationToken)
+    {
+        var client = await clientFactory.TryGetClientAsync(indexName, cancellationToken).ConfigureAwait(false);
+        if (client.IsFailed)
+        {
+            return client.ToResult();
+        }
+
+        try
+        {
+            return await request(client.Value).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result.Fail(new Error(e.Message).CausedBy(e));
+        }
+    }
 }

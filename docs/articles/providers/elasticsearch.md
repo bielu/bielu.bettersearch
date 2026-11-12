@@ -14,7 +14,8 @@ filters and scores.
 >   so this provider's `BulkAsync` path is never used.
 >
 > Invalid or missing connection settings throw from searching; every indexing method turns them into a
-> failed `Result`.
+> failed `Result`. A request that throws, as it does when `ThrowExceptions()` is on in the client settings, is
+> also a failed `Result` from every indexing method, with the exception as its cause.
 
 ## Install
 

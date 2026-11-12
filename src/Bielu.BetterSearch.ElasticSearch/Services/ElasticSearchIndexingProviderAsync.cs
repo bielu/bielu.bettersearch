@@ -1,4 +1,4 @@
-using Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.IndexManagement;
 using Elastic.Clients.Elasticsearch.QueryDsl;
@@ -11,17 +11,12 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 
 public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<ElasticsearchClient> clientFactory, ILogger<ElasticSearchIndexingProviderAsync> logger) : IIndexingProviderAsync
 {
-    public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
-    {
-        var client = await clientFactory.TryGetClientAsync(document.Index, cancellationToken).ConfigureAwait(false);
-        if (client.IsFailed)
+    public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
+        clientFactory.TryWithClientAsync(document.Index, async client =>
         {
-            return client.ToResult();
-        }
-
-        var indexResult = await client.Value.IndexAsync(document, document.Index, document.Id, cancellationToken).ConfigureAwait(false);
-        return indexResult.IsSuccess() ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
-    }
+            var indexResult = await client.IndexAsync(document, document.Index, document.Id, cancellationToken).ConfigureAwait(false);
+            return indexResult.IsSuccess() ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
+        }, cancellationToken);
 
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents,
         CancellationToken cancellationToken = default)
@@ -31,57 +26,36 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
         var results = new List<Result>();
         foreach (var indexGroup in searchDocuments.GroupBy(x => x.Index))
         {
-            var client = await clientFactory.TryGetClientAsync(indexGroup.Key, cancellationToken).ConfigureAwait(false);
-            if (client.IsFailed)
+            results.Add(await clientFactory.TryWithClientAsync(indexGroup.Key, async client =>
             {
-                results.Add(client.ToResult());
-                continue;
-            }
-
-            var bulkResponse = await client.Value.BulkAsync(b => b.IndexMany(indexGroup.Select(x => x), (descriptor, _) => descriptor.Index(indexGroup.Key)), cancellationToken).ConfigureAwait(false);
-            results.Add(bulkResponse.IsSuccess() ? Result.Ok() : Result.Fail(new Error(bulkResponse.DebugInformation)));
+                var bulkResponse = await client.BulkAsync(b => b.IndexMany(indexGroup.Select(x => x), (descriptor, _) => descriptor.Index(indexGroup.Key)), cancellationToken).ConfigureAwait(false);
+                return bulkResponse.IsSuccess() ? Result.Ok() : Result.Fail(new Error(bulkResponse.DebugInformation));
+            }, cancellationToken).ConfigureAwait(false));
         }
 
         return results.Merge();
     }
 
-    public async Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default)
-    {
-        var client = await clientFactory.TryGetClientAsync(type, cancellationToken).ConfigureAwait(false);
-        if (client.IsFailed)
+    public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) =>
+        clientFactory.TryWithClientAsync(type, async client =>
         {
-            return client.ToResult();
-        }
-
-        try
-        {
-            var indexResult = await client.Value.DeleteAsync(new DeleteRequest(type, id), cancellationToken).ConfigureAwait(false);
+            var indexResult = await client.DeleteAsync(new DeleteRequest(type, id), cancellationToken).ConfigureAwait(false);
             // Deletes are idempotent: a document that is not there is already gone. A missing index is still a failure,
             // and Elasticsearch reports it with an error rather than a not_found result.
             var removed = indexResult.ElasticsearchServerError is null
                 && (indexResult.IsSuccess() || indexResult.Result == Elastic.Clients.Elasticsearch.Result.NotFound);
             return removed ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            return Result.Fail(new Error(e.Message).CausedBy(e));
-        }
-    }
+        }, cancellationToken);
 
-    public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
-        CancellationToken cancellationToken = default)
-    {
-        var client = await clientFactory.TryGetClientAsync(index.IndexName, cancellationToken).ConfigureAwait(false);
-        if (client.IsFailed)
+    public Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
+        CancellationToken cancellationToken = default) =>
+        clientFactory.TryWithClientAsync<long?>(index.IndexName, async client =>
         {
-            return client.ToResult<long?>();
-        }
-
-        var request = new DeleteByQueryRequest(Indices.Index(index.IndexName));
-        request.Query = new MatchAllQuery();
-        var indexResult = await client.Value.DeleteByQueryAsync(request, cancellationToken).ConfigureAwait(false);
-        return indexResult.IsSuccess() ? Result.Ok(indexResult.Deleted) : Result.Fail(new Error(indexResult.DebugInformation));
-    }
+            var request = new DeleteByQueryRequest(Indices.Index(index.IndexName));
+            request.Query = new MatchAllQuery();
+            var indexResult = await client.DeleteByQueryAsync(request, cancellationToken).ConfigureAwait(false);
+            return indexResult.IsSuccess() ? Result.Ok(indexResult.Deleted) : Result.Fail(new Error(indexResult.DebugInformation));
+        }, cancellationToken);
 
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {
@@ -100,29 +74,17 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
         return await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default)
-    {
-        var client = await clientFactory.TryGetClientAsync(index, cancellationToken).ConfigureAwait(false);
-        if (client.IsFailed)
+    public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) =>
+        clientFactory.TryWithClientAsync<bool>(index, async client =>
         {
-            return client.ToResult<bool>();
-        }
+            var indexResult = await client.Indices.DeleteAsync(new DeleteIndexRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
+            return indexResult.IsSuccess() ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
+        }, cancellationToken);
 
-        var indexResult = await client.Value.Indices.DeleteAsync(new DeleteIndexRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
-        return indexResult.IsSuccess() ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
-    }
-
-    public async Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default)
-    {
-        try
+    public Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default) =>
+        clientFactory.TryWithClientAsync(index, async client =>
         {
-            var client = await clientFactory.TryGetClientAsync(index, cancellationToken).ConfigureAwait(false);
-            if (client.IsFailed)
-            {
-                return client.ToResult<bool>();
-            }
-
-            var result = await client.Value.Indices.ExistsAsync(new ExistsRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
+            var result = await client.Indices.ExistsAsync(new ExistsRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
             // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
             cancellationToken.ThrowIfCancellationRequested();
             // Only 200 and 404 answer the question; anything else, such as no answer, a 401, 403 or 5xx, is a failure.
@@ -132,35 +94,18 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
                 404 => Result.Ok(false),
                 _ => Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe("index exists check", result), result.ApiCallDetails?.OriginalException)),
             };
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            return Result.Fail(new Error(e.Message).CausedBy(e));
-        }
-    }
+        }, cancellationToken);
 
-    public async Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default)
-    {
-        var client = await clientFactory.TryGetClientAsync(index, cancellationToken).ConfigureAwait(false);
-        if (client.IsFailed)
+    public Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default) =>
+        clientFactory.TryWithClientAsync(index, async client =>
         {
-            return client.ToResult<bool>();
-        }
-
-        try
-        {
-            var result = await client.Value.Indices.CreateAsync(new CreateIndexRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
+            var result = await client.Indices.CreateAsync(new CreateIndexRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess())
             {
                 logger.LogError("Indexing failed: {Error}", result.DebugInformation);
             }
-            return result.IsSuccess();
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            return Result.Fail(new Error(e.Message).CausedBy(e));
-        }
-    }
+            return Result.Ok(result.IsSuccess());
+        }, cancellationToken);
 
     private static Error RequestFailed(string message, Exception? exception)
     {
