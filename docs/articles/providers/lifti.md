@@ -69,6 +69,9 @@ There is nothing to configure.
   holds no documents, so the document is already gone. Reporting a failure there would make callers log errors
   or retry deletes that are already done. A misspelled index name therefore goes unnoticed, unlike on the other
   providers.
+- **Several documents**: `RemoveDocumentsAsync(index, ids)` removes the ids one by one and returns how many
+  were removed. A missing index succeeds with 0 and is not created, and cancellation,
+  the index lookup, the client factory and the lock below work as with `RemoveDocumentAsync`.
 - **Cancellation**: a cancelled token throws `OperationCanceledException`, as on Elasticsearch. Any other
   exception is caught and returned as a failed `Result` that keeps the exception as its cause. A failed lookup
   from `ILiftiIndexManager.GetIndexAsync` is returned with the manager's own errors, as supplied.
@@ -76,7 +79,7 @@ There is nothing to configure.
   document is then removed from the index the registered `IClientFactoryAsync<IFullTextIndex<string>>` returns,
   the same one indexing writes to. A custom `ILiftiIndexManager` must implement `GetIndexAsync` and return
   `null`, without creating the index, when it does not exist.
-- **Removing while the index is deleted**: `RemoveDocumentAsync`, `DeleteIndexAsync` and
+- **Removing while the index is deleted**: `RemoveDocumentAsync`, `RemoveDocumentsAsync`, `DeleteIndexAsync` and
   `RemoveAllDocumentsAsync` on the provider take a lock per index name, shared by every provider on the same
   `ILiftiIndexManager`. A delete therefore can't land between the lookup and the factory call, which would make
   the factory create the deleted index again. The lock does not cover calls made on the index manager directly.

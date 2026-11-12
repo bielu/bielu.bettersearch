@@ -15,6 +15,7 @@
 
     <ItemGroup>
       <!-- Compiled into each provider rather than shared from another package, so a provider never calls into another package's internals. -->
+      <Compile Include="..\Shared\DocumentIds.cs" Link="Services\DocumentIds.cs" />
       <Compile Include="..\Shared\QueryValueText.cs" Link="Services\QueryValueText.cs" />
     </ItemGroup>
 

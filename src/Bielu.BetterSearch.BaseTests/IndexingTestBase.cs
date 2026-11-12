@@ -368,6 +368,189 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         }
     }
 
+    /// <summary>Indexes documents with <paramref name="ids"/> into <paramref name="index"/> and checks they are all there.</summary>
+    private async Task IndexIdsAsync(string index, params string[] ids)
+    {
+        foreach (var id in ids)
+        {
+            var indexed = await serviceAsync.IndexDocumentAsync(new SearchDocument { Id = id, Type = "TestDocument", Index = index, }, Token);
+            indexed.IsSuccess.ShouldBeTrue(string.Join("; ", indexed.Errors.Select(error => error.Message)));
+        }
+
+        (await CountDocumentsAsync(index)).ShouldBe(ids.Length);
+    }
+
+    [Fact]
+    public async Task RemoveDocumentsAsync_SeveralIds_RemovesExactlyThoseAndReturnsTheCount()
+    {
+        //Arrange
+        var index = $"remove-many-{Guid.NewGuid():N}";
+        try
+        {
+            await IndexIdsAsync(index, "1", "2", "3", "4");
+
+            //Act
+            var result = await serviceAsync.RemoveDocumentsAsync(index, ["1", "3", "never-indexed"], Token);
+
+            //Assert
+            result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+            result.Value.ShouldBe(2);
+            (await CountDocumentsAsync(index)).ShouldBe(2);
+            // 1 and 3 are gone and 2 and 4 are still there: removing all four again removes only 2 and 4.
+            (await serviceAsync.RemoveDocumentsAsync(index, ["1", "2", "3", "4"], Token)).Value.ShouldBe(2);
+            (await CountDocumentsAsync(index)).ShouldBe(0);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task RemoveDocumentsAsync_RepeatedId_RemovesAndCountsItOnce()
+    {
+        //Arrange
+        var index = $"remove-many-{Guid.NewGuid():N}";
+        try
+        {
+            await IndexIdsAsync(index, "1", "2");
+
+            //Act
+            var result = await serviceAsync.RemoveDocumentsAsync(index, ["1", "1"], Token);
+
+            //Assert
+            result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+            result.Value.ShouldBe(1);
+            (await CountDocumentsAsync(index)).ShouldBe(1);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task RemoveDocumentsAsync_EmptyList_SucceedsWithZeroAndCallsNothing()
+    {
+        //Arrange
+        var index = $"remove-many-{Guid.NewGuid():N}";
+        var observer = new RecordingObserver<DeleteDocumentRequest>();
+        using var subscription = serviceAsync.Subscribe(observer);
+        try
+        {
+            //Act
+            var serviceResult = await serviceAsync.RemoveDocumentsAsync(index, [], Token);
+            var providerResult = await indexingProviderAsync.RemoveDocumentsAsync(index, [], Token);
+
+            //Assert
+            serviceResult.IsSuccess.ShouldBeTrue();
+            serviceResult.Value.ShouldBe(0);
+            providerResult.IsSuccess.ShouldBeTrue();
+            providerResult.Value.ShouldBe(0);
+            observer.Values.ShouldBeEmpty();
+            // The index does not exist, so a provider that reached the engine would have failed or created it.
+            await IndexShouldExistAsync(index, false);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task RemoveDocumentsAsync_NullIds_Fails()
+    {
+        var serviceResult = await serviceAsync.RemoveDocumentsAsync("any-index", null!, Token);
+        var providerResult = await indexingProviderAsync.RemoveDocumentsAsync("any-index", null!, Token);
+
+        serviceResult.Errors.ShouldHaveSingleItem().Message.ShouldContain("ids to remove are null");
+        providerResult.Errors.ShouldHaveSingleItem().Message.ShouldContain("ids to remove are null");
+    }
+
+    [Fact]
+    public async Task RemoveDocumentsAsync_NullOrEmptyId_FailsAndRemovesNothing()
+    {
+        //Arrange
+        var index = $"remove-many-{Guid.NewGuid():N}";
+        try
+        {
+            await IndexIdsAsync(index, "1", "2");
+
+            //Act
+            var serviceResult = await serviceAsync.RemoveDocumentsAsync(index, ["1", null!], Token);
+            var providerResult = await indexingProviderAsync.RemoveDocumentsAsync(index, ["2", ""], Token);
+
+            //Assert
+            serviceResult.Errors.ShouldHaveSingleItem().Message.ShouldContain("null or empty id");
+            providerResult.Errors.ShouldHaveSingleItem().Message.ShouldContain("null or empty id");
+            (await CountDocumentsAsync(index)).ShouldBe(2);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task RemoveDocumentsAsync_MissingIndex_FailsNamingTheIdsOrSucceedsWithZero()
+    {
+        //Arrange
+        var index = $"remove-many-{Guid.NewGuid():N}";
+        var observer = new RecordingObserver<DeleteDocumentRequest>();
+        using var subscription = serviceAsync.Subscribe(observer);
+        try
+        {
+            //Act
+            var result = await serviceAsync.RemoveDocumentsAsync(index, ["first-id", "second-id"], Token);
+
+            //Assert
+            if (RemovingFromMissingIndexSucceeds)
+            {
+                result.IsSuccess.ShouldBeTrue();
+                result.Value.ShouldBe(0);
+                observer.Values.Count.ShouldBe(2);
+            }
+            else
+            {
+                var message = result.Errors.ShouldHaveSingleItem().Message;
+                message.ShouldContain("failed for ids first-id, second-id");
+                message.ShouldContain("0 of 2 documents were removed");
+                observer.Values.ShouldBeEmpty();
+            }
+
+            await IndexShouldExistAsync(index, false);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task RemoveDocumentsAsync_Subscribed_SendsOnNextForEachDistinctId()
+    {
+        //Arrange
+        var index = $"remove-many-{Guid.NewGuid():N}";
+        var observer = new RecordingObserver<DeleteDocumentRequest>();
+        try
+        {
+            await IndexIdsAsync(index, "1", "2");
+            using var subscription = serviceAsync.Subscribe(observer);
+
+            //Act
+            (await serviceAsync.RemoveDocumentsAsync(index, ["1", "never-indexed", "1"], Token)).IsSuccess.ShouldBeTrue();
+
+            //Assert
+            observer.Values.Select(request => (request.Id, request.Type)).ShouldBe([("1", index), ("never-indexed", index)]);
+            observer.CompletedCount.ShouldBe(0);
+            observer.Errors.ShouldBeEmpty();
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
     [Fact]
     public async Task IndexDocumentAsync_Subscribed_SendsOnNextForEachIndexedDocumentAndKeepsStreamOpen()
     {

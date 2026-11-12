@@ -1,5 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
+using Elastic.Clients.Elasticsearch.Core.Bulk;
 using Elastic.Clients.Elasticsearch.IndexManagement;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using FluentResults;
@@ -46,6 +48,44 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
                 && (indexResult.IsSuccess() || indexResult.Result == Elastic.Clients.Elasticsearch.Result.NotFound);
             return removed ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
         }, cancellationToken);
+
+    public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var distinctIds = DocumentIds.Distinct(ids);
+        if (distinctIds.IsFailed || distinctIds.Value.Count == 0)
+        {
+            return distinctIds.IsFailed ? distinctIds.ToResult<int>() : Result.Ok(0);
+        }
+
+        return await clientFactory.TryWithClientAsync(index, async client =>
+        {
+            var request = new BulkRequest(index)
+            {
+                Operations = new BulkOperationsCollection(distinctIds.Value.Select(id => new BulkDeleteOperation(id))),
+            };
+            var response = await client.BulkAsync(request, cancellationToken).ConfigureAwait(false);
+            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
+            cancellationToken.ThrowIfCancellationRequested();
+            // A request rejected as a whole, such as a 403, has no items.
+            if (response.Items is null || response.Items.Count != distinctIds.Value.Count)
+            {
+                return Result.Fail<int>(RequestFailed(ElasticSearchFailures.Describe("bulk delete", response), response.ApiCallDetails?.OriginalException));
+            }
+
+            // As in RemoveDocumentAsync, a not_found item without an error is already gone. A missing index is an
+            // error on each item.
+            var removed = response.Items.Count(item => item.Error is null && item.Result == "deleted");
+            var failed = response.Items.Where(item => item.Error is not null || (item.Status is < 200 or >= 300 && item.Result != "not_found")).ToList();
+            if (failed.Count > 0)
+            {
+                return Result.Fail<int>(DocumentIds.FailedError(index, removed, distinctIds.Value.Count,
+                    failed.Select(item => item.Id ?? "(unknown)").ToList(), failed[0].Error?.Reason ?? $"status {failed[0].Status}"));
+            }
+
+            return Result.Ok(removed);
+        }, cancellationToken).ConfigureAwait(false);
+    }
 
     public Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
         CancellationToken cancellationToken = default) =>
