@@ -19,6 +19,7 @@ internal static class MeilisearchBoolFilterBuilder
         var required = new List<string>();
         var should = new List<string>();
         var mustNot = new List<string>();
+        var successes = new List<ISuccess>();
 
         foreach (var (occurance, subQuery) in clauses)
         {
@@ -40,23 +41,32 @@ internal static class MeilisearchBoolFilterBuilder
                 Occurance.MUSTNOT => mustNot,
                 _ => required
             };
-            target.Add(Group(translated.Value.Expression));
+            target.Add(translated.Value.Expression);
+            successes.AddRange(translated.Successes);
         }
 
+        return Result.Ok(Combine(required, should, mustNot)).WithSuccesses(successes);
+    }
+
+    /// <summary>Joins translated clauses with the semantics above.</summary>
+    public static MeilisearchFilter Combine(IReadOnlyList<string> required, IReadOnlyList<string> should, IReadOnlyList<string> mustNot)
+    {
+        required = required.Select(Group).ToList();
+        should = should.Select(Group).ToList();
         var parts = new List<string>(required);
         if (required.Count == 0 && should.Count > 0)
         {
             parts.Add(should.Count == 1 ? should[0] : Group(string.Join(" OR ", should)));
         }
 
-        parts.AddRange(mustNot.Select(clause => $"NOT {clause}"));
+        parts.AddRange(mustNot.Select(clause => $"NOT {Group(clause)}"));
         if (parts.Count == 0 || required.Count == 0 && should.Count == 0)
         {
             // MUSTNOT on its own returns every other document.
             parts.Insert(0, MeilisearchFieldNames.MatchAll);
         }
 
-        return Result.Ok(new MeilisearchFilter(string.Join(" AND ", parts)));
+        return new MeilisearchFilter(string.Join(" AND ", parts));
     }
 
     private static string Group(string expression) => $"({expression})";

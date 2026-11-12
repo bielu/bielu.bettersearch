@@ -32,7 +32,10 @@ internal sealed class DateRangeSubQueryTranslator : MeilisearchSubQueryTranslato
 /// </summary>
 internal sealed class StringRangeSubQueryTranslator : MeilisearchSubQueryTranslator<StringRange>
 {
-    protected override Result<MeilisearchFilter> Translate(StringRange query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators)
+    protected override Result<MeilisearchFilter> Translate(StringRange query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators) =>
+        Create(query);
+
+    public static Result<MeilisearchFilter> Create(StringRange query)
     {
         var min = query.MinValue?.ToLowerInvariant();
         var max = query.MaxValue?.ToLowerInvariant();

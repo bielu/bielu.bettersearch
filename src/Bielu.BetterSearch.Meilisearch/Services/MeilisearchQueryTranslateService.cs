@@ -23,6 +23,7 @@ internal sealed class MeilisearchQueryTranslateService(IEnumerable<ISubQueryTran
         }
 
         var filters = new List<string> { main.Value.Expression };
+        var successes = main.Successes.ToList();
         if (query.PostFilterQuery != null && query.PostFilterQuery.Values.Any(clauses => clauses.Count > 0))
         {
             var postFilter = await TranslateAsync(query.PostFilterQuery.ToDictionary(
@@ -34,12 +35,13 @@ internal sealed class MeilisearchQueryTranslateService(IEnumerable<ISubQueryTran
             }
 
             filters.Add(postFilter.Value.Expression);
+            successes.AddRange(postFilter.Successes);
         }
 
         return Result.Ok(new MeilisearchQuery
         {
             Filter = filters.Count == 1 ? filters[0] : string.Join(" AND ", filters.Select(filter => $"({filter})"))
-        });
+        }).WithSuccesses(successes);
     }
 
     private Task<Result<MeilisearchFilter>> TranslateAsync(IDictionary<Occurance, List<ISearchSubQuery>>? clauses)

@@ -104,7 +104,8 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeil
 
 `ApiKey` is the master key or an API key; leave it empty when the server has none. An entry under
 `Indexes` without a `ConnectionString` uses the shared server and key. Meilisearch filters rather than
-ranks, so fuzzy and raw Lucene queries return a failed `Result`. Spatial queries work on one field, named by
+ranks, so fuzzy queries return a failed `Result`, and raw Lucene queries are translated into filters where
+they can be: a term needs a field, and a Lucene fuzzy term matches the exact word with a `TranslationWarning`. Spatial queries work on one field, named by
 `"GeoField"` under `Meilisearch`, holding a `"lat,lon"` string or a dictionary with `lat` and `lon`. Phrase
 prefix queries store word runs for every text field; list the fields that need them in `"PhraseFields"` to keep
 long texts small, and re-index after adding a field to it (see the [feature matrix](docs/articles/feature-matrix.md)).

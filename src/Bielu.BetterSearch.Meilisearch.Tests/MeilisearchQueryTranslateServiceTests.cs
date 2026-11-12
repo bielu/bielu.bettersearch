@@ -224,7 +224,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
         new PrefixPhraseSubQuery { Field = "Name", Value = string.Join(' ', Enumerable.Repeat("word", 17)) },
         new NumericRange { MinValue = 1 },
         new FuzzyQuery { Field = "Name", Value = "jnae" },
-        new LuceneSubQuery { LuceneQuery = "Name:jane" },
+        new LuceneSubQuery { LuceneQuery = "Name:jane^2" },
         new SpatialSearchQuery { Field = "Location" },
         new SpatialSearchQuery { Distance = 10 },
         new SpatialSearchQuery { Field = "Home", Distance = 10 },
