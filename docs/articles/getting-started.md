@@ -100,7 +100,8 @@ by side.
 `DeleteAllDocumentsRequest`. All three streams follow one contract:
 
 - `OnNext` is sent once for each operation that succeeded, after the provider has done it: a document indexed,
-  a document removed, an index emptied.
+  a document removed, an index emptied. `RemoveDocumentsAsync` sends one `DeleteDocumentRequest` for each
+  distinct id when it succeeds.
 - A document the validator rejects, or an operation the provider fails, sends nothing. The returned `Result`
   carries the reason.
 - `OnError` is never sent. `OnCompleted` is sent once, when the service is disposed, so a stream stays open for

@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -27,6 +28,7 @@ public sealed class MeilisearchIndexingProviderAsync(
     private const string PrimaryKey = "id";
     private const string IndexNotFound = "index_not_found";
     private const string IndexAlreadyExists = "index_already_exists";
+    private const string QueuedTaskUid = "taskUid";
 
     // When each index's settings were last found complete, and for which MaxTotalHits, per client. The singleton
     // client factory caches the clients, so this lives as long as they do and is shared by every scope.
@@ -53,6 +55,36 @@ public sealed class MeilisearchIndexingProviderAsync(
     {
         var task = await RunTaskAsync(type, client => client.Index(type).DeleteOneDocumentAsync(id, cancellationToken), cancellationToken).ConfigureAwait(false);
         return task.ToResult();
+    }
+
+    public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var distinctIds = DocumentIds.Distinct(ids);
+        if (distinctIds.IsFailed || distinctIds.Value.Count == 0)
+        {
+            return distinctIds.IsFailed ? distinctIds.ToResult<int>() : Result.Ok(0);
+        }
+
+        // One deletion task: Meilisearch applies it whole or fails it whole, so there are no per-id failures.
+        var task = await RunTaskAsync(index, client => client.Index(index).DeleteDocumentsAsync(distinctIds.Value, cancellationToken), cancellationToken).ConfigureAwait(false);
+        if (task.IsFailed)
+        {
+            // A task that was queued but not seen to finish may still remove any or all of the ids, so the count is
+            // unknown. Otherwise nothing was queued, or the task failed whole, and nothing was removed.
+            var error = task.Errors[0].Metadata.TryGetValue(QueuedTaskUid, out var taskUid)
+                ? new Error($"Removing documents from {index} did not finish: {task.Errors[0].Message}. Meilisearch task {taskUid} was queued and may still remove any or all of the {distinctIds.Value.Count} documents.")
+                    .WithMetadata("ids", distinctIds.Value.ToList())
+                : DocumentIds.FailedError(index, 0, distinctIds.Value.Count, distinctIds.Value, task.Errors[0].Message);
+            // Keeps Meilisearch's code in the code metadata, as the other writes do.
+            error.WithMetadata(task.Errors[0].Metadata.Where(entry => entry.Key != "ids").ToDictionary())
+                .CausedBy(task.Errors);
+            return Result.Fail<int>(error);
+        }
+
+        return GetDeletedDocuments(task.Value) is { } deleted
+            ? Result.Ok((int)deleted)
+            : Result.Fail<int>($"Meilisearch task {task.Value.Uid} removed documents from {index} but did not report how many.");
     }
 
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
@@ -235,14 +267,17 @@ public sealed class MeilisearchIndexingProviderAsync(
     /// <summary>
     /// Starts a write and waits for the task Meilisearch queues for it, so the result reflects whether the
     /// write was applied. A task that fails carries Meilisearch's error code in the error's <c>code</c> metadata.
+    /// A task that was queued but not seen to finish, such as on a <see cref="MeilisearchOptions.TaskTimeout"/>,
+    /// carries its uid in the <c>taskUid</c> metadata, because Meilisearch may still apply it.
     /// </summary>
     private async Task<Result<TaskResource>> RunTaskAsync(string index, Func<MeilisearchClient, Task<TaskInfo>> start,
         CancellationToken cancellationToken)
     {
+        TaskInfo? info = null;
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-            var info = await start(client).ConfigureAwait(false);
+            info = await start(client).ConfigureAwait(false);
             var task = await client.WaitForTaskAsync(info.TaskUid,
                 optionsMonitor.CurrentValue.TaskTimeout.TotalMilliseconds, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (task.Status == TaskInfoStatus.Succeeded)
@@ -260,7 +295,8 @@ public sealed class MeilisearchIndexingProviderAsync(
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return Result.Fail<TaskResource>(new Error(e.Message).CausedBy(e));
+            var error = new Error(e.Message).CausedBy(e);
+            return Result.Fail<TaskResource>(info is null ? error : error.WithMetadata(QueuedTaskUid, info.TaskUid));
         }
     }
 

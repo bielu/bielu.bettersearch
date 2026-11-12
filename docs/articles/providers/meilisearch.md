@@ -66,7 +66,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeil
 | `ConnectionString` | Server URL, such as `http://localhost:7700` |
 | `ApiKey` | The master key or an API key; leave it empty when the server has none |
 | `Indexes` | Per-index settings. An entry with its own `ConnectionString` uses only its own key; an entry without one uses the shared server, with its own `ApiKey` if set or the shared one. Keys match index names whatever their case, so `People` applies to the index `people` |
-| `TaskTimeout` | How long to wait for a write task to finish, 30 seconds by default. A timeout fails the `Result` but doesn't cancel the task, so the write may still be applied |
+| `TaskTimeout` | How long to wait for a write task to finish, 30 seconds by default. A timeout fails the `Result` but doesn't cancel the task, so the write may still be applied; the error's `taskUid` metadata holds the task's uid |
 | `MaxTotalHits` | Deepest result a search may page to, 10,000 by default; the provider sets it as each index's `pagination.maxTotalHits` |
 | `SettingsCheckInterval` | How long a write trusts an index's settings before checking them again, 5 seconds by default |
 | `GeoField` | The field holding each document's location, a `"lat,lon"` string or a dictionary with `lat` and `lon`. The provider copies it to `_geo`, and indexing a document whose point isn't valid returns a failed `Result` |
@@ -130,6 +130,11 @@ A warning is a FluentResults success reason, so a caller finds it with
 
 - **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
 - **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result` with Meilisearch's error.
+- **Several documents**: `RemoveDocumentsAsync(index, ids)` sends one deletion task and returns how many
+  documents it removed. Meilisearch applies the task or fails it as a whole, so a failure names every id. A
+  missing index returns a failed `Result` naming the ids, with Meilisearch's error. When the wait for the task
+  times out (`TaskTimeout`), the `Result` fails saying the task was queued and may still remove any or all of the
+  ids, with the task's uid in the error's `taskUid` metadata.
 
 ## Checking an index exists
 
