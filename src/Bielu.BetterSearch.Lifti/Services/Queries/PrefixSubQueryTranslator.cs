@@ -1,7 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.Services;
 using FluentResults;
 using Lifti.Querying;
 using Lifti.Querying.QueryParts;
@@ -19,11 +18,10 @@ public class PrefixSubQueryTranslator : ISubQueryTranslator<IQuery>
             return Task.FromResult(Result.Fail<IQuery>("Query is not a prefix query"));
         }
 
-        var value = QueryValueText.From(prefixQuery.Value).ToUpperInvariant();
-        var part = new WildcardQueryPart(
-            WildcardQueryFragment.CreateText(value),
-            WildcardQueryFragment.MultiCharacter);
-
-        return Task.FromResult(Result.Ok<IQuery>(new Query(part)));
+        // The words before the last match whole, and the last one as a prefix.
+        var part = LiftiQueryWords.Match(prefixQuery.Value, "prefix",
+            word => new ExactWordQueryPart(word),
+            word => new WildcardQueryPart(WildcardQueryFragment.CreateText(word), WildcardQueryFragment.MultiCharacter));
+        return Task.FromResult(part.IsFailed ? part.ToResult<IQuery>() : Result.Ok<IQuery>(new Query(part.Value)));
     }
 }

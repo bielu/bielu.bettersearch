@@ -1,7 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.Services;
 using FluentResults;
 using Lifti.Querying;
 using Lifti.Querying.QueryParts;
@@ -27,8 +26,13 @@ public class TermsSubQueryTranslator : ISubQueryTranslator<IQuery>
         IQueryPart? combined = null;
         foreach (var value in termsQuery.Value)
         {
-            var part = new ExactWordQueryPart(QueryValueText.From(value).ToUpperInvariant());
-            combined = combined == null ? part : new OrQueryOperator(combined, part);
+            var part = LiftiQueryWords.Match(value, "terms", word => new ExactWordQueryPart(word));
+            if (part.IsFailed)
+            {
+                return Task.FromResult(part.ToResult<IQuery>());
+            }
+
+            combined = combined == null ? part.Value : new OrQueryOperator(combined, part.Value);
         }
 
         return Task.FromResult(Result.Ok<IQuery>(new Query(combined)));

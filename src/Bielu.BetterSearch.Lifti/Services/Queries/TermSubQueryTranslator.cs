@@ -1,7 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.Services;
 using FluentResults;
 using Lifti.Querying;
 using Lifti.Querying.QueryParts;
@@ -19,7 +18,7 @@ public class TermSubQueryTranslator : ISubQueryTranslator<IQuery>
             return Task.FromResult(Result.Fail<IQuery>("Query is not a term query"));
         }
 
-        var value = QueryValueText.From(termQuery.Value).ToUpperInvariant();
-        return Task.FromResult(Result.Ok<IQuery>(new Query(new ExactWordQueryPart(value))));
+        var part = LiftiQueryWords.Match(termQuery.Value, "term", word => new ExactWordQueryPart(word));
+        return Task.FromResult(part.IsFailed ? part.ToResult<IQuery>() : Result.Ok<IQuery>(new Query(part.Value)));
     }
 }

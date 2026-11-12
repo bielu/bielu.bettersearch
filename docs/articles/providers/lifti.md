@@ -13,14 +13,9 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 > - **Range and spatial queries**: `DateRangeQuery`, `NumericRange`, `LongRange`, `StringRange` and
 >   `SpatialSearchQuery` return a failed `Result`.
 > - **`LuceneQuery`** is not supported.
-> - **Fields are ignored**: term, terms, fuzzy, prefix and phrase prefix queries match the value in any field,
->   and accented terms don't match.
-> - **Phrase prefix** only works for one word: a value of several words, such as `jane d`, matches nothing.
-> - **Decimals and dates** are turned into text the same way on every machine and split into words at
->   punctuation and spaces, so `3.5` is indexed as the words `3` and `5`. A term, terms or prefix query for a
->   whole decimal or date matches nothing, and a fuzzy one for a decimal can match a different number (`3.5`
->   is one edit from `35`); query one of its words instead, such as the day `08` of `11/08/2026 00:00:00`.
->   Integers are one word and match.
+> - **Fields are ignored**: term, terms, fuzzy, prefix and phrase prefix queries match the value in any field.
+> - **A value with no words**, such as `null`, `""` or `-`, returns a failed `Result` from a term, terms, fuzzy,
+>   prefix or phrase prefix query, as it could never match.
 > - **Hits** only carry the document id and `Score`; no stored fields.
 > - **Persistence**: the index is lost on restart, and creating an index that exists replaces it, losing its
 >   documents.
@@ -58,6 +53,16 @@ There is nothing to configure.
   clauses, returns a failed `Result`, as Lifti has no query for every document.
 - **`FILTER`** is treated as `MUST`, so it still scores.
 - **Total hit count** is exact.
+- **Values are split into words as the index splits them.** Field values are turned into text the same way on
+  every machine and split into words at punctuation and spaces, with case and accents folded, so `3.5` is
+  indexed as the words `3` and `5`. A term, terms, fuzzy, prefix or phrase prefix value goes through the same
+  tokenizer, and its words must be next to each other, in order: `3.5` matches `3.5` but not `5.3` or `35`,
+  `11/08/2026 00:00:00` matches that date, `żółw` matches `Żółw`, and `jane d` as a phrase prefix matches
+  `Jane Doe`. Fuzzy matches each word on its own, and prefix and phrase prefix match the last word as a prefix.
+  One word of a value, such as the day `08` of a date, still matches the whole value, as a word does in
+  any text field.
+- **Multi-valued fields**: the words of one value are never next to the words of another, so `3.5` does not
+  match a field holding `3` and `5`.
 
 ## Removing documents
 
