@@ -62,7 +62,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddElas
 | `SharedIndexSettings` | Connection used for every index without its own connection string |
 | `ConnectionString` | Cluster URL |
 | `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`), `CLOUD` (Elastic Cloud: the cloud id in `Id`, with `Username` and `Password`) or `CLOUDAPI` (the cloud id in `Id`, with an `ApiKey`) |
-| `Indexes` | Per-index settings. An entry with its own `ConnectionString` gets its own client and uses only its own authentication; an entry without one uses the shared settings. Keys match index names whatever their case, so `People` applies to the index `people` |
+| `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people` |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. A page past it returns a failed `Result` |
 
 You can also set the options in code with `services.Configure<ElasticSearchOptions>(...)`.

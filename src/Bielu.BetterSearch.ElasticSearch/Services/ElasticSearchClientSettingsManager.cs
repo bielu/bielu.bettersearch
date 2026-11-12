@@ -8,36 +8,38 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOptions> optionsMonitor)
     : IElasticSearchClientSettingsManager
 {
-    public ElasticsearchClientSettings GetOrCreateClientSettings(string indexName)
+    public ElasticSearchIndexSettings GetConnectionSettings(string indexName)
     {
         var options = optionsMonitor.CurrentValue;
-        var indexSpecific = options.Indexes != null && options.Indexes.TryGetValue(indexName, out var settings)
-            ? settings
-            : null;
-
-        return ParseSettings(indexSpecific, options.SharedIndexSettings);
-    }
-
-    private static ElasticsearchClientSettings ParseSettings(ElasticSearchIndexSettings? indexSpecific,
-        ElasticSearchIndexSettings shared)
-    {
-        if (indexSpecific == null)
+        var shared = options.SharedIndexSettings;
+        if (options.Indexes == null || !options.Indexes.TryGetValue(indexName, out var indexSpecific))
         {
-            return ParseMergedSettings(shared);
+            return MergeSettings(new ElasticSearchIndexSettings(), shared);
         }
 
-        return ParseMergedSettings(MergeSettings(indexSpecific, shared));
+        return MergeSettings(indexSpecific, shared);
     }
 
+    public ElasticsearchClientSettings CreateClientSettings(ElasticSearchIndexSettings settings) =>
+        ParseMergedSettings(settings);
+
+    /// <summary>
+    /// Builds a new settings object, leaving the live options untouched: the index's connection string and
+    /// authentication win, and an index without its own takes the shared one.
+    /// </summary>
     private static ElasticSearchIndexSettings MergeSettings(ElasticSearchIndexSettings indexSpecific,
         ElasticSearchIndexSettings shared)
     {
-        if (string.IsNullOrWhiteSpace(indexSpecific.ConnectionString))
+        var ownAuthentication = indexSpecific.AuthenticationType is not null;
+        return new ElasticSearchIndexSettings
         {
-            indexSpecific.ConnectionString = shared.ConnectionString;
-        }
-
-        return indexSpecific;
+            ConnectionString = string.IsNullOrWhiteSpace(indexSpecific.ConnectionString)
+                ? shared.ConnectionString
+                : indexSpecific.ConnectionString,
+            AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
+                                 ?? AuthenticationType.NONE,
+            AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
+        };
     }
 
     private static ElasticsearchClientSettings ParseMergedSettings(ElasticSearchIndexSettings finalSearchIndexSettings)
@@ -57,7 +59,7 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
 
     private static SingleNodePool GetNodePool(ElasticSearchIndexSettings connectionString) =>
         //todo: figure out how to use StickyNodePool/StaticNodePool
-        connectionString.AuthenticationType switch
+        (connectionString.AuthenticationType ?? AuthenticationType.NONE) switch
         {
             AuthenticationType.NONE => new SingleNodePool(new Uri(connectionString.ConnectionString)),
             AuthenticationType.PASSWORD => new(new Uri(connectionString.ConnectionString)),

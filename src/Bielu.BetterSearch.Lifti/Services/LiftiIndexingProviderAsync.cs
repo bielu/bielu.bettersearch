@@ -9,6 +9,10 @@ public class LiftiIndexingProviderAsync(
     IClientFactoryAsync<IFullTextIndex<string>> clientFactory,
     ILiftiIndexManager liftiIndexManager) : IIndexingProviderAsync
 {
+    // Removing a document, deleting an index and removing all documents take the index's lock, so none of them sees
+    // the index half-way through another. The locks are shared by every provider on the same index manager.
+    private readonly LiftiIndexLocks _locks = LiftiIndexLocks.For(liftiIndexManager);
+
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
     {
         try
@@ -46,26 +50,32 @@ public class LiftiIndexingProviderAsync(
 
     public async Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
+            // The lookup and the factory call below must not let a delete of this index in between, or the factory
+            // would create the deleted index again.
+            using var indexLock = await _locks.AcquireAsync(type, cancellationToken).ConfigureAwait(false);
             // Lifti indexes live in memory, so after a restart an index is missing until something writes to it.
             // A missing index holds no documents, so the document is already gone; the index is not created.
-            var index = await liftiIndexManager.GetIndexAsync(type).ConfigureAwait(false);
-            if (index.IsFailed)
+            var lookup = await liftiIndexManager.GetIndexAsync(type).ConfigureAwait(false);
+            if (lookup.IsFailed)
             {
-                return index.ToResult();
+                return lookup.ToResult();
             }
 
-            if (index.Value is not null)
+            if (lookup.Value is not null)
             {
-                await index.Value.RemoveAsync(id, cancellationToken).ConfigureAwait(false);
+                // The index is taken from the client factory, as every other write does, so a custom factory is honoured.
+                var index = await clientFactory.GetOrCreateClientAsync(type).ConfigureAwait(false);
+                await index.RemoveAsync(id, cancellationToken).ConfigureAwait(false);
             }
 
             return Result.Ok();
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
-            return Result.Fail(e.Message);
+            return Result.Fail(new Error(e.Message).CausedBy(e));
         }
     }
 
@@ -118,12 +128,13 @@ public class LiftiIndexingProviderAsync(
     {
         try
         {
+            using var indexLock = await _locks.AcquireAsync(index.IndexName, cancellationToken).ConfigureAwait(false);
             var count = (await clientFactory.GetOrCreateClientAsync(index.IndexName).ConfigureAwait(false)).Count;
             await liftiIndexManager.DeleteIndexAsync(index.IndexName).ConfigureAwait(false);
             await liftiIndexManager.CreateIndexAsync(index.IndexName).ConfigureAwait(false);
             return Result.Ok((long?)count);
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
             return Result.Fail(e.Message);
         }
@@ -145,8 +156,11 @@ public class LiftiIndexingProviderAsync(
         }
     }
 
-    public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) =>
-        liftiIndexManager.DeleteIndexAsync(index);
+    public async Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default)
+    {
+        using var indexLock = await _locks.AcquireAsync(index, cancellationToken).ConfigureAwait(false);
+        return await liftiIndexManager.DeleteIndexAsync(index).ConfigureAwait(false);
+    }
 
     public Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default) =>
         liftiIndexManager.ExistsAsync(index);

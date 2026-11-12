@@ -37,7 +37,6 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Elasticsearch | Provider methods return `Result.Ok()` where a `Result<bool>` or `Result<int>` is due, so `Value` is `false` or `0` even on success (*by inspection*) | The real value |
 | Elasticsearch | `CreateIndexAsync` reports a server rejection as a successful `false` (*by inspection*) | A failed `Result` |
 | Elasticsearch | Bulk indexing ignores per-item failures (*by inspection*) | A failed `Result` naming them |
-| Elasticsearch | Merging index settings mutates the live options object and only merges the connection string, not credentials (*by inspection*) | A merged copy |
 
 ## Replacing Lifti: use Lucene.NET
 
