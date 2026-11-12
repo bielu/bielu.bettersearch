@@ -796,4 +796,82 @@ public sealed class MeilisearchSearchTests(
     {
         options.CurrentValue.MaxTotalHits.ShouldBe(10_000);
     }
+
+    public static TheoryData<string, string[]> LuceneQueries => new()
+    {
+        { "Name:jane", ["5", "Up-1"] },
+        { "fields.Name:JANE", ["5", "Up-1"] },
+        { "Name:jo*", ["2", "3"] },
+        { "Name:jo* AND NOT City:warsaw", ["2"] },
+        { "Name:jane OR City:krakow", ["2", "5", "Up-1"] },
+        { "+City:warsaw Name:jane", ["3", "Up-1"] },
+        { "-City:warsaw", ["2", "4", "5"] },
+        { "Age:[30 TO 40]", ["2", "3", "4"] },
+        { "Age:{30 TO 40}", ["3"] },
+        { "Age:[40 TO *]", ["4", "5"] },
+        { "Views:[5000000000 TO *]", ["Up-1"] },
+        { "City:[a TO h]", ["4"] },
+        // A date without a time covers the whole day, as on Elasticsearch.
+        { "Born:[1989-03-01 TO 1994-01-01]", ["2", "3"] },
+        { "Born:{1989-03-01 TO *]", ["2", "Up-1"] },
+        { "Born:[* TO 1984-07-01T00:00:00Z]", ["4", "5"] },
+        { "_exists_:City", ["2", "3", "4", "5", "Up-1"] },
+        { "Nickname:*", [] },
+    };
+
+    [Theory]
+    [MemberData(nameof(LuceneQueries))]
+    public async Task SearchAsync_LuceneQuery_MatchesAsElasticsearchWould(string lucene, string[] expected)
+    {
+        var index = await CreatePeopleAsync();
+        var query = Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = lucene });
+        query.PageSize = 100;
+
+        var result = await searchService.SearchAsync(query, Token);
+
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.Message)));
+        result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id, StringComparer.Ordinal).ShouldBe(expected);
+        result.Successes.OfType<TranslationWarning>().ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("Name:\"John Doe\"", new[] { "2" })]
+    [InlineData("Name:\"jane DOE\"", new[] { "Up-1" })]
+    // The last word must be a whole word of the field: "jane do" is not the start of "jane doe".
+    [InlineData("Name:\"Jane Do\"", new string[0])]
+    [InlineData("Name:\"doe john\"", new string[0])]
+    public async Task SearchAsync_LucenePhrase_MatchesTheWordsInOrderWithWarning(string lucene, string[] expected)
+    {
+        var index = await CreatePeopleAsync();
+
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = lucene }), Token);
+
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.Message)));
+        result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id, StringComparer.Ordinal).ShouldBe(expected);
+        result.Successes.OfType<TranslationWarning>().Single().Message.ShouldContain("matches a run of words starting with it");
+    }
+
+    [Fact]
+    public async Task SearchAsync_LuceneFuzzyTerm_MatchesTheExactWordWithWarning()
+    {
+        var index = await CreatePeopleAsync();
+
+        var exact = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = "Name:jane~" }), Token);
+        var typo = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = "Name:jnae~" }), Token);
+
+        exact.Value.Items.Select(item => item.Document.Id).OrderBy(id => id, StringComparer.Ordinal).ShouldBe(["5", "Up-1"]);
+        exact.Successes.OfType<TranslationWarning>().Single().Message.ShouldContain("matches the exact word");
+        typo.Value.Items.ShouldBeEmpty();
+        typo.Successes.OfType<TranslationWarning>().Single().Message.ShouldContain("matches the exact word");
+    }
+
+    [Fact]
+    public async Task SearchAsync_LuceneTermWithoutField_ReturnsFailure()
+    {
+        var index = await CreatePeopleAsync();
+
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = "jane" }), Token);
+
+        result.Errors.Single().Message.ShouldContain("names no field");
+    }
 }

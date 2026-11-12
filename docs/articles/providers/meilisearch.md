@@ -11,7 +11,10 @@ which matches or doesn't, so hits aren't ranked. Paging, sorting and post filter
 >   tolerance applies to the whole search text, not one field.
 > - **`PrefixQuery` and `PrefixPhraseQuery`** with a value that isn't a string, such as a number, return a
 >   failed `Result`.
-> - **`LuceneQuery`** returns a failed `Result`: Meilisearch has no Lucene syntax.
+> - **`LuceneQuery`** is parsed with Lucene.NET's `QueryParser` and translated into a filter, but only part of
+>   the syntax translates. A term without a field (`jane` rather than `Name:jane`), proximity, boosts, regular
+>   expressions and wildcards other than a trailing `*` return a failed `Result`. Fuzzy terms and phrases translate
+>   only approximately, and the result carries a `TranslationWarning`; see [Lucene queries](#lucene-queries).
 > - **Relevance scores**: every hit has the same `Score`.
 > - **Facets and highlighting** can be expressed, but a query that asks for them returns a failed `Result`.
 > - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
@@ -101,6 +104,25 @@ filterable and sortable attributes the provider needs to the index settings, kee
 - **Field names** can only contain letters, digits, `_`, `-` and `.`, and **document ids** letters, digits, `-`
   and `_`; anything else returns a failed `Result`.
 - **Total hit count** is exact up to `MaxTotalHits` matches, then that number.
+
+## Lucene queries
+
+A `LuceneSubQuery` is parsed with Lucene.NET's classic `QueryParser`, the syntax Elasticsearch's `query_string`
+accepts, and translated into one filter. `OR` is the default operator, as on Elasticsearch.
+
+| Lucene | Filter | Outcome |
+|---|---|---|
+| `Name:jane`, `fields.Name:jane` | a word of `Name`, as `TermQuery`; a value that reads as a number or boolean also matches that value | exact |
+| `Name:jo*` | a word of `Name` starting with `jo`, as `PrefixQuery` | exact |
+| `Age:[30 TO 40]`, `Age:{30 TO 40}`, `Age:[30 TO *]` | the words of `Age` in the range; bounds that read as numbers also compare numbers, and ISO 8601 dates compare dates, a date without a time covering the whole day | exact |
+| `_exists_:City`, `City:*`, `City:[* TO *]` | `fields.City EXISTS` | exact |
+| `AND`, `OR`, `NOT`, `+`, `-`, `( )` | `AND`, `OR`, `NOT`, with the [boolean semantics](../feature-matrix.md#boolean-semantics) of `BoolQuery` | exact |
+| `Name:"jane doe"` | a run of words starting with `jane doe` while `Name` also holds the word `doe`; Meilisearch trims a trailing space from a filter value, so it cannot end the run after `doe` | ⚠️ `TranslationWarning` |
+| `Name:jane~`, `Name:jane~1` | the exact word: filters have no edit distance | ⚠️ `TranslationWarning` |
+| `jane` (no field), `Name:foo-bar` (several words, unquoted), `"a b"~2`, `^2`, `/regex/`, `j?ne`, `*ane*`, a phrase longer than 16 words or on a field outside `PhraseFields` | | ❌ failed `Result` naming the clause |
+
+A warning is a FluentResults success reason, so a caller finds it with
+`result.Successes.OfType<TranslationWarning>()`. `SearchServiceAsync` returns it with the hits.
 
 ## Removing documents
 

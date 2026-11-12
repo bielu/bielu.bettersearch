@@ -95,7 +95,7 @@ public sealed class MeilisearchSearchProviderAsync(
                     PageSize = pageSize,
                     TotalPages = totalPages
                 }
-            });
+            }).WithSuccesses(request.Successes);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

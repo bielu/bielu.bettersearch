@@ -108,7 +108,7 @@ internal static class TermValues
     }
 
     /// <summary>The number or boolean <paramref name="text"/> reads as, as a filter literal.</summary>
-    private static string? Coerce(string text)
+    public static string? Coerce(string text)
     {
         if (bool.TryParse(text, out var flag))
         {
