@@ -20,12 +20,7 @@ internal static class LiftiQueryWords
     internal const string ValueSeparator = " \uE000 ";
 
     /// <summary>The value's words, normalized as the index stores them, in the order they appear.</summary>
-    public static IReadOnlyList<string> Split(object? value) =>
-        IndexTokenizer.Default.Process(QueryValueText.From(value).AsSpan())
-            .SelectMany(token => token.Locations.Select(location => (location.TokenIndex, token.Value)))
-            .OrderBy(word => word.TokenIndex)
-            .Select(word => word.Value)
-            .ToList();
+    public static IReadOnlyList<string> Split(object? value) => Tokenize(value).Words;
 
     /// <summary>
     /// Matches the value's words next to each other, each through <paramref name="word"/>, and the last through
@@ -37,13 +32,57 @@ internal static class LiftiQueryWords
         var words = Split(value);
         if (words.Count == 0)
         {
-            return Result.Fail<IQueryPart>(
-                $"Lifti cannot match the {queryType} value '{QueryValueText.From(value)}': it holds no words to search for.");
+            return NoWords(value, queryType);
         }
 
         var parts = words
             .Select((text, position) => position == words.Count - 1 && lastWord != null ? lastWord(text) : word(text))
             .ToList();
-        return Result.Ok(parts.Count == 1 ? parts[0] : new AdjacentWordsQueryOperator(parts));
+        return Result.Ok(Adjacent(parts));
+    }
+
+    /// <summary>
+    /// Matches the value as a prefix: the words before the last whole, and the last as a prefix. When the value
+    /// ends with characters the tokenizer drops (<c>3.</c>), its last word is complete, so it matches whole and
+    /// must be followed by another word: <c>3.</c> matches <c>3.5</c>, not <c>35</c> or <c>3</c>.
+    /// </summary>
+    public static Result<IQueryPart> MatchPrefix(object? value, string queryType)
+    {
+        var (words, endsWithWord) = Tokenize(value);
+        if (words.Count == 0)
+        {
+            return NoWords(value, queryType);
+        }
+
+        var parts = words.Select(IQueryPart (text) => new ExactWordQueryPart(text)).ToList();
+        if (endsWithWord)
+        {
+            parts[^1] = new WildcardQueryPart(WildcardQueryFragment.CreateText(words[^1]), WildcardQueryFragment.MultiCharacter);
+        }
+        else
+        {
+            parts.Add(new WildcardQueryPart(WildcardQueryFragment.MultiCharacter));
+        }
+
+        return Result.Ok(Adjacent(parts));
+    }
+
+    private static IQueryPart Adjacent(List<IQueryPart> parts) =>
+        parts.Count == 1 ? parts[0] : new AdjacentWordsQueryOperator(parts);
+
+    private static Result<IQueryPart> NoWords(object? value, string queryType) =>
+        Result.Fail<IQueryPart>(
+            $"Lifti cannot match the {queryType} value '{QueryValueText.From(value)}': it holds no words to search for.");
+
+    /// <summary>The value's words in order, and whether the value ends with a word rather than with dropped characters.</summary>
+    private static (IReadOnlyList<string> Words, bool EndsWithWord) Tokenize(object? value)
+    {
+        var text = QueryValueText.From(value);
+        var words = IndexTokenizer.Default.Process(text.AsSpan())
+            .SelectMany(token => token.Locations.Select(location => (Location: location, token.Value)))
+            .OrderBy(word => word.Location.TokenIndex)
+            .ToList();
+        var endsWithWord = words.Count > 0 && words[^1].Location.Start + words[^1].Location.Length == text.Length;
+        return (words.Select(word => word.Value).ToList(), endsWithWord);
     }
 }

@@ -60,6 +60,10 @@ There is nothing to configure.
   tokenizer, and its words must be next to each other, in order: `3.5` matches `3.5` but not `5.3` or `35`,
   `11/08/2026 00:00:00` matches that date, `żółw` matches `Żółw`, and `jane d` as a phrase prefix matches
   `Jane Doe`. Fuzzy matches each word on its own, and prefix and phrase prefix match the last word as a prefix.
+  A prefix value that ends with punctuation or a space, such as `3.`, has a complete last word, so that word
+  matches whole and must be followed by another word: `3.` matches `3.5`, not `35` or `3`. As Lifti has no
+  wildcard that excludes one word, that following word can be the next value of a multi-valued field, so `3.`
+  also matches a field holding `3` and `x`.
   One word of a value, such as the day `08` of a date, still matches the whole value, as a word does in
   any text field.
 - **Multi-valued fields**: the words of one value are never next to the words of another, so `3.5` does not

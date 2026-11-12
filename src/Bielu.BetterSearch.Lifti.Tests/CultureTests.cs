@@ -149,6 +149,31 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
     }
 
     [Theory]
+    [InlineData("3.", new[] { "decimal" })]
+    [InlineData("3", new[] { "decimal", "joined", "whole" })]
+    public async Task SearchAsync_PrefixEndingInPunctuation_MatchesTheWholeWordFollowedByAnother(string value, string[] expected)
+    {
+        // The tokenizer drops the trailing dot, so 3. would otherwise be the prefix 3 and match 35.
+        var index = await IndexValuesAsync(("decimal", ["3.5"]), ("joined", ["35"]), ("whole", ["3"]));
+
+        var ids = await SearchIdsAsync(index, new PrefixSubQuery { Field = "Value", Value = value });
+
+        ids.OrderBy(id => id, StringComparer.Ordinal).ShouldBe(expected);
+    }
+
+    [Fact]
+    public async Task SearchAsync_PrefixEndingInPunctuation_MatchesAWordFromTheNextValue()
+    {
+        // A known difference: the word after the complete last word can be the value separator, as Lifti has
+        // no wildcard that excludes one word.
+        var index = await IndexValuesAsync(("list", ["3", "x"]));
+
+        var ids = await SearchIdsAsync(index, new PrefixSubQuery { Field = "Value", Value = "3." });
+
+        ids.ShouldBe(["list"]);
+    }
+
+    [Theory]
     [InlineData(1e20)]
     [InlineData(1e-7)]
     [InlineData(-2.5e-12)]

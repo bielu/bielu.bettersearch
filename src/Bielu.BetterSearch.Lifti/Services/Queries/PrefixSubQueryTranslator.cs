@@ -18,10 +18,8 @@ public class PrefixSubQueryTranslator : ISubQueryTranslator<IQuery>
             return Task.FromResult(Result.Fail<IQuery>("Query is not a prefix query"));
         }
 
-        // The words before the last match whole, and the last one as a prefix.
-        var part = LiftiQueryWords.Match(prefixQuery.Value, "prefix",
-            word => new ExactWordQueryPart(word),
-            word => new WildcardQueryPart(WildcardQueryFragment.CreateText(word), WildcardQueryFragment.MultiCharacter));
+        // The words before the last match whole, and the last one as a prefix, unless the value ends with punctuation.
+        var part = LiftiQueryWords.MatchPrefix(prefixQuery.Value, "prefix");
         return Task.FromResult(part.IsFailed ? part.ToResult<IQuery>() : Result.Ok<IQuery>(new Query(part.Value)));
     }
 }
