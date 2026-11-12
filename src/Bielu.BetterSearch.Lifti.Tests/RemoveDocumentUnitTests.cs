@@ -87,6 +87,28 @@ public class RemoveDocumentUnitTests
     }
 
     [Fact]
+    public async Task RemoveDocumentAsync_IndexDeletedAfterLookup_DoesNotRecreateIndex()
+    {
+        var manager = new GatedLookupLiftiIndexManager();
+        await manager.GetOrCreateIndexAsync("test-index");
+        // Two providers sharing one manager, as two DI scopes do.
+        var remover = new LiftiIndexingProviderAsync(new LiftiClientFactoryAsync(manager), manager);
+        var deleter = new LiftiIndexingProviderAsync(new LiftiClientFactoryAsync(manager), manager);
+
+        var remove = remover.RemoveDocumentAsync("1", "test-index", TestContext.Current.CancellationToken);
+        await manager.LookedUp.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var delete = deleter.DeleteIndexAsync("test-index", TestContext.Current.CancellationToken);
+        await Task.WhenAny(delete, Task.Delay(200, TestContext.Current.CancellationToken));
+        var deleteFinishedDuringRemove = delete.IsCompleted;
+        manager.Release.SetResult();
+
+        (await remove).IsSuccess.ShouldBeTrue();
+        (await delete).Value.ShouldBeTrue();
+        deleteFinishedDuringRemove.ShouldBeFalse();
+        (await manager.ExistsAsync("test-index")).Value.ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task GetIndexAsync_MissingIndex_ReturnsNullWithoutCreatingIndex()
     {
         var manager = new LiftiIndexManager();
@@ -120,5 +142,31 @@ public class RemoveDocumentUnitTests
     private sealed class StubClientFactory(Func<IFullTextIndex<string>> getIndex) : IClientFactoryAsync<IFullTextIndex<string>>
     {
         public Task<IFullTextIndex<string>> GetOrCreateClientAsync(string indexName) => Task.FromResult(getIndex());
+    }
+
+    /// <summary>Pauses <see cref="GetIndexAsync"/> after the lookup until <see cref="Release"/> is set.</summary>
+    private sealed class GatedLookupLiftiIndexManager : ILiftiIndexManager
+    {
+        private readonly LiftiIndexManager _inner = new();
+
+        public TaskCompletionSource LookedUp { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<Result<IFullTextIndex<string>?>> GetIndexAsync(string key)
+        {
+            var index = await _inner.GetIndexAsync(key);
+            LookedUp.TrySetResult();
+            await Release.Task;
+            return index;
+        }
+
+        public Task<Result<IFullTextIndex<string>>> GetOrCreateIndexAsync(string key) => _inner.GetOrCreateIndexAsync(key);
+
+        public Task<Result<IFullTextIndex<string>?>> CreateIndexAsync(string key) => _inner.CreateIndexAsync(key);
+
+        public Task<Result<bool>> ExistsAsync(string name) => _inner.ExistsAsync(name);
+
+        public Task<Result<bool>> DeleteIndexAsync(string name) => _inner.DeleteIndexAsync(name);
     }
 }

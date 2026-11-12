@@ -76,5 +76,9 @@ There is nothing to configure.
   document is then removed from the index the registered `IClientFactoryAsync<IFullTextIndex<string>>` returns,
   the same one indexing writes to. A custom `ILiftiIndexManager` must implement `GetIndexAsync` and return
   `null`, without creating the index, when it does not exist.
+- **Removing while the index is deleted**: `RemoveDocumentAsync`, `DeleteIndexAsync` and
+  `RemoveAllDocumentsAsync` on the provider take a lock per index name, shared by every provider on the same
+  `ILiftiIndexManager`. A delete therefore can't land between the lookup and the factory call, which would make
+  the factory create the deleted index again. The lock does not cover calls made on the index manager directly.
 
 The [feature matrix](../feature-matrix.md) has the full detail.
