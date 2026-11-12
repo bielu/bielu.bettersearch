@@ -25,6 +25,10 @@ public sealed class MeilisearchSearchProviderAsync(
     /// <summary>Used when <c>PageSize</c> is not set, as for Elasticsearch.</summary>
     public const int DefaultPageSize = 10;
 
+    internal const string UnsupportedHighlighting =
+        "The Meilisearch provider does not support highlighting: it runs every query as a filter with no search text, " +
+        "and Meilisearch marks only matches of the search text, so there is nothing for it to highlight.";
+
     public async Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -40,7 +44,7 @@ public sealed class MeilisearchSearchProviderAsync(
 
         if (query.HighlightQueries is { Count: > 0 })
         {
-            return Result.Fail<ISearchResult>("The Meilisearch provider does not support highlighting yet.");
+            return Result.Fail<ISearchResult>(UnsupportedHighlighting);
         }
 
         var page = Math.Max(query.Page, 1);

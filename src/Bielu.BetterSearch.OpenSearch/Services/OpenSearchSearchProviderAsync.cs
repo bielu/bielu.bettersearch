@@ -2,6 +2,7 @@
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 using Microsoft.Extensions.Options;
 using OpenSearch.Client;
@@ -33,11 +34,6 @@ internal sealed class OpenSearchSearchProviderAsync(
             return Result.Fail<ISearchResult>("The OpenSearch provider does not support facets yet.");
         }
 
-        if (query.HighlightQueries is { Count: > 0 })
-        {
-            return Result.Fail<ISearchResult>("The OpenSearch provider does not support highlighting yet.");
-        }
-
         var maxResultWindow = optionsMonitor.CurrentValue.MaxResultWindow;
         if (maxResultWindow <= 0)
         {
@@ -63,13 +59,21 @@ internal sealed class OpenSearchSearchProviderAsync(
             return postFilter.ToResult<ISearchResult>();
         }
 
+        var highlight = await TranslateHighlightAsync(query).ConfigureAwait(false);
+        if (highlight.IsFailed)
+        {
+            return highlight.ToResult<ISearchResult>();
+        }
+
         var client = await clientFactoryAsync.TryGetClientAsync(query.Index).ConfigureAwait(false);
         if (client.IsFailed)
         {
             return client.ToResult<ISearchResult>();
         }
 
-        var response = await client.Value.SearchAsync<SearchDocument>(CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow), cancellationToken).ConfigureAwait(false);
+        var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow);
+        request.Highlight = highlight.Value;
+        var response = await client.Value.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
         // The client reports a cancelled request as an invalid response; the caller cancelled, so say that instead.
         cancellationToken.ThrowIfCancellationRequested();
         // OpenSearch.Client treats some error responses as valid, so a server error is a failure too.
@@ -90,6 +94,45 @@ internal sealed class OpenSearchSearchProviderAsync(
         result.Pagination.PageSize = PageSizeOf(query);
         result.Pagination.TotalPages = (int)Math.Ceiling(result.Pagination.TotalCount / (double)result.Pagination.PageSize);
         return Result.Ok(result);
+    }
+
+    /// <summary>
+    /// The <c>highlight</c> section for the query's <c>HighlightQueries</c>, or <c>null</c> when it has none. Each
+    /// field is highlighted where the main query matched it, or where its own highlight query does when it has one;
+    /// all fields is <c>fields.*</c>. Fragments use OpenSearch's default size and count.
+    /// </summary>
+    private async Task<Result<IHighlight?>> TranslateHighlightAsync(ISearchQuery query)
+    {
+        var requested = Highlights.Requested(query);
+        if (requested.IsFailed || requested.Value.Count == 0)
+        {
+            return requested.IsFailed ? requested.ToResult<IHighlight?>() : Result.Ok<IHighlight?>(null);
+        }
+
+        var fields = new Dictionary<Field, IHighlightField>();
+        foreach (var (field, request) in requested.Value)
+        {
+            var highlightField = new HighlightField();
+            if (Highlights.OwnQuery(request) is { } ownQuery)
+            {
+                var translated = await queryTranslateServiceAsync.TranslateMainQueryAsync(new SearchQuery { Index = query.Index, Query = ownQuery }).ConfigureAwait(false);
+                if (translated.IsFailed)
+                {
+                    return translated.ToResult<IHighlight?>();
+                }
+
+                highlightField.HighlightQuery = translated.Value;
+            }
+
+            fields[OpenSearchFieldNames.Resolve(field)] = highlightField;
+        }
+
+        return Result.Ok<IHighlight?>(new Highlight
+        {
+            Fields = fields,
+            PreTags = [SearchHit.HighlightPreTag],
+            PostTags = [SearchHit.HighlightPostTag]
+        });
     }
 
     /// <summary><c>Page</c> counts from 1; 0, the default, is the first page.</summary>

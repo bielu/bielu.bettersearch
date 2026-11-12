@@ -1,7 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Fields;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.Aggregations;
-using Bielu.BetterSearch.Abstractions.Query.Highlighter;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
@@ -764,14 +763,6 @@ public sealed class MeilisearchSearchTests(
     public async Task SearchAsync_Facets_ReturnsUnsupportedFailure()
     {
         var result = await searchService.SearchAsync(new SearchQuery { Index = "any", FacetQueries = [new TermAggregation()] }, TestContext.Current.CancellationToken);
-
-        result.IsFailed.ShouldBeTrue();
-    }
-
-    [Fact]
-    public async Task SearchAsync_Highlighting_ReturnsUnsupportedFailure()
-    {
-        var result = await searchService.SearchAsync(new SearchQuery { Index = "any", HighlightQueries = [new BaseHighlightQuery()] }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
     }

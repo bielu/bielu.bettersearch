@@ -8,8 +8,10 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 > [!WARNING]
 > **What won't work**
 >
-> - **Silently ignored**: paging (`Page`, `PageSize`), sorting, post filters, facets and highlighting. The
->   query still succeeds and returns every hit, so don't rely on them.
+> - **Silently ignored**: paging (`Page`, `PageSize`), sorting, post filters and facets. The query still
+>   succeeds and returns every hit, so don't rely on them.
+> - **Highlighting** returns a failed `Result`: the index keeps only the words of each document, not its text,
+>   so there is no text to mark the matched terms in.
 > - **Range and spatial queries**: `DateRangeQuery`, `NumericRange`, `LongRange`, `StringRange` and
 >   `SpatialSearchQuery` return a failed `Result`.
 > - **`LuceneQuery`** is not supported.

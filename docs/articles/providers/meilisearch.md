@@ -13,7 +13,9 @@ which matches or doesn't, so hits aren't ranked. Paging, sorting and post filter
 >   failed `Result`.
 > - **`LuceneQuery`** returns a failed `Result`: Meilisearch has no Lucene syntax.
 > - **Relevance scores**: every hit has the same `Score`.
-> - **Facets and highlighting** can be expressed, but a query that asks for them returns a failed `Result`.
+> - **Facets** can be expressed, but a query that asks for them returns a failed `Result`.
+> - **Highlighting** returns a failed `Result`. Meilisearch marks only matches of the search text, and this
+>   provider runs every query as a filter with no search text, so there is nothing to mark.
 > - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
 > - **Remove all documents** reports a count of 0 through the service.
 >

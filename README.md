@@ -156,18 +156,18 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
 - ✅ **One query model** for every provider: term, terms, prefix, prefix phrase, fuzzy, date, numeric and
   string ranges, geo distance, raw Lucene, and nested boolean logic with Lucene semantics
 - ✅ **Fluent query builder** in `Bielu.BetterSearch.FluentApi`
-- ✅ **Paging, sorting, post filters and scores** on the Elasticsearch and OpenSearch providers; paging, sorting
-  and post filters on Meilisearch
+- ✅ **Paging, sorting, post filters, highlighting and scores** on the Elasticsearch and OpenSearch providers;
+  paging, sorting and post filters on Meilisearch
 - ✅ **Errors as results**: searching and indexing return [FluentResults](https://github.com/altmann/FluentResults)
-  `Result`s. Elasticsearch, OpenSearch and Meilisearch fail a query that asks for facets or highlighting, but Lifti ignores paging,
-  sorting, post filters, facets and highlighting, so check the [feature matrix](docs/articles/feature-matrix.md) for what
+  `Result`s. Every provider fails a query that asks for facets, except Lifti, which ignores them; Meilisearch and
+  Lifti also fail a query that asks for highlighting. Lifti ignores paging, sorting and post filters, so check the [feature matrix](docs/articles/feature-matrix.md) for what
   your provider applies
 - ✅ **Shared provider tests**: provider-agnostic behavior tests in `BaseTests` run against every provider
 - ✅ **.NET Aspire AppHost** that starts Elasticsearch, OpenSearch and Meilisearch for local development and the
   integration tests, with [meilisearch-ui](https://github.com/riccox/meilisearch-ui) for browsing Meilisearch
   indexes and trying queries
 
-Facets and highlighting can be expressed but no provider runs them yet. See the
+Facets can be expressed but no provider runs them yet, and only Elasticsearch and OpenSearch highlight. See the
 [feature matrix](docs/articles/feature-matrix.md) for the full picture.
 
 ## Packages
