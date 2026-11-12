@@ -6,6 +6,7 @@ using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
 using Bielu.BetterSearch.Meilisearch.Services;
+using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.Options;
 using Shouldly;
 using MeilisearchClient = Meilisearch.MeilisearchClient;
@@ -834,7 +835,37 @@ public sealed class MeilisearchSearchTests(
         result.Successes.OfType<TranslationWarning>().ShouldBeEmpty();
     }
 
+    /// <summary>The ranges Elasticsearch's own test pins, so a date without a time rounds as it does there.</summary>
     [Theory]
+    [MemberData(nameof(LuceneDateRangeCases.Ranges), MemberType = typeof(LuceneDateRangeCases))]
+    public async Task SearchAsync_LuceneDateRangeWithoutTime_RoundsAsElasticsearch(string lucene, string[] expected)
+    {
+        var index = $"search-{Guid.NewGuid():N}";
+        try
+        {
+            var documents = LuceneDateRangeCases.Documents(index);
+            (await indexingProvider.IndexMultipleDocumentsAsync(documents, Token)).Value.ShouldBe(documents.Length);
+
+            var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = lucene }), Token);
+
+            result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.Message)));
+            result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id, StringComparer.Ordinal).ShouldBe(expected);
+        }
+        finally
+        {
+            try
+            {
+                await indexingProvider.DeleteIndexAsync(index, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Cleanup must not hide the test's own failure.
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("Name:\"Jane-Doe\"", new[] { "Up-1" })]
     [InlineData("Name:\"John Doe\"", new[] { "2" })]
     [InlineData("Name:\"jane DOE\"", new[] { "Up-1" })]
     // The last word must be a whole word of the field: "jane do" is not the start of "jane doe".
@@ -863,6 +894,16 @@ public sealed class MeilisearchSearchTests(
         exact.Successes.OfType<TranslationWarning>().Single().Message.ShouldContain("matches the exact word");
         typo.Value.Items.ShouldBeEmpty();
         typo.Successes.OfType<TranslationWarning>().Single().Message.ShouldContain("matches the exact word");
+    }
+
+    [Fact]
+    public async Task SearchAsync_LuceneEmptyPhrase_ReturnsFailure()
+    {
+        var index = await CreatePeopleAsync();
+
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = "Name:jane AND Name:\"\"" }), Token);
+
+        result.Errors.Single().Message.ShouldContain("empty phrase");
     }
 
     [Fact]

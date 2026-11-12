@@ -18,7 +18,7 @@ namespace Bielu.BetterSearch.Meilisearch.Services.Queries;
 /// word of the field, as <see cref="TermSubQueryTranslator"/> does; a trailing <c>*</c> prefix, a range,
 /// <c>_exists_:field</c>, <c>field:*</c> and <c>AND</c>, <c>OR</c>, <c>NOT</c>, <c>+</c> and <c>-</c> translate exactly.
 /// A phrase of several words and a fuzzy term (<c>~</c>) translate approximately and add a
-/// <see cref="TranslationWarning"/>. A term without a field,
+/// <see cref="TranslationWarning"/>; a quoted single word is a term. A term without a field, an empty phrase,
 /// proximity, a boost, a regular expression and any other wildcard return a failed <c>Result</c>.
 /// </summary>
 internal sealed class LuceneSubQueryTranslator(IOptionsMonitor<MeilisearchOptions> optionsMonitor)
@@ -71,6 +71,12 @@ internal sealed class LuceneSubQueryTranslator(IOptionsMonitor<MeilisearchOption
     /// <summary>The clauses joined as <see cref="MeilisearchBoolFilterBuilder"/> joins a bool query's.</summary>
     private Result<MeilisearchFilter> Bool(BooleanQuery query, List<ISuccess> warnings)
     {
+        // Combine matches every document when there are no clauses, but a parsed query with none asked for nothing.
+        if (query.Clauses.Count == 0)
+        {
+            return Fail($"'{query}' has nothing to match.");
+        }
+
         var required = new List<string>();
         var should = new List<string>();
         var mustNot = new List<string>();
@@ -183,7 +189,7 @@ internal sealed class LuceneSubQueryTranslator(IOptionsMonitor<MeilisearchOption
         var terms = query.GetTerms();
         if (terms.Length == 0)
         {
-            return Fail($"phrase '{query}' has no words.");
+            return Fail("an empty phrase (\"\") has no words to match.");
         }
 
         if (query.Slop != 0)
@@ -229,7 +235,8 @@ internal sealed class LuceneSubQueryTranslator(IOptionsMonitor<MeilisearchOption
     /// <summary>
     /// A range over the field's words, as Elasticsearch compares a text field. Bounds that read as numbers also compare
     /// numbers, and bounds that read as ISO 8601 dates also compare dates, as on a numeric or date field. A date without
-    /// a time rounds as Elasticsearch rounds it: up to the end of the day for an included maximum or an excluded minimum.
+    /// a time rounds as Elasticsearch rounds it, which its integration tests pin: up to the end of the day for an
+    /// included maximum or an excluded minimum.
     /// </summary>
     private static Result<MeilisearchFilter> Range(TermRangeQuery query)
     {

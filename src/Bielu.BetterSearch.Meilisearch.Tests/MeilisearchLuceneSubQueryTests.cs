@@ -42,6 +42,7 @@ public class MeilisearchLuceneSubQueryTests(IQueryTranslateServiceAsync<Meilisea
         { "Born:{1990-01-01 TO *]", "((tokens.Born > \"1990-01-01\") OR (dates.Born > 631238399999))" },
         { "Born:[* TO 2000-01-01T12:00:00Z]", "((tokens.Born <= \"2000-01-01t12:00:00z\") OR (dates.Born <= 946728000000))" },
         { "Name:jane AND City:warsaw", "((tokens.Name = \"jane\") AND (tokens.City = \"warsaw\"))" },
+        { "Name:(jane doe)", "(((tokens.Name = \"jane\") OR (tokens.Name = \"doe\")))" },
         { "Name:jane OR City:warsaw", "(((tokens.Name = \"jane\") OR (tokens.City = \"warsaw\")))" },
         { "+Name:jane City:warsaw", "((tokens.Name = \"jane\"))" },
         { "NOT Name:jane", "(id EXISTS AND NOT (tokens.Name = \"jane\"))" },
@@ -69,6 +70,11 @@ public class MeilisearchLuceneSubQueryTests(IQueryTranslateServiceAsync<Meilisea
             "phrase 'Name:\"Jane Doe\"' matches a run of words starting with it"
         },
         { "Name:jnae~1 AND City:warsaw", "((tokens.Name = \"jnae\") AND (tokens.City = \"warsaw\"))", "fuzzy term 'Name:jnae~1' matches the exact word" },
+        // Quoted, a value the analyzer keeps as one term is still a phrase of the words Meilisearch stores.
+        {
+            "Name:\"Jane-Doe\"", "(phrases.Name = \"jane doe\" OR (phrases.Name STARTS WITH \"jane doe\" AND tokens.Name = \"doe\"))",
+            "phrase 'Name:\"Jane-Doe\"' matches a run of words starting with it"
+        },
     };
 
     [Theory]
@@ -110,6 +116,10 @@ public class MeilisearchLuceneSubQueryTests(IQueryTranslateServiceAsync<Meilisea
         { "Name:(jane AND", "is not valid Lucene syntax" },
         { "Name\\ x:jane", "field 'Name x' can only contain" },
         { "  ", "needs a query" },
+        { "Name:\"\"", "empty phrase" },
+        { "Name:jane AND Name:\"\"", "empty phrase" },
+        { Nest("Name:jane", 33), "nests parentheses more than 32 deep" },
+        { Nest("Name:jane", 100_000), "nests parentheses more than 32 deep" },
         { $"Name:\"{string.Join(' ', Enumerable.Repeat("word", 17))}\"", "has 17 words" },
     };
 
@@ -123,6 +133,32 @@ public class MeilisearchLuceneSubQueryTests(IQueryTranslateServiceAsync<Meilisea
         result.Errors.Single().Message.ShouldContain(message);
     }
 
+    private static string Nest(string lucene, int depth) => new string('(', depth) + lucene + new string(')', depth);
+
+    public static TheoryData<string> NotNested => new()
+    {
+        $"Name:\"{new string('(', 40)}\" OR Name:jane",
+        $"Name:{string.Concat(Enumerable.Repeat("\\(", 40))} OR Name:jane",
+    };
+
+    [Theory]
+    [MemberData(nameof(NotNested))]
+    public async Task TranslateMainQueryAsync_ParenthesesQuotedOrEscaped_AreNotNesting(string lucene)
+    {
+        var result = await TranslateAsync(lucene);
+
+        result.Errors.ShouldNotContain(error => error.Message.Contains("nests parentheses"));
+    }
+
+    [Fact]
+    public async Task TranslateMainQueryAsync_NestingAtTheLimit_Translates()
+    {
+        var result = await TranslateAsync(Nest("Name:jane", 32));
+
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.Message)));
+        ((object)result.Value.Filter).ShouldBe("(tokens.Name = \"jane\")");
+    }
+
     [Fact]
     public async Task TranslateAsync_PhraseOutsidePhraseFields_ReturnsFailure()
     {
@@ -130,8 +166,10 @@ public class MeilisearchLuceneSubQueryTests(IQueryTranslateServiceAsync<Meilisea
 
         var inside = await translator.TranslateAsync(new LuceneSubQuery { LuceneQuery = "Title:\"a b\"" }, [translator]);
         var outside = await translator.TranslateAsync(new LuceneSubQuery { LuceneQuery = "Name:\"a b\"" }, [translator]);
+        var oneWord = await translator.TranslateAsync(new LuceneSubQuery { LuceneQuery = "Name:\"a\"" }, [translator]);
 
         inside.IsSuccess.ShouldBeTrue();
         outside.Errors.Single().Message.ShouldContain("PhraseFields");
+        oneWord.IsSuccess.ShouldBeTrue();
     }
 }

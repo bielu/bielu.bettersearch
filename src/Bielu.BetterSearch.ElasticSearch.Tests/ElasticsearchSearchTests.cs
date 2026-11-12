@@ -4,6 +4,7 @@ using Bielu.BetterSearch.Abstractions.Query.Aggregations;
 using Bielu.BetterSearch.Abstractions.Query.Highlighter;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using Shouldly;
 
@@ -279,6 +280,40 @@ public sealed class ElasticsearchSearchTests(
         var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = "fields.Name:john AND fields.City:warsaw" }));
 
         ids.ShouldBe(["3"]);
+    }
+
+    /// <summary>Pins how Elasticsearch rounds a date without a time, which the Meilisearch provider copies.</summary>
+    [Theory]
+    [MemberData(nameof(LuceneDateRangeCases.Ranges), MemberType = typeof(LuceneDateRangeCases))]
+    public async Task SearchAsync_LuceneDateRangeWithoutTime_RoundsToTheDay(string lucene, string[] expected)
+    {
+        var index = $"search-{Guid.NewGuid():N}";
+        try
+        {
+            foreach (var document in LuceneDateRangeCases.Documents(index))
+            {
+                (await indexingProvider.IndexDocumentAsync(document, TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+            }
+
+            var refresh = await (await clientFactory.GetOrCreateClientAsync(index)).Indices.RefreshAsync(index, TestContext.Current.CancellationToken);
+            refresh.IsValidResponse.ShouldBeTrue();
+
+            var ids = await searchService.SearchIdsAsync(
+                SearchTestHelpers.Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = lucene }), TestContext.Current.CancellationToken);
+
+            ids.ShouldBe(expected);
+        }
+        finally
+        {
+            try
+            {
+                await indexingProvider.DeleteIndexAsync(index, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Cleanup must not hide the test's own failure.
+            }
+        }
     }
 
     [Fact]
