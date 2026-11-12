@@ -91,6 +91,26 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
         single.ShouldBe(["decimal", "list"]);
     }
 
+    [Theory]
+    [InlineData("x", null)]
+    [InlineData("x", 5)]
+    [InlineData("elephant x giraffe", null)]
+    public async Task SearchAsync_Fuzzy_DoesNotMatchTheValueSeparator(string value, int? fuzziness)
+    {
+        // A fuzzy word within a few edits of the separator would match every multi-valued field, alone or as
+        // the middle word of a phrase that runs across two values.
+        var index = await IndexValuesAsync(("list", ["elephant", "giraffe"]), ("x", ["x"]));
+
+        var ids = await SearchIdsAsync(index, new FuzzyQuery
+        {
+            Field = "Value",
+            Value = value,
+            Fuziness = fuzziness is { } edits ? Tuple.Create(edits, edits) : null
+        });
+
+        ids.ShouldBe(value == "x" ? ["x"] : []);
+    }
+
     [Fact]
     public async Task SearchAsync_TermForWholeDate_MatchesThatDateOnly()
     {

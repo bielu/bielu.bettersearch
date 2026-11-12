@@ -14,8 +14,9 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 >   `SpatialSearchQuery` return a failed `Result`.
 > - **`LuceneQuery`** is not supported.
 > - **Fields are ignored**: term, terms, fuzzy, prefix and phrase prefix queries match the value in any field.
-> - **A value with no words**, such as `null`, `""` or `-`, returns a failed `Result` from a term, terms, fuzzy,
->   prefix or phrase prefix query, as it could never match.
+> - **A value with no words**, such as `null`, `""` or `-`, returns a failed `Result` from a term, fuzzy, prefix or
+>   phrase prefix query, as it could never match. A terms query fails when one of its values has no words; a terms
+>   query whose list is `null` or empty succeeds with no hits.
 > - **Hits** only carry the document id and `Score`; no stored fields.
 > - **Persistence**: the index is lost on restart, and creating an index that exists replaces it, losing its
 >   documents.
