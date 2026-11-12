@@ -20,9 +20,9 @@ public class LiftiIndexingProviderAsync(
             await (await clientFactory.GetOrCreateClientAsync(document.Index).ConfigureAwait(false)).AddAsync(document, cancellationToken).ConfigureAwait(false);
             return Result.Ok();
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
-            return Result.Fail(e.Message);
+            return Result.Fail(new Error(e.Message).CausedBy(e));
         }
     }
 
@@ -42,9 +42,9 @@ public class LiftiIndexingProviderAsync(
             }
             return Result.Ok(searchDocuments.Count);
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
-            return Result.Fail(e.Message);
+            return Result.Fail(new Error(e.Message).CausedBy(e));
         }
     }
 
@@ -145,7 +145,7 @@ public class LiftiIndexingProviderAsync(
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return Result.Fail(e.Message);
+            return Result.Fail(new Error(e.Message).CausedBy(e));
         }
     }
 
@@ -159,24 +159,48 @@ public class LiftiIndexingProviderAsync(
             await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
             return Result.Ok(true);
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
-            return Result.Fail(e.Message);
+            return Result.Fail(new Error(e.Message).CausedBy(e));
         }
     }
 
     public async Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default)
     {
-        using var indexLock = await _locks.AcquireAsync(index, cancellationToken).ConfigureAwait(false);
-        return await liftiIndexManager.DeleteIndexAsync(index).ConfigureAwait(false);
+        try
+        {
+            using var indexLock = await _locks.AcquireAsync(index, cancellationToken).ConfigureAwait(false);
+            return await liftiIndexManager.DeleteIndexAsync(index).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result.Fail(new Error(e.Message).CausedBy(e));
+        }
     }
 
-    public Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default) =>
-        liftiIndexManager.ExistsAsync(index);
+    public async Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await liftiIndexManager.ExistsAsync(index).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result.Fail(new Error(e.Message).CausedBy(e));
+        }
+    }
 
     public async Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default)
     {
-        var result = await liftiIndexManager.CreateIndexAsync(index).ConfigureAwait(false);
-        return result.IsSuccess ? Result.Ok(true) : Result.Fail(result.Errors[0].Message);
+        try
+        {
+            var result = await liftiIndexManager.CreateIndexAsync(index).ConfigureAwait(false);
+            // Every error is kept, with its metadata and causes, rather than only the first message.
+            return result.IsSuccess ? Result.Ok(true) : Result.Fail<bool>(result.Errors);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result.Fail(new Error(e.Message).CausedBy(e));
+        }
     }
 }

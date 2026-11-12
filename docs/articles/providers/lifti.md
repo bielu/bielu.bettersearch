@@ -84,4 +84,11 @@ There is nothing to configure.
   `ILiftiIndexManager`. A delete therefore can't land between the lookup and the factory call, which would make
   the factory create the deleted index again. The lock does not cover calls made on the index manager directly.
 
+## Errors
+
+When a custom `ILiftiIndexManager` or `IClientFactoryAsync<IFullTextIndex<string>>` throws, every indexing method
+returns a failed `Result` with the exception as its cause. An `OperationCanceledException` from either of them
+propagates. A failed `Result` from `ILiftiIndexManager.CreateIndexAsync` is returned by `CreateIndexAsync` with
+all of its errors.
+
 The [feature matrix](../feature-matrix.md) has the full detail.

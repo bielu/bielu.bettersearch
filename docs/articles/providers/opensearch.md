@@ -12,6 +12,10 @@ post filters and scores.
 > - **Bulk indexing**: Core's `IndexingServiceAsync.IndexMultipleDocumentsAsync` indexes one document at a time,
 >   so this provider's `BulkAsync` path is never used.
 > - **Remove all documents** reports a count of 0.
+>
+> A request that throws, as it does when `ThrowExceptions()` is on in the connection settings, is a failed
+> `Result` from every indexing method, with the exception as its cause. So is a client factory that throws.
+> `OperationCanceledException` still propagates.
 
 ## Install
 

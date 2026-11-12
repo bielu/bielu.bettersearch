@@ -61,4 +61,38 @@ internal static class OpenSearchClientFactoryExtensions
             return Result.Fail<IOpenSearchClient>(new Error($"The OpenSearch settings for {indexName} are invalid: {e.Message}"));
         }
     }
+
+    /// <summary>
+    /// Runs <paramref name="request"/> with the index's client, returning a failed <see cref="Result"/> that keeps the
+    /// exception when the client cannot be created or the request throws, as it does with <c>ThrowExceptions()</c> on.
+    /// </summary>
+    /// <remarks>An <see cref="OperationCanceledException"/> is rethrown rather than turned into a failure.</remarks>
+    public static async Task<Result<T>> TryWithClientAsync<T>(this IClientFactoryAsync<IOpenSearchClient> clientFactory, string indexName,
+        Func<IOpenSearchClient, Task<Result<T>>> request)
+    {
+        try
+        {
+            var client = await clientFactory.TryGetClientAsync(indexName).ConfigureAwait(false);
+            return client.IsFailed ? client.ToResult<T>() : await request(client.Value).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result.Fail<T>(new Error(e.Message).CausedBy(e));
+        }
+    }
+
+    /// <inheritdoc cref="TryWithClientAsync{T}"/>
+    public static async Task<Result> TryWithClientAsync(this IClientFactoryAsync<IOpenSearchClient> clientFactory, string indexName,
+        Func<IOpenSearchClient, Task<Result>> request)
+    {
+        try
+        {
+            var client = await clientFactory.TryGetClientAsync(indexName).ConfigureAwait(false);
+            return client.IsFailed ? client.ToResult() : await request(client.Value).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result.Fail(new Error(e.Message).CausedBy(e));
+        }
+    }
 }

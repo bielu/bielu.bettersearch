@@ -76,17 +76,6 @@ public sealed class ElasticsearchIndexingResponseTests
     }
 
     [Fact]
-    public async Task RemoveDocumentAsync_RequestThrows_ReturnsFailureCausedByTheException()
-    {
-        var provider = Provider("""{"error":"unavailable","status":503}""", 503, throwExceptions: true);
-
-        var result = await provider.RemoveDocumentAsync("1", "people", Token);
-
-        result.IsFailed.ShouldBeTrue();
-        result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<TransportException>();
-    }
-
-    [Fact]
     public async Task RemoveDocumentsAsync_OneItemFails_ReturnsFailureNamingOnlyThatId()
     {
         var provider = Provider("""{"took":5,"errors":true,"items":[{"delete":{"_index":"people","_id":"1","_version":2,"result":"deleted","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":1,"_primary_term":1,"status":200}},{"delete":{"_index":"people","_id":"2","_version":1,"result":"not_found","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":2,"_primary_term":1,"status":404}},{"delete":{"_index":"people","_id":"3","status":409,"error":{"type":"version_conflict_engine_exception","reason":"[3]: version conflict","index":"people"}}}]}""", 200);
@@ -203,17 +192,6 @@ public sealed class ElasticsearchIndexingResponseTests
     }
 
     [Fact]
-    public async Task IndexExistsAsync_RequestThrows_ReturnsFailureCausedByTheException()
-    {
-        var provider = Provider("{}", 503, throwExceptions: true);
-
-        var result = await provider.IndexExistsAsync("people", Token);
-
-        result.IsFailed.ShouldBeTrue();
-        result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<TransportException>();
-    }
-
-    [Fact]
     public async Task EnsureIndexExistsAsync_ExistsCheckFails_ReturnsTheCheckFailure()
     {
         var provider = Provider("{}", 401);
@@ -267,6 +245,20 @@ public sealed class ElasticsearchIndexingResponseTests
         result.IsFailed.ShouldBeTrue();
         result.Errors.Select(e => e.Message).ShouldBe(["bad connection string"]);
         result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeSameAs(exception);
+    }
+
+    [Theory]
+    [MemberData(nameof(IndexingMethods))]
+    public async Task IndexingMethod_RequestThrows_ReturnsFailureCausedByTheException(string method)
+    {
+        // With ThrowExceptions on, a failed request throws a TransportException rather than returning a response.
+        var provider = Provider("""{"error":"unavailable","status":503}""", 503, throwExceptions: true);
+
+        var result = await InvokeAsync(provider, method, Token);
+
+        result.IsFailed.ShouldBeTrue();
+        var exception = result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<TransportException>();
+        result.Errors.Select(e => e.Message).ShouldBe([exception.Message]);
     }
 
     [Theory]
