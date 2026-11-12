@@ -52,21 +52,14 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
         return Render(result.Value);
     }
 
-    private async Task SubQueryShouldSendInvariantValueAsync(ISearchSubQuery subQuery)
+    private async Task SubQueryShouldSendInvariantAsync(ISearchSubQuery subQuery, string expected, string forbidden)
     {
         var rendered = await RenderUnderCommaDecimalCultureAsync(subQuery);
-        rendered.ShouldContain("3.5");
-        rendered.ShouldNotContain("3,5");
+        rendered.ShouldContain(expected);
+        rendered.ShouldNotContain(forbidden);
     }
 
     protected static readonly DateTime Date = new(2026, 11, 8, 0, 0, 0, DateTimeKind.Utc);
-
-    private async Task SubQueryShouldSendInvariantDateAsync(ISearchSubQuery subQuery)
-    {
-        var rendered = await RenderUnderCommaDecimalCultureAsync(subQuery);
-        rendered.ShouldContain("11/08/2026");
-        rendered.ShouldNotContain("08.11.2026");
-    }
 
     [Fact]
     public virtual async Task BoolSearchQueryShouldBeTranslatable()
@@ -120,31 +113,31 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
 
     [Fact]
     public virtual async Task FuzzyQuery_CommaDecimalCulture_SendsInvariantValue()
-        => await SubQueryShouldSendInvariantValueAsync(new FuzzyQuery { Field = "Name", Value = 3.5 });
+        => await SubQueryShouldSendInvariantAsync(new FuzzyQuery { Field = "Name", Value = 3.5 }, "3.5", "3,5");
 
     [Fact]
     public virtual async Task PrefixPhraseSubQuery_CommaDecimalCulture_SendsInvariantValue()
-        => await SubQueryShouldSendInvariantValueAsync(new PrefixPhraseSubQuery { Field = "Name", Value = 3.5 });
+        => await SubQueryShouldSendInvariantAsync(new PrefixPhraseSubQuery { Field = "Name", Value = 3.5 }, "3.5", "3,5");
 
     [Fact]
     public virtual async Task PrefixSubQuery_CommaDecimalCulture_SendsInvariantValue()
-        => await SubQueryShouldSendInvariantValueAsync(new PrefixSubQuery { Field = "Name", Value = 3.5 });
+        => await SubQueryShouldSendInvariantAsync(new PrefixSubQuery { Field = "Name", Value = 3.5 }, "3.5", "3,5");
 
     [Fact]
     public virtual async Task TermSubQuery_CommaDecimalCulture_SendsInvariantValue()
-        => await SubQueryShouldSendInvariantValueAsync(new TermSubQuery { Field = "Name", Value = 3.5 });
+        => await SubQueryShouldSendInvariantAsync(new TermSubQuery { Field = "Name", Value = 3.5 }, "3.5", "3,5");
 
     [Fact]
     public virtual async Task TermsSubQuery_CommaDecimalCulture_SendsInvariantValue()
-        => await SubQueryShouldSendInvariantValueAsync(new TermsSubQuery { Field = "Name", Value = [3.5] });
+        => await SubQueryShouldSendInvariantAsync(new TermsSubQuery { Field = "Name", Value = [3.5] }, "3.5", "3,5");
 
     [Fact]
     public virtual async Task FuzzyQuery_DateValue_SendsInvariantDate()
-        => await SubQueryShouldSendInvariantDateAsync(new FuzzyQuery { Field = "Born", Value = Date });
+        => await SubQueryShouldSendInvariantAsync(new FuzzyQuery { Field = "Born", Value = Date }, "11/08/2026", "08.11.2026");
 
     [Fact]
     public virtual async Task PrefixSubQuery_DateValue_SendsInvariantDate()
-        => await SubQueryShouldSendInvariantDateAsync(new PrefixSubQuery { Field = "Born", Value = Date });
+        => await SubQueryShouldSendInvariantAsync(new PrefixSubQuery { Field = "Born", Value = Date }, "11/08/2026", "08.11.2026");
 
     [Fact]
     public virtual async Task SpatialSearchQueryShouldBeTranslatable()
