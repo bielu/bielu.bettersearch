@@ -9,4 +9,13 @@
       <ProjectReference Include="..\Bielu.BetterSearch.Core\Bielu.BetterSearch.Core.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <InternalsVisibleTo Include="Bielu.BetterSearch.Lifti.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <!-- Compiled into each provider rather than shared from another package, so a provider never calls into another package's internals. -->
+      <Compile Include="..\Shared\QueryValueText.cs" Link="Services\QueryValueText.cs" />
+    </ItemGroup>
+
 </Project>

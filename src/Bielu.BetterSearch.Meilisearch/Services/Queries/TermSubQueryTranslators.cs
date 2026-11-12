@@ -96,6 +96,12 @@ internal static class TermValues
             return Result.Ok<List<(string, string)>>([(MeilisearchFieldNames.In(MeilisearchFieldNames.Dates, field), date.ToString(CultureInfo.InvariantCulture))]);
         }
 
+        var finite = MeilisearchFieldNames.RequireFinite(value, queryName);
+        if (finite.IsFailed)
+        {
+            return finite.ToResult<List<(string, string)>>();
+        }
+
         return MeilisearchFieldNames.Number(value) is { } number
             ? Result.Ok<List<(string, string)>>([(MeilisearchFieldNames.In(MeilisearchFieldNames.Fields, field), number)])
             : Result.Fail<List<(string, string)>>($"{queryName} value of type {value.GetType().Name} is not supported by Meilisearch.");

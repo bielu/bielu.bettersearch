@@ -113,20 +113,35 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
 
     public async Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {
-        var client = await clientFactory.TryGetClientAsync(index).ConfigureAwait(false);
-        if (client.IsFailed)
+        try
         {
-            return client.ToResult<bool>();
-        }
+            var client = await clientFactory.TryGetClientAsync(index).ConfigureAwait(false);
+            if (client.IsFailed)
+            {
+                return client.ToResult<bool>();
+            }
 
-        var response = await client.Value.Indices.ExistsAsync(index, ct: cancellationToken).ConfigureAwait(false);
-        // Only 200 and 404 answer the question; anything else, such as a 401, 403 or 5xx, is a failure.
-        return response.ApiCall?.HttpStatusCode switch
+            var response = await client.Value.Indices.ExistsAsync(index, ct: cancellationToken).ConfigureAwait(false);
+            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
+            cancellationToken.ThrowIfCancellationRequested();
+            // Only 200 and 404 answer the question; anything else, such as no answer, a 401, 403 or 5xx, is a failure.
+            return response.ApiCall?.HttpStatusCode switch
+            {
+                200 => Result.Ok(true),
+                404 => Result.Ok(false),
+                _ => Result.Fail<bool>(RequestFailed(OpenSearchFailures.Describe("index exists check", response), response.OriginalException)),
+            };
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
         {
-            200 => Result.Ok(true),
-            404 => Result.Ok(false),
-            _ => Result.Fail<bool>(new Error(response.DebugInformation)),
-        };
+            return Result.Fail<bool>(new Error(e.Message).CausedBy(e));
+        }
+    }
+
+    private static Error RequestFailed(string message, Exception? exception)
+    {
+        var error = new Error(message);
+        return exception is null ? error : error.CausedBy(exception);
     }
 
     public async Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default)

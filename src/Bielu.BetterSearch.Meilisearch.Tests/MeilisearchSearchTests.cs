@@ -18,7 +18,8 @@ public sealed class MeilisearchSearchTests(
     ISearchServiceAsync searchService,
     IIndexingProviderAsync indexingProvider,
     IQueryTranslateServiceAsync<MeilisearchQuery> translateService,
-    IOptionsMonitor<MeilisearchOptions> options)
+    IOptionsMonitor<MeilisearchOptions> options,
+    IClientFactoryAsync<MeilisearchClient> clientFactory)
 {
     private sealed class SortField : ISortOrderField
     {
@@ -315,6 +316,81 @@ public sealed class MeilisearchSearchTests(
 
         inclusive.ShouldBe(["2", "3"]);
         exclusive.ShouldBe(["2"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_NumberWithPositiveExponent_MatchesTheValue()
+    {
+        // .NET writes 1e20 as 1E+20, which a Meilisearch filter rejects; the provider sends 1E20.
+        var index = $"search-{Guid.NewGuid():N}";
+        SearchDocument Amount(string id, double amount) => new()
+        {
+            Id = id,
+            Index = index,
+            Fields = new Dictionary<string, IList<object>> { { "Amount", [amount] } }
+        };
+        try
+        {
+            (await indexingProvider.IndexMultipleDocumentsAsync([Amount("1", 1e20), Amount("2", 1e19)], Token)).Value.ShouldBe(2);
+
+            var term = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Amount", Value = 1e20 }));
+            var terms = await SearchIdsAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "Amount", Value = [1e20, 1e21] }));
+
+            term.ShouldBe(["1"]);
+            terms.ShouldBe(["1"]);
+        }
+        finally
+        {
+            try
+            {
+                await indexingProvider.DeleteIndexAsync(index, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Cleanup must not hide the test's own failure.
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RawFilter_NonFiniteAndExponentPlusLiterals_AreReadAsTextOrRejected()
+    {
+        // Pins the engine behavior behind MeilisearchFieldNames.Number and RequireFinite: a filter reads NaN and
+        // Infinity as strings, and rejects 1E+20.
+        var index = $"search-{Guid.NewGuid():N}";
+        SearchDocument Amount(string id, object amount) => new()
+        {
+            Id = id,
+            Index = index,
+            Fields = new Dictionary<string, IList<object>> { { "Amount", [amount] } }
+        };
+        try
+        {
+            (await indexingProvider.IndexMultipleDocumentsAsync(
+                [Amount("1", 1e20), Amount("2", "NaN"), Amount("3", "Infinity"), Amount("4", 3.5)], Token)).Value.ShouldBe(4);
+            var client = await clientFactory.GetOrCreateClientAsync(index);
+
+            async Task<List<string>> FilterIdsAsync(string filter) =>
+                (await client.Index(index).SearchAsync<SearchDocument>(string.Empty, new MeilisearchQuery { Filter = filter }, Token))
+                .Hits.Select(hit => hit.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
+
+            (await FilterIdsAsync("fields.Amount = NaN")).ShouldBe(["2"]);
+            (await FilterIdsAsync("fields.Amount = Infinity")).ShouldBe(["3"]);
+            (await FilterIdsAsync("fields.Amount = 1E20")).ShouldBe(["1"]);
+            var rejected = await Should.ThrowAsync<global::Meilisearch.MeilisearchApiError>(() => FilterIdsAsync("fields.Amount = 1E+20"));
+            rejected.Message.ShouldContain("+20");
+        }
+        finally
+        {
+            try
+            {
+                await indexingProvider.DeleteIndexAsync(index, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Cleanup must not hide the test's own failure.
+            }
+        }
     }
 
     [Fact]

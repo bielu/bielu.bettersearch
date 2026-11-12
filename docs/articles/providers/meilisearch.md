@@ -92,6 +92,10 @@ filterable and sortable attributes the provider needs to the index settings, kee
   `fields.Name` it matches the whole value, also ignoring case. A string that reads as a number or boolean
   also matches that value.
 - **`PrefixPhraseQuery`** matches at most 16 words.
+- **Numbers** in a filter are written in the invariant culture (`3.5`, never `3,5`), and a positive exponent drops
+  its `+` (`1E20`, not `1E+20`), as Meilisearch rejects `1E+20` in a filter. A `TermSubQuery` or `TermsSubQuery`
+  value of `NaN` or an infinity returns a failed `Result`, as a Meilisearch filter reads `NaN` and `Infinity` as text
+  and would match the strings `"NaN"` and `"Infinity"` rather than a number.
 - **`LongRange`** values past 2^53 lose precision, as Meilisearch compares numbers as doubles.
 - **Dates** without a time zone are read as UTC.
 - **Field names** can only contain letters, digits, `_`, `-` and `.`, and **document ids** letters, digits, `-`
@@ -104,5 +108,12 @@ filterable and sortable attributes the provider needs to the index settings, kee
 
 - **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
 - **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result` with Meilisearch's error.
+
+## Checking an index exists
+
+`IndexExistsAsync` is success with `false` when Meilisearch answers `index_not_found`. Any other error, such as a
+wrong API key or an unreachable server, is a failed `Result` caused by the client's exception, and a request
+cancelled through the `CancellationToken` throws `OperationCanceledException`. `EnsureIndexExistsAsync` returns a
+failed check as it is rather than trying to create the index.
 
 The [feature matrix](../feature-matrix.md) has the full detail.
