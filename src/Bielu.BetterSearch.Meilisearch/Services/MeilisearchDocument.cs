@@ -1,14 +1,15 @@
 ﻿using System.Globalization;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Bielu.BetterSearch.Services;
 
 using FluentResults;
 
 namespace Bielu.BetterSearch.Meilisearch.Services;
 
 /// <summary>
-/// How a <see cref="SearchDocument"/> is stored. <c>fields</c> keeps the values as given, for results. The
-/// other maps are the copies the query translators filter on, as Meilisearch filters compare whole values:
+/// How a <see cref="SearchDocument"/> is stored. <c>fields</c> keeps the values as given, for results, except that
+/// each date is ISO 8601 text in UTC, as <see cref="QueryValueText"/> writes it. The other maps are the copies the query translators filter on, as Meilisearch filters compare whole values:
 /// <c>tokens</c> holds each word of a text value lower-cased, <c>phrases</c> the runs of words a phrase
 /// prefix can start at, and <c>dates</c> each date as Unix milliseconds. <c>_geo</c> holds the point of the field named
 /// by <c>MeilisearchOptions.GeoField</c>, the only attribute Meilisearch filters by distance on.
@@ -41,7 +42,7 @@ internal sealed partial class MeilisearchDocument
     public static Result<MeilisearchDocument> From(SearchDocument document, string? geoField, ICollection<string>? phraseFields = null)
     {
         var fields = document.Fields;
-        var stored = new MeilisearchDocument { Id = document.Id, Type = document.Type, Index = document.Index, Fields = fields };
+        var stored = new MeilisearchDocument { Id = document.Id, Type = document.Type, Index = document.Index, Fields = StoredFields.WithDatesAsText(fields) };
         if (geoField != null && fields.TryGetValue(geoField, out var locations) && locations is { Count: > 0 })
         {
             if (locations.Count > 1 || ToGeoPoint(locations[0]) is not { } point)
@@ -101,7 +102,7 @@ internal sealed partial class MeilisearchDocument
     {
         string text => double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : null,
         null or bool => null,
-        IConvertible number when MeilisearchFieldNames.IsNumber(number) => Convert.ToDouble(number, CultureInfo.InvariantCulture),
+        IConvertible number when QueryValueText.IsNumber(number) => Convert.ToDouble(number, CultureInfo.InvariantCulture),
         _ => null
     };
 

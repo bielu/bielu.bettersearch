@@ -17,15 +17,24 @@ internal sealed class MeilisearchQueryTranslationTests(IEnumerable<ISubQueryTran
     public override async Task PrefixPhraseSubQuery_CommaDecimalCulture_SendsInvariantValue()
         => await SubQueryTranslationShouldFailAsync(new PrefixPhraseSubQuery { Field = "Name", Value = 3.5 });
 
-    public override async Task PrefixSubQuery_DateValue_SendsInvariantDate()
+    public override async Task PrefixSubQuery_DateValue_SendsIsoDateInUtc()
         => await SubQueryTranslationShouldFailAsync(new PrefixSubQuery { Field = "Born", Value = Date });
+
+    public override async Task PrefixPhraseSubQuery_DateValue_SendsIsoDateInUtc()
+        => await SubQueryTranslationShouldFailAsync(new PrefixPhraseSubQuery { Field = "Born", Value = Date });
 
     // Meilisearch rejects every FuzzyQuery, whatever its value; see FuzzyQueryShouldBeTranslatable.
     public override async Task FuzzyQuery_CommaDecimalCulture_SendsInvariantValue()
         => await SubQueryTranslationShouldFailAsync(new FuzzyQuery { Field = "Name", Value = 3.5 });
 
-    public override async Task FuzzyQuery_DateValue_SendsInvariantDate()
+    public override async Task FuzzyQuery_DateValue_ReturnsFailedResult()
         => await SubQueryTranslationShouldFailAsync(new FuzzyQuery { Field = "Born", Value = Date });
+
+    public override async Task FuzzyQuery_DateTimeOffsetValue_ReturnsFailedResult()
+        => await SubQueryTranslationShouldFailAsync(new FuzzyQuery { Field = "Born", Value = new DateTimeOffset(Date) });
+
+    public override async Task FuzzyQuery_BooleanValue_ReturnsFailedResult()
+        => await SubQueryTranslationShouldFailAsync(new FuzzyQuery { Field = "Born", Value = true });
 
     public override async Task FuzzyQueryShouldBeTranslatable()
         => await SubQueryTranslationShouldFailAsync(new FuzzyQuery { Field = "Name", Value = "jnae" });

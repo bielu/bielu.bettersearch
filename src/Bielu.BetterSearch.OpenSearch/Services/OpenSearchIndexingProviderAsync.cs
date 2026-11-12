@@ -16,7 +16,7 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
     public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(document.Index, async client =>
         {
-            var response = await client.IndexAsync(document, i => i.Index(document.Index).Id(document.Id), cancellationToken).ConfigureAwait(false);
+            var response = await client.IndexAsync(StoredFields.WithDatesAsText(document), i => i.Index(document.Index).Id(document.Id), cancellationToken).ConfigureAwait(false);
             return IsSuccess(response) ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
         });
 
@@ -29,7 +29,7 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
         {
             results.Add(await clientFactory.TryWithClientAsync(indexGroup.Key, async client =>
             {
-                var response = await client.BulkAsync(b => b.Index(indexGroup.Key).IndexMany(indexGroup, (descriptor, document) => descriptor.Id(document.Id)), cancellationToken).ConfigureAwait(false);
+                var response = await client.BulkAsync(b => b.Index(indexGroup.Key).IndexMany(indexGroup.Select(StoredFields.WithDatesAsText), (descriptor, document) => descriptor.Id(document.Id)), cancellationToken).ConfigureAwait(false);
                 return IsSuccess(response) ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
             }).ConfigureAwait(false));
         }

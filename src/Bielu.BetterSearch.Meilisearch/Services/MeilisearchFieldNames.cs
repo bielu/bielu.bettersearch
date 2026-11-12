@@ -61,13 +61,9 @@ internal static class MeilisearchFieldNames
     /// <see cref="QueryValueText"/>'s, in the invariant culture, except that Meilisearch filters read <c>1E20</c> but not
     /// <c>1E+20</c>, so a positive exponent drops its <c>+</c>.
     /// </summary>
-    public static string? Number(object? value) => IsNumber(value)
+    public static string? Number(object? value) => QueryValueText.IsNumber(value)
         ? QueryValueText.From(value).Replace("E+", "E", StringComparison.Ordinal)
         : null;
-
-    /// <summary>Whether <paramref name="value"/> is of a numeric type.</summary>
-    public static bool IsNumber(object? value) =>
-        value is byte or sbyte or short or ushort or int or uint or long or ulong or decimal or float or double;
 
     /// <summary>
     /// A failure when <paramref name="value"/> is <c>NaN</c> or an infinity, which a Meilisearch filter cannot hold:

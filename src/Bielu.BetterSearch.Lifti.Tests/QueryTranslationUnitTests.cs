@@ -49,15 +49,33 @@ public class QueryTranslationUnitTests(IEnumerable<ISubQueryTranslator<IQuery>> 
     public override async Task TermsSubQuery_CommaDecimalCulture_SendsInvariantValue()
         => (await RenderUnderLetterDecimalCultureAsync(new TermsSubQuery { Field = "Name", Value = [3.5] })).ShouldBe("\"3 5\"");
 
-    // A day-first culture would send the words 08 11 2026 instead.
+    // Lifti matches a fuzzy date or boolean as the words of its text, as indexed, rather than failing. The offset
+    // is converted, so the DateTimeOffset matches the same words as the UTC date.
     [Fact]
-    public override async Task FuzzyQuery_DateValue_SendsInvariantDate()
+    public override async Task FuzzyQuery_DateValue_ReturnsFailedResult()
         => (await RenderUnderCommaDecimalCultureAsync(new FuzzyQuery { Field = "Born", Value = Date }))
-            .ShouldBe("\"?2,?11 ?2,?08 ?2,?2026 ?2,?00 ?2,?00 ?2,?00\"");
+            .ShouldBe("\"?2,?2026 ?2,?11 ?2,?08T00 ?2,?00 ?2,?00Z\"");
 
     [Fact]
-    public override async Task PrefixSubQuery_DateValue_SendsInvariantDate()
-        => (await RenderUnderCommaDecimalCultureAsync(new PrefixSubQuery { Field = "Born", Value = Date })).ShouldBe("\"11 08 2026 00 00 00*\"");
+    public override async Task FuzzyQuery_DateTimeOffsetValue_ReturnsFailedResult()
+        => (await RenderUnderCommaDecimalCultureAsync(new FuzzyQuery { Field = "Born", Value = new DateTimeOffset(Date) }))
+            .ShouldBe("\"?2,?2026 ?2,?11 ?2,?08T00 ?2,?00 ?2,?00Z\"");
+
+    [Fact]
+    public override async Task FuzzyQuery_BooleanValue_ReturnsFailedResult()
+        => (await RenderUnderCommaDecimalCultureAsync(new FuzzyQuery { Field = "Born", Value = true })).ShouldBe("?2,?TRUE");
+
+    [Fact]
+    public override async Task PrefixSubQuery_DateValue_SendsIsoDateInUtc()
+        => (await RenderUnderCommaDecimalCultureAsync(new PrefixSubQuery { Field = "Born", Value = Date })).ShouldBe("\"2026 11 08T00 00 00Z*\"");
+
+    [Fact]
+    public override async Task PrefixPhraseSubQuery_DateValue_SendsIsoDateInUtc()
+        => (await RenderUnderCommaDecimalCultureAsync(new PrefixPhraseSubQuery
+        {
+            Field = "Born",
+            Value = new DateTimeOffset(2026, 11, 8, 1, 0, 0, 120, TimeSpan.FromHours(1))
+        })).ShouldBe("\"2026 11 08T00 00 00 12Z*\"");
 
     [Fact]
     public override async Task DateRangeQueryShouldBeTranslatable()

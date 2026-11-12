@@ -504,6 +504,97 @@ public sealed class ElasticsearchSearchTests(
         fields["Active"].Single().ShouldBeOfType<bool>().ShouldBeTrue();
     }
 
+    /// <summary>
+    /// Indexes three dates into an index that keeps date strings as text, so <c>Born.keyword</c> holds the stored
+    /// text as it is, and returns the index name.
+    /// </summary>
+    private async Task<string> CreateDatesAsTextAsync()
+    {
+        var index = $"search-{Guid.NewGuid():N}";
+        var client = await clientFactory.GetOrCreateClientAsync(index);
+        var created = await client.Indices.CreateAsync(new Elastic.Clients.Elasticsearch.IndexManagement.CreateIndexRequest(index)
+        {
+            Mappings = new Elastic.Clients.Elasticsearch.Mapping.TypeMapping { DateDetection = false }
+        }, TestContext.Current.CancellationToken);
+        created.IsValidResponse.ShouldBeTrue(created.DebugInformation);
+        var documents = new[]
+        {
+            Dated(index, "milliseconds", new DateTime(2026, 11, 8, 13, 5, 0, 123, DateTimeKind.Unspecified)),
+            Dated(index, "offset", new DateTimeOffset(2026, 11, 8, 15, 5, 0, TimeSpan.FromHours(1))),
+            Dated(index, "minute-later", new DateTime(2026, 11, 8, 13, 6, 0, DateTimeKind.Utc))
+        };
+        (await indexingProvider.IndexMultipleDocumentsAsync(documents, TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        (await client.Indices.RefreshAsync(index, TestContext.Current.CancellationToken)).IsValidResponse.ShouldBeTrue();
+        return index;
+    }
+
+    private static SearchDocument Dated(string index, string id, object born) => new()
+    {
+        Id = id,
+        Index = index,
+        Fields = new Dictionary<string, IList<object>> { { "Born", [born] } }
+    };
+
+    [Fact]
+    public async Task IndexAsync_Dates_AreStoredAsIsoTextInUtc()
+    {
+        var index = await CreateDatesAsTextAsync();
+
+        var result = await searchService.SearchAsync(new SearchQuery { Index = index, PageSize = 10 }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.Message)));
+        result.Value.Items.ToDictionary(item => item.Document.Id, item => item.Document.CustomProperties["Born"].ShouldHaveSingleItem())
+            .ShouldBe(new Dictionary<string, object>
+            {
+                { "milliseconds", "2026-11-08T13:05:00.123Z" },
+                { "offset", "2026-11-08T14:05:00Z" },
+                { "minute-later", "2026-11-08T13:06:00Z" }
+            }, ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task SearchAsync_PrefixOnKeywordWithDateTimeValue_MatchesTheStoredText()
+    {
+        var index = await CreateDatesAsTextAsync();
+
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new PrefixSubQuery
+        {
+            Field = "Born.keyword",
+            Value = new DateTime(2026, 11, 8, 13, 5, 0, 123, DateTimeKind.Utc)
+        }));
+
+        ids.ShouldBe(["milliseconds"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_PrefixOnKeywordWithDateTimeOffsetValue_MatchesTheSameInstant()
+    {
+        var index = await CreateDatesAsTextAsync();
+
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new PrefixSubQuery
+        {
+            Field = "Born.keyword",
+            Value = new DateTimeOffset(2026, 11, 8, 14, 5, 0, TimeSpan.Zero)
+        }));
+
+        ids.ShouldBe(["offset"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_FuzzyWithDateValue_ReturnsFailedResult()
+    {
+        var index = await CreatePeopleAsync();
+
+        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new FuzzyQuery
+        {
+            Field = "Born",
+            Value = new DateTime(1999, 5, 1, 0, 0, 0, DateTimeKind.Utc)
+        }), TestContext.Current.CancellationToken);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldContain(error => error.Message.Contains("a fuzzy match needs a string or a number"));
+    }
+
     [Fact]
     public async Task SearchAsync_Properties_ReturnsOnlyThoseFields()
     {

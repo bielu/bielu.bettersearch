@@ -9,6 +9,26 @@ namespace Bielu.BetterSearch.Services;
 /// </summary>
 internal static class StoredFields
 {
+    /// <summary>
+    /// <paramref name="fields"/> as they are sent to the engine: each date as <see cref="QueryValueText"/> writes it,
+    /// so the stored text is the text a query sends, and any other value as given.
+    /// </summary>
+    public static IDictionary<string, IList<object>> WithDatesAsText(IDictionary<string, IList<object>> fields) =>
+        fields.ToDictionary(
+            field => field.Key,
+            field => field.Value is { } values && values.Any(QueryValueText.IsDate)
+                ? values.Select(value => QueryValueText.IsDate(value) ? QueryValueText.From(value) : value).ToList()
+                : field.Value);
+
+    /// <summary>A copy of <paramref name="document"/> with its fields <see cref="WithDatesAsText">as they are sent to the engine</see>.</summary>
+    public static SearchDocument WithDatesAsText(SearchDocument document) => new()
+    {
+        Id = document.Id,
+        Type = document.Type,
+        Index = document.Index,
+        Fields = WithDatesAsText(document.Fields)
+    };
+
     public static IDictionary<string, List<object>> ToCustomProperties(IDictionary<string, IList<object>>? fields) =>
         fields?.ToDictionary(
             field => field.Key,
