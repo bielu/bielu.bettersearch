@@ -65,8 +65,6 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
                 Operations = new BulkOperationsCollection(distinctIds.Value.Select(id => new BulkDeleteOperation(id))),
             };
             var response = await client.BulkAsync(request, cancellationToken).ConfigureAwait(false);
-            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
-            cancellationToken.ThrowIfCancellationRequested();
             // A request rejected as a whole, such as a 403, has no items.
             if (response.Items is null || response.Items.Count != distinctIds.Value.Count)
             {
@@ -125,8 +123,6 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
         clientFactory.TryWithClientAsync(index, async client =>
         {
             var result = await client.Indices.ExistsAsync(new ExistsRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
-            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
-            cancellationToken.ThrowIfCancellationRequested();
             // Only 200 and 404 answer the question; anything else, such as no answer, a 401, 403 or 5xx, is a failure.
             return result.ApiCallDetails?.HttpStatusCode switch
             {

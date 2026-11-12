@@ -66,14 +66,26 @@ internal static class OpenSearchClientFactoryExtensions
     /// Runs <paramref name="request"/> with the index's client, returning a failed <see cref="Result"/> that keeps the
     /// exception when the client cannot be created or the request throws, as it does with <c>ThrowExceptions()</c> on.
     /// </summary>
-    /// <remarks>An <see cref="OperationCanceledException"/> is rethrown rather than turned into a failure.</remarks>
+    /// <remarks>
+    /// An <see cref="OperationCanceledException"/> is rethrown rather than turned into a failure, and one is thrown when
+    /// <paramref name="cancellationToken"/> is cancelled by the time the request returns, because the client reports a
+    /// request cancelled in flight as a failed response.
+    /// </remarks>
     public static async Task<Result<T>> TryWithClientAsync<T>(this IClientFactoryAsync<IOpenSearchClient> clientFactory, string indexName,
-        Func<IOpenSearchClient, Task<Result<T>>> request)
+        Func<IOpenSearchClient, Task<Result<T>>> request, CancellationToken cancellationToken)
     {
         try
         {
             var client = await clientFactory.TryGetClientAsync(indexName).ConfigureAwait(false);
-            return client.IsFailed ? client.ToResult<T>() : await request(client.Value).ConfigureAwait(false);
+            if (client.IsFailed)
+            {
+                return client.ToResult<T>();
+            }
+
+            var result = await request(client.Value).ConfigureAwait(false);
+            // The client reports a request cancelled in flight as a response with no status code; the caller cancelled, so say that instead.
+            cancellationToken.ThrowIfCancellationRequested();
+            return result;
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -83,12 +95,20 @@ internal static class OpenSearchClientFactoryExtensions
 
     /// <inheritdoc cref="TryWithClientAsync{T}"/>
     public static async Task<Result> TryWithClientAsync(this IClientFactoryAsync<IOpenSearchClient> clientFactory, string indexName,
-        Func<IOpenSearchClient, Task<Result>> request)
+        Func<IOpenSearchClient, Task<Result>> request, CancellationToken cancellationToken)
     {
         try
         {
             var client = await clientFactory.TryGetClientAsync(indexName).ConfigureAwait(false);
-            return client.IsFailed ? client.ToResult() : await request(client.Value).ConfigureAwait(false);
+            if (client.IsFailed)
+            {
+                return client.ToResult();
+            }
+
+            var result = await request(client.Value).ConfigureAwait(false);
+            // The client reports a request cancelled in flight as a response with no status code; the caller cancelled, so say that instead.
+            cancellationToken.ThrowIfCancellationRequested();
+            return result;
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
