@@ -79,23 +79,25 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
             return distinctIds.IsFailed ? distinctIds.ToResult<int>() : Result.Ok(0);
         }
 
-        var client = await clientFactory.TryGetClientAsync(index, cancellationToken).ConfigureAwait(false);
-        if (client.IsFailed)
-        {
-            return client.ToResult<int>();
-        }
-
         try
         {
+            var client = await clientFactory.TryGetClientAsync(index, cancellationToken).ConfigureAwait(false);
+            if (client.IsFailed)
+            {
+                return client.ToResult<int>();
+            }
+
             var request = new BulkRequest(index)
             {
                 Operations = new BulkOperationsCollection(distinctIds.Value.Select(id => new BulkDeleteOperation(id))),
             };
             var response = await client.Value.BulkAsync(request, cancellationToken).ConfigureAwait(false);
+            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
+            cancellationToken.ThrowIfCancellationRequested();
             // A request rejected as a whole, such as a 403, has no items.
             if (response.Items is null || response.Items.Count != distinctIds.Value.Count)
             {
-                return Result.Fail<int>(new Error(response.DebugInformation));
+                return Result.Fail<int>(RequestFailed(ElasticSearchFailures.Describe("bulk delete", response), response.ApiCallDetails?.OriginalException));
             }
 
             // As in RemoveDocumentAsync, a not_found item without an error is already gone. A missing index is an

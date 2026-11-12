@@ -172,7 +172,28 @@ public sealed class OpenSearchIndexingResponseTests
 
         var result = await provider.RemoveDocumentsAsync("people", ["1", "2"], Token);
 
-        result.Errors.ShouldHaveSingleItem().Message.ShouldContain("403");
+        var message = result.Errors.ShouldHaveSingleItem().Message;
+        message.ShouldBe("OpenSearch bulk delete failed with HTTP 403 (security_exception): no permissions");
+    }
+
+    [Fact]
+    public async Task RemoveDocumentsAsync_CancelledMidRequest_ThrowsOperationCanceledException()
+    {
+        // The server accepts the connection and never answers, so the request is still in flight when it is cancelled.
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            var provider = LocalProvider(((IPEndPoint)listener.LocalEndpoint).Port);
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+            cancellation.CancelAfter(TimeSpan.FromMilliseconds(500));
+
+            await Should.ThrowAsync<OperationCanceledException>(() => provider.RemoveDocumentsAsync("people", ["1", "2"], cancellation.Token));
+        }
+        finally
+        {
+            listener.Stop();
+        }
     }
 
     [Fact]

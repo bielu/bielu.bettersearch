@@ -155,6 +155,41 @@ public sealed class MeilisearchIndexingProviderTests(
     }
 
     [Fact]
+    public async Task RemoveDocumentsAsync_TaskTimesOut_ReturnsFailureSayingTheTaskMayStillRemoveThem()
+    {
+        var index = UniqueIndex();
+        try
+        {
+            (await provider.IndexMultipleDocumentsAsync(CreateDocuments(index, 3), Token)).Value.ShouldBe(3);
+            // A timeout this short ends the wait before Meilisearch can finish the task.
+            var timingOut = ProviderWith(o => o.TaskTimeout = TimeSpan.FromTicks(1));
+
+            var result = await timingOut.RemoveDocumentsAsync(index, ["1", "2"], Token);
+
+            var error = result.Errors.ShouldHaveSingleItem();
+            error.Message.ShouldStartWith($"Removing documents from {index} did not finish: ");
+            error.Message.ShouldEndWith(" was queued and may still remove any or all of the 2 documents.");
+            error.Metadata["ids"].ShouldBe(new List<string> { "1", "2" });
+            // The task was not cancelled, so Meilisearch still applies it.
+            var client = await clientFactory.GetOrCreateClientAsync(index);
+            var task = await client.WaitForTaskAsync((int)error.Metadata["taskUid"], cancellationToken: Token);
+            task.Status.ShouldBe(global::Meilisearch.TaskInfoStatus.Succeeded);
+            (await CountAsync(index)).ShouldBe(1);
+        }
+        finally
+        {
+            try
+            {
+                await provider.DeleteIndexAsync(index, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Cleanup must not hide the test's own failure.
+            }
+        }
+    }
+
+    [Fact]
     public async Task RemoveAllDocumentsAsync_IndexWithDocuments_ReturnsDeletedCount()
     {
         var index = UniqueIndex();

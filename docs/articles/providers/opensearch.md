@@ -91,6 +91,8 @@ Documents are stored with their values under `fields`, as with Elasticsearch, so
 - **Several documents**: `RemoveDocumentsAsync(index, ids)` sends one bulk request and returns how many
   documents it removed; an id that is not there is not counted. When items fail, the `Result` fails naming
   their ids, and the other documents are already removed. A missing index returns a failed `Result` naming the ids.
+  A request cancelled through the `CancellationToken`, before or during the request, throws
+  `OperationCanceledException`.
 
 ## Checking an index exists
 
