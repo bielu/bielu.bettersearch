@@ -30,6 +30,11 @@ public sealed class OpenSearchIndexingResponseTests
         public Task<IOpenSearchClient> GetOrCreateClientAsync(string indexName) => throw new OperationCanceledException();
     }
 
+    private sealed class ThrowingClientFactory(Exception exception) : IClientFactoryAsync<IOpenSearchClient>
+    {
+        public Task<IOpenSearchClient> GetOrCreateClientAsync(string indexName) => throw exception;
+    }
+
     private sealed class InvalidSettingsOptionsMonitor(int maxResultWindow = 10_000) : IOptionsMonitor<OpenSearchOptions>
     {
         public OpenSearchOptions CurrentValue { get; } = new() { SharedIndexSettings = new() { ConnectionString = "localhost:9200" }, MaxResultWindow = maxResultWindow };
@@ -40,10 +45,11 @@ public sealed class OpenSearchIndexingResponseTests
     private static IClientFactoryAsync<IOpenSearchClient> InvalidSettingsFactory() =>
         new OpenSearchClientFactory(new OpenSearchClientSettingsManager(new InvalidSettingsOptionsMonitor()));
 
-    private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode)
+    private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false)
     {
         var connection = new InMemoryConnection(Encoding.UTF8.GetBytes(json), statusCode);
-        var settings = new ConnectionSettings(new SingleNodeConnectionPool(new Uri("http://localhost:9200")), connection);
+        var settings = new ConnectionSettings(new SingleNodeConnectionPool(new Uri("http://localhost:9200")), connection)
+            .ThrowExceptions(throwExceptions);
         return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
     }
 
@@ -80,19 +86,6 @@ public sealed class OpenSearchIndexingResponseTests
         result.Errors.Single().Message.ShouldStartWith("OpenSearch index exists check failed");
         result.Errors.Single().Message.ShouldContain(statusCode.ToString(System.Globalization.CultureInfo.InvariantCulture));
         result.Errors.Single().Message.ShouldNotContain("Audit trail");
-    }
-
-    [Fact]
-    public async Task IndexExistsAsync_RequestThrows_ReturnsFailureCausedByTheException()
-    {
-        var connection = new InMemoryConnection([], 503);
-        var settings = new ConnectionSettings(new SingleNodeConnectionPool(new Uri("http://localhost:9200")), connection).ThrowExceptions();
-        var provider = new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
-
-        var result = await provider.IndexExistsAsync("people", Token);
-
-        result.IsFailed.ShouldBeTrue();
-        result.Errors.Single().Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<OpenSearchClientException>();
     }
 
     [Fact]
@@ -295,14 +288,73 @@ public sealed class OpenSearchIndexingResponseTests
         ensure.Errors.Single().Message.ShouldContain("not an http or https URL");
     }
 
-    [Fact]
-    public async Task IndexExistsAndCreateIndex_Cancelled_Throw()
+    public static TheoryData<string> IndexingMethods =>
+    [
+        nameof(IIndexingProviderAsync.IndexDocumentAsync),
+        nameof(IIndexingProviderAsync.IndexMultipleDocumentsAsync),
+        nameof(IIndexingProviderAsync.RemoveDocumentAsync),
+        nameof(IIndexingProviderAsync.RemoveDocumentsAsync),
+        nameof(IIndexingProviderAsync.RemoveAllDocumentsAsync),
+        nameof(IIndexingProviderAsync.EnsureIndexExistsAsync),
+        nameof(IIndexingProviderAsync.DeleteIndexAsync),
+        nameof(IIndexingProviderAsync.IndexExistsAsync),
+        nameof(IIndexingProviderAsync.CreateIndexAsync),
+    ];
+
+    private static async Task<IResultBase> InvokeAsync(OpenSearchIndexingProviderAsync provider, string method, CancellationToken cancellationToken)
     {
-        // Cancellation is not a failed Result: it propagates, as it does from every other method.
+        var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = "people" };
+        return method switch
+        {
+            nameof(IIndexingProviderAsync.IndexDocumentAsync) => await provider.IndexDocumentAsync(document, cancellationToken),
+            nameof(IIndexingProviderAsync.IndexMultipleDocumentsAsync) => await provider.IndexMultipleDocumentsAsync([document], cancellationToken),
+            nameof(IIndexingProviderAsync.RemoveDocumentAsync) => await provider.RemoveDocumentAsync("1", "people", cancellationToken),
+            nameof(IIndexingProviderAsync.RemoveDocumentsAsync) => await provider.RemoveDocumentsAsync("people", ["1", "2"], cancellationToken),
+            nameof(IIndexingProviderAsync.RemoveAllDocumentsAsync) => await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, cancellationToken),
+            nameof(IIndexingProviderAsync.EnsureIndexExistsAsync) => await provider.EnsureIndexExistsAsync("people", cancellationToken),
+            nameof(IIndexingProviderAsync.DeleteIndexAsync) => await provider.DeleteIndexAsync("people", cancellationToken),
+            nameof(IIndexingProviderAsync.IndexExistsAsync) => await provider.IndexExistsAsync("people", cancellationToken),
+            nameof(IIndexingProviderAsync.CreateIndexAsync) => await provider.CreateIndexAsync("people", cancellationToken),
+            _ => throw new ArgumentOutOfRangeException(nameof(method), method, null),
+        };
+    }
+
+    [Theory]
+    [MemberData(nameof(IndexingMethods))]
+    public async Task IndexingMethod_RequestThrows_ReturnsFailureCausedByTheException(string method)
+    {
+        // With ThrowExceptions on, a failed request throws an OpenSearchClientException rather than returning a response.
+        var provider = Provider("""{"error":"unavailable","status":503}""", 503, throwExceptions: true);
+
+        var result = await InvokeAsync(provider, method, Token);
+
+        result.IsFailed.ShouldBeTrue();
+        var exception = result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<OpenSearchClientException>();
+        result.Errors.Select(e => e.Message).ShouldBe([exception.Message]);
+    }
+
+    [Theory]
+    [MemberData(nameof(IndexingMethods))]
+    public async Task IndexingMethod_ClientFactoryThrows_ReturnsFailureCausedByTheException(string method)
+    {
+        // Not an ArgumentException, so TryGetClientAsync does not turn it into an invalid settings failure.
+        var exception = new InvalidOperationException("bad connection string");
+        var provider = new OpenSearchIndexingProviderAsync(new ThrowingClientFactory(exception), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+
+        var result = await InvokeAsync(provider, method, Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Select(e => e.Message).ShouldBe(["bad connection string"]);
+        result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeSameAs(exception);
+    }
+
+    [Theory]
+    [MemberData(nameof(IndexingMethods))]
+    public async Task IndexingMethod_ClientFactoryCancelled_ThrowsOperationCanceledException(string method)
+    {
         var provider = new OpenSearchIndexingProviderAsync(new CancelledClientFactory(), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
 
-        await Should.ThrowAsync<OperationCanceledException>(() => provider.IndexExistsAsync("people", Token));
-        await Should.ThrowAsync<OperationCanceledException>(() => provider.CreateIndexAsync("people", Token));
+        await Should.ThrowAsync<OperationCanceledException>(() => InvokeAsync(provider, method, Token));
     }
 
     [Theory]
