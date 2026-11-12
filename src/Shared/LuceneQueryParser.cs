@@ -32,7 +32,7 @@ internal static class LuceneQueryParser
             };
             return Result.Ok(parser.Parse(text));
         }
-        catch (Exception e) when (e is ParseException or BooleanQuery.TooManyClausesException)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
             return Result.Fail<Query>(new Error($"{queryName} '{text}' is not valid Lucene syntax: {e.Message}").CausedBy(e));
         }
