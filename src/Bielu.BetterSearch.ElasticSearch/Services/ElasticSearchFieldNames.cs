@@ -23,6 +23,10 @@ internal static class ElasticSearchFieldNames
             ? field
             : FieldsPrefix + field;
 
+    /// <summary>The query model's name for an Elasticsearch field, the reverse of <see cref="Resolve"/>.</summary>
+    public static string ToModel(string field) =>
+        field.StartsWith(FieldsPrefix, StringComparison.Ordinal) ? field[FieldsPrefix.Length..] : field;
+
     public static Result<string> Require(string? field, string queryName) =>
         string.IsNullOrWhiteSpace(field)
             ? Result.Fail<string>($"{queryName} needs a Field for Elasticsearch.")

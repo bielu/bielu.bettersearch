@@ -1,7 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Fields;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.Aggregations;
-using Bielu.BetterSearch.Abstractions.Query.Highlighter;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Shouldly;
@@ -135,9 +134,9 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
         ids.ShouldBeEmpty();
     }
 
-    /// <summary>Known defect: terms are upper-cased by hand, while the index folds accents, so an accented term never matches.</summary>
+    /// <summary>The value is normalized by the index's tokenizer, which folds accents and case.</summary>
     [Fact]
-    public async Task SearchAsync_TermQueryWithAccents_MatchesNothing()
+    public async Task SearchAsync_TermQueryWithAccents_MatchesTheFoldedWord()
     {
         var index = $"search-{Guid.NewGuid():N}";
         (await indexingProvider.IndexDocumentAsync(new SearchDocument
@@ -149,7 +148,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
 
         var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "żółw" }));
 
-        ids.ShouldBeEmpty();
+        ids.ShouldBe(["1"]);
     }
 
     [Fact]
@@ -234,15 +233,27 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
         ids.ShouldBe(["5"]);
     }
 
-    /// <summary>Known defect: the whole value becomes one wildcard over a single word, so a value of many words matches nothing.</summary>
     [Fact]
-    public async Task SearchAsync_PrefixPhraseQueryOfManyWords_MatchesNothing()
+    public async Task SearchAsync_PrefixPhraseQueryOfManyWords_MatchesTheWordsInOrder()
     {
+        // "Jane" is also a city, and "John Doe" has the "d" word, but only "Jane Doe" has them next to each other.
         var index = await CreatePeopleAsync();
 
         var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new PrefixPhraseSubQuery { Field = "Name", Value = "jane d" }));
 
-        ids.ShouldBeEmpty();
+        ids.ShouldBe(["Up-1"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_TermQueryOfManyWords_MatchesTheWordsInOrder()
+    {
+        var index = await CreatePeopleAsync();
+
+        var inOrder = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "john smith" }));
+        var reversed = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "smith john" }));
+
+        inOrder.ShouldBe(["3"]);
+        reversed.ShouldBeEmpty();
     }
 
     [Theory]
@@ -438,16 +449,16 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
 
     /// <summary>
     /// The post filter would exclude <c>Up-1</c> (not in Krakow) if it were applied, and the hits, their order and
-    /// their scores match the same query without these options. The result model has no facets or highlights to carry.
+    /// their scores match the same query without these options. The result model has no facets to carry. Highlighting
+    /// fails instead, as <see cref="LiftiHighlightingTests"/> shows.
     /// </summary>
     [Fact]
-    public async Task SearchAsync_FacetsHighlightingAndPostFilter_AreIgnored()
+    public async Task SearchAsync_FacetsAndPostFilter_AreIgnored()
     {
         var index = await CreatePeopleAsync();
         var plain = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" }), Token);
         var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" });
         query.FacetQueries = [new TermAggregation { AggregationName = "cities", TermFieldName = "City" }];
-        query.HighlightQueries = [new BaseHighlightQuery { Field = "Name" }];
         var krakow = new BoolSearchSubQuery();
         krakow.Add(Occurance.MUST, new TermSubQuery { Field = "City", Value = "krakow" });
         query.PostFilterQuery[Occurance.MUST] = [krakow];

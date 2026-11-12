@@ -9,7 +9,8 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 /// <summary>
 /// Maps hits to a <see cref="SearchHit"/> with their score, holding a <see cref="BaseSearchModel"/>: the
 /// document id unchanged, its type as <c>ContentType</c> and its fields as <c>CustomProperties</c>,
-/// a field stored as <c>null</c> becoming an empty list and <c>null</c> values left out.
+/// a field stored as <c>null</c> becoming an empty list and <c>null</c> values left out, and its highlights
+/// keyed by the query model's field names.
 /// </summary>
 public class ElasticSearchResultMapper : IResultMapper<SearchResponse<SearchDocument>>
 {
@@ -24,5 +25,5 @@ public class ElasticSearchResultMapper : IResultMapper<SearchResponse<SearchDocu
         Id = hit.Id ?? hit.Source?.Id ?? string.Empty,
         ContentType = hit.Source?.Type ?? string.Empty,
         CustomProperties = StoredFields.ToCustomProperties(hit.Source?.Fields)
-    }, hit.Score);
+    }, hit.Score, Highlights.ToHit(hit.Highlight, ElasticSearchFieldNames.ToModel));
 }

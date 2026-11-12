@@ -33,51 +33,158 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
         }
     }
 
-    [Fact]
-    public async Task SearchAsync_TermForWholeDecimal_MatchesNothing()
+    /// <summary>Indexes each document's value in the field <c>Value</c> of an index of its own and returns its name.</summary>
+    private async Task<string> IndexValuesAsync(params (string Id, IList<object> Values)[] documents)
     {
-        // Lifti indexes "3.5" as the words "3" and "5", so the whole value is never one word. The feature
-        // matrix documents this; the test fails if Lifti starts matching it, so the docs get updated.
         var index = $"culture-{Guid.NewGuid():N}";
-        var indexed = await indexingService.IndexDocumentAsync(new SearchDocument
-        {
-            Id = "1",
-            Index = index,
-            Fields = new Dictionary<string, IList<object>> { { "Price", [3.5] } }
-        }, TestContext.Current.CancellationToken);
-        indexed.IsSuccess.ShouldBeTrue();
-
-        var query = new SearchQuery { Index = index };
-        query.Add(Occurance.MUST, new TermSubQuery { Field = "Price", Value = 3.5 });
-        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
-
-        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
-        result.Value.Items.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public async Task SearchAsync_FuzzyForDecimal_MatchesNearbyInteger()
-    {
-        // "3.5" is one edit from the word "35", while the decimal itself is indexed as "3" and "5". The
-        // feature matrix documents this; the test fails if Lifti changes it, so the docs get updated.
-        var index = $"culture-{Guid.NewGuid():N}";
-        foreach (var (id, price) in new[] { ("decimal", 3.5), ("integer", 35d) })
+        foreach (var (id, values) in documents)
         {
             var indexed = await indexingService.IndexDocumentAsync(new SearchDocument
             {
                 Id = id,
                 Index = index,
-                Fields = new Dictionary<string, IList<object>> { { "Price", [price] } }
+                Fields = new Dictionary<string, IList<object>> { { "Value", values } }
             }, TestContext.Current.CancellationToken);
             indexed.IsSuccess.ShouldBeTrue();
         }
 
-        var query = new SearchQuery { Index = index };
-        query.Add(Occurance.MUST, new FuzzyQuery { Field = "Price", Value = 3.5 });
-        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
+        return index;
+    }
 
-        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
-        result.Value.Items.Select(item => item.Document.Id).ShouldBe(["integer"]);
+    private Task<List<string>> SearchIdsAsync(string index, ISearchSubQuery subQuery) =>
+        searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurance.MUST, subQuery), TestContext.Current.CancellationToken);
+
+    [Fact]
+    public async Task SearchAsync_TermForWholeDecimal_MatchesTheDecimalOnly()
+    {
+        // 3.5 is indexed as the words 3 and 5, and the query looks for them next to each other, in that order.
+        var index = await IndexValuesAsync(("decimal", [3.5]), ("reversed", [5.3]), ("integer", [35d]));
+
+        var ids = await SearchIdsAsync(index, new TermSubQuery { Field = "Value", Value = 3.5 });
+
+        ids.ShouldBe(["decimal"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_FuzzyForDecimal_MatchesTheDecimalNotANearbyInteger()
+    {
+        // 35 is one edit from 3.5 as text, but each word of 3.5 is matched on its own.
+        var index = await IndexValuesAsync(("decimal", [3.5]), ("integer", [35d]));
+
+        var ids = await SearchIdsAsync(index, new FuzzyQuery { Field = "Value", Value = 3.5 });
+
+        ids.ShouldBe(["decimal"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_TermForDecimal_DoesNotMatchItsWordsInSeparateValues()
+    {
+        // ["3", "5"] holds the words 3 and 5 next to each other once joined, but they belong to different values.
+        var index = await IndexValuesAsync(("decimal", [3.5]), ("list", ["3", "5"]));
+
+        var term = await SearchIdsAsync(index, new TermSubQuery { Field = "Value", Value = 3.5 });
+        var fuzzy = await SearchIdsAsync(index, new FuzzyQuery { Field = "Value", Value = 3.5 });
+        var single = await SearchIdsAsync(index, new TermSubQuery { Field = "Value", Value = "5" });
+
+        term.ShouldBe(["decimal"]);
+        fuzzy.ShouldBe(["decimal"]);
+        single.ShouldBe(["decimal", "list"]);
+    }
+
+    [Theory]
+    [InlineData("x", null)]
+    [InlineData("x", 5)]
+    [InlineData("elephant x giraffe", null)]
+    public async Task SearchAsync_Fuzzy_DoesNotMatchTheValueSeparator(string value, int? fuzziness)
+    {
+        // A fuzzy word within a few edits of the separator would match every multi-valued field, alone or as
+        // the middle word of a phrase that runs across two values.
+        var index = await IndexValuesAsync(("list", ["elephant", "giraffe"]), ("x", ["x"]));
+
+        var ids = await SearchIdsAsync(index, new FuzzyQuery
+        {
+            Field = "Value",
+            Value = value,
+            Fuziness = fuzziness is { } edits ? Tuple.Create(edits, edits) : null
+        });
+
+        ids.ShouldBe(value == "x" ? ["x"] : []);
+    }
+
+    [Fact]
+    public async Task SearchAsync_TermForWholeDate_MatchesThatDateOnly()
+    {
+        var index = await IndexValuesAsync(
+            ("date", [new DateTime(2026, 11, 8, 13, 5, 0, DateTimeKind.Utc)]),
+            ("swapped", [new DateTime(2026, 8, 11, 13, 5, 0, DateTimeKind.Utc)]));
+
+        using var _ = CultureScope.CommaDecimal();
+        var ids = await SearchIdsAsync(index, new TermSubQuery { Field = "Value", Value = new DateTime(2026, 11, 8, 13, 5, 0, DateTimeKind.Utc) });
+
+        ids.ShouldBe(["date"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_TermForWholeDateTimeOffset_MatchesThatDateOnly()
+    {
+        var index = await IndexValuesAsync(
+            ("utc", [new DateTimeOffset(2026, 11, 8, 0, 0, 0, TimeSpan.Zero)]),
+            ("warsaw", [new DateTimeOffset(2026, 11, 8, 0, 0, 0, TimeSpan.FromHours(1))]));
+
+        var ids = await SearchIdsAsync(index, new TermSubQuery { Field = "Value", Value = new DateTimeOffset(2026, 11, 8, 0, 0, 0, TimeSpan.Zero) });
+
+        ids.ShouldBe(["utc"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_PrefixOfDate_MatchesDatesStartingWithIt()
+    {
+        var index = await IndexValuesAsync(
+            ("2026", [new DateTime(2026, 11, 8, 0, 0, 0, DateTimeKind.Utc)]),
+            ("1926", [new DateTime(1926, 11, 8, 0, 0, 0, DateTimeKind.Utc)]));
+
+        var ids = await SearchIdsAsync(index, new PrefixSubQuery { Field = "Value", Value = "11/08/20" });
+
+        ids.ShouldBe(["2026"]);
+    }
+
+    [Theory]
+    [InlineData("3.", new[] { "decimal" })]
+    [InlineData("3", new[] { "decimal", "joined", "whole" })]
+    public async Task SearchAsync_PrefixEndingInPunctuation_MatchesTheWholeWordFollowedByAnother(string value, string[] expected)
+    {
+        // The tokenizer drops the trailing dot, so 3. would otherwise be the prefix 3 and match 35.
+        var index = await IndexValuesAsync(("decimal", ["3.5"]), ("joined", ["35"]), ("whole", ["3"]));
+
+        var ids = await SearchIdsAsync(index, new PrefixSubQuery { Field = "Value", Value = value });
+
+        ids.OrderBy(id => id, StringComparer.Ordinal).ShouldBe(expected);
+    }
+
+    [Fact]
+    public async Task SearchAsync_PrefixEndingInPunctuation_MatchesAWordFromTheNextValue()
+    {
+        // A known difference: the word after the complete last word can be the value separator, as Lifti has
+        // no wildcard that excludes one word.
+        var index = await IndexValuesAsync(("list", ["3", "x"]));
+
+        var ids = await SearchIdsAsync(index, new PrefixSubQuery { Field = "Value", Value = "3." });
+
+        ids.ShouldBe(["list"]);
+    }
+
+    [Theory]
+    [InlineData(1e20)]
+    [InlineData(1e-7)]
+    [InlineData(-2.5e-12)]
+    public async Task SearchAsync_TermForExponent_MatchesThatValueOnly(double value)
+    {
+        // 1E+20 is one word; 1E-07 is the words 1E and 07, as the tokenizer splits on the dash.
+        var index = await IndexValuesAsync(("exponent", [value]), ("other", [value * 10]));
+
+        var ids = await SearchIdsAsync(index, new TermSubQuery { Field = "Value", Value = value });
+
+        ids.ShouldBe(["exponent"]);
     }
 
     [Fact]

@@ -10,7 +10,7 @@ namespace Bielu.BetterSearch.Tests;
 // Each query is complete, as a caller would build it; a provider may reject an incomplete one.
 public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTranslator<T>> translators)
 {
-    private async Task<Result<T>> TranslateAsync(ISearchSubQuery subQuery)
+    protected async Task<Result<T>> TranslateAsync(ISearchSubQuery subQuery)
     {
         translators.Any(t => t.CanTranslate(subQuery))
             .ShouldBeTrue($"because a translator should be able to translate {subQuery.GetType().Name}");

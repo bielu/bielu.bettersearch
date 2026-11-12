@@ -204,7 +204,7 @@ public sealed class MeilisearchIndexingProviderAsync(
         {
             client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
             return Result.Fail(new Error(e.Message).CausedBy(e));
         }

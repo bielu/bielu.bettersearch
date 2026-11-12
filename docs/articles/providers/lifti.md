@@ -8,19 +8,17 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 > [!WARNING]
 > **What won't work**
 >
-> - **Silently ignored**: paging (`Page`, `PageSize`), sorting, post filters, facets and highlighting. The
->   query still succeeds and returns every hit, so don't rely on them.
+> - **Silently ignored**: paging (`Page`, `PageSize`), sorting, post filters and facets. The query still
+>   succeeds and returns every hit, so don't rely on them.
+> - **Highlighting** returns a failed `Result`: the index keeps only the words of each document, not its text,
+>   so there is no text to mark the matched terms in.
 > - **Range and spatial queries**: `DateRangeQuery`, `NumericRange`, `LongRange`, `StringRange` and
 >   `SpatialSearchQuery` return a failed `Result`.
 > - **`LuceneQuery`** is not supported.
-> - **Fields are ignored**: term, terms, fuzzy, prefix and phrase prefix queries match the value in any field,
->   and accented terms don't match.
-> - **Phrase prefix** only works for one word: a value of several words, such as `jane d`, matches nothing.
-> - **Decimals and dates** are turned into text the same way on every machine and split into words at
->   punctuation and spaces, so `3.5` is indexed as the words `3` and `5`. A term, terms or prefix query for a
->   whole decimal or date matches nothing, and a fuzzy one for a decimal can match a different number (`3.5`
->   is one edit from `35`); query one of its words instead, such as the day `08` of `11/08/2026 00:00:00`.
->   Integers are one word and match.
+> - **Fields are ignored**: term, terms, fuzzy, prefix and phrase prefix queries match the value in any field.
+> - **A value with no words**, such as `null`, `""` or `-`, returns a failed `Result` from a term, fuzzy, prefix or
+>   phrase prefix query, as it could never match. A terms query fails when one of its values has no words; a terms
+>   query whose list is `null` or empty succeeds with no hits.
 > - **Hits** only carry the document id and `Score`; no stored fields.
 > - **Persistence**: the index is lost on restart, and creating an index that exists replaces it, losing its
 >   documents.
@@ -58,6 +56,20 @@ There is nothing to configure.
   clauses, returns a failed `Result`, as Lifti has no query for every document.
 - **`FILTER`** is treated as `MUST`, so it still scores.
 - **Total hit count** is exact.
+- **Values are split into words as the index splits them.** Field values are turned into text the same way on
+  every machine and split into words at punctuation and spaces, with case and accents folded, so `3.5` is
+  indexed as the words `3` and `5`. A term, terms, fuzzy, prefix or phrase prefix value goes through the same
+  tokenizer, and its words must be next to each other, in order: `3.5` matches `3.5` but not `5.3` or `35`,
+  `11/08/2026 00:00:00` matches that date, `żółw` matches `Żółw`, and `jane d` as a phrase prefix matches
+  `Jane Doe`. Fuzzy matches each word on its own, and prefix and phrase prefix match the last word as a prefix.
+  A prefix value that ends with punctuation or a space, such as `3.`, has a complete last word, so that word
+  matches whole and must be followed by another word: `3.` matches `3.5`, not `35` or `3`. As Lifti has no
+  wildcard that excludes one word, that following word can be the next value of a multi-valued field, so `3.`
+  also matches a field holding `3` and `x`.
+  One word of a value, such as the day `08` of a date, still matches the whole value, as a word does in
+  any text field.
+- **Multi-valued fields**: the words of one value are never next to the words of another, so `3.5` does not
+  match a field holding `3` and `5`.
 
 ## Removing documents
 
@@ -83,5 +95,12 @@ There is nothing to configure.
   `RemoveAllDocumentsAsync` on the provider take a lock per index name, shared by every provider on the same
   `ILiftiIndexManager`. A delete therefore can't land between the lookup and the factory call, which would make
   the factory create the deleted index again. The lock does not cover calls made on the index manager directly.
+
+## Errors
+
+When a custom `ILiftiIndexManager` or `IClientFactoryAsync<IFullTextIndex<string>>` throws, every indexing method
+returns a failed `Result` with the exception as its cause. An `OperationCanceledException` from either of them
+propagates. A failed `Result` from `ILiftiIndexManager.CreateIndexAsync` is returned by `CreateIndexAsync` with
+all of its errors.
 
 The [feature matrix](../feature-matrix.md) has the full detail.

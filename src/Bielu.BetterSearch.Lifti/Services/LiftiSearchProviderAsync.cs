@@ -12,9 +12,17 @@ public class LiftiSearchProviderAsync(
     ILiftiIndexManager manager,
     IResultMapper<ISearchResults<string>> resultMapper) : ISearchProviderAsync
 {
+    internal const string UnsupportedHighlighting =
+        "The Lifti provider does not support highlighting: the index keeps only the words of each document, not its text, so it cannot mark the matched terms in it.";
+
     public async Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (query.HighlightQueries is { Count: > 0 })
+        {
+            return Result.Fail<ISearchResult>(UnsupportedHighlighting);
+        }
+
         var indexResult = await manager.GetOrCreateIndexAsync(query.Index).ConfigureAwait(false);
         if (indexResult.IsFailed)
         {

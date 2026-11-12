@@ -7,8 +7,8 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
     {
         public HighLighterConfigurator(ISearchQuery searchSubQueries)
         {
-            searchSubQueries.HighlightQueries.Add(this.Query);
             this.Query = new BaseHighlightQuery();
+            searchSubQueries.HighlightQueries.Add(this.Query);
         }
 
         public IHighlightQuery Query { get; set; }

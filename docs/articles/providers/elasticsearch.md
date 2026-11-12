@@ -2,19 +2,20 @@
 
 [Bielu.BetterSearch.ElasticSearch](https://www.nuget.org/packages/Bielu.BetterSearch.ElasticSearch/) runs
 queries on an [Elasticsearch](https://www.elastic.co/elasticsearch) cluster, with paging, sorting, post
-filters and scores.
+filters, highlighting and scores.
 
 > [!WARNING]
 > **What won't work**
 >
-> - **Facets and highlighting** can be expressed, but a query that asks for them returns a failed `Result`.
+> - **Facets** can be expressed, but a query that asks for them returns a failed `Result`.
 > - **Index operations report odd values**: creating an index the cluster rejects is success with `false`,
 >   deleting an index returns `false` even when it worked, and `RemoveAllDocumentsAsync` reports a count of 0.
 > - **Bulk indexing**: Core's `IndexingServiceAsync.IndexMultipleDocumentsAsync` indexes one document at a time,
 >   so this provider's `BulkAsync` path is never used.
 >
 > Invalid or missing connection settings throw from searching; every indexing method turns them into a
-> failed `Result`.
+> failed `Result`. A request that throws, as it does when `ThrowExceptions()` is on in the client settings, is
+> also a failed `Result` from every indexing method, with the exception as its cause.
 
 ## Install
 
@@ -85,6 +86,25 @@ Metadata fields such as `_id` and `_score` pass through unchanged.
 - **`FuzzyQuery`** allows at most 2 edits, and uses `AUTO` when `Fuziness` is unset.
 - **`TermsQuery`** with more than 65,536 terms (`index.max_terms_count`) returns a failed `Result`.
 - **Total hit count** is exact up to `MaxResultWindow` matches, then a lower bound.
+
+## Highlighting
+
+Each entry in `HighlightQueries` asks for the fragments of one field (`Field`) or of every field
+(`IsAllField`, sent as `fields.*`). The fragments come back on each hit, in `ISearchHit.Highlights`, keyed by
+the field name without the `fields.` prefix (`Name`, also when the request names `fields.Name`), with each matched term between `<em>` and `</em>`
+(`SearchHit.HighlightPreTag` and `HighlightPostTag`).
+
+- **Terms the main query matched in that field** are marked. With `IsAllField`, only the fields the query
+  matched have an entry. A request's own `Queries` replace the main query for that field, so they mark their
+  own terms; they don't change which documents are hits.
+- **A hit with nothing marked** has no entries, and a field with nothing marked has no entry.
+- **A multi-valued field** returns only the values that matched, each as its own fragment.
+- **Fragments** use Elasticsearch's default size and count.
+- **Fragments are HTML-escaped.** The document text is escaped (`<` becomes `&lt;`, `&` becomes `&amp;`), so the
+  `<em>` tags are the only markup and a fragment is safe to render as HTML.
+- **Invalid requests** return a failed `Result`: a `null` entry, an entry with neither `Field` nor
+  `IsAllField`, two entries for the same field, also under different names for it (`Name` and `fields.Name`),
+  and a `null` clause in a request's own `Queries`.
 
 ## Removing documents
 
