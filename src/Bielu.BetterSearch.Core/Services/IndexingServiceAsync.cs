@@ -123,6 +123,31 @@ public class IndexingServiceAsync(
         return result;
     }
 
+    public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var distinctIds = DocumentIds.Distinct(ids);
+        if (distinctIds.IsFailed)
+        {
+            return distinctIds.ToResult<int>();
+        }
+
+        if (distinctIds.Value.Count == 0)
+        {
+            return Result.Ok(0);
+        }
+
+        var result = await indexingProvider.RemoveDocumentsAsync(index, distinctIds.Value, cancellationToken).ConfigureAwait(false);
+        if (result.IsSuccess)
+        {
+            foreach (var id in distinctIds.Value)
+            {
+                _deleteDocumentObservers.Notify(new DeleteDocumentRequest { Id = id, Type = index });
+            }
+        }
+
+        return result;
+    }
 
     public async Task<Result<int>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
     {

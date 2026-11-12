@@ -32,5 +32,12 @@ public interface IIndexingServiceAsync : IObservable<SearchDocument>, IObservabl
     Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default);
     Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document, CancellationToken cancellationToken = default);
     Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Removes the documents with <paramref name="ids"/> from <paramref name="index"/> and returns how many were
+    /// removed; see <see cref="IIndexingProviderAsync.RemoveDocumentsAsync"/>. On success, the
+    /// <see cref="DeleteDocumentRequest"/> observers get one <see cref="IObserver{T}.OnNext"/> for each distinct id,
+    /// removed or not there; when the <see cref="Result"/> fails they get nothing, even for documents already removed.
+    /// </summary>
+    Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids, CancellationToken cancellationToken = default);
     Task<Result<int>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default);
 }
