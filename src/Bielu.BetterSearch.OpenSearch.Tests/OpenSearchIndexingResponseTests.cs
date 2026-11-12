@@ -45,9 +45,29 @@ public sealed class OpenSearchIndexingResponseTests
     private static IClientFactoryAsync<IOpenSearchClient> InvalidSettingsFactory() =>
         new OpenSearchClientFactory(new OpenSearchClientSettingsManager(new InvalidSettingsOptionsMonitor()));
 
-    private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false)
+    /// <summary>Answers HEAD requests, such as the index exists check, with one connection and every other request with another.</summary>
+    private sealed class HeadRoutingConnectionDecorator(IConnection head, IConnection other) : IConnection
     {
-        var connection = new InMemoryConnection(Encoding.UTF8.GetBytes(json), statusCode);
+        private IConnection For(RequestData requestData) => requestData.Method == global::OpenSearch.Net.HttpMethod.HEAD ? head : other;
+
+        public TResponse Request<TResponse>(RequestData requestData)
+            where TResponse : class, IOpenSearchResponse, new() =>
+            For(requestData).Request<TResponse>(requestData);
+
+        public Task<TResponse> RequestAsync<TResponse>(RequestData requestData, CancellationToken cancellationToken)
+            where TResponse : class, IOpenSearchResponse, new() =>
+            For(requestData).RequestAsync<TResponse>(requestData, cancellationToken);
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false) =>
+        Provider(new InMemoryConnection(Encoding.UTF8.GetBytes(json), statusCode), throwExceptions);
+
+    private static OpenSearchIndexingProviderAsync Provider(IConnection connection, bool throwExceptions = false)
+    {
         var settings = new ConnectionSettings(new SingleNodeConnectionPool(new Uri("http://localhost:9200")), connection)
             .ThrowExceptions(throwExceptions);
         return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
@@ -250,6 +270,21 @@ public sealed class OpenSearchIndexingResponseTests
         var result = await provider.EnsureIndexExistsAsync("people", Token);
 
         result.IsFailed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_CreatedByAnotherCallerFirst_ReturnsTrue()
+    {
+        // The exists check sees no index, then another caller creates it before this caller's create.
+        var alreadyExists = """{"error":{"root_cause":[{"type":"resource_already_exists_exception","reason":"index [people/abc] already exists","index":"people"}],"type":"resource_already_exists_exception","reason":"index [people/abc] already exists","index":"people"},"status":400}""";
+        var provider = Provider(new HeadRoutingConnectionDecorator(
+            new InMemoryConnection(Encoding.UTF8.GetBytes("{}"), 404),
+            new InMemoryConnection(Encoding.UTF8.GetBytes(alreadyExists), 400)));
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
     }
 
     [Fact]

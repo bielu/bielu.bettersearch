@@ -126,6 +126,8 @@ its cause. A request
 cancelled through the `CancellationToken` throws `OperationCanceledException`. `EnsureIndexExistsAsync` returns
 a failed check as it is rather than trying to create the index.
 
-Unlike Elasticsearch, index operations report what happened: creating an existing index is success with
-`false`, and any other rejection, such as a 403, is a failed `Result`. The
+As on Elasticsearch, index operations report what happened: creating an existing index is success with
+`false`, and any other rejection, such as a 403, is a failed `Result`. `EnsureIndexExistsAsync` and
+`DeleteIndexAsync` succeed with `true`, and `EnsureIndexExistsAsync` is `true` too when another caller created
+the index between its check and its create. The
 [feature matrix](../feature-matrix.md) has the full detail.

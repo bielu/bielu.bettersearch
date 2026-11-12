@@ -112,7 +112,15 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
             return exist;
         }
 
-        return exist.Value ? Result.Ok(true) : await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        if (exist.Value)
+        {
+            return Result.Ok(true);
+        }
+
+        // A concurrent caller may create the index first, which CreateIndexAsync reports as Ok(false);
+        // the index exists either way.
+        var created = await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        return created.IsSuccess ? Result.Ok(true) : created;
     }
 
     public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) =>
