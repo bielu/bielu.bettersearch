@@ -76,12 +76,70 @@ public sealed class LiftiSubQueryTranslatorTests(IEnumerable<ISubQueryTranslator
     }
 
     [Fact]
-    public async Task TranslateAsync_TermWithNoValue_MatchesTheEmptyWord()
+    public async Task TranslateAsync_TermWithNoValue_ReturnsFailedResult()
     {
         var result = await new TermSubQueryTranslator().TranslateAsync(new TermSubQuery { Field = "Name" }, translators);
 
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.Root.ShouldBeOfType<ExactWordQueryPart>().Word.ShouldBe(string.Empty);
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain("holds no words");
+    }
+
+    public static TheoryData<ISearchSubQuery, ISubQueryTranslator<IQuery>> PunctuationOnlySubQueries() => new()
+    {
+        { new TermSubQuery { Field = "Name", Value = "-" }, new TermSubQueryTranslator() },
+        { new TermsSubQuery { Field = "Name", Value = ["jane", "--"] }, new TermsSubQueryTranslator() },
+        { new FuzzyQuery { Field = "Name", Value = "." }, new FuzzySubQueryTranslator() },
+        { new PrefixSubQuery { Field = "Name", Value = "/" }, new PrefixSubQueryTranslator() },
+        { new PrefixPhraseSubQuery { Field = "Name", Value = " " }, new PrefixPhraseSubQueryTranslator() }
+    };
+
+    [Theory]
+    [MemberData(nameof(PunctuationOnlySubQueries))]
+    public async Task TranslateAsync_ValueWithNoWords_ReturnsFailedResult(ISearchSubQuery query, ISubQueryTranslator<IQuery> translator)
+    {
+        // The index keeps no word for punctuation or spaces, so such a value could never match.
+        var result = await translator.TranslateAsync(query, translators);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain("holds no words");
+    }
+
+    [Fact]
+    public async Task TranslateAsync_TermOfManyWords_MatchesThemNextToEachOtherInOrder()
+    {
+        var result = await new TermSubQueryTranslator().TranslateAsync(new TermSubQuery { Field = "Name", Value = "jane doe" }, translators);
+
+        result.Value.Root.ShouldBeOfType<AdjacentWordsQueryOperator>().Words
+            .Select(word => word.ShouldBeOfType<ExactWordQueryPart>().Word).ShouldBe(["JANE", "DOE"]);
+    }
+
+    [Fact]
+    public async Task TranslateAsync_TermWithRepeatedWords_KeepsEveryWordInOrder()
+    {
+        // The tokenizer returns a repeated word once, with all its positions; each position is a word of the query.
+        var result = await new TermSubQueryTranslator().TranslateAsync(new TermSubQuery { Field = "Born", Value = "00:12:00" }, translators);
+
+        result.Value.Root.ShouldBeOfType<AdjacentWordsQueryOperator>().Words
+            .Select(word => word.ShouldBeOfType<ExactWordQueryPart>().Word).ShouldBe(["00", "12", "00"]);
+    }
+
+    [Fact]
+    public async Task TranslateAsync_TermWithAccents_FoldsThemAsTheIndexDoes()
+    {
+        var result = await new TermSubQueryTranslator().TranslateAsync(new TermSubQuery { Field = "Name", Value = "Żółw" }, translators);
+
+        result.Value.Root.ShouldBeOfType<ExactWordQueryPart>().Word.ShouldBe("ZOLW");
+    }
+
+    [Fact]
+    public async Task TranslateAsync_PrefixPhraseOfManyWords_MatchesTheLastWordAsAPrefix()
+    {
+        var result = await new PrefixPhraseSubQueryTranslator().TranslateAsync(new PrefixPhraseSubQuery { Field = "Name", Value = "jane d" }, translators);
+
+        var words = result.Value.Root.ShouldBeOfType<AdjacentWordsQueryOperator>().Words;
+        words.Count.ShouldBe(2);
+        words[0].ShouldBeOfType<ExactWordQueryPart>().Word.ShouldBe("JANE");
+        words[1].ShouldBeOfType<WildcardQueryPart>();
     }
 
     [Fact]

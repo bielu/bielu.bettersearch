@@ -1,7 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.Services;
 using FluentResults;
 using Lifti.Querying;
 using Lifti.Querying.QueryParts;
@@ -19,12 +18,13 @@ public class FuzzySubQueryTranslator : ISubQueryTranslator<IQuery>
             return Task.FromResult(Result.Fail<IQuery>("Query is not a fuzzy query"));
         }
 
-        var value = QueryValueText.From(fuzzyQuery.Value).ToUpperInvariant();
         ushort maxEdits = fuzzyQuery.Fuziness != null
             ? (ushort)Math.Max(fuzzyQuery.Fuziness.Item1, fuzzyQuery.Fuziness.Item2)
             : (ushort)2;
         ushort maxSequential = (ushort)1;
 
-        return Task.FromResult(Result.Ok<IQuery>(new Query(new FuzzyMatchQueryPart(value, maxEdits, maxSequential))));
+        // Each word is matched fuzzily on its own, so 3.5 matches the words 3 and 5, not the single word 35.
+        var part = LiftiQueryWords.Match(fuzzyQuery.Value, "fuzzy", word => new FuzzyMatchQueryPart(word, maxEdits, maxSequential));
+        return Task.FromResult(part.IsFailed ? part.ToResult<IQuery>() : Result.Ok<IQuery>(new Query(part.Value)));
     }
 }
