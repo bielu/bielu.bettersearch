@@ -88,7 +88,7 @@ Metadata fields such as `_id` and `_score` pass through unchanged.
 - **Dates are stored and queried as ISO 8601 text in UTC**, with fractional seconds only when they are not zero
   (`2026-11-08T13:05:00Z`, `2026-11-08T13:05:00.123Z`). A local `DateTime` and a `DateTimeOffset` are converted to
   UTC, and a `DateTime` with `Kind.Unspecified` is taken as UTC, so a date comes back from a search in UTC. A
-  `PrefixQuery` with a date value matches that text on a keyword field. Dynamic mapping maps these strings as
+  `TermQuery`, `TermsQuery` or `PrefixQuery` with a date value matches that text on a keyword field. Dynamic mapping maps these strings as
   dates, which Elasticsearch rejects a prefix query on. Re-index documents indexed before this version, which keep the text
   the client wrote then.
 - **`TermsQuery`** with more than 65,536 terms (`index.max_terms_count`) returns a failed `Result`.

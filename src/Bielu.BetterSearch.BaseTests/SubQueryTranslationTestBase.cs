@@ -162,6 +162,18 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
             "2026-11-08T00:00:00.12Z", "+01:00");
 
     [Fact]
+    public virtual async Task TermSubQuery_DateValue_SendsIsoDateInUtc()
+        => await SubQueryShouldSendInvariantAsync(
+            new TermSubQuery { Field = "Born", Value = new DateTimeOffset(2026, 11, 8, 1, 0, 0, 120, TimeSpan.FromHours(1)) },
+            "2026-11-08T00:00:00.12Z", "+01:00");
+
+    [Fact]
+    public virtual async Task TermsSubQuery_DateValue_SendsIsoDateInUtc()
+        => await SubQueryShouldSendInvariantAsync(
+            new TermsSubQuery { Field = "Born", Value = [new DateTimeOffset(2026, 11, 8, 1, 0, 0, 120, TimeSpan.FromHours(1))] },
+            "2026-11-08T00:00:00.12Z", "+01:00");
+
+    [Fact]
     public virtual async Task SpatialSearchQueryShouldBeTranslatable()
     {
         var subQuery = new SpatialSearchQuery { Field = "Location", Distance = 10, Lat = 52.23, Lng = 21.01 };

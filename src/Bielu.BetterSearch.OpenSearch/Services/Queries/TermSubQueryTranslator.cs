@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 using OpenSearch.Client;
 using Result = FluentResults.Result;
@@ -22,11 +23,11 @@ internal sealed class TermSubQueryTranslator : OpenSearchSubQueryTranslator<Term
         }
 
         // Text is indexed lower-cased by the default analyzer, so string terms match case-insensitively,
-        // as they do in the other providers.
+        // as they do in the other providers. A date is sent as the text it is stored as.
         return Task.FromResult(Result.Ok<QueryContainer>(new TermQuery
         {
             Field = field.Value,
-            Value = query.Value,
+            Value = QueryValueText.IsDate(query.Value) ? QueryValueText.From(query.Value) : query.Value,
             CaseInsensitive = query.Value is string ? true : null,
             Boost = OpenSearchFieldNames.Boost(query.BoostValue),
             IsVerbatim = true

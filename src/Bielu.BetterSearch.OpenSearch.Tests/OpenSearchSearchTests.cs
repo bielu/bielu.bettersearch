@@ -581,6 +581,34 @@ public sealed class OpenSearchSearchTests(
     }
 
     [Fact]
+    public async Task SearchAsync_TermOnKeywordWithTheIndexedDateTimeOffset_MatchesIt()
+    {
+        var index = await CreateDatesAsTextAsync();
+
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery
+        {
+            Field = "Born.keyword",
+            Value = new DateTimeOffset(2026, 11, 8, 15, 5, 0, TimeSpan.FromHours(1))
+        }));
+
+        ids.ShouldBe(["offset"]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_TermsOnKeywordWithTheIndexedDates_MatchesThem()
+    {
+        var index = await CreateDatesAsTextAsync();
+
+        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermsSubQuery
+        {
+            Field = "Born.keyword",
+            Value = [new DateTimeOffset(2026, 11, 8, 15, 5, 0, TimeSpan.FromHours(1)), new DateTime(2026, 11, 8, 13, 5, 0, 123, DateTimeKind.Unspecified)]
+        }));
+
+        ids.ShouldBe(["milliseconds", "offset"], ignoreOrder: true);
+    }
+
+    [Fact]
     public async Task SearchAsync_FuzzyWithDateValue_ReturnsFailedResult()
     {
         var index = await CreatePeopleAsync();

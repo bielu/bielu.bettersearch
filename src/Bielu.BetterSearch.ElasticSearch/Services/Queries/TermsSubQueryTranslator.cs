@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using FluentResults;
@@ -11,7 +12,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Services.Queries;
 /// <summary>
 /// Matches any of the terms with one <c>terms</c> query. It has no case-insensitive option, so each
 /// string is also sent lower-cased: that matches the tokens the default analyzer indexes for text,
-/// while a keyword field still matches the value as given.
+/// while a keyword field still matches the value as given. A date is sent as the text it is stored as.
 /// </summary>
 internal sealed class TermsSubQueryTranslator : ElasticSearchSubQueryTranslator<TermsSubQuery>
 {
@@ -33,7 +34,7 @@ internal sealed class TermsSubQueryTranslator : ElasticSearchSubQueryTranslator<
         }
 
         var terms = values
-            .SelectMany(value => value is string text ? [text, text.ToLowerInvariant()] : new[] { value })
+            .SelectMany(value => value is string text ? [text, text.ToLowerInvariant()] : new[] { QueryValueText.IsDate(value) ? QueryValueText.From(value) : value })
             .Distinct()
             .Select(FieldValue.FromValue)
             .ToList();
