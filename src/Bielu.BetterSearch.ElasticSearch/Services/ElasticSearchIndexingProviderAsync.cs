@@ -139,9 +139,15 @@ public class ElasticSearchIndexingProviderAsync(
 
             var response = await client.Indices.PutMappingAsync(new PutMappingRequest(Indices.Index(index)) { Properties = properties }, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            return response.IsSuccess()
+            if (!response.IsSuccess())
+            {
+                return Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe($"adding the configured mappings to index {index}", response), response.ApiCallDetails?.OriginalException));
+            }
+
+            // A 200 with acknowledged false means the cluster took the mappings but did not confirm them in time.
+            return response.Acknowledged
                 ? Result.Ok(true)
-                : Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe($"adding the configured mappings to index {index}", response), response.ApiCallDetails?.OriginalException));
+                : Result.Fail<bool>(NotAcknowledged(index));
         }, cancellationToken);
 
     public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) =>
@@ -196,6 +202,9 @@ public class ElasticSearchIndexingProviderAsync(
             logger.LogError("Creating index {Index} failed: {Error}", index, result.DebugInformation);
             return Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe($"creating index {index}", result), result.ApiCallDetails?.OriginalException));
         }, cancellationToken);
+
+    private static string NotAcknowledged(string index) =>
+        $"Adding the configured mappings to index {index} was not acknowledged in time. The mappings are not rolled back and may still apply; call EnsureIndexExistsAsync again to confirm them.";
 
     private static Error RequestFailed(string message, Exception? exception)
     {

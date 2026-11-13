@@ -41,7 +41,7 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
                                  ?? AuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
-            Mappings = FieldMappings.Merge(shared.Mappings, indexSpecific.Mappings),
+            Mappings = FieldMappings.Merge(shared?.Mappings, indexSpecific.Mappings),
         };
     }
 

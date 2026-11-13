@@ -176,7 +176,7 @@ internal sealed class OpenSearchSearchProviderAsync(
                 .Select(sort => (ISort)new FieldSort
                 {
                     // A field mapped as text sorts on its keyword sub-field.
-                    Field = OpenSearchFieldNames.Resolve(FieldMappings.SortField(sort.FieldName, mappings)),
+                    Field = FieldMappings.SortField(OpenSearchFieldNames.Resolve(sort.FieldName), mappings),
                     Order = sort.Desc ? OsSortOrder.Descending : OsSortOrder.Ascending
                 })
                 .ToList();

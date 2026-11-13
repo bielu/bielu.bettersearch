@@ -48,12 +48,20 @@ public sealed class OpenSearchIndexingResponseTests
     private static IClientFactoryAsync<IOpenSearchClient> InvalidSettingsFactory() =>
         new OpenSearchClientFactory(new OpenSearchClientSettingsManager(new InvalidSettingsOptionsMonitor()));
 
-    private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false)
+    private static IOpenSearchClientSettingsManager WithMappings()
+    {
+        var monitor = new InvalidSettingsOptionsMonitor();
+        monitor.CurrentValue.SharedIndexSettings.Mappings = [new() { Field = "City", Type = OpenSearchFieldType.Keyword }];
+        return new OpenSearchClientSettingsManager(monitor);
+    }
+
+    private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false,
+        IOpenSearchClientSettingsManager? settingsManager = null)
     {
         var connection = new InMemoryConnection(Encoding.UTF8.GetBytes(json), statusCode);
         var settings = new ConnectionSettings(new SingleNodeConnectionPool(new Uri("http://localhost:9200")), connection)
             .ThrowExceptions(throwExceptions);
-        return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance, NoMappings);
+        return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance, settingsManager ?? NoMappings);
     }
 
     /// <summary>A provider that talks to <paramref name="port"/> on this machine over the real HTTP connection.</summary>
@@ -74,6 +82,29 @@ public sealed class OpenSearchIndexingResponseTests
     }
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_MappingsNotAcknowledged_ReturnsFailureSayingTheyMayStillApply()
+    {
+        // The in-memory connection answers every request with this body: the exists check with 200, then the put-mapping.
+        var provider = Provider("""{"acknowledged":false}""", 200, settingsManager: WithMappings());
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldBe("Adding the configured mappings to index people was not acknowledged in time. The mappings are not rolled back and may still apply; call EnsureIndexExistsAsync again to confirm them.");
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_MappingsAcknowledged_ReturnsTrueForAnExistingIndex()
+    {
+        var provider = Provider("""{"acknowledged":true}""", 200, settingsManager: WithMappings());
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
+    }
 
     [Theory]
     [InlineData(401)]

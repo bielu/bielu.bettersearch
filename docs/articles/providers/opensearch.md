@@ -90,7 +90,8 @@ Documents are stored with their values under `fields`, as with Elasticsearch, so
 
 ## Field mappings
 
-Indexes are created with dynamic mapping, which makes every string a `text` field with a `keyword` sub-field.
+Indexes are created with dynamic mapping, which makes a string a `text` field with a `keyword` sub-field,
+unless the first value it sees looks like a date (`2026-11-13`), which date detection maps as `date` with no sub-field.
 `Mappings` maps fields explicitly instead. Each entry names a `Field`, as queries name it (`City`, not
 `fields.City`), and a `Type`: `Text`, `Keyword`, `Date`, `Long`, `Integer`, `Short`, `Byte`, `Double`, `Float`,
 `Boolean` or `GeoPoint`. A `Text` field can set an `Analyzer` and a `Date` field a `Format`.
@@ -114,7 +115,9 @@ Indexes are created with dynamic mapping, which makes every string a `text` fiel
 - **`Keyword`** holds the whole value. `TermQuery` matches it whole, ignoring case, and sorting uses it, both
   under the plain field name.
 - **`Text`** is analyzed and gets a `keyword` sub-field (`ignore_above` 256), as dynamic mapping gives it.
-  `TermQuery` and `TermsQuery` still match one word, as on every provider. Sorting uses `Field.keyword`
+  `TermQuery` and `TermsQuery` match one token the field's analyzer produced, ignoring case: with the default
+  analyzer that is one word, as on every provider, while with another `Analyzer` the term must equal one of its
+  tokens (with `keyword`, the whole value). Sorting uses `Field.keyword`
   automatically, so callers sort on `Field`. That sort compares whole values as given: upper case sorts
   before lower case (`Banana` before `apple`), a multi-valued field sorts ascending by its lowest value, and a
   value longer than 256 characters isn't in the sub-field, so it sorts as if the field were missing.
@@ -127,7 +130,9 @@ leaving its mappings as they are, and a failed `Result` for any other rejection,
 `EnsureIndexExistsAsync` creates a missing index the same way. When the index exists, or another caller created
 it in between, it adds the mappings to it. A mapping that conflicts with how the field is already mapped, such as
 `Keyword` on a field dynamic mapping already made `text`, returns a failed `Result` naming the field. Re-index
-into a new index to change a field's type.
+into a new index to change a field's type. When the cluster takes the mappings but doesn't acknowledge them in
+time, the result is failed too: the mappings aren't rolled back, and calling `EnsureIndexExistsAsync` again
+confirms them.
 
 The options are validated at startup (`ValidateOnStart`) and whenever they are read. A missing `Field` or
 `Type`, a `Field` starting with `fields.`, the same field twice in one list, an `Analyzer` on a field that isn't

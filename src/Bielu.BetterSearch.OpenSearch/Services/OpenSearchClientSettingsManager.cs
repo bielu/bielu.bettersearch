@@ -38,7 +38,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
                                  ?? OpenSearchAuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
-            Mappings = FieldMappings.Merge(shared.Mappings, indexSpecific.Mappings),
+            Mappings = FieldMappings.Merge(shared?.Mappings, indexSpecific.Mappings),
         };
     }
 

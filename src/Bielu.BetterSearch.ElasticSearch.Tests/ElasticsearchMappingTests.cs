@@ -175,6 +175,61 @@ public sealed class ElasticsearchMappingTests(
     }
 
     [Fact]
+    public async Task SearchAsync_SortOnTextFieldNamedFields_SortsOnItsKeywordSubField()
+    {
+        var providers = For(Map("fields", ElasticSearchFieldType.Text));
+        try
+        {
+            await IndexAsync(providers,
+                Document(providers.Index, "1", "fields", "cherry"),
+                Document(providers.Index, "2", "fields", "apple"),
+                Document(providers.Index, "3", "fields", "banana"));
+
+            // The field is stored at fields.fields, so its keyword sub-field is fields.fields.keyword, not fields.keyword.
+            (await SearchIdsAsync(providers, SortedBy("fields"), sorted: false)).ShouldBe(["2", "3", "1"]);
+            (await SearchIdsAsync(providers, SortedBy("fields.fields"), sorted: false)).ShouldBe(["2", "3", "1"]);
+        }
+        finally
+        {
+            await DeleteAsync(providers);
+        }
+    }
+
+    [Fact]
+    public async Task SearchAsync_SortOnScoreWithTextFieldNamedScore_SortsByRelevance()
+    {
+        var providers = For(Map("_score", ElasticSearchFieldType.Text));
+        try
+        {
+            SearchDocument ScoredDocument(string id, string name, string score) => new()
+            {
+                Id = id,
+                Type = "Place",
+                Index = providers.Index,
+                Fields = new Dictionary<string, IList<object>> { { "Name", [name] }, { "_score", [score] } }
+            };
+
+            // The shorter name scores higher; the document field orders them the other way round.
+            await IndexAsync(providers,
+                ScoredDocument("1", "apple", "aaa"),
+                ScoredDocument("2", "apple banana cherry date", "zzz"));
+
+            var byRelevance = Term("Name", "apple");
+            byRelevance.SortOrder = [new SortField { FieldName = "_score", Desc = true }];
+            (await SearchIdsAsync(providers, byRelevance, sorted: false)).ShouldBe(["1", "2"]);
+
+            // The document field is still sortable through its prefixed name.
+            var byField = Term("Name", "apple");
+            byField.SortOrder = [new SortField { FieldName = "fields._score", Desc = true }];
+            (await SearchIdsAsync(providers, byField, sorted: false)).ShouldBe(["2", "1"]);
+        }
+        finally
+        {
+            await DeleteAsync(providers);
+        }
+    }
+
+    [Fact]
     public async Task SearchAsync_SortOnMultiValuedTextField_AscendingUsesTheLowestValue()
     {
         var providers = For(Map("Name", ElasticSearchFieldType.Text));

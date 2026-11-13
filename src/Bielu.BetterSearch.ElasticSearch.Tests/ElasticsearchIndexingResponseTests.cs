@@ -31,13 +31,20 @@ public sealed class ElasticsearchIndexingResponseTests
     private static readonly IElasticSearchClientSettingsManager NoMappings =
         new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions { SharedIndexSettings = new() }));
 
-    private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false)
+    private static readonly IElasticSearchClientSettingsManager WithMappings =
+        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new() { Mappings = [new() { Field = "City", Type = ElasticSearchFieldType.Keyword }] }
+        }));
+
+    private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false,
+        IElasticSearchClientSettingsManager? settingsManager = null)
     {
         var invoker = new InMemoryRequestInvoker(Encoding.UTF8.GetBytes(json), statusCode, null, "application/json",
             new Dictionary<string, IEnumerable<string>> { ["x-elastic-product"] = ["Elasticsearch"] });
         var settings = new ElasticsearchClientSettings(new SingleNodePool(new Uri("http://localhost:9200")), invoker)
             .ThrowExceptions(throwExceptions);
-        return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance, NoMappings);
+        return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance, settingsManager ?? NoMappings);
     }
 
     /// <summary>A provider that talks to <paramref name="port"/> on this machine over the real HTTP transport.</summary>
@@ -204,6 +211,29 @@ public sealed class ElasticsearchIndexingResponseTests
 
         result.IsFailed.ShouldBeTrue();
         result.Errors[0].Message.ShouldStartWith("Elasticsearch index exists check failed with HTTP 401");
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_MappingsNotAcknowledged_ReturnsFailureSayingTheyMayStillApply()
+    {
+        // The in-memory invoker answers every request with this body: the exists check with 200, then the put-mapping.
+        var provider = Provider("""{"acknowledged":false}""", 200, settingsManager: WithMappings);
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldBe("Adding the configured mappings to index people was not acknowledged in time. The mappings are not rolled back and may still apply; call EnsureIndexExistsAsync again to confirm them.");
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_MappingsAcknowledged_ReturnsFalseForAnExistingIndex()
+    {
+        var provider = Provider("""{"acknowledged":true}""", 200, settingsManager: WithMappings);
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeFalse();
     }
 
     public static TheoryData<string> IndexingMethods =>

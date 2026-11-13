@@ -147,6 +147,13 @@ internal sealed class OpenSearchIndexingProviderAsync(
 
             var response = await client.Indices.PutMappingAsync(new PutMappingRequest(index) { Properties = properties }, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
+            // A 200 with acknowledged false means the cluster took the mappings but did not confirm them in time. The client
+            // calls that response invalid, so it is told apart before the generic failure.
+            if (response.ApiCall is { Success: true } && response.OriginalException is null && response.ServerError is null && !response.Acknowledged)
+            {
+                return Result.Fail<bool>(NotAcknowledged(index));
+            }
+
             return IsSuccess(response)
                 ? Result.Ok(true)
                 : Result.Fail<bool>(RequestFailed(OpenSearchFailures.Describe($"adding the configured mappings to index {index}", response), response.OriginalException));
@@ -173,6 +180,9 @@ internal sealed class OpenSearchIndexingProviderAsync(
                 _ => Result.Fail<bool>(RequestFailed(OpenSearchFailures.Describe("index exists check", response), response.OriginalException)),
             };
         });
+
+    private static string NotAcknowledged(string index) =>
+        $"Adding the configured mappings to index {index} was not acknowledged in time. The mappings are not rolled back and may still apply; call EnsureIndexExistsAsync again to confirm them.";
 
     private static Error RequestFailed(string message, Exception? exception)
     {

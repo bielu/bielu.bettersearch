@@ -48,14 +48,21 @@ internal static class FieldMappings
     }
 
     /// <summary>
-    /// The model field to sort on: <c>&lt;field&gt;.keyword</c> for a field mapped as text, the field itself otherwise.
+    /// The engine field to sort on, given the engine field the provider resolved the sort to: <c>&lt;field&gt;.keyword</c>
+    /// for a document field mapped as text, the field itself otherwise. A metadata field, such as <c>_score</c>, has no
+    /// <c>fields.</c> prefix, so a document field of the same name never redirects it.
     /// </summary>
-    public static string SortField<T>(string field, IReadOnlyList<T> mappings) where T : IFieldMapping
+    public static string SortField<T>(string resolvedField, IReadOnlyList<T> mappings) where T : IFieldMapping
     {
-        var name = field.StartsWith(FieldsPrefix, StringComparison.Ordinal) ? field[FieldsPrefix.Length..] : field;
+        if (!resolvedField.StartsWith(FieldsPrefix, StringComparison.Ordinal))
+        {
+            return resolvedField;
+        }
+
+        var name = resolvedField[FieldsPrefix.Length..];
         return mappings.Any(mapping => mapping.IsText && string.Equals(mapping.Field, name, StringComparison.Ordinal))
-            ? $"{name}.{KeywordSubField}"
-            : field;
+            ? $"{resolvedField}.{KeywordSubField}"
+            : resolvedField;
     }
 
     /// <summary>The problems with one list of mappings, each naming the setting at <paramref name="path"/>.</summary>

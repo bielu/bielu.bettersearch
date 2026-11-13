@@ -167,7 +167,7 @@ public class ElasticSearchSearchProviderAsync(
                     Field = new FieldSort
                     {
                         // A field mapped as text sorts on its keyword sub-field.
-                        Field = ElasticSearchFieldNames.Resolve(FieldMappings.SortField(sort.FieldName, mappings)),
+                        Field = FieldMappings.SortField(ElasticSearchFieldNames.Resolve(sort.FieldName), mappings),
                         Order = sort.Desc ? SortOrder.Desc : SortOrder.Asc
                     }
                 })
