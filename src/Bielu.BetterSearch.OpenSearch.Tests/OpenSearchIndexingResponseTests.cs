@@ -35,6 +35,9 @@ public sealed class OpenSearchIndexingResponseTests
         public Task<IOpenSearchClient> GetOrCreateClientAsync(string indexName) => throw exception;
     }
 
+    private static readonly IOpenSearchClientSettingsManager NoMappings =
+        new OpenSearchClientSettingsManager(new InvalidSettingsOptionsMonitor());
+
     private sealed class InvalidSettingsOptionsMonitor(int maxResultWindow = 10_000) : IOptionsMonitor<OpenSearchOptions>
     {
         public OpenSearchOptions CurrentValue { get; } = new() { SharedIndexSettings = new() { ConnectionString = "localhost:9200" }, MaxResultWindow = maxResultWindow };
@@ -50,14 +53,14 @@ public sealed class OpenSearchIndexingResponseTests
         var connection = new InMemoryConnection(Encoding.UTF8.GetBytes(json), statusCode);
         var settings = new ConnectionSettings(new SingleNodeConnectionPool(new Uri("http://localhost:9200")), connection)
             .ThrowExceptions(throwExceptions);
-        return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+        return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance, NoMappings);
     }
 
     /// <summary>A provider that talks to <paramref name="port"/> on this machine over the real HTTP connection.</summary>
     private static OpenSearchIndexingProviderAsync LocalProvider(int port)
     {
         var settings = new ConnectionSettings(new Uri($"http://127.0.0.1:{port}"));
-        return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+        return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance, NoMappings);
     }
 
     /// <summary>A port nothing listens on, so a connection to it is refused.</summary>
@@ -267,7 +270,7 @@ public sealed class OpenSearchIndexingResponseTests
     [Fact]
     public async Task IndexingProvider_InvalidSettings_ReturnsFailuresInsteadOfThrowing()
     {
-        var provider = new OpenSearchIndexingProviderAsync(InvalidSettingsFactory(), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+        var provider = new OpenSearchIndexingProviderAsync(InvalidSettingsFactory(), NullLogger<OpenSearchIndexingProviderAsync>.Instance, NoMappings);
         var document = new SearchDocument { Id = "1", Index = "people" };
 
         (await provider.IndexDocumentAsync(document, Token)).IsFailed.ShouldBeTrue();
@@ -339,7 +342,7 @@ public sealed class OpenSearchIndexingResponseTests
     {
         // Not an ArgumentException, so TryGetClientAsync does not turn it into an invalid settings failure.
         var exception = new InvalidOperationException("bad connection string");
-        var provider = new OpenSearchIndexingProviderAsync(new ThrowingClientFactory(exception), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+        var provider = new OpenSearchIndexingProviderAsync(new ThrowingClientFactory(exception), NullLogger<OpenSearchIndexingProviderAsync>.Instance, NoMappings);
 
         var result = await InvokeAsync(provider, method, Token);
 
@@ -352,7 +355,7 @@ public sealed class OpenSearchIndexingResponseTests
     [MemberData(nameof(IndexingMethods))]
     public async Task IndexingMethod_ClientFactoryCancelled_ThrowsOperationCanceledException(string method)
     {
-        var provider = new OpenSearchIndexingProviderAsync(new CancelledClientFactory(), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+        var provider = new OpenSearchIndexingProviderAsync(new CancelledClientFactory(), NullLogger<OpenSearchIndexingProviderAsync>.Instance, NoMappings);
 
         await Should.ThrowAsync<OperationCanceledException>(() => InvokeAsync(provider, method, Token));
     }
@@ -363,7 +366,7 @@ public sealed class OpenSearchIndexingResponseTests
     public async Task SearchAsync_MaxResultWindowNotPositive_ReturnsConfigurationError(int maxResultWindow)
     {
         var translateService = new OpenSearchQueryTranslateService([]);
-        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), new InvalidSettingsOptionsMonitor(maxResultWindow));
+        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), new InvalidSettingsOptionsMonitor(maxResultWindow), NoMappings);
 
         var result = await provider.SearchAsync(new SearchQuery { Index = "people" });
 
@@ -376,7 +379,7 @@ public sealed class OpenSearchIndexingResponseTests
     {
         var options = new InvalidSettingsOptionsMonitor();
         var translateService = new OpenSearchQueryTranslateService([]);
-        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), options);
+        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), options, NoMappings);
 
         var result = await provider.SearchAsync(new SearchQuery { Index = "people" });
 
