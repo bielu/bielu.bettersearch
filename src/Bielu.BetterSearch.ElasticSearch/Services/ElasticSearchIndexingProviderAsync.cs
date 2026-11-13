@@ -3,6 +3,7 @@ using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.Core.Bulk;
 using Elastic.Clients.Elasticsearch.IndexManagement;
+using Elastic.Clients.Elasticsearch.Mapping;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using FluentResults;
 using Microsoft.Extensions.Logging;
@@ -11,7 +12,10 @@ using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.ElasticSearch.Services;
 
-public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<ElasticsearchClient> clientFactory, ILogger<ElasticSearchIndexingProviderAsync> logger) : IIndexingProviderAsync
+public class ElasticSearchIndexingProviderAsync(
+    IClientFactoryAsync<ElasticsearchClient> clientFactory,
+    ILogger<ElasticSearchIndexingProviderAsync> logger,
+    IElasticSearchClientSettingsManager settingsManager) : IIndexingProviderAsync
 {
     public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(document.Index, async client =>
@@ -97,6 +101,10 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
             return indexResult.IsSuccess() ? Result.Ok(indexResult.Deleted) : Result.Fail(new Error(indexResult.DebugInformation));
         }, cancellationToken);
 
+    /// <summary>
+    /// Creates the index with its configured mappings when it is missing. When it exists, adds the configured mappings
+    /// to it, which fails when one conflicts with how the field is already mapped. <c>true</c> when this call created it.
+    /// </summary>
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {
         var exist = await IndexExistsAsync(index, cancellationToken).ConfigureAwait(false);
@@ -106,13 +114,35 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
             return exist;
         }
 
-        if (exist.Value)
+        if (!exist.Value)
         {
-            return Result.Ok();
+            var created = await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
+            // Not created and not failed means another caller created it in between, perhaps without the mappings.
+            if (created.IsFailed || created.Value)
+            {
+                return created;
+            }
         }
 
-        return await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        var mapped = await PutMappingsAsync(index, cancellationToken).ConfigureAwait(false);
+        return mapped.IsFailed ? mapped : Result.Ok(false);
     }
+
+    private Task<Result<bool>> PutMappingsAsync(string index, CancellationToken cancellationToken) =>
+        clientFactory.TryWithClientAsync(index, async client =>
+        {
+            var properties = ElasticSearchMappings.Create(settingsManager.GetConnectionSettings(index).Mappings);
+            if (properties is null)
+            {
+                return Result.Ok(false);
+            }
+
+            var response = await client.Indices.PutMappingAsync(new PutMappingRequest(Indices.Index(index)) { Properties = properties }, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return response.IsSuccess()
+                ? Result.Ok(true)
+                : Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe($"adding the configured mappings to index {index}", response), response.ApiCallDetails?.OriginalException));
+        }, cancellationToken);
 
     public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync<bool>(index, async client =>
@@ -136,15 +166,35 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
             };
         }, cancellationToken);
 
+    /// <summary>
+    /// Creates the index with its configured mappings. <c>false</c> when it already exists, which leaves its mappings as
+    /// they are; any other refusal, such as an unknown analyzer, is a failure.
+    /// </summary>
     public Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(index, async client =>
         {
-            var result = await client.Indices.CreateAsync(new CreateIndexRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
-            if (!result.IsSuccess())
+            var request = new CreateIndexRequest(Indices.Index(index));
+            var properties = ElasticSearchMappings.Create(settingsManager.GetConnectionSettings(index).Mappings);
+            if (properties is not null)
             {
-                logger.LogError("Indexing failed: {Error}", result.DebugInformation);
+                request.Mappings = new TypeMapping { Properties = properties };
             }
-            return Result.Ok(result.IsSuccess());
+
+            var result = await client.Indices.CreateAsync(request, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (result.IsSuccess())
+            {
+                return Result.Ok(true);
+            }
+
+            // An index that already exists was not created, but nothing went wrong.
+            if (result.ElasticsearchServerError?.Error?.Type == "resource_already_exists_exception")
+            {
+                return Result.Ok(false);
+            }
+
+            logger.LogError("Creating index {Index} failed: {Error}", index, result.DebugInformation);
+            return Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe($"creating index {index}", result), result.ApiCallDetails?.OriginalException));
         }, cancellationToken);
 
     private static Error RequestFailed(string message, Exception? exception)

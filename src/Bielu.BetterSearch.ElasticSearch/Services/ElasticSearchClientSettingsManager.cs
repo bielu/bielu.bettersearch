@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.ElasticSearch.Configuration;
+using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
 using Microsoft.Extensions.Options;
@@ -25,7 +26,8 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
 
     /// <summary>
     /// Builds a new settings object, leaving the live options untouched: the index's connection string and
-    /// authentication win, and an index without its own takes the shared one.
+    /// authentication win, and an index without its own takes the shared one. Mappings are the shared ones with the
+    /// index's own on top.
     /// </summary>
     private static ElasticSearchIndexSettings MergeSettings(ElasticSearchIndexSettings indexSpecific,
         ElasticSearchIndexSettings shared)
@@ -39,6 +41,7 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
                                  ?? AuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
+            Mappings = FieldMappings.Merge(shared.Mappings, indexSpecific.Mappings),
         };
     }
 

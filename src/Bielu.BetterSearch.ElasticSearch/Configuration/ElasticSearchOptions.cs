@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Abstractions.Configuration;
+using Bielu.BetterSearch.Services;
 
 namespace Bielu.BetterSearch.ElasticSearch.Configuration;
 
@@ -50,6 +51,51 @@ public class ElasticSearchIndexSettings : IndexSettings
     /// </summary>
     public AuthenticationType? AuthenticationType { get; set; }
     public AuthenticationDetails? AuthenticationDetails { get; set; }
+
+    /// <summary>
+    /// Fields mapped explicitly when the index is created, or added to it by <c>EnsureIndexExistsAsync</c>. Fields not
+    /// listed keep dynamic mapping. An <c>Indexes</c> entry adds to the shared mappings and replaces a shared mapping
+    /// of the same field.
+    /// </summary>
+    public List<ElasticSearchFieldMapping>? Mappings { get; set; }
+}
+
+/// <summary>An explicit mapping for one document field.</summary>
+public class ElasticSearchFieldMapping : IFieldMapping
+{
+    /// <summary>The field's name as queries use it, such as <c>City</c>, without the <c>fields.</c> prefix.</summary>
+    public string? Field { get; set; }
+
+    public ElasticSearchFieldType? Type { get; set; }
+
+    /// <summary>The analyzer of a <see cref="ElasticSearchFieldType.Text"/> field, such as <c>english</c>.</summary>
+    public string? Analyzer { get; set; }
+
+    /// <summary>The format of a <see cref="ElasticSearchFieldType.Date"/> field, such as <c>strict_date_optional_time</c>.</summary>
+    public string? Format { get; set; }
+
+    bool IFieldMapping.HasType => Type is { } type && Enum.IsDefined(type);
+    bool IFieldMapping.IsText => Type == ElasticSearchFieldType.Text;
+    bool IFieldMapping.IsDate => Type == ElasticSearchFieldType.Date;
+}
+
+/// <summary>The Elasticsearch field types a mapping can set.</summary>
+public enum ElasticSearchFieldType
+{
+    /// <summary>Analyzed text, with a <c>keyword</c> sub-field that sorting uses.</summary>
+    Text,
+
+    /// <summary>The whole value, matched, sorted and aggregated as it is.</summary>
+    Keyword,
+    Date,
+    Long,
+    Integer,
+    Short,
+    Byte,
+    Double,
+    Float,
+    Boolean,
+    GeoPoint
 }
 public enum AuthenticationType
 {

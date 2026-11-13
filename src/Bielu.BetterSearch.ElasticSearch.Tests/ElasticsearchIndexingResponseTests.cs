@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
@@ -27,20 +28,23 @@ public sealed class ElasticsearchIndexingResponseTests
         public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName) => throw exception;
     }
 
+    private static readonly IElasticSearchClientSettingsManager NoMappings =
+        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions { SharedIndexSettings = new() }));
+
     private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false)
     {
         var invoker = new InMemoryRequestInvoker(Encoding.UTF8.GetBytes(json), statusCode, null, "application/json",
             new Dictionary<string, IEnumerable<string>> { ["x-elastic-product"] = ["Elasticsearch"] });
         var settings = new ElasticsearchClientSettings(new SingleNodePool(new Uri("http://localhost:9200")), invoker)
             .ThrowExceptions(throwExceptions);
-        return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
+        return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance, NoMappings);
     }
 
     /// <summary>A provider that talks to <paramref name="port"/> on this machine over the real HTTP transport.</summary>
     private static ElasticSearchIndexingProviderAsync LocalProvider(int port)
     {
         var settings = new ElasticsearchClientSettings(new Uri($"http://127.0.0.1:{port}"));
-        return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
+        return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance, NoMappings);
     }
 
     /// <summary>A port nothing listens on, so a connection to it is refused.</summary>
@@ -238,7 +242,7 @@ public sealed class ElasticsearchIndexingResponseTests
     public async Task IndexingMethod_ClientFactoryThrows_ReturnsFailureCausedByTheException(string method)
     {
         var exception = new InvalidOperationException("bad connection string");
-        var provider = new ElasticSearchIndexingProviderAsync(new ThrowingClientFactory(exception), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
+        var provider = new ElasticSearchIndexingProviderAsync(new ThrowingClientFactory(exception), NullLogger<ElasticSearchIndexingProviderAsync>.Instance, NoMappings);
 
         var result = await InvokeAsync(provider, method, Token);
 
@@ -265,7 +269,7 @@ public sealed class ElasticsearchIndexingResponseTests
     [MemberData(nameof(IndexingMethods))]
     public async Task IndexingMethod_ClientFactoryCancelled_ThrowsOperationCanceledException(string method)
     {
-        var provider = new ElasticSearchIndexingProviderAsync(new ThrowingClientFactory(new OperationCanceledException()), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
+        var provider = new ElasticSearchIndexingProviderAsync(new ThrowingClientFactory(new OperationCanceledException()), NullLogger<ElasticSearchIndexingProviderAsync>.Instance, NoMappings);
 
         await Should.ThrowAsync<OperationCanceledException>(() => InvokeAsync(provider, method, Token));
     }

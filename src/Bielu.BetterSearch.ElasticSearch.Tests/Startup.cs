@@ -13,15 +13,15 @@ public class Startup
         services.AddLogging(lb => lb.AddXunitOutput())
             .AddBetterSearch(x => x.AddElasticSearch());
 
-        // The host starts hosted services before any test runs, and options are bound on first use,
-        // so the endpoint is known by the time a test asks for a client.
+        // Startup validation reads the options before the host starts its hosted services, so the options
+        // start the server themselves when it is not running yet.
         services.AddSingleton<ElasticsearchResource>();
         services.AddHostedService(sp => sp.GetRequiredService<ElasticsearchResource>());
         services.AddOptions<ElasticSearchOptions>()
             .Configure<ElasticsearchResource>((options, elasticsearch) =>
                 options.SharedIndexSettings = new ElasticSearchIndexSettings
                 {
-                    ConnectionString = elasticsearch.Endpoint!.ToString(),
+                    ConnectionString = elasticsearch.EnsureStarted().ToString(),
                     AuthenticationType = AuthenticationType.NONE,
                 });
     }

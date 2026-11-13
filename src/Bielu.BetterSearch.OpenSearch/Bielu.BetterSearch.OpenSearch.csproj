@@ -23,6 +23,7 @@
       <Compile Include="..\Shared\DocumentIds.cs" Link="Services\DocumentIds.cs" />
       <Compile Include="..\Shared\QueryValueText.cs" Link="Services\QueryValueText.cs" />
       <Compile Include="..\Shared\Highlights.cs" Link="Services\Highlights.cs" />
+      <Compile Include="..\Shared\FieldMappings.cs" Link="Services\FieldMappings.cs" />
     </ItemGroup>
 
 </Project>
