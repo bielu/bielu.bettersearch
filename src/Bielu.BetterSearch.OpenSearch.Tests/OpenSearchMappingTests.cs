@@ -5,10 +5,10 @@ using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using OpenSearch.Client;
 using OpenSearch.Net;
-using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;
 
 namespace Bielu.BetterSearch.OpenSearch.Tests;
