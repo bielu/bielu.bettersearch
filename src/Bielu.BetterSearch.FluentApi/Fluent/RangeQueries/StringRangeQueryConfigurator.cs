@@ -2,7 +2,7 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent.RangeQueries;
 
-public class StringRangeQueryConfigurator
+public class StringRangeQueryConfigurator : SubQueryConfigurator<StringRangeQueryConfigurator>
 {
     public StringRangeQueryConfigurator()
     {

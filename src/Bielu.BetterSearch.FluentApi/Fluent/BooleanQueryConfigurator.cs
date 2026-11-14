@@ -26,6 +26,6 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
             return this;
         }
         public INestableQuery Query { get; set; } = new BoolSearchSubQuery();
-        public Occurance Occurance { get; set; }
+        public Occurance Occurance { get; set; } = Occurance.MUST;
     }
 }

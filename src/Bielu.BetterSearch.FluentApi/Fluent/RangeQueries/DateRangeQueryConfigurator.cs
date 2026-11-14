@@ -2,7 +2,7 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent.RangeQueries;
 
-public class DateRangeQueryConfigurator
+public class DateRangeQueryConfigurator : SubQueryConfigurator<DateRangeQueryConfigurator>
 {
     public DateRangeQueryConfigurator()
     {

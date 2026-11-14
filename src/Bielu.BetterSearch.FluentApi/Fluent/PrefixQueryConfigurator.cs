@@ -2,30 +2,8 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
-    public class PrefixQueryConfigurator
+    public class PrefixQueryConfigurator : SubQueryConfigurator<PrefixQueryConfigurator>
     {
-        public PrefixQueryConfigurator Must()
-        {
-            Query.Occurance = Occurance.MUST;
-            return this;
-        }
-        public PrefixQueryConfigurator MustNot()
-        {
-            Query.Occurance = Occurance.MUSTNOT;
-            return this;
-        }
-        public PrefixQueryConfigurator Should()
-        {
-            Query.Occurance = Occurance.SHOULD;
-            return this;
-        }
-
-        public PrefixQueryConfigurator Filter()
-        {
-            Query.Occurance = Occurance.FILTER;
-            return this;
-        }
-
         public PrefixQueryConfigurator WithField(string fieldName)
         {
             _query.Field = fieldName;

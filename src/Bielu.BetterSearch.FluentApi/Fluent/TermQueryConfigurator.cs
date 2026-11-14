@@ -2,34 +2,11 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
-    public class TermQueryConfigurator
+    public class TermQueryConfigurator : SubQueryConfigurator<TermQueryConfigurator>
     {
-
         public TermQueryConfigurator()
         {
             _query = new TermSubQuery();
-        }
-
-        public TermQueryConfigurator Must()
-        {
-            Occurance = Occurance.MUST;
-            return this;
-        }
-        public TermQueryConfigurator MustNot()
-        {
-            Occurance = Occurance.MUSTNOT;
-            return this;
-        }
-        public TermQueryConfigurator Should()
-        {
-            Occurance = Occurance.SHOULD;
-            return this;
-        }
-
-        public TermQueryConfigurator Filter()
-        {
-            Occurance = Occurance.FILTER;
-            return this;
         }
 
         public TermQueryConfigurator WithField(string fieldName)
@@ -45,6 +22,5 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
 
         private TermSubQuery _query;
         public ISearchSubQuery Query => _query;
-        public Occurance Occurance { get; set; }
     }
 }

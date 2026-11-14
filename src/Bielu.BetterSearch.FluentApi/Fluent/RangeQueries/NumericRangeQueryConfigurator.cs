@@ -2,7 +2,7 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent.RangeQueries
 {
-    public class NumericRangeQueryConfigurator
+    public class NumericRangeQueryConfigurator : SubQueryConfigurator<NumericRangeQueryConfigurator>
     {
         public NumericRange Query { get; set; } = new();
 

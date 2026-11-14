@@ -2,7 +2,7 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent.RangeQueries;
 
-public class LongRangeQueryConfigurator
+public class LongRangeQueryConfigurator : SubQueryConfigurator<LongRangeQueryConfigurator>
 {
     public LongRangeQueryConfigurator()
     {

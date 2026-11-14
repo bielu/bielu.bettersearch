@@ -31,7 +31,6 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Core | Indexing observers live on a scoped service, so a subscription only sees the operations of its own scope (*by inspection*) | See phase 1 |
 | Models | `new TermSubQuery().Occurance` is `0`, which is not a defined enum value | A defined default |
 | Lifti search | `Page` and `PageSize` are ignored; hits contain only an id | Paged hits with fields |
-| Fluent API | `.Should()` on a sub-query configurator is silently lost, and `.Must()`, `.MustNot()` and `.Filter()` take the same path | The chosen occurrence |
 | Elasticsearch | `IndexMultipleDocumentsAsync` returns `Result.Ok()` where a `Result<int>` is due, so `Value` is `0` even on success (*by inspection*) | The real count |
 | Elasticsearch | Bulk indexing ignores per-item failures (*by inspection*) | A failed `Result` naming them |
 
@@ -69,7 +68,7 @@ Breaking, and cheapest now.
 - Remove the global configuration singleton and the duplicate registrations. Add the missing `SetDocumentValidatorType`.
 - Replace the `IObservable` surface with something that fits its use, such as an indexing pipeline or events, or remove it. (The `IObserver` contract is fixed in #56: `OnNext` after each successful operation, nothing for a rejection or failure, `OnCompleted` only when the service is disposed.)
 - Pass bulk through to the provider from `IndexMultipleDocumentsAsync`.
-- Deduplicate the fluent API and fix the lost occurrence, with its first tests.
+- Deduplicate the fluent API and fix the lost occurrence, with its first tests. (The occurrence is fixed in #85: a sub-query's own `Must()`, `Should()`, `MustNot()` or `Filter()` wins over its parent's, and `Bielu.BetterSearch.FluentApi.Tests` checks it for every query type.)
 - Decide the `SHOULD` semantics: follow Lucene, and write them down.
 
 ### Phase 2: Lucene.NET provider
