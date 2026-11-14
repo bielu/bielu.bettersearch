@@ -26,7 +26,6 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Lifti search | Searching a missing index creates it and returns no hits | A failed `Result`, as on the other providers, without creating the index |
 | Core | `IndexMultipleDocumentsAsync` indexes one at a time, so the provider bulk path is never used (*by inspection*) | Bulk indexing |
 | Core | Indexing observers live on a scoped service, so a subscription only sees the operations of its own scope (*by inspection*) | See phase 1 |
-| Models | `new TermSubQuery().Occurance` is `0`, which is not a defined enum value | A defined default |
 | Lifti search | `Page` and `PageSize` are ignored; hits contain only an id | Paged hits with fields |
 | Elasticsearch | `IndexMultipleDocumentsAsync` returns `Result.Ok()` where a `Result<int>` is due, so `Value` is `0` even on success (*by inspection*) | The real count |
 | Elasticsearch | Bulk indexing ignores per-item failures (*by inspection*) | A failed `Result` naming them |

@@ -13,7 +13,8 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 > - **Highlighting** returns a failed `Result`: the index keeps only the words of each document, not its text,
 >   so there is no text to mark the matched terms in.
 > - **Range and spatial queries**: `DateRangeQuery`, `NumericRange`, `LongRange`, `StringRange` and
->   `SpatialSearchQuery` return a failed `Result`.
+>   `SpatialSearchQuery` return a failed `Result`. A range with neither bound fails with the message every provider
+>   gives for it, naming the missing bounds, rather than saying ranges are not supported.
 > - **`LuceneQuery`** is not supported.
 > - **Fields are ignored**: term, terms, fuzzy, prefix and phrase prefix queries match the value in any field.
 > - **A value with no words**, such as `null`, `""` or `-`, returns a failed `Result` from a term, fuzzy, prefix or

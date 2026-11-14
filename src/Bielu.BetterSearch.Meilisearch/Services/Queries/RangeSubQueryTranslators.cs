@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 
 namespace Bielu.BetterSearch.Meilisearch.Services.Queries;
@@ -76,11 +77,18 @@ internal static class RangeFilter
         return Create(query, queryName, map, MeilisearchFieldNames.Number(min), MeilisearchFieldNames.Number(max));
     }
 
+    /// <summary>A range filter, failing when <paramref name="min"/> and <paramref name="max"/> are both <c>null</c>.</summary>
     public static Result<MeilisearchFilter> Create(BaseRangeQuery query, string queryName, string map, string? min, string? max)
     {
         var field = MeilisearchFieldNames.Require(query.Field, queryName);
-        return field.IsFailed
-            ? field.ToResult<MeilisearchFilter>()
+        if (field.IsFailed)
+        {
+            return field.ToResult<MeilisearchFilter>();
+        }
+
+        var bounds = RangeBounds.Require(queryName, min, max);
+        return bounds.IsFailed
+            ? bounds.ToResult<MeilisearchFilter>()
             : Result.Ok(new MeilisearchFilter(MeilisearchFieldNames.Range(
                 MeilisearchFieldNames.In(map, field.Value), min, query.IncludeMinEdge, max, query.IncludeMaxEdge)));
     }

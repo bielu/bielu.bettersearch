@@ -217,7 +217,9 @@ public sealed class ElasticsearchSearchTests(
         {
             Field = "Age",
             MinValue = 30,
-            MaxValue = 40
+            MaxValue = 40,
+            IncludeMinEdge = false,
+            IncludeMaxEdge = false
         }));
 
         inclusive.ShouldBe(["2", "3", "4"]);
