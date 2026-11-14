@@ -119,7 +119,9 @@ public sealed class MeilisearchIndexingProviderTests(
         var index = UniqueIndex();
         var document = new SearchDocument
         {
-            Id = "1", Type = "TestDocument", Index = index,
+            Id = "1",
+            Type = "TestDocument",
+            Index = index,
             Fields = new Dictionary<string, IList<object>> { ["Location"] = [location] },
         };
 
@@ -135,7 +137,9 @@ public sealed class MeilisearchIndexingProviderTests(
     {
         var document = new SearchDocument
         {
-            Id = "1", Type = "TestDocument", Index = UniqueIndex(),
+            Id = "1",
+            Type = "TestDocument",
+            Index = UniqueIndex(),
             Fields = new Dictionary<string, IList<object>> { ["Location"] = ["52.23,21.01", "50.06,19.94"] },
         };
 

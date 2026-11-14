@@ -573,7 +573,7 @@ public sealed class OpenSearchIndexingResponseTests
         var translateService = new OpenSearchQueryTranslateService([]);
         var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), new InvalidSettingsOptionsMonitor(maxResultWindow), NoMappings);
 
-        var result = await provider.SearchAsync(new SearchQuery { Index = "people" });
+        var result = await provider.SearchAsync(new SearchQuery { Index = "people" }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldBe($"MaxResultWindow is {maxResultWindow}, but it must be greater than 0. Set Bielu:BetterSearch:OpenSearch:MaxResultWindow to the indexes' index.max_result_window.");
@@ -586,7 +586,7 @@ public sealed class OpenSearchIndexingResponseTests
         var translateService = new OpenSearchQueryTranslateService([]);
         var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), options, NoMappings);
 
-        var result = await provider.SearchAsync(new SearchQuery { Index = "people" });
+        var result = await provider.SearchAsync(new SearchQuery { Index = "people" }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("people");
