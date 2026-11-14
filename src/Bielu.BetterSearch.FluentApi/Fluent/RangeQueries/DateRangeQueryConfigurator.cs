@@ -16,13 +16,15 @@ public class DateRangeQueryConfigurator : SubQueryConfigurator<DateRangeQueryCon
         Query.Field = fieldName;
         return this;
     }
-    public DateRangeQueryConfigurator WithMinValue(DateTime value, bool includeEdge = true)
+    /// <summary>The minimum: a <see cref="DateTime"/> or a <see cref="DateTimeOffset"/>; an unspecified <see cref="DateTime"/> is UTC.</summary>
+    public DateRangeQueryConfigurator WithMinValue(DateRangeValue value, bool includeEdge = true)
     {
         Query.MinValue = value;
         Query.IncludeMinEdge = includeEdge;
         return this;
     }
-    public DateRangeQueryConfigurator WithMaxValue(DateTime value, bool includeEdge = true)
+    /// <summary>The maximum: a <see cref="DateTime"/> or a <see cref="DateTimeOffset"/>; an unspecified <see cref="DateTime"/> is UTC.</summary>
+    public DateRangeQueryConfigurator WithMaxValue(DateRangeValue value, bool includeEdge = true)
     {
         Query.MaxValue = value;
         Query.IncludeMaxEdge = includeEdge;
