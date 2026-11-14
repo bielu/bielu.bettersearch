@@ -65,6 +65,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddElas
 | `ConnectionString` | Cluster URL |
 | `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`), `CLOUD` (Elastic Cloud: the cloud id in `Id`, with `Username` and `Password`) or `CLOUDAPI` (the cloud id in `Id`, with an `ApiKey`) |
 | `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people` |
+| `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. A page past it returns a failed `Result` |
 
 You can also set the options in code with `services.Configure<ElasticSearchOptions>(...)`.
@@ -81,8 +82,9 @@ Metadata fields such as `_id` and `_score` pass through unchanged.
 - **`StringRange` bounds are case-sensitive.** They are compared to the indexed tokens as given, so on an
   analyzed field, whose tokens are lower-cased, `"a"`–`"z"` matches `Jane` but `"A"`–`"Z"` doesn't. Pass
   lower-case bounds, or use `Field.keyword` to compare whole values.
-- **Sorting on a text field** is rejected by Elasticsearch; sort on `Field.keyword`.
-- **`SpatialSearchQuery`** needs the field mapped as `geo_point`; dynamic mapping doesn't create one.
+- **Sorting on a text field** is rejected by Elasticsearch. A field mapped as `Text` in `Mappings` sorts on its `keyword`
+  sub-field under its plain name; an unmapped text field still sorts as `Field.keyword`.
+- **`SpatialSearchQuery`** needs the field mapped as `GeoPoint` in `Mappings`; dynamic mapping doesn't create one.
 - **`LuceneQuery`** field names need the `fields.` prefix.
 - **`FuzzyQuery`** allows at most 2 edits, and uses `AUTO` when `Fuziness` is unset. A value that is not a string or
   a number, such as a date or a boolean, returns a failed `Result`.
@@ -94,6 +96,60 @@ Metadata fields such as `_id` and `_score` pass through unchanged.
   the client wrote then.
 - **`TermsQuery`** with more than 65,536 terms (`index.max_terms_count`) returns a failed `Result`.
 - **Total hit count** is exact up to `MaxResultWindow` matches, then a lower bound.
+
+## Field mappings
+
+Indexes are created with dynamic mapping, which makes a string a `text` field with a `keyword` sub-field,
+unless the first value it sees looks like a date (`2026-11-13`), which date detection maps as `date` with no sub-field.
+`Mappings` maps fields explicitly instead. Each entry names a `Field`, as queries name it (`City`, not
+`fields.City`), and a `Type`: `Text`, `Keyword`, `Date`, `Long`, `Integer`, `Short`, `Byte`, `Double`, `Float`,
+`Boolean` or `GeoPoint`. A `Text` field can set an `Analyzer` and a `Date` field a `Format`.
+
+```json
+"SharedIndexSettings": {
+  "Mappings": [
+    { "Field": "City", "Type": "Keyword" },
+    { "Field": "Location", "Type": "GeoPoint" }
+  ]
+},
+"Indexes": {
+  "articles": {
+    "Mappings": [ { "Field": "Title", "Type": "Text", "Analyzer": "english" } ]
+  }
+}
+```
+
+- An `Indexes` entry's mappings add to the shared ones, and replace a shared mapping of the same field.
+- Fields not listed keep dynamic mapping.
+- **`Keyword`** holds the whole value. `TermQuery` matches it whole, ignoring case, and sorting uses it, both
+  under the plain field name.
+- **`Text`** is analyzed and gets a `keyword` sub-field (`ignore_above` 256), as dynamic mapping gives it.
+  `TermQuery` and `TermsQuery` match one token the field's analyzer produced, ignoring case: with the default
+  analyzer that is one word, as on every provider, while with another `Analyzer` the term must equal one of its
+  tokens (with `keyword`, the whole value). Sorting uses `Field.keyword`
+  automatically, so callers sort on `Field`. That sort compares whole values as given: upper case sorts
+  before lower case (`Banana` before `apple`), a multi-valued field sorts ascending by its lowest value, and a
+  value longer than 256 characters isn't in the sub-field, so it sorts as if the field were missing.
+- **`GeoPoint`** makes `SpatialSearchQuery` work. A point is a `"lat,lon"` string or a dictionary with `lat`
+  and `lon`.
+- **`Date`** with a `Format` must accept the values documents hold, or indexing them fails. The provider writes a
+  `DateTime` or `DateTimeOffset` as ISO 8601 text in UTC (`2026-11-08T13:05:00Z`) and a `DateOnly` as `yyyy-MM-dd`, so a custom format has to
+  accept ISO 8601 as well, for example `strict_date_optional_time||yyyy-MM-dd`. `yyyy-MM-dd` alone rejects every
+  `DateTime` document.
+
+`CreateIndexAsync` creates the index with its mappings. It returns `false` when the index already exists,
+leaving its mappings as they are, and a failed `Result` for any other rejection, such as an unknown analyzer.
+`EnsureIndexExistsAsync` creates a missing index the same way. When the index exists, or another caller created
+it in between, it adds the mappings to it. It returns `true` whenever the index exists afterwards. A mapping that conflicts with how the field is already mapped, such as
+`Keyword` on a field dynamic mapping already made `text`, returns a failed `Result` naming the field. Re-index
+into a new index to change a field's type. When the cluster takes the mappings but doesn't acknowledge them in
+time, the result is failed too: the mappings aren't rolled back, and calling `EnsureIndexExistsAsync` again
+confirms them.
+
+The options are validated at startup (`ValidateOnStart`) and whenever they are read. A missing `Field` or
+`Type`, a `Field` starting with `fields.`, the same field twice in one list, an `Analyzer` on a field that isn't
+`Text` or a `Format` on a field that isn't `Date` throws `OptionsValidationException`, naming the setting, such as
+`Bielu:BetterSearch:ElasticSearch:Indexes:articles:Mappings:0:Type`.
 
 ## Highlighting
 

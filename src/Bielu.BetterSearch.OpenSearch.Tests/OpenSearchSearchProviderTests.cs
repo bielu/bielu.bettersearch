@@ -39,7 +39,8 @@ public sealed class OpenSearchSearchProviderTests(
             postFilterTranslateService,
             clientFactory,
             new OpenSearchResultMapper(),
-            options);
+            options,
+            new OpenSearchClientSettingsManager(options));
 
         var result = await provider.SearchAsync(new SearchQuery { Index = "any" }, TestContext.Current.CancellationToken);
 
@@ -62,7 +63,8 @@ public sealed class OpenSearchSearchProviderTests(
             postFilterTranslateService,
             clientFactory,
             new OpenSearchResultMapper(),
-            new FixedOptionsMonitor(new OpenSearchOptions { MaxResultWindow = 3 }));
+            new FixedOptionsMonitor(new OpenSearchOptions { MaxResultWindow = 3 }),
+            new OpenSearchClientSettingsManager(options));
 
         var result = await provider.SearchAsync(new SearchQuery { Index = index, PageSize = 1 }, TestContext.Current.CancellationToken);
 

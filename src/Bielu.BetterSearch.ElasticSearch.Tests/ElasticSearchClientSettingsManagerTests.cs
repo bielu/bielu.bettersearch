@@ -165,4 +165,21 @@ public class ElasticSearchClientSettingsManagerTests
         settings.ConnectionString.ShouldBe("https://people:9200");
         settings.AuthenticationDetails.ShouldNotBeNull().Password.ShouldBe("people-secret");
     }
+
+    [Fact]
+    public void GetConnectionSettings_NoSharedSettingsAndIndexHasItsOwn_UsesIndexSettingsWithoutMappings()
+    {
+        var options = new ElasticSearchOptions
+        {
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings>
+            {
+                ["people"] = new() { ConnectionString = "http://people:9200", AuthenticationType = AuthenticationType.NONE },
+            },
+        };
+
+        var settings = GetConnectionSettings(options, "people");
+
+        settings.ConnectionString.ShouldBe("http://people:9200");
+        settings.Mappings.ShouldNotBeNull().ShouldBeEmpty();
+    }
 }
