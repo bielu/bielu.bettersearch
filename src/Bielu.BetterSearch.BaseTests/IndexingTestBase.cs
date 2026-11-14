@@ -308,9 +308,10 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
 
     /// <summary>
     /// A document the service passes but the engine rejects, in an index that already holds a document with
-    /// <c>Count = [5]</c>.
+    /// <c>Count = [5]</c>, or <c>null</c> when the provider stores every document the service passes, so the test is
+    /// skipped.
     /// </summary>
-    protected abstract SearchDocument CreateDocumentRejectedByEngine(string index);
+    protected abstract SearchDocument? CreateDocumentRejectedByEngine(string index);
 
     private static SearchDocument CountDocument(string index, string id) => new()
     {
@@ -392,6 +393,11 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         //Arrange
         var index = $"bulk-{Guid.NewGuid():N}";
         var rejected = CreateDocumentRejectedByEngine(index);
+        if (rejected is null)
+        {
+            Assert.Skip("The provider stores every document the service passes, so no document is rejected by the engine.");
+        }
+
         var observer = new RecordingObserver<SearchDocument>();
         try
         {

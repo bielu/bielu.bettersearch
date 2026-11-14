@@ -9,8 +9,9 @@ The repository tooling now matches the bielu ecosystem: .NET 10, current package
 - **The Elasticsearch provider searches** with every query type, paging, sorting, post filters and highlighting, but has no facets, and its index operations have the defects listed below.
 - **The OpenSearch provider searches** the same way as Elasticsearch, with every index operation and highlighting, but likewise has no facets.
 - **The Meilisearch provider searches** with every query type its filters can express, paging, sorting and post filters; spatial queries need `MeilisearchOptions.GeoField`; fuzzy queries return a failed `Result`, raw Lucene queries are parsed with Lucene.NET's `QueryParser` and translated into filters where they can be, and it has no facets; highlighting returns a failed `Result`, as Meilisearch marks only search text matches and the provider runs filters.
+- **The Typesense provider searches** with every query type its filters can express, paging (at most 250 hits a page), sorting (at most 3 single-valued fields) and post filters; spatial queries need `TypesenseOptions.GeoField`; fuzzy, raw Lucene and string range queries, a `MUSTNOT` range, prefix or spatial query, facets and highlighting return a failed `Result`.
 - **The in-memory provider gives wrong answers** for some queries (see below), and it is built on Lifti, which should be replaced.
-- **Half the query model does little.** Pagination, sorting, facets, highlighting and post filters can be expressed; only Elasticsearch, OpenSearch and Meilisearch read pagination, sorting and post filters, and only Elasticsearch and OpenSearch highlight.
+- **Half the query model does little.** Pagination, sorting, facets, highlighting and post filters can be expressed; only Elasticsearch, OpenSearch, Meilisearch and Typesense read pagination, sorting and post filters, and only Elasticsearch and OpenSearch highlight.
 - **The tests pass while all of this is true.** They mostly assert `IsSuccess`, and `Result<bool>` can succeed with `false`.
 
 Nothing has shipped as stable, so breaking changes are still free. That window should be used, because it closes at 1.0.
