@@ -13,15 +13,15 @@ public class Startup
         services.AddLogging(lb => lb.AddXunitOutput())
             .AddBetterSearch(x => x.AddOpenSearch());
 
-        // The host starts hosted services before any test runs, and options are bound on first use,
-        // so the endpoint is known by the time a test asks for a client.
+        // Startup validation reads the options before the host starts its hosted services, so the options
+        // start the server themselves when it is not running yet.
         services.AddSingleton<OpenSearchResource>();
         services.AddHostedService(sp => sp.GetRequiredService<OpenSearchResource>());
         services.AddOptions<OpenSearchOptions>()
             .Configure<OpenSearchResource>((options, openSearch) =>
                 options.SharedIndexSettings = new OpenSearchIndexSettings
                 {
-                    ConnectionString = openSearch.Endpoint!.ToString(),
+                    ConnectionString = openSearch.EnsureStarted().ToString(),
                     AuthenticationType = OpenSearchAuthenticationType.NONE,
                 });
     }

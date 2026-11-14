@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
@@ -27,6 +28,15 @@ public sealed class ElasticsearchIndexingResponseTests
         public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName) => throw exception;
     }
 
+    private static readonly IElasticSearchClientSettingsManager NoMappings =
+        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions { SharedIndexSettings = new() }));
+
+    private static readonly IElasticSearchClientSettingsManager WithMappings =
+        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new() { Mappings = [new() { Field = "City", Type = ElasticSearchFieldType.Keyword }] }
+        }));
+
     /// <summary>Answers HEAD requests, such as the index exists check, with one invoker and every other request with another.</summary>
     private sealed class HeadRoutingRequestInvokerDecorator(IRequestInvoker head, IRequestInvoker other) : IRequestInvoker
     {
@@ -47,18 +57,42 @@ public sealed class ElasticsearchIndexingResponseTests
         }
     }
 
+    /// <summary>Answers each request with the next invoker in turn, and counts the requests made.</summary>
+    private sealed class SequenceRequestInvoker(params IRequestInvoker[] invokers) : IRequestInvoker
+    {
+        public int Requests { get; private set; }
+
+        public ResponseFactory ResponseFactory => invokers[0].ResponseFactory;
+
+        private IRequestInvoker Next() => invokers[Requests++];
+
+        public TResponse Request<TResponse>(Endpoint endpoint, BoundConfiguration boundConfiguration, PostData? postData)
+            where TResponse : TransportResponse, new() =>
+            Next().Request<TResponse>(endpoint, boundConfiguration, postData);
+
+        public Task<TResponse> RequestAsync<TResponse>(Endpoint endpoint, BoundConfiguration boundConfiguration, PostData? postData, CancellationToken cancellationToken)
+            where TResponse : TransportResponse, new() =>
+            Next().RequestAsync<TResponse>(endpoint, boundConfiguration, postData, cancellationToken);
+
+        public void Dispose()
+        {
+        }
+    }
+
     private static InMemoryRequestInvoker Invoker(string json, int statusCode) =>
         new(Encoding.UTF8.GetBytes(json), statusCode, null, "application/json",
             new Dictionary<string, IEnumerable<string>> { ["x-elastic-product"] = ["Elasticsearch"] });
 
-    private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false) =>
-        Provider(Invoker(json, statusCode), throwExceptions);
+    private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false,
+        IElasticSearchClientSettingsManager? settingsManager = null) =>
+        Provider(Invoker(json, statusCode), throwExceptions, settingsManager);
 
-    private static ElasticSearchIndexingProviderAsync Provider(IRequestInvoker invoker, bool throwExceptions = false)
+    private static ElasticSearchIndexingProviderAsync Provider(IRequestInvoker invoker, bool throwExceptions = false,
+        IElasticSearchClientSettingsManager? settingsManager = null)
     {
         var settings = new ElasticsearchClientSettings(new SingleNodePool(new Uri("http://localhost:9200")), invoker)
             .ThrowExceptions(throwExceptions);
-        return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
+        return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance, settingsManager ?? NoMappings);
     }
 
     private const string AlreadyExists = """{"error":{"root_cause":[{"type":"resource_already_exists_exception","reason":"index [people/abc] already exists","index":"people"}],"type":"resource_already_exists_exception","reason":"index [people/abc] already exists","index":"people"},"status":400}""";
@@ -69,7 +103,7 @@ public sealed class ElasticsearchIndexingResponseTests
     private static ElasticSearchIndexingProviderAsync LocalProvider(int port)
     {
         var settings = new ElasticsearchClientSettings(new Uri($"http://127.0.0.1:{port}"));
-        return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
+        return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance, NoMappings);
     }
 
     /// <summary>A port nothing listens on, so a connection to it is refused.</summary>
@@ -226,6 +260,20 @@ public sealed class ElasticsearchIndexingResponseTests
     }
 
     [Fact]
+    public async Task EnsureIndexExistsAsync_CreatedByAnotherCallerFirstWithMappings_AddsThemAndReturnsTrue()
+    {
+        // The exists check sees no index, another caller creates it before this caller's create, so the mappings are put.
+        var invoker = new SequenceRequestInvoker(Invoker("{}", 404), Invoker(AlreadyExists, 400), Invoker("""{"acknowledged":true}""", 200));
+        var provider = Provider(invoker, settingsManager: WithMappings);
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
+        invoker.Requests.ShouldBe(3);
+    }
+
+    [Fact]
     public async Task EnsureIndexExistsAsync_CreateForbidden_ReturnsTheCreateFailure()
     {
         var provider = Provider(new HeadRoutingRequestInvokerDecorator(Invoker("{}", 404), Invoker(CreateForbidden, 403)));
@@ -291,6 +339,29 @@ public sealed class ElasticsearchIndexingResponseTests
         result.Errors.Single().Message.ShouldContain("index_not_found_exception");
     }
 
+    [Fact]
+    public async Task EnsureIndexExistsAsync_MappingsNotAcknowledged_ReturnsFailureSayingTheyMayStillApply()
+    {
+        // The in-memory invoker answers every request with this body: the exists check with 200, then the put-mapping.
+        var provider = Provider("""{"acknowledged":false}""", 200, settingsManager: WithMappings);
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldBe("Adding the configured mappings to index people was not acknowledged in time. The mappings are not rolled back and may still apply; call EnsureIndexExistsAsync again to confirm them.");
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_MappingsAcknowledged_ReturnsTrueForAnExistingIndex()
+    {
+        var provider = Provider("""{"acknowledged":true}""", 200, settingsManager: WithMappings);
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
+    }
+
     public static TheoryData<string> IndexingMethods =>
     [
         nameof(IIndexingProviderAsync.IndexDocumentAsync),
@@ -327,7 +398,7 @@ public sealed class ElasticsearchIndexingResponseTests
     public async Task IndexingMethod_ClientFactoryThrows_ReturnsFailureCausedByTheException(string method)
     {
         var exception = new InvalidOperationException("bad connection string");
-        var provider = new ElasticSearchIndexingProviderAsync(new ThrowingClientFactory(exception), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
+        var provider = new ElasticSearchIndexingProviderAsync(new ThrowingClientFactory(exception), NullLogger<ElasticSearchIndexingProviderAsync>.Instance, NoMappings);
 
         var result = await InvokeAsync(provider, method, Token);
 
@@ -376,7 +447,7 @@ public sealed class ElasticsearchIndexingResponseTests
     [MemberData(nameof(IndexingMethods))]
     public async Task IndexingMethod_ClientFactoryCancelled_ThrowsOperationCanceledException(string method)
     {
-        var provider = new ElasticSearchIndexingProviderAsync(new ThrowingClientFactory(new OperationCanceledException()), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
+        var provider = new ElasticSearchIndexingProviderAsync(new ThrowingClientFactory(new OperationCanceledException()), NullLogger<ElasticSearchIndexingProviderAsync>.Instance, NoMappings);
 
         await Should.ThrowAsync<OperationCanceledException>(() => InvokeAsync(provider, method, Token));
     }

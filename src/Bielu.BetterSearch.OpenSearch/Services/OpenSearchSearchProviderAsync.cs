@@ -16,7 +16,8 @@ internal sealed class OpenSearchSearchProviderAsync(
     IPostFilterTranslateServiceAsync<QueryContainer> postFilterTranslateService,
     IClientFactoryAsync<IOpenSearchClient> clientFactoryAsync,
     IResultMapper<ISearchResponse<SearchDocument>> resultMapper,
-    IOptionsMonitor<OpenSearchOptions> optionsMonitor) : ISearchProviderAsync
+    IOptionsMonitor<OpenSearchOptions> optionsMonitor,
+    IOpenSearchClientSettingsManager settingsManager) : ISearchProviderAsync
 {
     /// <summary>Used when <c>PageSize</c> is not set, as OpenSearch does.</summary>
     public const int DefaultPageSize = 10;
@@ -71,7 +72,8 @@ internal sealed class OpenSearchSearchProviderAsync(
             return client.ToResult<ISearchResult>();
         }
 
-        var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow);
+        var mappings = settingsManager.GetConnectionSettings(query.Index).Mappings ?? [];
+        var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow, mappings);
         request.Highlight = highlight.Value;
         var response = await client.Value.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
         // The client reports a cancelled request as an invalid response; the caller cancelled, so say that instead.
@@ -152,7 +154,8 @@ internal sealed class OpenSearchSearchProviderAsync(
     /// <summary>The position of the page's last result, in <c>long</c> so a large page can't overflow.</summary>
     private static long LastResultOf(ISearchQuery query) => (long)PageOf(query) * PageSizeOf(query);
 
-    private static SearchRequest<SearchDocument> CreateRequest(ISearchQuery query, QueryContainer mainQuery, QueryContainer? postFilter, int maxResultWindow)
+    private static SearchRequest<SearchDocument> CreateRequest(ISearchQuery query, QueryContainer mainQuery, QueryContainer? postFilter, int maxResultWindow,
+        IReadOnlyList<OpenSearchFieldMapping> mappings)
     {
         var pageSize = PageSizeOf(query);
         var request = new SearchRequest<SearchDocument>(query.Index)
@@ -172,7 +175,8 @@ internal sealed class OpenSearchSearchProviderAsync(
                 .OrderBy(sort => sort.Order)
                 .Select(sort => (ISort)new FieldSort
                 {
-                    Field = OpenSearchFieldNames.Resolve(sort.FieldName),
+                    // A field mapped as text sorts on its keyword sub-field.
+                    Field = FieldMappings.SortField(OpenSearchFieldNames.Resolve(sort.FieldName), mappings),
                     Order = sort.Desc ? OsSortOrder.Descending : OsSortOrder.Ascending
                 })
                 .ToList();
