@@ -1,14 +1,23 @@
-﻿using Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Caching;
+using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 
 namespace Bielu.BetterSearch.Services;
 
 /// <summary>The default <see cref="IIndexingServiceAsync"/>; see it for the observer contract.</summary>
+/// <remarks>
+/// With an <see cref="ISearchResultCache"/>, every write that reaches the provider evicts the cached searches of its
+/// index (<see cref="SearchCacheOptions.IndexTag"/>) once the provider returns, whether the write succeeded or not, as a
+/// failed write can still have changed part of the index, and before the observers are notified. The eviction ignores
+/// the caller's cancellation, so a write that went through always evicts. An eviction that throws is logged and does
+/// not change the write's <see cref="Result"/>.
+/// </remarks>
 public class IndexingServiceAsync(
     IIndexingProviderAsync indexingProvider,
     IDocumentValidatorAsync documentValidator,
-    ILogger<IndexingServiceAsync>? logger = null)
+    ILogger<IndexingServiceAsync>? logger = null,
+    ISearchResultCache? cache = null)
     : IIndexingServiceAsync
 {
     private readonly ObserverList<SearchDocument> _indexingObservers = new(logger);
@@ -25,7 +34,7 @@ public class IndexingServiceAsync(
             return nullFieldsResult;
         }
 
-        return await IndexCheckedDocumentAsync(document, cancellationToken).ConfigureAwait(false);
+        return await IndexCheckedDocumentAsync(document, true, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
@@ -39,19 +48,36 @@ public class IndexingServiceAsync(
             return Result.Fail<int>(nullFieldsResult.Errors);
         }
 
-        foreach (var doc in documents)
+        // Evicts each index once, after the batch, rather than once for each document.
+        var written = new HashSet<string?>(StringComparer.OrdinalIgnoreCase);
+        try
         {
-            var result = await IndexCheckedDocumentAsync(doc, cancellationToken).ConfigureAwait(false);
-            if (result.IsFailed)
+            foreach (var doc in documents)
             {
-                return Result.Fail<int>(result.Errors);
+                written.Add(doc.Index);
+                var result = await IndexCheckedDocumentAsync(doc, false, cancellationToken).ConfigureAwait(false);
+                if (result.IsFailed)
+                {
+                    return Result.Fail<int>(result.Errors);
+                }
             }
         }
+        finally
+        {
+            foreach (var index in written)
+            {
+                await EvictIndexAsync(index).ConfigureAwait(false);
+            }
+        }
+
         return Result.Ok(documents.Count);
     }
 
-    /// <summary>Validates and indexes a document that <see cref="CheckNullFields"/> has already passed.</summary>
-    private async Task<Result> IndexCheckedDocumentAsync(SearchDocument document, CancellationToken cancellationToken)
+    /// <summary>
+    /// Validates and indexes a document that <see cref="CheckNullFields"/> has already passed, evicting its index's
+    /// cached searches when <paramref name="evict"/> is <c>true</c>.
+    /// </summary>
+    private async Task<Result> IndexCheckedDocumentAsync(SearchDocument document, bool evict, CancellationToken cancellationToken)
     {
         var validationResult = await documentValidator.ValidateDocumentAsync(document, cancellationToken).ConfigureAwait(false);
         if (validationResult.IsFailed)
@@ -64,7 +90,19 @@ public class IndexingServiceAsync(
             return Result.Fail("Document is not valid");
         }
 
-        var result = await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
+        Result result;
+        try
+        {
+            result = await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (evict)
+            {
+                await EvictIndexAsync(document.Index).ConfigureAwait(false);
+            }
+        }
+
         if (result.IsSuccess)
         {
             _indexingObservers.Notify(document);
@@ -114,7 +152,16 @@ public class IndexingServiceAsync(
     public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
         CancellationToken cancellationToken = default)
     {
-        var result = await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken).ConfigureAwait(false);
+        Result result;
+        try
+        {
+            result = await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            await EvictIndexAsync(document.Type).ConfigureAwait(false);
+        }
+
         if (result.IsSuccess)
         {
             _deleteDocumentObservers.Notify(document);
@@ -137,7 +184,16 @@ public class IndexingServiceAsync(
             return Result.Ok(0);
         }
 
-        var result = await indexingProvider.RemoveDocumentsAsync(index, distinctIds.Value, cancellationToken).ConfigureAwait(false);
+        Result<int> result;
+        try
+        {
+            result = await indexingProvider.RemoveDocumentsAsync(index, distinctIds.Value, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            await EvictIndexAsync(index).ConfigureAwait(false);
+        }
+
         if (result.IsSuccess)
         {
             foreach (var id in distinctIds.Value)
@@ -151,13 +207,40 @@ public class IndexingServiceAsync(
 
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
     {
-        var result = await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken).ConfigureAwait(false);
+        Result<long?> result;
+        try
+        {
+            result = await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            await EvictIndexAsync(request?.IndexName).ConfigureAwait(false);
+        }
+
         if (result.IsSuccess)
         {
             _deleteAllDocumentsObservers.Notify(request);
         }
 
         return result;
+    }
+
+    /// <summary>Evicts the cached searches of <paramref name="index"/>; never throws.</summary>
+    private async Task EvictIndexAsync(string? index)
+    {
+        if (cache is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await cache.RemoveByTagAsync(SearchCacheOptions.IndexTag(index), CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            logger?.LogError(e, "The cached searches of index {Index} were not evicted after a write; they stay until they expire.", index);
+        }
     }
 
     public IDisposable Subscribe(IObserver<DeleteDocumentRequest> observer) => _deleteDocumentObservers.Subscribe(observer);
