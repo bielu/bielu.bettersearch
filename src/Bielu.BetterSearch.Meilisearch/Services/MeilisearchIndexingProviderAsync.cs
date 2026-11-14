@@ -45,8 +45,8 @@ public sealed class MeilisearchIndexingProviderAsync(
         foreach (var indexGroup in searchDocuments.GroupBy(x => x.Index))
         {
             var group = indexGroup.ToList();
-            var indexed = await IndexDocumentsAsync(indexGroup.Key, group, cancellationToken).ConfigureAwait(false);
-            results.Add(indexed.IsSuccess ? indexed : Result.Fail(IndexFailedError(indexGroup.Key, group, indexed.Errors)));
+            var (indexed, mayBeStored) = await AddDocumentsAsync(indexGroup.Key, group, cancellationToken).ConfigureAwait(false);
+            results.Add(indexed.IsSuccess ? indexed : Result.Fail(IndexFailedError(indexGroup.Key, group, indexed.Errors, mayBeStored)));
         }
 
         var merged = results.Merge();
@@ -55,17 +55,22 @@ public sealed class MeilisearchIndexingProviderAsync(
 
     /// <summary>
     /// The error for one index of a bulk write. Meilisearch adds an index's documents in one task, which succeeds or
-    /// fails whole, so none of <paramref name="documents"/> is stored, unless the task was queued but not seen to finish.
+    /// fails whole, so none of <paramref name="documents"/> is stored, unless <paramref name="mayBeStored"/> says the
+    /// add request was sent and its outcome is unknown.
     /// </summary>
-    private static Error IndexFailedError(string index, IReadOnlyCollection<SearchDocument> documents, IReadOnlyList<IError> errors)
+    private static Error IndexFailedError(string index, IReadOnlyCollection<SearchDocument> documents, IReadOnlyList<IError> errors, bool mayBeStored)
     {
         var ids = documents.Select(document => document.Id).ToList();
-        var error = errors[0].Metadata.TryGetValue(QueuedTaskUid, out var taskUid)
-            ? new Error($"Indexing documents into {index} did not finish: {errors[0].Message}. Meilisearch task {taskUid} was queued and may still index any or all of the {ids.Count} documents.")
-                .WithMetadata("ids", ids)
-            : DocumentIds.IndexFailedError(index, 0, ids.Count, ids, string.Join("; ", errors.Select(e => e.Message)));
-        // Keeps Meilisearch's code in the code metadata, as the other writes do.
-        return error.WithMetadata(errors[0].Metadata.Where(entry => entry.Key != "ids").ToDictionary())
+        var error = !mayBeStored
+            ? DocumentIds.IndexFailedError(index, 0, ids.Count, ids, string.Join("; ", errors.Select(e => e.Message)))
+            : errors[0].Metadata.TryGetValue(QueuedTaskUid, out var taskUid)
+                ? new Error($"Indexing documents into {index} did not finish: {errors[0].Message}. Meilisearch task {taskUid} was queued and may still index any or all of the {ids.Count} documents.")
+                    .WithMetadata("ids", ids)
+                : new Error($"Indexing documents into {index} did not finish: {errors[0].Message}. Meilisearch may have received the request before it failed, so it may still index any or all of the {ids.Count} documents.")
+                    .WithMetadata("ids", ids);
+        // Keeps Meilisearch's code in the code metadata, as the other writes do. A taskUid is kept only for the
+        // document task: one from the settings update would point at a task that indexes nothing.
+        return error.WithMetadata(errors[0].Metadata.Where(entry => entry.Key != "ids" && (mayBeStored || entry.Key != QueuedTaskUid)).ToDictionary())
             .CausedBy(errors);
     }
 
@@ -182,6 +187,16 @@ public sealed class MeilisearchIndexingProviderAsync(
     }
 
     private async Task<Result> IndexDocumentsAsync(string index, IReadOnlyCollection<SearchDocument> documents,
+        CancellationToken cancellationToken) =>
+        (await AddDocumentsAsync(index, documents, cancellationToken).ConfigureAwait(false)).Result;
+
+    /// <summary>
+    /// Adds <paramref name="documents"/> to <paramref name="index"/> in one task. <c>MayBeStored</c> is true when the
+    /// add request was sent and failed without a definite answer: the task was queued but not seen to finish, or the
+    /// request failed without a Meilisearch response, so Meilisearch may still store the documents. A failure before
+    /// the request, a rejected request and a failed task store nothing.
+    /// </summary>
+    private async Task<(Result Result, bool MayBeStored)> AddDocumentsAsync(string index, IReadOnlyCollection<SearchDocument> documents,
         CancellationToken cancellationToken)
     {
         var options = optionsMonitor.CurrentValue;
@@ -190,19 +205,29 @@ public sealed class MeilisearchIndexingProviderAsync(
         var invalid = converted.Where(document => document.IsFailed).SelectMany(document => document.Errors).ToList();
         if (invalid.Count > 0)
         {
-            return Result.Fail(invalid);
+            return (Result.Fail(invalid), false);
         }
 
         // Meilisearch creates a missing index when documents are added to it, or when its settings are updated.
         var configured = await ConfigureIndexAsync(index, cancellationToken).ConfigureAwait(false);
         if (configured.IsFailed)
         {
-            return configured;
+            return (configured, false);
         }
 
         var stored = converted.Select(document => document.Value).ToList();
-        var task = await RunTaskAsync(index, client => client.Index(index).AddDocumentsAsync(stored, PrimaryKey, cancellationToken), cancellationToken).ConfigureAwait(false);
-        return task.ToResult();
+        var sent = false;
+        var task = await RunTaskAsync(index, client =>
+        {
+            sent = true;
+            return client.Index(index).AddDocumentsAsync(stored, PrimaryKey, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
+        // A MeilisearchApiError is Meilisearch's answer that it rejected the request; any other exception after the
+        // request started, such as a dropped connection, leaves the outcome unknown.
+        var mayBeStored = task.IsFailed && sent
+            && (task.Errors[0].Metadata.ContainsKey(QueuedTaskUid)
+                || task.Errors[0].Reasons.OfType<ExceptionalError>().Any(reason => reason.Exception is not MeilisearchApiError));
+        return (task.ToResult(), mayBeStored);
     }
 
     /// <summary>

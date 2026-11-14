@@ -138,7 +138,10 @@ indexed. Meilisearch applies the task or fails it as a whole, so when it rejects
 say), the `Result` fails naming every id of that index, with all of them in the error's `ids` metadata, and
 none of them is stored. When the wait for the task times out (`TaskTimeout`), the `Result` fails saying the
 task was queued and may still index any or all of the documents, with the task's uid in the error's `taskUid`
-metadata.
+metadata. When the request adding the documents fails with no answer from Meilisearch (a dropped connection,
+say), the `Result` fails saying Meilisearch may still index any or all of them, with no `taskUid`. A failure
+before the documents are sent, such as a timeout waiting for the index's settings update, stores none of them
+and says `0 of N documents were indexed`, with no `taskUid`.
 
 ## Removing documents
 
