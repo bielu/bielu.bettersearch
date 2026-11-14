@@ -52,6 +52,6 @@ public sealed class ElasticSearchInvalidSettingsSearchTests : InvalidSettingsSea
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldBe(
-            $"MaxResultWindow is {maxResultWindow}, but it must be greater than 0. Set {OptionsKey}:MaxResultWindow to the indexes' index.max_result_window.");
+            $"{OptionsKey}:MaxResultWindow is {maxResultWindow}, but it must be greater than 0.");
     }
 }

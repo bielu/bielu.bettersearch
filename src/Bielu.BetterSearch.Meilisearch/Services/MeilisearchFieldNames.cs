@@ -48,10 +48,13 @@ internal static class MeilisearchFieldNames
             return Result.Fail<string>($"{queryName} needs a Field for Meilisearch.");
         }
 
-        return field.All(c => char.IsLetterOrDigit(c) || c is '_' or '-' or '.')
+        return IsWritable(field)
             ? Result.Ok(field)
             : Result.Fail<string>($"{queryName} field '{field}' can only contain letters, digits, '_', '-' and '.' for Meilisearch.");
     }
+
+    /// <summary>Whether <paramref name="field"/> can be written unquoted in a filter: letters, digits, <c>_</c>, <c>-</c> and <c>.</c> only.</summary>
+    public static bool IsWritable(string field) => field.All(c => char.IsLetterOrDigit(c) || c is '_' or '-' or '.');
 
     public static string Quote(string value) =>
         "\"" + value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
