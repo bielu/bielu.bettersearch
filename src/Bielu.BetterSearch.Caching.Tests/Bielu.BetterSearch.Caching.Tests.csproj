@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+        <!-- BIELU008 (ConfigureAwait) conflicts with xUnit1030 in test code. -->
+        <NoWarn>$(NoWarn);BIELU008</NoWarn>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="coverlet.MTP" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+        <PackageReference Include="Shouldly" />
+        <PackageReference Include="xunit.v3" />
+        <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.Memory" />
+        <PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="Xunit" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Bielu.BetterSearch.Abstractions\Bielu.BetterSearch.Abstractions.csproj" />
+      <ProjectReference Include="..\Bielu.BetterSearch.BaseTests\Bielu.BetterSearch.BaseTests.csproj" />
+      <ProjectReference Include="..\Bielu.BetterSearch.Caching.FusionCache\Bielu.BetterSearch.Caching.FusionCache.csproj" />
+      <ProjectReference Include="..\Bielu.BetterSearch.Core\Bielu.BetterSearch.Core.csproj" />
+    </ItemGroup>
+
+</Project>

@@ -1,6 +1,9 @@
-﻿using Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Caching;
+using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Caching;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Bielu.BetterSearch.Configuration;
 
@@ -78,6 +81,45 @@ public class Configurator(IServiceCollection services, IConfiguration configurat
     public Configurator SetSearchProviderType<T>() where T : class, ISearchProviderAsync
     {
         Configuration.SearchProviderType = typeof(T);
+        return this;
+    }
+
+    /// <summary>
+    /// Caches search results in <typeparamref name="TCache"/>, registered as a singleton. <c>AddBetterSearch</c> then
+    /// decorates every <see cref="ISearchServiceAsync"/> and <see cref="IIndexingServiceAsync"/> registered by the time
+    /// it runs, keyed or not, whatever their type: searches are cached, and every write evicts the cached searches of
+    /// its index. Without this, nothing is cached.
+    /// </summary>
+    public Configurator AddSearchCache<TCache>(Action<SearchCacheOptions>? configure = null)
+        where TCache : class, ISearchResultCache
+    {
+        services.TryAddSingleton<ISearchResultCache, TCache>();
+        return ConfigureSearchCache(configure);
+    }
+
+    /// <summary>
+    /// Caches search results with <see cref="MemorySearchResultCache"/>, in this process only. Use it for an
+    /// application that runs as one instance; with several, use a cache with a backplane, such as FusionCache.
+    /// </summary>
+    public Configurator AddMemorySearchCache(Action<SearchCacheOptions>? configure = null)
+    {
+        services.AddMemoryCache();
+        return AddSearchCache<MemorySearchResultCache>(configure);
+    }
+
+    /// <summary>
+    /// Turns the search cache on and applies <paramref name="configure"/> to the <see cref="SearchCacheOptions"/>, for
+    /// cache packages that register their own <see cref="ISearchResultCache"/>.
+    /// </summary>
+    public Configurator ConfigureSearchCache(Action<SearchCacheOptions>? configure = null)
+    {
+        Configuration.UsesSearchCache = true;
+        var options = services.AddOptions<SearchCacheOptions>();
+        if (configure is not null)
+        {
+            options.Configure(configure);
+        }
+
         return this;
     }
 
