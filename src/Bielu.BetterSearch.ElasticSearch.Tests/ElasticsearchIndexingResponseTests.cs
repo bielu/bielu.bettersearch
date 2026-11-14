@@ -27,14 +27,43 @@ public sealed class ElasticsearchIndexingResponseTests
         public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName) => throw exception;
     }
 
-    private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false)
+    /// <summary>Answers HEAD requests, such as the index exists check, with one invoker and every other request with another.</summary>
+    private sealed class HeadRoutingRequestInvokerDecorator(IRequestInvoker head, IRequestInvoker other) : IRequestInvoker
     {
-        var invoker = new InMemoryRequestInvoker(Encoding.UTF8.GetBytes(json), statusCode, null, "application/json",
+        public ResponseFactory ResponseFactory => other.ResponseFactory;
+
+        private IRequestInvoker For(Endpoint endpoint) => endpoint.Method == Elastic.Transport.HttpMethod.HEAD ? head : other;
+
+        public TResponse Request<TResponse>(Endpoint endpoint, BoundConfiguration boundConfiguration, PostData? postData)
+            where TResponse : TransportResponse, new() =>
+            For(endpoint).Request<TResponse>(endpoint, boundConfiguration, postData);
+
+        public Task<TResponse> RequestAsync<TResponse>(Endpoint endpoint, BoundConfiguration boundConfiguration, PostData? postData, CancellationToken cancellationToken)
+            where TResponse : TransportResponse, new() =>
+            For(endpoint).RequestAsync<TResponse>(endpoint, boundConfiguration, postData, cancellationToken);
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private static InMemoryRequestInvoker Invoker(string json, int statusCode) =>
+        new(Encoding.UTF8.GetBytes(json), statusCode, null, "application/json",
             new Dictionary<string, IEnumerable<string>> { ["x-elastic-product"] = ["Elasticsearch"] });
+
+    private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false) =>
+        Provider(Invoker(json, statusCode), throwExceptions);
+
+    private static ElasticSearchIndexingProviderAsync Provider(IRequestInvoker invoker, bool throwExceptions = false)
+    {
         var settings = new ElasticsearchClientSettings(new SingleNodePool(new Uri("http://localhost:9200")), invoker)
             .ThrowExceptions(throwExceptions);
         return new ElasticSearchIndexingProviderAsync(new FixedClientFactory(new ElasticsearchClient(settings)), NullLogger<ElasticSearchIndexingProviderAsync>.Instance);
     }
+
+    private const string AlreadyExists = """{"error":{"root_cause":[{"type":"resource_already_exists_exception","reason":"index [people/abc] already exists","index":"people"}],"type":"resource_already_exists_exception","reason":"index [people/abc] already exists","index":"people"},"status":400}""";
+
+    private const string CreateForbidden = """{"error":{"root_cause":[{"type":"security_exception","reason":"no permissions for [indices:admin/create]"}],"type":"security_exception","reason":"no permissions for [indices:admin/create]"},"status":403}""";
 
     /// <summary>A provider that talks to <paramref name="port"/> on this machine over the real HTTP transport.</summary>
     private static ElasticSearchIndexingProviderAsync LocalProvider(int port)
@@ -160,6 +189,106 @@ public sealed class ElasticsearchIndexingResponseTests
 
         result.IsFailed.ShouldBeTrue();
         result.Errors[0].Message.ShouldStartWith("Elasticsearch index exists check failed with HTTP 401");
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_IndexExists_ReturnsTrue()
+    {
+        var provider = Provider("{}", 200);
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_IndexCreated_ReturnsTrue()
+    {
+        var provider = Provider(new HeadRoutingRequestInvokerDecorator(Invoker("{}", 404), Invoker("""{"acknowledged":true,"shards_acknowledged":true,"index":"people"}""", 200)));
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_CreatedByAnotherCallerFirst_ReturnsTrue()
+    {
+        // The exists check sees no index, then another caller creates it before this caller's create.
+        var provider = Provider(new HeadRoutingRequestInvokerDecorator(Invoker("{}", 404), Invoker(AlreadyExists, 400)));
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_CreateForbidden_ReturnsTheCreateFailure()
+    {
+        var provider = Provider(new HeadRoutingRequestInvokerDecorator(Invoker("{}", 404), Invoker(CreateForbidden, 403)));
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldBe("Elasticsearch create index failed with HTTP 403 (security_exception): no permissions for [indices:admin/create]");
+    }
+
+    [Fact]
+    public async Task CreateIndexAsync_Created_ReturnsTrue()
+    {
+        var provider = Provider("""{"acknowledged":true,"shards_acknowledged":true,"index":"people"}""", 200);
+
+        var result = await provider.CreateIndexAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task CreateIndexAsync_AlreadyExists_ReturnsFalse()
+    {
+        var provider = Provider(AlreadyExists, 400);
+
+        var result = await provider.CreateIndexAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task CreateIndexAsync_Forbidden_ReturnsFailure()
+    {
+        var provider = Provider(CreateForbidden, 403);
+
+        var result = await provider.CreateIndexAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldBe("Elasticsearch create index failed with HTTP 403 (security_exception): no permissions for [indices:admin/create]");
+    }
+
+    [Fact]
+    public async Task DeleteIndexAsync_Deleted_ReturnsTrue()
+    {
+        var provider = Provider("""{"acknowledged":true}""", 200);
+
+        var result = await provider.DeleteIndexAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task DeleteIndexAsync_IndexNotFound_ReturnsFailure()
+    {
+        var provider = Provider("""{"error":{"root_cause":[{"type":"index_not_found_exception","reason":"no such index [people]"}],"type":"index_not_found_exception","reason":"no such index [people]"},"status":404}""", 404);
+
+        var result = await provider.DeleteIndexAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain("index_not_found_exception");
     }
 
     public static TheoryData<string> IndexingMethods =>
