@@ -11,7 +11,7 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
 
-public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
+public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
 {
     private const string Key = "Bielu:BetterSearch:ElasticSearch";
 
@@ -196,7 +196,7 @@ public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:Indexes:people:AuthenticationDetails:Password, or {Key}:SharedIndexSettings:AuthenticationDetails:Password for every index."
+            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:Indexes:people:AuthenticationDetails:Password."
         ]);
     }
 
@@ -211,8 +211,24 @@ public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"CLOUDAPI authentication needs AuthenticationDetails:ApiKey. Set {Key}:SharedIndexSettings:AuthenticationDetails:ApiKey, or {Key}:Indexes:<index>:AuthenticationDetails:ApiKey for one index.",
+            $"CLOUDAPI authentication needs AuthenticationDetails:ApiKey. Set {Key}:SharedIndexSettings:AuthenticationDetails:ApiKey, or {Key}:Indexes:<index>:AuthenticationType with {Key}:Indexes:<index>:AuthenticationDetails for one index.",
             $"{Key}:MaxResultWindow is 0, but it must be greater than 0.",
+        ]);
+    }
+
+    [Theory]
+    [InlineData("APIKEY", "ApiKey")]
+    [InlineData("BEARER", "Token")]
+    public void ValidateOnStart_ApiKeyOrBearerWithoutConnectionString_FailsNamingConnectionString(string authenticationType, string detail)
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = authenticationType,
+            [$"SharedIndexSettings:AuthenticationDetails:{detail}"] = "s3cret",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"ConnectionString is missing. Set {Key}:SharedIndexSettings:ConnectionString, or {Key}:Indexes:<index>:ConnectionString for one index."
         ]);
     }
 
@@ -229,6 +245,37 @@ public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
     }
 
     [Fact]
+    public void ValidateOnStart_TlsSettingOnACloudIndexEntry_Passes()
+    {
+        ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "https://shared:9200",
+            ["SharedIndexSettings:DevelopmentOnlySkipCertificateValidation"] = "true",
+            ["Indexes:people:AuthenticationType"] = "CLOUDAPI",
+            ["Indexes:people:AuthenticationDetails:Id"] = "name:abc",
+            ["Indexes:people:AuthenticationDetails:ApiKey"] = "key",
+            ["Indexes:people:DevelopmentOnlySkipCertificateValidation"] = "false",
+        }).ShouldBeNull();
+    }
+
+    [Fact]
+    public void ValidateOnStart_CertificateFingerprintNotSha256OnACloudIndexEntry_FailsNamingTheIndexSetting()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "https://shared:9200",
+            ["Indexes:people:AuthenticationType"] = "CLOUDAPI",
+            ["Indexes:people:AuthenticationDetails:Id"] = "name:abc",
+            ["Indexes:people:AuthenticationDetails:ApiKey"] = "key",
+            ["Indexes:people:CertificateFingerprint"] = "8F:3A:0C",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"CertificateFingerprint is not a SHA-256 fingerprint: it needs 64 hex digits, with or without colons. Set {Key}:Indexes:people:CertificateFingerprint."
+        ]);
+    }
+
+    [Fact]
     public void ValidateOnStart_UnknownAuthenticationType_FailsListingTheTypes()
     {
         var failure = ValidateOnStart(new Dictionary<string, string?>
@@ -238,7 +285,7 @@ public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"AuthenticationType 7 is not one of NONE, CLOUD, CLOUDAPI, PASSWORD. Set {Key}:SharedIndexSettings:AuthenticationType, or {Key}:Indexes:<index>:AuthenticationType for one index."
+            $"AuthenticationType 7 is not one of NONE, CLOUD, CLOUDAPI, PASSWORD, APIKEY, BEARER. Set {Key}:SharedIndexSettings:AuthenticationType, or {Key}:Indexes:<index>:AuthenticationType for one index."
         ]);
     }
 
@@ -266,7 +313,132 @@ public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:Indexes:people:AuthenticationDetails:Password, or {Key}:SharedIndexSettings:AuthenticationDetails:Password for every index."
+            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:SharedIndexSettings:AuthenticationDetails:Password, which {Key}:Indexes:people inherits."
         ]);
+    }
+
+    [Theory]
+    [InlineData("SharedIndexSettings", "RequestTimeout", "00:00:00", "must be greater than 0.")]
+    [InlineData("Indexes:people", "RequestTimeout", "-00:00:01", "must be greater than 0.")]
+    [InlineData("SharedIndexSettings", "RequestTimeout", "30.00:00:00", "must be at most 24.20:31:23.6470000, the longest timeout HttpClient accepts.")]
+    [InlineData("Indexes:people", "RequestTimeout", "24.20:31:23.6480000", "must be at most 24.20:31:23.6470000, the longest timeout HttpClient accepts.")]
+    [InlineData("SharedIndexSettings", "MaxRetries", "-1", "must not be negative.")]
+    [InlineData("Indexes:people", "MaxRetries", "-2", "must not be negative.")]
+    public void ValidateOnStart_InvalidClientSetting_ThrowsNamingTheSetting(string path, string setting, string value, string rule)
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            [$"{Key}:{path}:{setting}"] = value,
+        });
+
+        var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
+
+        exception.Failures.ShouldBe([$"{Key}:{path}:{setting} is {value}, but it {rule}"]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_ValidClientSettings_Passes()
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            [$"{Key}:SharedIndexSettings:RequestTimeout"] = "00:00:05",
+            [$"{Key}:SharedIndexSettings:MaxRetries"] = "0",
+            [$"{Key}:Indexes:people:RequestTimeout"] = "24.20:31:23.6470000",
+        });
+
+        Should.NotThrow(() => ValidateOnStart(services));
+    }
+
+    [Fact]
+    public void ValidateOnStart_IndexWithOwnAuthenticationInheritingMissingConnectionString_FailsNamingOnlyTheSharedSetting()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["Indexes:people:AuthenticationType"] = "PASSWORD",
+            ["Indexes:people:AuthenticationDetails:Username"] = "elastic",
+            ["Indexes:people:AuthenticationDetails:Password"] = "secret",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"ConnectionString is missing. Set {Key}:SharedIndexSettings:ConnectionString, which {Key}:Indexes:people inherits."
+        ]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_IndexWithOwnConnectionStringAndUnknownAuthenticationType_FailsNamingOnlyTheIndexSetting()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationDetails:Username"] = "elastic",
+            ["SharedIndexSettings:AuthenticationDetails:Password"] = "secret",
+            ["Indexes:people:ConnectionString"] = "http://people:9200",
+            ["Indexes:people:AuthenticationType"] = "7",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldHaveSingleItem().ShouldEndWith($"Set {Key}:Indexes:people:AuthenticationType.");
+    }
+
+    [Fact]
+    public void ValidateOnStart_ValidAdditionalNodesAndPoolType_Passes()
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://first:9200",
+            [$"{Key}:SharedIndexSettings:AdditionalNodes:0"] = "http://second:9200",
+            [$"{Key}:SharedIndexSettings:PoolType"] = "Sniffing",
+            [$"{Key}:Indexes:people:AdditionalNodes:0"] = "http://people:9200",
+        });
+
+        Should.NotThrow(() => ValidateOnStart(services));
+    }
+
+    [Theory]
+    [InlineData("first:9200", "AdditionalNodes:1 is not an http or https URL.")]
+    [InlineData("ftp://first:9200", "AdditionalNodes:1 is not an http or https URL.")]
+    [InlineData(" ", "AdditionalNodes:1 is missing.")]
+    [InlineData("https://first:9200", "AdditionalNodes:1 does not use http, as ConnectionString does, and every node must use the same scheme.")]
+    public void ValidateOnStart_InvalidSharedAdditionalNode_ThrowsNamingItsPosition(string node, string expected)
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://first:9200",
+            [$"{Key}:SharedIndexSettings:AdditionalNodes:0"] = "http://second:9200",
+            [$"{Key}:SharedIndexSettings:AdditionalNodes:1"] = node,
+        });
+
+        var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
+
+        exception.Message.ShouldContain($"{expected} Set {Key}:SharedIndexSettings:AdditionalNodes:1, or {Key}:Indexes:<index>:AdditionalNodes:1 for one index.");
+        exception.Message.ShouldNotContain("AdditionalNodes:0");
+    }
+
+    [Fact]
+    public void ValidateOnStart_IndexWithOnlyAnInvalidAdditionalNode_ThrowsNamingTheIndexSetting()
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://first:9200",
+            [$"{Key}:Indexes:people:AdditionalNodes:0"] = "people:9200",
+        });
+
+        var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
+
+        exception.Message.ShouldContain($"AdditionalNodes:0 is not an http or https URL. Set {Key}:Indexes:people:AdditionalNodes:0.");
+    }
+
+    [Fact]
+    public void ValidateOnStart_IndexWithOnlyAPoolTypeAndNoConnectionStringAnywhere_ThrowsNamingTheIndexSetting()
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:Indexes:people:PoolType"] = "Sticky",
+        });
+
+        var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
+
+        exception.Message.ShouldContain($"ConnectionString is missing. Set {Key}:SharedIndexSettings:ConnectionString, which {Key}:Indexes:people inherits.");
     }
 }

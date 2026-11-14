@@ -43,6 +43,8 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
       "OpenSearch": {
         "SharedIndexSettings": {
           "ConnectionString": "http://localhost:9200",
+          "AdditionalNodes": [ "http://node-2:9200", "http://node-3:9200" ],
+          "PoolType": "Static",
           "AuthenticationType": "PASSWORD",
           "AuthenticationDetails": { "Username": "admin", "Password": "..." }
         },
@@ -60,11 +62,17 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
 |---------|---------|
 | `SharedIndexSettings` | Connection used for every index without its own entry |
 | `ConnectionString` | Cluster URL, `http` or `https`; a missing or invalid one makes each call for that index return a failed `Result` |
+| `AdditionalNodes` | URLs of the cluster's other nodes, each an absolute `http` or `https` URL with the same scheme as `ConnectionString`. A request that can't reach a node is sent to the next one, and the node is left out for a while before it is tried again. An `Indexes` entry with its own `ConnectionString` uses only its own nodes; an entry without one takes its own `AdditionalNodes` if set, or the shared ones |
+| `PoolType` | How requests are spread over the nodes: `Static` (the nodes take turns, starting from a random one), `Sticky` (always the first node that is up, in the order listed, starting from `ConnectionString`) or `Sniffing` (as `Static`, but the client asks the cluster for its nodes at startup and after a node fails, and then uses the addresses the nodes publish, which it must be able to reach). Unset, a lone `ConnectionString` is the only node the client uses, as before, and with `AdditionalNodes` the pool is `Static`. An `Indexes` entry that leaves it out takes the shared value |
 | `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`) or `APIKEY` (an OpenSearch 3.x API key in `ApiKey`, sent as `Authorization: ApiKey <key>`) |
-| `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people` |
+| `CertificateFingerprint` | The SHA-256 fingerprint of the server's certificate or of the CA that signed it, 64 hex digits with or without colons. A certificate the system does not trust is then accepted when it has this fingerprint, or chains through valid signatures to a CA that has it, whatever host name it names; one the system trusts is accepted as before. Can't be set together with `DevelopmentOnlySkipCertificateValidation` |
+| `DevelopmentOnlySkipCertificateValidation` | `true` accepts any server certificate, so anyone between the application and the cluster can read and change the traffic, credentials included. Only for a local development cluster, such as one running the security plugin's demo certificates. A certificate the system trusts needs neither TLS setting; set `CertificateFingerprint` only for one it does not, such as a self-signed CA |
+| `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same nodes, pool type and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people`. The TLS settings go with the connection string: an entry with its own `ConnectionString` uses only its own `CertificateFingerprint` and `DevelopmentOnlySkipCertificateValidation`, and one without takes the shared ones; setting either on an entry without its own `ConnectionString` fails validation |
 | `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
 | `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` sends in one bulk request, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails |
 | `WriteVisibility` | `Default` or `WaitUntilSearchable`, in `SharedIndexSettings` or an `Indexes` entry; see [When writes are searchable](#when-writes-are-searchable). An entry that leaves it out takes the shared value, and `"WriteVisibility": "Default"` there turns the shared one off |
+| `RequestTimeout` | How long a request may take, such as `"00:00:10"`, in `SharedIndexSettings` or an `Indexes` entry; unset, the client's default of 60 seconds. The client also limits a request and its retries together to this time, unless `configureClient` sets `MaxRetryTimeout`. It must be greater than 0 and at most `24.20:31:23.647` (`int.MaxValue` milliseconds, the longest the client accepts), or startup validation fails |
+| `MaxRetries` | How many times the client retries a failed request, in `SharedIndexSettings` or an `Indexes` entry; unset, the client's default. It must not be negative, or startup validation fails |
 | `IndexPrefix` | Put before every index name sent to the server, so applications or environments can share a cluster: with `app-`, the index `people` is `app-people` on the server. Indexing, search, `GetDocumentAsync`, `CountAsync`, `UpdateDocumentAsync`, removal, the index checks, `DeleteIndexAsync` and rebuilds all add it, and you keep using `people`. Lower case only, without `\ / * ? " < > \| , # :` or spaces, and not starting with `-`, `_` or `+`; startup validation fails otherwise, naming `IndexPrefix` |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. It must be greater than 0, or startup validation fails |
 
@@ -74,12 +82,27 @@ The options are validated at startup (`ValidateOnStart`), so a host with invalid
 `OptionsValidationException`, listing every setting that is wrong, each by its configuration path. The connection
 string and authentication are checked as each call checks them, after merging each `Indexes` entry with
 `SharedIndexSettings`. For example `ConnectionString is not an http or https URL. Set
-Bielu:BetterSearch:OpenSearch:Indexes:people:ConnectionString, or Bielu:BetterSearch:OpenSearch:SharedIndexSettings:ConnectionString for every index.`
+Bielu:BetterSearch:OpenSearch:Indexes:people:ConnectionString.` A failure for an `Indexes` entry names only the setting that changes its value: the entry's own path when it sets the value, and the `SharedIndexSettings` path when it inherits it, as an entry takes the authentication details only with its own `AuthenticationType`.
 Connection messages never include the connection string or a credential; the other messages show the rejected value, such as `MaxResultWindow is 0`. A missing section, or one whose name is misspelled, gives the single
-failure `No Bielu:BetterSearch:OpenSearch settings were found.`, naming the section. The shared settings are not checked on their own when they set
-no connection string and every `Indexes` entry sets its own connection: shared authentication is then checked with each index that inherits it, and an index not listed fails when it is used. `MaxResultWindow` must be greater than 0. The same
+failure `No Bielu:BetterSearch:OpenSearch settings were found.`, naming the section. Each of `AdditionalNodes` is checked as `ConnectionString` is, and a failure names its position, such as `AdditionalNodes:1 is not an http or https URL. Set Bielu:BetterSearch:OpenSearch:SharedIndexSettings:AdditionalNodes:1, or Bielu:BetterSearch:OpenSearch:Indexes:<index>:AdditionalNodes:1 for one index.` The shared settings are not checked on their own when they set
+no connection string and every `Indexes` entry sets its own connection: shared authentication is then checked with each index that inherits it, and an index not listed fails when it is used. `CertificateFingerprint` must be 64 hex digits, with or without colons, and can't be set together with `DevelopmentOnlySkipCertificateValidation`. `MaxResultWindow` must be greater than 0. The same
 checks run whenever the options are read, so after a configuration reload to invalid settings, every call returns a
 failed `Result` with the same messages.
+
+### Client settings
+
+For anything the options don't cover, such as a proxy, a header or certificate validation, pass `configureClient`. It
+gets the client's `ConnectionSettings` after the provider has applied the options, so it can override them too:
+
+```csharp
+builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpenSearch(
+    configureClient: settings => settings.Proxy(new Uri("http://proxy:3128"), "user", "password")));
+```
+
+The provider keeps one client per distinct connection: the connection string, the authentication, `RequestTimeout`
+and `MaxRetries`, so two indexes with different timeouts get two clients. The callback runs once for each client, when
+it is created, not on every request; two calls racing to create the same client can each run it, and only one of the
+clients is kept. It runs for every client the provider creates, whichever `Indexes` entry the client is for.
 
 ## How queries behave
 
@@ -314,6 +337,13 @@ write them again after the swap. After a rebuild the index name is an alias: sea
   missing document or index and creates neither. OpenSearch creates a missing index on an update, without the
   configured `Mappings`, so the provider checks the index exists first; an index deleted between that check and
   the update is still created again. `WriteVisibility` applies to it as to the other writes.
+
+## Health check
+
+As on Elasticsearch, `PingAsync` sends `HEAD /` with the client of the index it is given, or of
+`SharedIndexSettings` when it is given none, and any answer other than 200, an unreachable server or invalid
+settings is a failed `Result`. `AddBetterSearchHealthCheck()` from `Bielu.BetterSearch.HealthChecks` registers it as a health check,
+which the application maps to an endpoint such as `/health`; see [observability](../feature-matrix.md#observability).
 
 ## Checking an index exists
 

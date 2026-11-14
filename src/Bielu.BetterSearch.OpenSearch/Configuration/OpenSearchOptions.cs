@@ -52,12 +52,44 @@ public class OpenSearchOptions
 public class OpenSearchIndexSettings : IndexSettings
 {
     public string ConnectionString { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The URLs of the cluster's other nodes, beside <see cref="ConnectionString"/>. A request that cannot reach a node
+    /// is sent to the next one. Left unset on an <c>Indexes</c> entry that takes the shared connection string, the
+    /// index takes the shared nodes; an entry with its own connection string uses only its own.
+    /// </summary>
+    public IList<string>? AdditionalNodes { get; set; }
+
+    /// <summary>
+    /// How the client spreads requests over the nodes. Unset, a single <see cref="ConnectionString"/> is the only node
+    /// the client uses, as before, and with <see cref="AdditionalNodes"/> the nodes take turns as with
+    /// <see cref="Abstractions.Configuration.NodePoolType.Static"/>. Left unset on an <c>Indexes</c> entry, the index
+    /// takes the shared setting.
+    /// </summary>
+    public NodePoolType? PoolType { get; set; }
     /// <summary>
     /// How to authenticate. Unset under <c>Indexes</c> means the index takes the shared authentication;
     /// <c>NONE</c> there turns it off for that index. Unset in <c>SharedIndexSettings</c> means <c>NONE</c>.
     /// </summary>
     public OpenSearchAuthenticationType? AuthenticationType { get; set; }
     public OpenSearchAuthenticationDetails? AuthenticationDetails { get; set; }
+
+    /// <summary>
+    /// The SHA-256 fingerprint of the server's certificate or of the CA that signed it, as hex, with or without colons.
+    /// A certificate the system does not trust is then accepted when it has this fingerprint, or chains through valid
+    /// signatures to a CA that has it, whatever host name it names. Like <see cref="DevelopmentOnlySkipCertificateValidation"/>, it goes with
+    /// the connection string: an <c>Indexes</c> entry with its own <c>ConnectionString</c> uses only its own TLS settings,
+    /// and one without takes the shared ones.
+    /// </summary>
+    public string? CertificateFingerprint { get; set; }
+
+    /// <summary>
+    /// Accepts any server certificate, so anyone between the application and the server can read and change the traffic,
+    /// credentials included. Only for a local development cluster with a self-signed certificate. A certificate the system
+    /// trusts needs neither TLS setting; set <see cref="CertificateFingerprint"/> only for one it does not. It can't be set
+    /// together with <see cref="CertificateFingerprint"/>.
+    /// </summary>
+    public bool? DevelopmentOnlySkipCertificateValidation { get; set; }
 
     /// <summary>
     /// Fields mapped explicitly when the index is created, or added to it by <c>EnsureIndexExistsAsync</c>. Fields not
@@ -80,6 +112,21 @@ public class OpenSearchIndexSettings : IndexSettings
     /// to turn the shared one off.
     /// </summary>
     public WriteVisibility? WriteVisibility { get; set; }
+
+    /// <summary>
+    /// How long a request may take before the client gives up on it, set as the client's <c>RequestTimeout</c>. The client
+    /// also limits a request's retries to this time unless its <c>MaxRetryTimeout</c> is set, which the
+    /// <c>configureClient</c> callback can do. Unset on an <c>Indexes</c> entry, the index takes the shared value, and unset
+    /// there leaves the client's default of 60 seconds. It must be greater than 0.
+    /// </summary>
+    public TimeSpan? RequestTimeout { get; set; }
+
+    /// <summary>
+    /// How many times the client retries a failed request, set as the client's <c>MaximumRetries</c>.
+    /// Unset on an <c>Indexes</c> entry, the index takes the shared value, and unset there leaves the client's default.
+    /// It must not be negative.
+    /// </summary>
+    public int? MaxRetries { get; set; }
 }
 
 /// <summary>An explicit mapping for one document field.</summary>

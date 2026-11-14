@@ -115,6 +115,9 @@ the library ships no adapter for it.
 - Observers subscribed to `ISearchServiceAsync` are notified of a search's hits on a cache hit too. The decorator
   has its own observers: `Subscribe` registers on it, and it notifies them from the result it returns, on a hit and on
   a miss, so they observe searches, not engine calls. The decorated service's own observers are not used.
+- A cache hit is not in the [telemetry](feature-matrix.md#observability): it returns before `SearchServiceAsync`
+  runs, so it has no `search` span and no `bettersearch.operations` count. Only searches that reach the service, the
+  misses and the searches that aren't cached, are recorded.
 - A keyed search service's entries are keyed by its provider key, so two providers that both have an index called
   `products` never share an entry. The unkeyed service uses the default provider's key, so it shares entries with
   that provider's keyed service.

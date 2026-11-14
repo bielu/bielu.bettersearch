@@ -16,7 +16,7 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
             : shared;
 
         // Checked here so a URL without a scheme fails with a message that names the setting.
-        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, null));
+        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, SettingSource.Unknown));
         return settings;
     }
 
@@ -24,9 +24,8 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
     /// The connection setting failures of <paramref name="settings"/>, already merged, each naming the setting to fix.
     /// The options validator runs the same checks at startup. The API key is optional, as a server can run without one.
     /// </summary>
-    /// <remarks><c>index</c> is the <c>Indexes</c> entry the settings come from, or <c>null</c> when that is not known or they are the shared settings.</remarks>
-    internal static IEnumerable<string> ConnectionFailures(MeilisearchIndexSettings settings, string? index) =>
-        new[] { ConnectionSettingsChecks.HttpUrlFailure(MeilisearchOptions.MeilisearchOptionsKey, index, settings.ConnectionString) }
+    internal static IEnumerable<string> ConnectionFailures(MeilisearchIndexSettings settings, SettingSource source) =>
+        new[] { ConnectionSettingsChecks.HttpUrlFailure(MeilisearchOptions.MeilisearchOptionsKey, source, settings.ConnectionString) }
             .OfType<string>();
 
     internal static MeilisearchIndexSettings MergeSettings(MeilisearchIndexSettings indexSpecific,
@@ -34,7 +33,24 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
     {
         if (!string.IsNullOrWhiteSpace(indexSpecific.ConnectionString))
         {
-            return indexSpecific;
+            if (indexSpecific.RequestTimeout is not null || shared.RequestTimeout is null)
+            {
+                return indexSpecific;
+            }
+
+            // The index has its own server but takes the shared request timeout.
+            return new MeilisearchIndexSettings
+            {
+                IndexName = indexSpecific.IndexName,
+                AliasName = indexSpecific.AliasName,
+                TypeName = indexSpecific.TypeName,
+                IndexingEnabled = indexSpecific.IndexingEnabled,
+                DevMode = indexSpecific.DevMode,
+                ConnectionString = indexSpecific.ConnectionString,
+                ApiKey = indexSpecific.ApiKey,
+                BulkBatchSize = indexSpecific.BulkBatchSize,
+                RequestTimeout = shared.RequestTimeout,
+            };
         }
 
         // Merge into a copy: the monitored options are shared, so mutating them would let a concurrent
@@ -49,6 +65,7 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
             ConnectionString = shared.ConnectionString,
             ApiKey = indexSpecific.ApiKey ?? shared.ApiKey,
             BulkBatchSize = indexSpecific.BulkBatchSize ?? shared.BulkBatchSize,
+            RequestTimeout = indexSpecific.RequestTimeout ?? shared.RequestTimeout,
         };
     }
 }

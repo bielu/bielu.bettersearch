@@ -18,13 +18,20 @@ public static class RegisterSearchExtension
     /// <summary>
     /// Adds the Meilisearch provider under <paramref name="key"/>, so its services can be resolved with
     /// <c>[FromKeyedServices(key)]</c>; the unkeyed services use it when it is the only provider or the default.
+    /// <c>configureClient</c> sets what the options don't cover, such as a header, on the <see cref="HttpClient"/> of each
+    /// client the provider creates. It runs after the options are applied, so it can override them, and once per cached
+    /// client, not per request: clients are cached per connection. It applies to every Meilisearch client, whichever key routes to it.
     /// </summary>
-    public static Configurator AddMeilisearch(this Configurator configurator, string key = DefaultKey)
+    public static Configurator AddMeilisearch(this Configurator configurator, string key = DefaultKey,
+        Action<HttpClient>? configureClient = null)
     {
         // AddBetterSearch registers the validator and the indexing and search services after this runs.
         configurator.AddProvider<MeilisearchSearchProviderAsync, MeilisearchIndexingProviderAsync>(key);
         configurator.Services.AddSingleton<IMeilisearchClientSettingsManager, MeilisearchClientSettingsManager>();
-        configurator.Services.AddSingleton<IClientFactoryAsync<MeilisearchClient>, MeilisearchClientFactory>();
+        ClientConfiguration<HttpClient>.Register(configurator.Services, configureClient);
+        configurator.Services.AddSingleton<IClientFactoryAsync<MeilisearchClient>>(services => new MeilisearchClientFactory(
+            services.GetRequiredService<IMeilisearchClientSettingsManager>(),
+            services.GetServices<ClientConfiguration<HttpClient>>()));
         configurator.Services
             .AddScoped<IQueryTranslateServiceAsync<MeilisearchQuery>, MeilisearchQueryTranslateService>();
         configurator.Services.AddScoped<ISubQueryTranslator<MeilisearchFilter>, BooleanSubQueryTranslator>();

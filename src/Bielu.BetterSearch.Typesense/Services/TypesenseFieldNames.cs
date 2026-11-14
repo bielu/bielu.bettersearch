@@ -50,6 +50,9 @@ internal static class TypesenseFieldNames
 
     public const string FieldsPrefix = "fields.";
 
+    /// <summary>Every copy <see cref="TypesenseDocument"/> stores a field's values in.</summary>
+    public static readonly string[] StoredPrefixes = [Tokens, Strings, Phrases, Integers, Numbers, Dates, Booleans, Geo, SortInteger, SortNumber, SortString];
+
     /// <summary>The sort copies, in the order a sort prefers them.</summary>
     public static readonly string[] SortPrefixes = [SortInteger, SortNumber, SortString];
 

@@ -6,6 +6,15 @@ public class TypesenseOptions
 {
     public static string TypesenseOptionsKey { get; } = "Bielu:BetterSearch:Typesense";
     public TypesenseIndexSettings SharedIndexSettings { get; set; } = new();
+
+    /// <summary>
+    /// Put before every collection name this provider sends to the server, so several applications or environments can
+    /// share one server: with <c>app-</c>, the index <c>people</c> is the collection <c>app-people</c> on the server.
+    /// Indexing, search, removal, the index checks and rebuilds all add it, and callers keep using the name without it.
+    /// Typesense accepts any characters in a collection name, so the prefix is not restricted.
+    /// </summary>
+    public string? IndexPrefix { get; set; }
+
     private Dictionary<string, TypesenseIndexSettings>? _indexes = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -32,7 +41,10 @@ public class TypesenseOptions
         return copy;
     }
 
-    /// <summary>How long one request to one node may take before the next node is tried, or the request fails.</summary>
+    /// <summary>
+    /// How long one request to one node may take before the next node is tried, or the request fails.
+    /// <c>TimeSpan.Zero</c> means no timeout. It must not be negative.
+    /// </summary>
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <RootNamespace>Bielu.BetterSearch.HealthChecks</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Bielu.BetterSearch.Abstractions\Bielu.BetterSearch.Abstractions.csproj" />
+      <ProjectReference Include="..\Bielu.BetterSearch.Core\Bielu.BetterSearch.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <InternalsVisibleTo Include="Bielu.BetterSearch.Core.Tests" />
+    </ItemGroup>
+
+</Project>

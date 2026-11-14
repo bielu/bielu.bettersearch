@@ -76,6 +76,10 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
 for that one index and takes the rest from the shared settings (set `"AuthenticationType": "NONE"` there to
 turn the shared authentication off for that index), and `MaxResultWindow` (10,000 by default)
 should match the indexes' `index.max_result_window`.
+`AdditionalNodes` lists the cluster's other nodes, on OpenSearch and Elasticsearch, and `PoolType` (`Static`,
+`Sticky` or `Sniffing`) chooses how requests are spread over them; a request that can't reach a node goes to the
+next one. See the [OpenSearch](docs/articles/providers/opensearch.md) and
+[Elasticsearch](docs/articles/providers/elasticsearch.md) pages.
 
 In every provider, keys under `Indexes` match index names whatever their case, so `Indexes:People` applies
 to the index `people`.
@@ -232,8 +236,10 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
 - ✅ **Field mappings** on Elasticsearch and OpenSearch: `Text`, `Keyword`, `Date`, numeric, `Boolean` and
   `GeoPoint` fields, with an optional analyzer or format, validated at startup
 - ✅ **Zero-downtime rebuilds** on Elasticsearch and OpenSearch through `IIndexLifecycleServiceAsync`: fill a new
-  index while searches read the old one, then swap an alias and delete the old index in one atomic step
-- ✅ **Index name prefix** (`IndexPrefix`) on Elasticsearch, OpenSearch and Meilisearch, so applications or
+  index while searches read the old one, then swap an alias and delete the old index in one atomic step; on
+  Typesense through a collection alias, in separate steps, one rebuild of an index at a time, with a short gap on an
+  index's first rebuild
+- ✅ **Index name prefix** (`IndexPrefix`) on Elasticsearch, OpenSearch, Meilisearch and Typesense, so applications or
   environments can share one cluster
 - ✅ **Errors as results**: searching and indexing return [FluentResults](https://github.com/altmann/FluentResults)
   `Result`s. Lifti, Typesense and PostgreSQL fail a query that asks for facets, and Meilisearch one that asks for any facet other than a
@@ -242,6 +248,9 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
 - ✅ **Opt-in search result cache**: the built-in memory cache for one instance, FusionCache with a backplane for
   several, or your own `ISearchResultCache`, as decorators over the search and indexing services; every write
   through the indexing service evicts the index's cached searches. See [caching](docs/articles/caching.md)
+- ✅ **Observability**: OpenTelemetry spans and metrics and `LoggerMessage` logs from the Core services, so every
+  provider has them, wired with `AddBetterSearchInstrumentation()`, and a health check that pings the engine
+  (`AddBetterSearchHealthCheck()`); see the [feature matrix](docs/articles/feature-matrix.md#observability)
 - ✅ **Shared provider tests**: provider-agnostic behavior tests in `BaseTests` run against every provider
 - ✅ **.NET Aspire AppHost** that starts Elasticsearch, OpenSearch, Meilisearch and Typesense for local development and the
   integration tests, with [meilisearch-ui](https://github.com/riccox/meilisearch-ui) for browsing Meilisearch
@@ -260,6 +269,8 @@ top-level term facets, and Lifti none. Only Elasticsearch and OpenSearch highlig
 | [`Bielu.BetterSearch.Core`](https://www.nuget.org/packages/Bielu.BetterSearch.Core/) | `AddBetterSearch` and the indexing and search services |
 | [`Bielu.BetterSearch.FluentApi`](https://www.nuget.org/packages/Bielu.BetterSearch.FluentApi/) | Fluent query builder |
 | [`Bielu.BetterSearch.Caching.FusionCache`](https://www.nuget.org/packages/Bielu.BetterSearch.Caching.FusionCache/) | Search result cache over [FusionCache](https://github.com/ZiggyCreatures/FusionCache) |
+| [`Bielu.BetterSearch.OpenTelemetry`](https://www.nuget.org/packages/Bielu.BetterSearch.OpenTelemetry/) | `AddBetterSearchInstrumentation()` for OpenTelemetry tracing and metrics |
+| [`Bielu.BetterSearch.HealthChecks`](https://www.nuget.org/packages/Bielu.BetterSearch.HealthChecks/) | `AddBetterSearchHealthCheck()`, which pings the configured engine |
 
 ### Providers
 

@@ -142,7 +142,7 @@ public abstract class OptionsValidationTestBase
     }
 
     [Fact]
-    public void ValidateOnStart_IndexConnectionStringNotHttp_FailsNamingTheIndexSetting()
+    public void ValidateOnStart_IndexConnectionStringNotHttp_FailsNamingOnlyTheIndexSetting()
     {
         var failure = ValidateOnStart(new Dictionary<string, string?>
         {
@@ -151,7 +151,7 @@ public abstract class OptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"ConnectionString is not an http or https URL. Set {OptionsKey}:Indexes:people:ConnectionString, or {OptionsKey}:SharedIndexSettings:ConnectionString for every index."
+            $"ConnectionString is not an http or https URL. Set {OptionsKey}:Indexes:people:ConnectionString."
         ]);
     }
 
@@ -168,8 +168,8 @@ public abstract class OptionsValidationTestBase
         var failures = failure.ShouldNotBeNull().Failures.ToList();
         failures.Count.ShouldBe(3);
         failures.ShouldContain(f => f.Contains($"Set {OptionsKey}:SharedIndexSettings:ConnectionString,"));
-        failures.ShouldContain(f => f.Contains($"Set {OptionsKey}:Indexes:people:ConnectionString,"));
-        failures.ShouldContain(f => f.Contains($"Set {OptionsKey}:Indexes:places:ConnectionString,"));
+        failures.ShouldContain(f => f.Contains($"Set {OptionsKey}:Indexes:people:ConnectionString."));
+        failures.ShouldContain(f => f.Contains($"Set {OptionsKey}:Indexes:places:ConnectionString."));
     }
 
     [Fact]

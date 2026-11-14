@@ -1,6 +1,8 @@
 ﻿using System.Collections.Concurrent;
+using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 using OpenSearch.Client;
 using Result = FluentResults.Result;
@@ -9,12 +11,24 @@ namespace Bielu.BetterSearch.OpenSearch.Services;
 
 /// <summary>
 /// Creates one long-lived client per distinct connection, so connections are reused. Clients are keyed on the
-/// settings an index connects with, not its name: indexes with the same connection string and authentication
+/// settings an index connects with, not its name: indexes with the same nodes, pool type and authentication
 /// share a client, and a changed setting, such as a rotated password, gets a new client on the next call.
 /// The client for the old setting stays cached until the application restarts, which suits settings that rarely change.
+/// The request timeout and retry count are part of the key, so indexes that set different ones get different clients.
+/// The <c>configureClient</c> callbacks given to <c>AddOpenSearch</c> run on each client's settings once, when the
+/// client is created; two calls racing to create the same client can each run them, and only one client is kept.
 /// </summary>
-internal sealed class OpenSearchClientFactory(IOpenSearchClientSettingsManager settingsManager) : IClientFactoryAsync<IOpenSearchClient>
+internal sealed class OpenSearchClientFactory(
+    IOpenSearchClientSettingsManager settingsManager,
+    IEnumerable<ClientConfiguration<ConnectionSettings>> clientConfigurations) : IClientFactoryAsync<IOpenSearchClient>
 {
+    private readonly IReadOnlyList<ClientConfiguration<ConnectionSettings>> _clientConfigurations = clientConfigurations.ToList();
+
+    public OpenSearchClientFactory(IOpenSearchClientSettingsManager settingsManager)
+        : this(settingsManager, [])
+    {
+    }
+
     private readonly ConcurrentDictionary<ClientKey, Lazy<IOpenSearchClient>> _clients = new();
 
     public Task<IOpenSearchClient> GetOrCreateClientAsync(string indexName)
@@ -22,28 +36,47 @@ internal sealed class OpenSearchClientFactory(IOpenSearchClientSettingsManager s
         var settings = settingsManager.GetConnectionSettings(indexName);
         // PublicationOnly does not cache an exception, so invalid settings fail each call until they are fixed.
         var client = _clients.GetOrAdd(ClientKey.From(settings), _ => new Lazy<IOpenSearchClient>(
-            () => new OpenSearchClient(settingsManager.CreateClientSettings(settings)),
+            () =>
+            {
+                var connectionSettings = settingsManager.CreateClientSettings(settings);
+                ClientConfiguration<ConnectionSettings>.Apply(_clientConfigurations, connectionSettings);
+                return new OpenSearchClient(connectionSettings);
+            },
             LazyThreadSafetyMode.PublicationOnly));
         return Task.FromResult(client.Value);
     }
 
     internal readonly record struct ClientKey(
         string ConnectionString,
+        string AdditionalNodes,
+        NodePoolType? PoolType,
         OpenSearchAuthenticationType? AuthenticationType,
         string? Username,
         string? Password,
-        string? ApiKey)
+        string? ApiKey,
+        string? CertificateFingerprint,
+        bool? DevelopmentOnlySkipCertificateValidation,
+        TimeSpan? RequestTimeout,
+        int? MaxRetries)
     {
         public static ClientKey From(OpenSearchIndexSettings settings) => new(
             settings.ConnectionString,
+            // A record compares a list by reference, so the nodes are compared as one string. Each node is prefixed with its
+            // length, because a URL that passes validation can hold any separator, a space included.
+            string.Concat((settings.AdditionalNodes ?? []).Select(node => $"{node?.Length}:{node};")),
+            settings.PoolType,
             settings.AuthenticationType,
             settings.AuthenticationDetails?.Username,
             settings.AuthenticationDetails?.Password,
-            settings.AuthenticationDetails?.ApiKey);
+            settings.AuthenticationDetails?.ApiKey,
+            settings.CertificateFingerprint,
+            settings.DevelopmentOnlySkipCertificateValidation,
+            settings.RequestTimeout,
+            settings.MaxRetries);
 
         // The generated ToString prints every member; keep the credentials out of logs and exception messages.
         public override string ToString() =>
-            $"{nameof(ClientKey)} {{ {nameof(ConnectionString)} = {ConnectionString}, {nameof(AuthenticationType)} = {AuthenticationType} }}";
+            $"{nameof(ClientKey)} {{ {nameof(ConnectionString)} = {ConnectionString}, {nameof(AdditionalNodes)} = {AdditionalNodes}, {nameof(PoolType)} = {PoolType}, {nameof(AuthenticationType)} = {AuthenticationType}, {nameof(RequestTimeout)} = {RequestTimeout}, {nameof(MaxRetries)} = {MaxRetries} }}";
     }
 }
 

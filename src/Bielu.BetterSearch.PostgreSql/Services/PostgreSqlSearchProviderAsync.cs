@@ -101,6 +101,37 @@ public sealed class PostgreSqlSearchProviderAsync(
         }
     }
 
+    /// <summary>
+    /// Runs <c>SELECT 1</c> on a connection of the data source of <paramref name="index"/>, or of the shared settings
+    /// when it is <c>null</c>, so it succeeds when PostgreSQL accepts the connection and answers.
+    /// </summary>
+    public async Task<Result> PingAsync(string? index = null, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var options = optionsMonitor.TryCurrentValue();
+        if (options.IsFailed)
+        {
+            return options.ToResult();
+        }
+
+        try
+        {
+            var dataSource = await dataSourceFactory.GetOrCreateClientAsync(index ?? string.Empty).ConfigureAwait(false);
+            await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+            await using var command = PostgreSqlCommands.Command(connection, "SELECT 1");
+            await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            return Result.Ok();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            return Result.Fail(new Error($"PostgreSQL ping failed: {PostgreSqlCommands.Describe(e)}").CausedBy(e));
+        }
+    }
+
     public async Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

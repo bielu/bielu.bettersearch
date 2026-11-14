@@ -22,6 +22,13 @@ public class LiftiSearchProviderAsync(
     internal const string UnsupportedFacets =
         "The Lifti provider does not support facets: its index keeps the words of each field, not the field values to count.";
 
+    /// <summary>Succeeds: the indexes live in this process, so there is no engine to reach.</summary>
+    public Task<Result> PingAsync(string? index = null, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(Result.Ok());
+    }
+
     public async Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

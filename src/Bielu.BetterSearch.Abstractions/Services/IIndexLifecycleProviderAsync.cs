@@ -10,11 +10,14 @@ namespace Bielu.BetterSearch.Abstractions.Services;
 /// </summary>
 /// <remarks>
 /// A rebuild creates a new index with the index's configured mappings, fills it, and then points the index name, an
-/// alias, at it in one atomic step that also deletes the indexes the alias pointed at before. Until that step,
+/// alias, at it and deletes the indexes the alias pointed at before, in one atomic step where the engine has one
+/// (Elasticsearch, OpenSearch) and in separate requests otherwise (Typesense). Until that step,
 /// searches and writes through the index name keep using the current index; a write made there during the rebuild is
 /// not copied to the new one. When the engine rejects a step, the alias stays where it was. When the engine does not
 /// confirm a step in time, the call fails but the step may still apply: call it again to learn the outcome. Completing
-/// and aborting the same rebuild exclude each other: once one has taken effect, the other fails.
+/// and aborting the same rebuild exclude each other: once one has taken effect, the other fails. On an engine with no
+/// atomic or conditional alias update (Typesense), that holds only under a single-writer contract: at most one rebuild
+/// of an index is in progress at a time, and no two calls for it run at the same time.
 /// </remarks>
 public interface IIndexLifecycleProviderAsync
 {
@@ -29,8 +32,10 @@ public interface IIndexLifecycleProviderAsync
 
     /// <summary>
     /// Points the index name at the rebuild's new index and deletes the indexes it pointed at before, in one atomic
-    /// step, and returns the names of the deleted indexes. The first rebuild of an index created without an alias
-    /// replaces that index with the alias. Completing a rebuild that is already complete succeeds and deletes nothing.
+    /// step where the engine has one, and returns the names of the deleted indexes. The first rebuild of an index created without an alias
+    /// replaces that index with the alias. Completing a rebuild that is already complete succeeds and deletes nothing,
+    /// except on an engine that completes in separate requests (Typesense), where it deletes, and returns, what an earlier
+    /// complete that stopped part way left behind.
     /// </summary>
     Task<Result<IReadOnlyList<string>>> CompleteRebuildAsync(IndexRebuild rebuild, CancellationToken cancellationToken = default);
 

@@ -67,7 +67,7 @@ public sealed class OpenSearchIndexLifecycleTests(OpenSearchResource openSearch)
 
     protected override Task<IReadOnlyList<string>> AliasTargetsAsync(string alias) => IndexNamesAsync($"/_alias/{alias}");
 
-    protected override async Task RemovePendingAliasAsync(IndexRebuild rebuild)
+    protected override async Task BeginAbortAsync(IndexRebuild rebuild)
     {
         var client = await Services.GetRequiredService<IClientFactoryAsync<IOpenSearchClient>>().GetOrCreateClientAsync("any");
         var response = await client.LowLevel.DoRequestAsync<StringResponse>(global::OpenSearch.Net.HttpMethod.DELETE, $"/{rebuild.TargetIndex}/_alias/{IndexNames.RebuildPendingAlias(rebuild.TargetIndex)}", TestContext.Current.CancellationToken);

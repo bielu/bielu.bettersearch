@@ -140,6 +140,13 @@ index. When an id repeats in a batch, the last
 document wins. `UpdateDocumentAsync` merges the named fields into the stored ones in one statement, so a
 concurrent update of other fields is not lost.
 
+## Health check
+
+`PingAsync` opens a connection from the data source of the index it is given, or of `SharedIndexSettings` when it
+is given none, and runs `SELECT 1`; it fails with `PostgreSQL ping failed: ...` when the server can't be reached or
+refuses the connection. `AddBetterSearchHealthCheck()` from `Bielu.BetterSearch.HealthChecks` registers it as a health
+check, which the application maps to an endpoint such as `/health`; see [observability](../feature-matrix.md#observability).
+
 ## Local development
 
 The examples AppHost runs PostgreSQL with a database named `bettersearch`, and [pgweb](https://sosedoff.github.io/pgweb/)
