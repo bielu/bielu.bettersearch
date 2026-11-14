@@ -9,4 +9,4 @@ Remove the observer surface from the search and indexing services (#165). Breaki
 - `Unsubscriber<T>`, already `[Obsolete]`, is deleted.
 - The routing services and the caching decorators no longer forward or send notifications.
 
-Code that needs to act on a write or a search decorates the service in DI, as the search cache does; see "Run code after a write" in the getting started guide. The OpenTelemetry spans and metrics cover the observability use. A search's `hit_count` span tag is now counted from the returned hits when a listener records the span, rather than while observers were notified.
+Code that needs to act on a write or a search decorates the service in DI, as the search cache does; see "Run code after a write" in the getting started guide. The OpenTelemetry spans and metrics cover the observability use. A search span's `db.response.returned_rows` tag is now counted from the returned hits when a listener records the span, rather than while observers were notified.

@@ -234,8 +234,9 @@ sealed class LoggingIndexingService(IIndexingServiceAsync inner, ILogger<Logging
 }
 ```
 
-For metrics and traces, use the built-in [OpenTelemetry instrumentation](feature-matrix.md#observability)
-instead.
+For metrics and traces, use the built-in OpenTelemetry instrumentation instead: add the
+`Bielu.BetterSearch.OpenTelemetry` package and call `AddBetterSearchInstrumentation()` on both the tracer and the
+meter provider builder.
 
 ## Filter by culture
 
