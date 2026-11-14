@@ -60,6 +60,28 @@ internal static class ConnectionSettingsChecks
     public static string? GreaterThanZeroFailure(string path, long value) =>
         value > 0 ? null : $"{path} is {value}, but it must be greater than 0.";
 
+    /// <summary>A failure when the time span at <paramref name="path"/> is not greater than 0.</summary>
+    public static string? GreaterThanZeroFailure(string path, TimeSpan value) =>
+        value > TimeSpan.Zero ? null : $"{path} is {value}, but it must be greater than 0.";
+
+    /// <summary>
+    /// The longest request timeout the clients accept: <see cref="HttpClient.Timeout"/> rejects a longer one, and so do the
+    /// Elasticsearch and OpenSearch transports, on every request.
+    /// </summary>
+    public static readonly TimeSpan MaxRequestTimeout = TimeSpan.FromMilliseconds(int.MaxValue);
+
+    /// <summary>A failure when the request timeout at <paramref name="path"/> is longer than <see cref="MaxRequestTimeout"/>.</summary>
+    public static string? MaxRequestTimeoutFailure(string path, TimeSpan value) =>
+        value <= MaxRequestTimeout ? null : $"{path} is {value}, but it must be at most {MaxRequestTimeout}, the longest timeout HttpClient accepts.";
+
+    /// <summary>A failure when the request timeout at <paramref name="path"/> is not greater than 0, or is longer than <see cref="MaxRequestTimeout"/>.</summary>
+    public static string? RequestTimeoutFailure(string path, TimeSpan value) =>
+        GreaterThanZeroFailure(path, value) ?? MaxRequestTimeoutFailure(path, value);
+
+    /// <summary>A failure when the count at <paramref name="path"/> is negative.</summary>
+    public static string? NotNegativeFailure(string path, long value) =>
+        value >= 0 ? null : $"{path} is {value}, but it must not be negative.";
+
     /// <summary>A failure when the time span at <paramref name="path"/> is negative.</summary>
     public static string? NotNegativeFailure(string path, TimeSpan value) =>
         value >= TimeSpan.Zero ? null : $"{path} is {value}, but it must not be negative.";

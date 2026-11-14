@@ -25,6 +25,9 @@ internal sealed class MeilisearchOptionsValidator : IValidateOptions<Meilisearch
             .Concat((options.PhraseFields ?? []).Select((field, i) =>
                 FieldNameFailure($"{key}:{nameof(MeilisearchOptions.PhraseFields)}:{i}", field)).OfType<string>())
             .Concat(BulkBatchSizeFailures($"{key}:{nameof(MeilisearchOptions.SharedIndexSettings)}", options.SharedIndexSettings))
+            .Concat(RequestTimeoutFailures($"{key}:{nameof(MeilisearchOptions.SharedIndexSettings)}", options.SharedIndexSettings))
+            .Concat((options.Indexes ?? []).SelectMany(index =>
+                RequestTimeoutFailures($"{key}:{nameof(MeilisearchOptions.Indexes)}:{index.Key}", index.Value)))
             .Concat((options.Indexes ?? []).SelectMany(index =>
                 BulkBatchSizeFailures($"{key}:{nameof(MeilisearchOptions.Indexes)}:{index.Key}", index.Value)))
             .ToList();
@@ -70,5 +73,10 @@ internal sealed class MeilisearchOptionsValidator : IValidateOptions<Meilisearch
     private static IEnumerable<string> BulkBatchSizeFailures(string path, MeilisearchIndexSettings? settings) =>
         settings?.BulkBatchSize is <= 0
             ? [$"{path}:{nameof(MeilisearchIndexSettings.BulkBatchSize)} is {settings.BulkBatchSize}, but it must be greater than 0."]
+            : [];
+
+    private static IEnumerable<string> RequestTimeoutFailures(string path, MeilisearchIndexSettings? settings) =>
+        settings?.RequestTimeout is { } timeout
+            ? new[] { ConnectionSettingsChecks.RequestTimeoutFailure($"{path}:{nameof(MeilisearchIndexSettings.RequestTimeout)}", timeout) }.OfType<string>()
             : [];
 }

@@ -73,6 +73,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeil
 | `Indexes` | Per-index settings. An entry with its own `ConnectionString` uses only its own key; an entry without one uses the shared server, with its own `ApiKey` if set or the shared one. Keys match index names whatever their case, so `People` applies to the index `people` |
 | `IndexPrefix` | Put before every index uid sent to the server, so applications or environments can share a server: with `app-`, the index `people` is `app-people` on the server. Indexing, search, `GetDocumentAsync`, `CountAsync`, `UpdateDocumentAsync`, removal, the index checks and `DeleteIndexAsync` all add it, and you keep using `people`. Meilisearch accepts only letters, digits, `-` and `_` in a uid, and the provider does not check the prefix at startup |
 | `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` adds in one Meilisearch task, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails; a configuration reload that makes it invalid makes reads and writes return a failed `Result` naming the setting |
+| `RequestTimeout` | How long one request to Meilisearch may take, such as `"00:00:10"`, in `SharedIndexSettings` or an `Indexes` entry; unset, the `HttpClient` default of 100 seconds. An entry that leaves it out takes the shared value, even when it sets its own `ConnectionString`. It doesn't limit how long a write waits for its task, which `TaskTimeout` does. It must be greater than 0 and at most `24.20:31:23.647` (`int.MaxValue` milliseconds, the longest `HttpClient` accepts), or startup validation fails |
 | `TaskTimeout` | How long to wait for a write task to finish, 30 seconds by default. A timeout fails the `Result` but doesn't cancel the task, so the write may still be applied; the error's `taskUid` metadata holds the task's uid |
 | `MaxTotalHits` | Deepest result a search may page to, 10,000 by default; the provider sets it as each index's `pagination.maxTotalHits` |
 | `SettingsCheckInterval` | How long a write trusts an index's settings before checking them again, 5 seconds by default |
@@ -88,9 +89,24 @@ string and authentication are checked as each call checks them, after merging ea
 Bielu:BetterSearch:Meilisearch:Indexes:people:ConnectionString.` A failure for an `Indexes` entry names only the entry's own setting, which wins over the shared one.
 Connection messages never include the connection string or a credential; the other messages show the rejected value, such as `MaxTotalHits is 0` or a `GeoField` name. A missing section, or one whose name is misspelled, gives the single
 failure `No Bielu:BetterSearch:Meilisearch settings were found.`, naming the section. The shared settings are not checked when they set
-no connection and every `Indexes` entry sets its own; an index not listed then fails when it is used. `MaxTotalHits` must be greater than 0, `TaskTimeout` and `SettingsCheckInterval` must not be negative, and `GeoField` and each `PhraseFields` entry can only contain letters, digits, `_`, `-` and `.`. The same
+no connection and every `Indexes` entry sets its own; an index not listed then fails when it is used. `MaxTotalHits` and `RequestTimeout` must be greater than 0, `RequestTimeout` at most `24.20:31:23.647`, `TaskTimeout` and `SettingsCheckInterval` must not be negative, and `GeoField` and each `PhraseFields` entry can only contain letters, digits, `_`, `-` and `.`. The same
 checks run whenever the options are read, so after a configuration reload to invalid settings, every call returns a
 failed `Result` with the same messages.
+
+### Client settings
+
+For anything the options don't cover, such as a header, pass `configureClient`. It gets the `HttpClient` each client
+sends its requests with, after the provider has set its address and `RequestTimeout`, so it can override them too:
+
+```csharp
+builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeilisearch(
+    configureClient: httpClient => httpClient.DefaultRequestHeaders.Add("X-Tenant", "acme")));
+```
+
+The `HttpClient`'s handler is the provider's, so a proxy comes from the system settings (`HTTP_PROXY` and
+`HTTPS_PROXY`), not from the callback. The provider keeps one client per server, API key and `RequestTimeout`, so two
+indexes with different timeouts get two clients. The callback runs once for each client, when it is created, not on
+every request; two calls racing to create the same client can each run it, and only one of the clients is kept.
 
 Meilisearch has no index rebuilds yet: the provider does not implement `IIndexLifecycleProviderAsync`, so every
 `IIndexLifecycleServiceAsync` call returns a failed `Result`.

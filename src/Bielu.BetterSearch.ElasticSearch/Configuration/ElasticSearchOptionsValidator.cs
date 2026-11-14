@@ -20,6 +20,9 @@ internal sealed class ElasticSearchOptionsValidator : IValidateOptions<ElasticSe
             .Concat((options.Indexes ?? []).SelectMany(index =>
                 FieldMappings.Validate($"{key}:{nameof(ElasticSearchOptions.Indexes)}:{index.Key}", index.Value?.Mappings?.ToList<ElasticSearchFieldMapping?>())))
             .Concat(BulkBatchSizeFailures($"{key}:{nameof(ElasticSearchOptions.SharedIndexSettings)}", options.SharedIndexSettings))
+            .Concat(ClientSettingsFailures($"{key}:{nameof(ElasticSearchOptions.SharedIndexSettings)}", options.SharedIndexSettings))
+            .Concat((options.Indexes ?? []).SelectMany(index =>
+                ClientSettingsFailures($"{key}:{nameof(ElasticSearchOptions.Indexes)}:{index.Key}", index.Value)))
             .Concat((options.Indexes ?? []).SelectMany(index =>
                 BulkBatchSizeFailures($"{key}:{nameof(ElasticSearchOptions.Indexes)}:{index.Key}", index.Value)))
             .Concat(IndexNames.ValidatePrefix($"{key}:{nameof(ElasticSearchOptions.IndexPrefix)}", options.IndexPrefix))
@@ -63,4 +66,15 @@ internal sealed class ElasticSearchOptionsValidator : IValidateOptions<ElasticSe
         settings?.BulkBatchSize is <= 0
             ? [$"{path}:{nameof(ElasticSearchIndexSettings.BulkBatchSize)} is {settings.BulkBatchSize}, but it must be greater than 0."]
             : [];
+
+    private static IEnumerable<string> ClientSettingsFailures(string path, ElasticSearchIndexSettings? settings) =>
+        new[]
+        {
+            settings?.RequestTimeout is { } timeout
+                ? ConnectionSettingsChecks.RequestTimeoutFailure($"{path}:{nameof(ElasticSearchIndexSettings.RequestTimeout)}", timeout)
+                : null,
+            settings?.MaxRetries is { } retries
+                ? ConnectionSettingsChecks.NotNegativeFailure($"{path}:{nameof(ElasticSearchIndexSettings.MaxRetries)}", retries)
+                : null,
+        }.OfType<string>();
 }

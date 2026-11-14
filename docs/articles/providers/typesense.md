@@ -79,7 +79,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddType
 | `ApiKey` | The admin key, or a key allowed to manage the collections the provider uses |
 | `Indexes` | Per-index settings. An entry with its own `ConnectionString` uses only its own nodes and key; an entry without one uses the shared server, with its own `AdditionalNodes` and `ApiKey` if set or the shared ones. Keys match index names whatever their case, so `People` applies to the index `people` |
 | `IndexPrefix` | Put before every collection name sent to the server, so applications or environments can share a server: with `app-`, the index `people` is the collection `app-people`. Indexing, search, `GetDocumentAsync`, `CountAsync`, `UpdateDocumentAsync`, removal, the index checks, `DeleteIndexAsync` and rebuilds all add it, and you keep using `people`. Typesense accepts any characters in a collection name, so it is not checked |
-| `RequestTimeout` | How long one request to one node may take, 30 seconds by default |
+| `RequestTimeout` | How long one request to one node may take, 30 seconds by default. `00:00:00` means no timeout; it must not be negative or longer than `24.20:31:23.647` (`int.MaxValue` milliseconds, the longest `HttpClient` accepts), or startup validation fails |
 | `SchemaCheckInterval` | How long a search trusts the list of a collection's fields before reading it again, 5 seconds by default; a query on a field the list doesn't hold reads it again once the list is a second old, and a write through this provider makes the next search read it again |
 | `GeoField` | The field holding each document's location, a `"lat,lon"` string or a dictionary with `lat` and `lon`. Indexing a document whose point isn't valid returns a failed `Result` |
 
@@ -87,11 +87,26 @@ You can also set the options in code with `services.Configure<TypesenseOptions>(
 
 The options are validated at startup (`ValidateOnStart`), so a host with invalid settings fails to start with
 `OptionsValidationException`, listing every setting that is wrong, each by its configuration path: the connection
-string of the shared settings and of each `Indexes` entry after merging, and `SchemaCheckInterval`, which must not be
-negative. A missing section gives the single failure `No Bielu:BetterSearch:Typesense settings were found.`, naming the
+string of the shared settings and of each `Indexes` entry after merging, and `RequestTimeout` and `SchemaCheckInterval`, which
+must not be negative, with `RequestTimeout` at most `24.20:31:23.647`. A missing section gives the single failure `No Bielu:BetterSearch:Typesense settings were found.`, naming the
 section. Each URL of `AdditionalNodes` is checked when a client is created. The same checks run whenever the options
 are read, so after a configuration reload to invalid settings, a search returns a failed `Result` with the same
 messages, and a write a failed `Result` that includes them.
+
+### Client settings
+
+For anything the options don't cover, such as a header, pass `configureClient`. It gets the `HttpClient` each client
+sends its requests with, after the provider has set `RequestTimeout` on it, so it can override it too:
+
+```csharp
+builder.Services.AddBetterSearch(builder.Configuration, search => search.AddTypesense(
+    configureClient: httpClient => httpClient.DefaultRequestHeaders.Add("X-Tenant", "acme")));
+```
+
+The `HttpClient`'s handler is the provider's, so a proxy comes from the system settings (`HTTP_PROXY` and
+`HTTPS_PROXY`), not from the callback. The provider keeps one client per set of nodes, API key and `RequestTimeout`,
+and the callback runs once for each client, when it is created, not on every request. When the callback throws, the
+client is not kept, so the next call runs it again.
 
 ## How documents are stored
 
