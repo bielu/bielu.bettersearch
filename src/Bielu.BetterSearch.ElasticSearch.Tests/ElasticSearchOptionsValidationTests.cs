@@ -79,6 +79,21 @@ public class ElasticSearchOptionsValidationTests
         exception.Message.ShouldContain($"{Key}:Indexes:people:Mappings:0:Type is missing or unknown.");
     }
 
+    [Theory]
+    [InlineData("SharedIndexSettings", "0")]
+    [InlineData("Indexes:people", "-5")]
+    public void ValidateOnStart_BulkBatchSizeNotPositive_ThrowsNamingTheSetting(string path, string value)
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:{path}:BulkBatchSize"] = value,
+        });
+
+        var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
+
+        exception.Message.ShouldContain($"{Key}:{path}:BulkBatchSize is {value}, but it must be greater than 0.");
+    }
+
     [Fact]
     public void ValidateOnStart_FieldMappedTwiceInOneList_ThrowsNamingTheDuplicate()
     {

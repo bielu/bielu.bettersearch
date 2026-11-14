@@ -32,15 +32,25 @@ public class LiftiIndexingProviderAsync(
         try
         {
             var searchDocuments = documents.ToList();
+            var results = new List<Result>();
             foreach (var documentGroup in searchDocuments.GroupBy(d => d.Index))
             {
+                var group = documentGroup.ToList();
                 var index = await clientFactory.GetOrCreateClientAsync(documentGroup.Key).ConfigureAwait(false);
-                foreach (var document in documentGroup)
+                try
                 {
-                    await index.AddAsync(document, cancellationToken).ConfigureAwait(false);
+                    // Lifti adds a range as one change, so a document it rejects leaves the index unchanged.
+                    await index.AddRangeAsync(group, cancellationToken).ConfigureAwait(false);
+                    results.Add(Result.Ok());
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    results.Add(Result.Fail(DocumentIds.IndexFailedError(documentGroup.Key, 0, group.Count, group.Select(d => d.Id).ToList(), e.Message).CausedBy(e)));
                 }
             }
-            return Result.Ok(searchDocuments.Count);
+
+            var merged = results.Merge();
+            return merged.IsSuccess ? Result.Ok(searchDocuments.Count) : Result.Fail<int>(merged.Errors);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

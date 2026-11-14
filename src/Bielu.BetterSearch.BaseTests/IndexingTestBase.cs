@@ -1,4 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
+using FluentResults;
 using Shouldly;
 
 namespace Bielu.BetterSearch.Tests;
@@ -298,6 +300,146 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         indexed.IsSuccess.ShouldBeTrue();
         indexed.Value.ShouldBe(documents.Count);
     }
+    /// <summary>
+    /// Whether the engine stores nothing from an index's documents in a bulk write when it rejects one of them.
+    /// Elasticsearch and OpenSearch apply each document on its own, so the others stay stored.
+    /// </summary>
+    protected virtual bool BulkIndexingIsAllOrNothing => false;
+
+    /// <summary>
+    /// A document the service passes but the engine rejects, in an index that already holds a document with
+    /// <c>Count = [5]</c>.
+    /// </summary>
+    protected abstract SearchDocument CreateDocumentRejectedByEngine(string index);
+
+    private static SearchDocument CountDocument(string index, string id) => new()
+    {
+        Id = id,
+        Type = "TestDocument",
+        Index = index,
+        Fields = new Dictionary<string, IList<object>> { ["Count"] = [5] },
+    };
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_ValidBatch_StoresEveryDocumentAndNotifiesEach()
+    {
+        //Arrange
+        var index = $"bulk-{Guid.NewGuid():N}";
+        var documents = new List<SearchDocument> { CountDocument(index, "1"), CountDocument(index, "2"), CountDocument(index, "3") };
+        var observer = new RecordingObserver<SearchDocument>();
+        using var subscription = serviceAsync.Subscribe(observer);
+        try
+        {
+            //Act
+            var result = await serviceAsync.IndexMultipleDocumentsAsync(documents, Token);
+
+            //Assert
+            result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+            result.Value.ShouldBe(3);
+            (await CountDocumentsAsync(index)).ShouldBe(3);
+            observer.Values.Where(document => document.Index == index).ShouldBe(documents);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_EmptyBatch_ReturnsZero()
+    {
+        //Act
+        var result = await serviceAsync.IndexMultipleDocumentsAsync([], Token);
+
+        //Assert
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task IndexMultipleDocumentsAsync_LaterDocumentRejectedByValidator_StoresNoneAndNamesIt(bool validatorFails)
+    {
+        //Arrange
+        var index = $"bulk-{Guid.NewGuid():N}";
+        (await indexingProviderAsync.CreateIndexAsync(index, Token)).IsSuccess.ShouldBeTrue();
+        using var service = new IndexingServiceAsync(indexingProviderAsync, new RejectingValidator("3", validatorFails));
+        var observer = new RecordingObserver<SearchDocument>();
+        using var subscription = service.Subscribe(observer);
+        try
+        {
+            //Act
+            var result = await service.IndexMultipleDocumentsAsync([CountDocument(index, "1"), CountDocument(index, "2"), CountDocument(index, "3")], Token);
+
+            //Assert
+            var error = result.Errors.ShouldHaveSingleItem();
+            error.Message.ShouldContain(validatorFails ? "Validation of document 3 failed" : "Document 3 is not valid");
+            error.Metadata["id"].ShouldBe("3");
+            // Documents 1 and 2 passed, but must not have reached the engine.
+            (await CountDocumentsAsync(index)).ShouldBe(0);
+            observer.Values.ShouldBeEmpty();
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_EngineRejectsADocument_FailsNamingItAndStoresWhatTheEngineAccepts()
+    {
+        //Arrange
+        var index = $"bulk-{Guid.NewGuid():N}";
+        var rejected = CreateDocumentRejectedByEngine(index);
+        var observer = new RecordingObserver<SearchDocument>();
+        try
+        {
+            var seeded = await serviceAsync.IndexDocumentAsync(CountDocument(index, "0"), Token);
+            seeded.IsSuccess.ShouldBeTrue(string.Join("; ", seeded.Errors.Select(error => error.Message)));
+            using var subscription = serviceAsync.Subscribe(observer);
+
+            //Act
+            var result = await serviceAsync.IndexMultipleDocumentsAsync([CountDocument(index, "1"), rejected, CountDocument(index, "3")], Token);
+
+            //Assert
+            var error = result.Errors.ShouldHaveSingleItem();
+            if (BulkIndexingIsAllOrNothing)
+            {
+                error.Message.ShouldContain("0 of 3 documents were indexed");
+                ((IEnumerable<string>)error.Metadata["ids"]).ShouldBe(["1", rejected.Id, "3"]);
+                (await CountDocumentsAsync(index)).ShouldBe(1);
+            }
+            else
+            {
+                error.Message.ShouldContain("2 of 3 documents were indexed");
+                ((IEnumerable<string>)error.Metadata["ids"]).ShouldBe([rejected.Id]);
+                (await CountDocumentsAsync(index)).ShouldBe(3);
+            }
+
+            // A failed batch notifies nobody, even for the documents the engine stored. The service can be shared
+            // with tests running in parallel, so only this index's documents count.
+            observer.Values.Where(document => document.Index == index).ShouldBeEmpty();
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    private sealed class RejectingValidator(string rejectedId, bool fail) : IDocumentValidatorAsync
+    {
+        public Task<Result<bool>> ValidateDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
+        {
+            if (document.Id != rejectedId)
+            {
+                return Task.FromResult(Result.Ok(true));
+            }
+
+            return Task.FromResult(fail ? Result.Fail<bool>("validator unavailable") : Result.Ok(false));
+        }
+    }
+
     [Fact]
     public async Task DeleteDocumentAsyncTest()
     {

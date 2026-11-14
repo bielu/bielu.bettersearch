@@ -38,6 +38,12 @@ public class ElasticSearchSearchProviderAsync(
         }
 
         var maxResultWindow = optionsMonitor.CurrentValue.MaxResultWindow;
+        if (maxResultWindow <= 0)
+        {
+            return Result.Fail<ISearchResult>(
+                $"MaxResultWindow is {maxResultWindow}, but it must be greater than 0. Set {ElasticSearchOptions.ElasticSearchOptionsKey}:MaxResultWindow to the indexes' index.max_result_window.");
+        }
+
         if (LastResultOf(query) > maxResultWindow)
         {
             return Result.Fail<ISearchResult>(
@@ -68,30 +74,34 @@ public class ElasticSearchSearchProviderAsync(
             return highlight.ToResult<ISearchResult>();
         }
 
-        var mappings = settingsManager.GetConnectionSettings(query.Index).Mappings ?? [];
-        var request = CreateRequest(query, settingsManager.GetIndexName(query.Index), mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
-        request.Highlight = highlight.Value;
-        var client = await clientFactoryAsync.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
-        var response = await client.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
-        // The client reports a cancelled request as an invalid response; the caller cancelled, so say that instead.
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!response.IsValidResponse)
+        // The settings lookup, the client and the request all run inside TryWithClientAsync, so invalid settings
+        // or a throwing client return a failed Result rather than throwing.
+        return await clientFactoryAsync.TryWithClientAsync(query.Index, async client =>
         {
-            return Result.Fail<ISearchResult>(ElasticSearchFailures.Describe("search", response));
-        }
+            var mappings = settingsManager.GetConnectionSettings(query.Index).Mappings ?? [];
+            var request = CreateRequest(query, settingsManager.GetIndexName(query.Index), mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
+            request.Highlight = highlight.Value;
+            var response = await client.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
+            // The client reports a cancelled request as an invalid response; the caller cancelled, so say that instead.
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!response.IsValidResponse)
+            {
+                return Result.Fail<ISearchResult>(ElasticSearchFailures.Describe("search", response));
+            }
 
-        // Partial results are disallowed in the request; this guards against a cluster that returns them anyway.
-        if (response.TimedOut || response.Shards.Failed > 0)
-        {
-            return Result.Fail<ISearchResult>(
-                $"Elasticsearch returned incomplete results: timed out {response.TimedOut}, {response.Shards.Failed} of {response.Shards.Total} shards failed.");
-        }
+            // Partial results are disallowed in the request; this guards against a cluster that returns them anyway.
+            if (response.TimedOut || response.Shards.Failed > 0)
+            {
+                return Result.Fail<ISearchResult>(
+                    $"Elasticsearch returned incomplete results: timed out {response.TimedOut}, {response.Shards.Failed} of {response.Shards.Total} shards failed.");
+            }
 
-        var result = resultMapper.MapResult(response);
-        result.Pagination.Page = PageOf(query);
-        result.Pagination.PageSize = PageSizeOf(query);
-        result.Pagination.TotalPages = (int)Math.Ceiling(result.Pagination.TotalCount / (double)result.Pagination.PageSize);
-        return Result.Ok(result);
+            var result = resultMapper.MapResult(response);
+            result.Pagination.Page = PageOf(query);
+            result.Pagination.PageSize = PageSizeOf(query);
+            result.Pagination.TotalPages = (int)Math.Ceiling(result.Pagination.TotalCount / (double)result.Pagination.PageSize);
+            return Result.Ok(result);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

@@ -316,7 +316,7 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
         var first = await scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(FirstKey).IndexDocumentAsync(document, token);
         var second = await scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(SecondKey).IndexDocumentAsync(document, token);
 
-        first.Errors.ShouldHaveSingleItem().Message.ShouldBe("Document is not valid");
+        first.Errors.ShouldHaveSingleItem().Message.ShouldBe("Document 1 is not valid.");
         second.IsSuccess.ShouldBeTrue();
     }
 
@@ -335,7 +335,7 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
 
         indexing.ShouldBeOfType<CustomIndexingService>();
         scope.ServiceProvider.GetRequiredKeyedService<ISearchServiceAsync>(SecondKey).ShouldBeOfType<CustomSearchService>();
-        index.Errors.ShouldHaveSingleItem().Message.ShouldBe("Document is not valid");
+        index.Errors.ShouldHaveSingleItem().Message.ShouldBe("Document 1 is not valid.");
     }
 
     [Fact]

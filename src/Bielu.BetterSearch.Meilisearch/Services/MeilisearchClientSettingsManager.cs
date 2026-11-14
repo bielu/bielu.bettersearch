@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Meilisearch.Configuration;
+using Bielu.BetterSearch.Services;
 using Microsoft.Extensions.Options;
 
 namespace Bielu.BetterSearch.Meilisearch.Services;
@@ -14,11 +15,8 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
             ? MergeSettings(indexSpecific, shared)
             : shared;
 
-        if (string.IsNullOrWhiteSpace(settings.ConnectionString))
-        {
-            throw new ArgumentException("Meilisearch connection string is missing");
-        }
-
+        // Checked here so a URL without a scheme fails with a message that names the setting.
+        ConnectionSettingsChecks.HttpUrl(MeilisearchOptions.MeilisearchOptionsKey, settings.ConnectionString);
         return settings;
     }
 

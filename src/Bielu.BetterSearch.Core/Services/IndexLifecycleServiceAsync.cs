@@ -52,18 +52,16 @@ public class IndexLifecycleServiceAsync(IIndexingProviderAsync indexingProvider,
             return Result.Fail<int>($"Document {otherIndex.Id} is for index '{otherIndex.Index}', not '{rebuild.Index}', the index being rebuilt.");
         }
 
+        // Validate every document before sending any, as IndexingServiceAsync does.
+        var errors = new List<IError>();
         foreach (var document in batch)
         {
-            var validation = await documentValidator.ValidateDocumentAsync(document, cancellationToken).ConfigureAwait(false);
-            if (validation.IsFailed)
-            {
-                return Result.Fail<int>("Validation failed");
-            }
+            errors.AddRange((await IndexingServiceAsync.ValidateAsync(documentValidator, document, cancellationToken).ConfigureAwait(false)).Errors);
+        }
 
-            if (!validation.Value)
-            {
-                return Result.Fail<int>($"Document {document.Id} is not valid");
-            }
+        if (errors.Count > 0)
+        {
+            return Result.Fail<int>(errors);
         }
 
         return batch.Count == 0

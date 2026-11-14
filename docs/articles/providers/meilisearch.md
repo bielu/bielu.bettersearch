@@ -22,7 +22,8 @@ which matches or doesn't, so hits aren't ranked. Paging, sorting and post filter
 >   provider runs every query as a filter with no search text, so there is nothing to mark.
 > - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
 >
-> A missing connection string makes each search and write for that index return a failed `Result`. An
+> A missing connection string, or one that isn't an absolute `http` or `https` URL, makes each search and write
+> for that index return a failed `Result` whose message names the setting to fix. An
 > `OperationCanceledException` thrown by the client factory propagates rather than becoming a failed `Result`.
 
 ## Install
@@ -135,6 +136,22 @@ accepts, and translated into one filter. `OR` is the default operator, as on Ela
 
 A warning is a FluentResults success reason, so a caller finds it with
 `result.Successes.OfType<TranslationWarning>()`. `SearchServiceAsync` returns it with the hits.
+
+## Indexing several documents
+
+`IndexMultipleDocumentsAsync` adds each index's documents in one task and returns how many documents it
+indexed. Meilisearch applies the task or fails it as a whole, so when it rejects one document (an invalid id,
+say), the `Result` fails naming every id of that index, with all of them in the error's `ids` metadata, and
+none of them is stored. When the wait for the task times out (`TaskTimeout`), the `Result` fails saying the
+task was queued and may still index any or all of the documents, with the task's uid in the error's `taskUid`
+metadata. When the request adding the documents fails with no answer from Meilisearch (a dropped connection,
+say), the `Result` fails saying Meilisearch may still index any or all of them, with no `taskUid`. A failure
+before the documents are sent, such as a timeout waiting for the index's settings update, stores none of them
+and says `0 of N documents were indexed`, with no `taskUid`.
+
+Each index's documents go in one request, so all of them are applied or none, and that request must fit
+Meilisearch's payload size limit, about 100 MB unless changed, or it fails. Raise the limit with the server's `--http-payload-size-limit` option (`MEILI_HTTP_PAYLOAD_SIZE_LIMIT`), or
+split the import into several `IndexMultipleDocumentsAsync` calls.
 
 ## Removing documents
 
