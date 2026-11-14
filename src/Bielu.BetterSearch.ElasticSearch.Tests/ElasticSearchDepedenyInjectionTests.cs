@@ -11,4 +11,6 @@ public class ElasticSearchDepedenyInjectionTests(IServiceProvider collection)
     : DepedenyInjectionTestBase<ElasticSearchIndexingProviderAsync, ElasticsearchClient, Query>(collection)
 {
     protected override void AddProvider(Configurator search) => search.AddElasticSearch();
+
+    protected override void AddProvider(Configurator search, string key) => search.AddElasticSearch(key);
 }

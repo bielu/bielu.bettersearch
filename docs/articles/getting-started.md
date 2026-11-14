@@ -62,6 +62,38 @@ Each provider has its own page with its settings and, importantly, **what it doe
 | [Meilisearch](providers/meilisearch.md) | `AddMeilisearch()` | `Bielu:BetterSearch:Meilisearch` |
 | [Lifti](providers/lifti.md) | `AddLiftiSearch()` | none |
 
+## Use more than one provider
+
+Each provider extension registers its provider under a key, its name by default (`ElasticSearch`,
+`OpenSearch`, `Meilisearch`, `Lifti`, also in each extension class's `DefaultKey`), or the key you pass. For each
+key, `AddBetterSearch` registers keyed services: `ISearchProviderAsync`, `IIndexingProviderAsync`,
+`ISearchServiceAsync`, `IIndexingServiceAsync` and `IDocumentValidatorAsync`. So one container can hold several
+engines, and you pick one with `[FromKeyedServices]`:
+
+```csharp
+builder.Services.AddBetterSearch(builder.Configuration, search => search
+    .AddElasticSearch(key: "products")
+    .AddMeilisearch(key: "site"));
+
+public class ProductSearch([FromKeyedServices("products")] ISearchServiceAsync search) { }
+```
+
+- With one provider, the unkeyed services use it, as before.
+- With two or more, resolving an unkeyed `ISearchServiceAsync`, `IIndexingServiceAsync`, `ISearchProviderAsync`
+  or `IIndexingProviderAsync` throws an `InvalidOperationException` that lists the registered keys, unless you
+  choose a default with `SetDefaultProvider("products")`. A default that names no registered key makes
+  `AddBetterSearch` throw.
+- A key can be used once, and two keys that differ only in case are rejected; resolving by key is
+  case-sensitive, as in `Microsoft.Extensions.DependencyInjection`. Each provider can be added once per
+  `AddBetterSearch` call: to reach another server of the same engine, use its per-index settings.
+- `SetIndexingServiceType<T>()` and `SetSearchServiceType<T>()` apply to every key. The validator of a key is
+  the unkeyed `IDocumentValidatorAsync` unless you register one for that key before calling `AddBetterSearch`,
+  for example `services.AddKeyedScoped<IDocumentValidatorAsync, ProductValidator>("products")`.
+- Observers are per key: each keyed service is its own instance, so an observer subscribed to the `products`
+  indexing service hears nothing indexed through `site`. The unkeyed service is a separate instance too, even
+  when it uses the same provider, so it doesn't hear operations run through the keyed one.
+- Routing an index to an engine by its name is not supported yet; resolve the service for the engine you want.
+
 ## Index and search
 
 Inject `IIndexingServiceAsync` and `ISearchServiceAsync`:
