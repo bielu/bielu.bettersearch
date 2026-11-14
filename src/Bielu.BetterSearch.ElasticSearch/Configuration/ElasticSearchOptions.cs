@@ -65,6 +65,14 @@ public class ElasticSearchIndexSettings : IndexSettings
     /// on an <c>Indexes</c> entry, the index takes the shared value, and unset there means 1000. It must be greater than 0.
     /// </summary>
     public int? BulkBatchSize { get; set; }
+
+    /// <summary>
+    /// When a successful index or remove call returns. <see cref="Abstractions.Configuration.WriteVisibility.WaitUntilSearchable"/>
+    /// waits until a search can see the write, at the cost of a slower call. Left unset on an <c>Indexes</c> entry, the
+    /// index takes the shared setting; set it to <see cref="Abstractions.Configuration.WriteVisibility.Default"/> there
+    /// to turn the shared one off.
+    /// </summary>
+    public WriteVisibility? WriteVisibility { get; set; }
 }
 
 /// <summary>An explicit mapping for one document field.</summary>

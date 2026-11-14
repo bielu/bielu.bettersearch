@@ -66,6 +66,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
 | `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people` |
 | `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
 | `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` sends in one bulk request, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails |
+| `WriteVisibility` | `Default` or `WaitUntilSearchable`, in `SharedIndexSettings` or an `Indexes` entry; see [When writes are searchable](#when-writes-are-searchable). An entry that leaves it out takes the shared value, and `"WriteVisibility": "Default"` there turns the shared one off |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. It must be greater than 0, or every search fails with a configuration error |
 
 You can also set the options in code with `services.Configure<OpenSearchOptions>(...)`.
@@ -181,6 +182,25 @@ whole, such as a 403, the `Result` fails with OpenSearch's error and nothing aft
 fails as a whole, the requests after it are not sent, and the `Result` fails naming every document not confirmed
 as stored: the ones rejected so far, the ones in that request, which may or may not be stored, and the ones not
 sent.
+
+## When writes are searchable
+
+By default a successful write is stored but not yet searchable: OpenSearch makes it visible at the next index
+refresh, about a second later unless `index.refresh_interval` is changed. Set `WriteVisibility` to
+`WaitUntilSearchable` to have every index and remove call return only once a search can see the write:
+
+```json
+"SharedIndexSettings": { "ConnectionString": "http://localhost:9200", "WriteVisibility": "WaitUntilSearchable" }
+```
+
+- `IndexDocumentAsync`, `IndexMultipleDocumentsAsync`, `RemoveDocumentAsync` and `RemoveDocumentsAsync` send
+  `refresh=wait_for`, so the call waits for the next scheduled refresh rather than forcing one.
+- `RemoveAllDocumentsAsync` sends `refresh=true`, because delete by query can't wait for a refresh; it refreshes
+  the index once the documents are removed.
+- **Cost**: each call can take up to the refresh interval, and `IndexMultipleDocumentsAsync` waits once for each
+  bulk request of `BulkBatchSize` documents, so a large import waits many times. Leave it at `Default`
+  for bulk loads and turn it on where a write must be visible straight away, such as tests and small sites.
+- Waiting doesn't change what a failure means: a failed or cancelled call may still have stored the write.
 
 ## Removing documents
 

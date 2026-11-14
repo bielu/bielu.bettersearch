@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.OpenSearch.Configuration;
+﻿using Bielu.BetterSearch.Abstractions.Configuration;
+using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
@@ -377,5 +378,25 @@ public class OpenSearchClientSettingsManagerTests
 
         settings.ConnectionString.ShouldBe("http://products:9200");
         settings.Mappings.ShouldNotBeNull().ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(null, null, WriteVisibility.Default)]
+    [InlineData(WriteVisibility.WaitUntilSearchable, null, WriteVisibility.WaitUntilSearchable)]
+    [InlineData(WriteVisibility.WaitUntilSearchable, WriteVisibility.Default, WriteVisibility.Default)]
+    [InlineData(null, WriteVisibility.WaitUntilSearchable, WriteVisibility.WaitUntilSearchable)]
+    public void GetConnectionSettings_WriteVisibility_IndexSettingWinsAndUnsetInheritsShared(
+        WriteVisibility? shared, WriteVisibility? own, WriteVisibility expected)
+    {
+        var options = new OpenSearchOptions
+        {
+            SharedIndexSettings = new() { ConnectionString = "http://shared:9200", WriteVisibility = shared },
+            Indexes = new Dictionary<string, OpenSearchIndexSettings> { ["people"] = new() { WriteVisibility = own } },
+        };
+
+        var manager = CreateManager(options);
+
+        manager.GetConnectionSettings("people").WriteVisibility.ShouldBe(expected);
+        manager.GetConnectionSettings("other").WriteVisibility.ShouldBe(shared ?? WriteVisibility.Default);
     }
 }

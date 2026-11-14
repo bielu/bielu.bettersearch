@@ -92,7 +92,8 @@ A query on `Name` filters those copies; a query on `fields.Name` compares the va
 does on Elasticsearch. **Re-index** documents indexed before this version, and after adding a field to
 `PhraseFields`: until then they don't match.
 
-Writes wait for Meilisearch's task, so a successful `Result` means the write was applied. They also add the
+Writes wait for Meilisearch's task, so a successful `Result` means the write was applied and is searchable;
+there is no `WriteVisibility` setting to turn on, as on Elasticsearch and OpenSearch. They also add the
 filterable and sortable attributes the provider needs to the index settings, keeping any added by others.
 
 ## How queries behave

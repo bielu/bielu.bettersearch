@@ -52,6 +52,8 @@ builder.Services.AddBetterSearch(search => search.AddLiftiSearch());
 
 There is nothing to configure.
 
+A write is searchable as soon as the call returns, as the index is in memory.
+
 ## How queries behave
 
 - **`MUST`, `SHOULD` and `MUSTNOT`** follow Lucene semantics, as on the other providers: alongside `MUST`,

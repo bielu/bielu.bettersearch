@@ -1,9 +1,11 @@
-﻿using Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Configuration;
+using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.Services;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using OpenSearch.Client;
+using Refresh = OpenSearch.Net.Refresh;
 using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.OpenSearch.Services;
@@ -20,7 +22,7 @@ internal sealed class OpenSearchIndexingProviderAsync(
     public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(document.Index, async client =>
         {
-            var response = await client.IndexAsync(StoredFields.WithDatesAsText(document), i => i.Index(document.Index).Id(document.Id), cancellationToken).ConfigureAwait(false);
+            var response = await client.IndexAsync(StoredFields.WithDatesAsText(document), i => i.Index(document.Index).Id(document.Id).Refresh(WaitFor(document.Index)), cancellationToken).ConfigureAwait(false);
             return IsSuccess(response) ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
         }, cancellationToken);
 
@@ -36,7 +38,7 @@ internal sealed class OpenSearchIndexingProviderAsync(
                 BulkBatches.IndexAsync(indexGroup.Key, group, settingsManager.GetConnectionSettings(indexGroup.Key).BulkBatchSize,
                     OpenSearchOptions.OpenSearchOptionsKey, async batch =>
                     {
-                        var response = await client.BulkAsync(b => b.Index(indexGroup.Key).IndexMany(batch.Select(StoredFields.WithDatesAsText), (descriptor, document) => descriptor.Id(document.Id)), cancellationToken).ConfigureAwait(false);
+                        var response = await client.BulkAsync(b => b.Index(indexGroup.Key).IndexMany(batch.Select(StoredFields.WithDatesAsText), (descriptor, document) => descriptor.Id(document.Id)).Refresh(WaitFor(indexGroup.Key)), cancellationToken).ConfigureAwait(false);
                         // A request rejected as a whole, such as a 403, has no items.
                         if (response.Items is null || response.Items.Count != batch.Length)
                         {
@@ -57,7 +59,7 @@ internal sealed class OpenSearchIndexingProviderAsync(
     public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(type, async client =>
         {
-            var response = await client.DeleteAsync(new DeleteRequest(type, id), cancellationToken).ConfigureAwait(false);
+            var response = await client.DeleteAsync(new DeleteRequest(type, id) { Refresh = WaitFor(type) }, cancellationToken).ConfigureAwait(false);
             // Deletes are idempotent: a document that is not there is already gone. A missing index is still a failure,
             // and OpenSearch reports it with a server error rather than a not_found result.
             var removed = response.ServerError is null
@@ -76,7 +78,7 @@ internal sealed class OpenSearchIndexingProviderAsync(
 
         return await clientFactory.TryWithClientAsync(index, async client =>
         {
-            var response = await client.BulkAsync(b => b.Index(index).DeleteMany<SearchDocument>(distinctIds.Value, (descriptor, id) => descriptor.Id(id)), cancellationToken).ConfigureAwait(false);
+            var response = await client.BulkAsync(b => b.Index(index).DeleteMany<SearchDocument>(distinctIds.Value, (descriptor, id) => descriptor.Id(id)).Refresh(WaitFor(index)), cancellationToken).ConfigureAwait(false);
             // A request rejected as a whole, such as a 403, has no items.
             if (response.Items is null || response.Items.Count != distinctIds.Value.Count)
             {
@@ -101,7 +103,8 @@ internal sealed class OpenSearchIndexingProviderAsync(
         CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync<long?>(index.IndexName, async client =>
         {
-            var response = await client.DeleteByQueryAsync<SearchDocument>(d => d.Index(index.IndexName).Query(q => q.MatchAll()), cancellationToken).ConfigureAwait(false);
+            // Delete by query can't wait for a refresh, so it refreshes the index itself.
+            var response = await client.DeleteByQueryAsync<SearchDocument>(d => d.Index(index.IndexName).Query(q => q.MatchAll()).Refresh(WaitsUntilSearchable(index.IndexName) ? Refresh.True : null), cancellationToken).ConfigureAwait(false);
             if (!IsSuccess(response))
             {
                 return Result.Fail<long?>(new Error(response.DebugInformation));
@@ -196,6 +199,12 @@ internal sealed class OpenSearchIndexingProviderAsync(
 
     private static string NotAcknowledged(string index) =>
         $"Adding the configured mappings to index {index} was not acknowledged in time. The mappings are not rolled back and may still apply; call EnsureIndexExistsAsync again to confirm them.";
+
+    private bool WaitsUntilSearchable(string index) =>
+        settingsManager.GetConnectionSettings(index).WriteVisibility == WriteVisibility.WaitUntilSearchable;
+
+    /// <summary><c>refresh=wait_for</c> when the index's writes wait until they are searchable; otherwise the engine's default.</summary>
+    private Refresh? WaitFor(string index) => WaitsUntilSearchable(index) ? Refresh.WaitFor : null;
 
     private static Error RequestFailed(string message, Exception? exception)
     {

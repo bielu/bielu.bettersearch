@@ -84,6 +84,11 @@ whole value under its plain name, a `Text` field sorts on its `keyword` sub-fiel
 `GeoPoint` field makes geo distance queries work. Fields not listed keep dynamic mapping, and invalid mappings
 fail at startup. See [field mappings](docs/articles/providers/elasticsearch.md#field-mappings).
 
+On Elasticsearch and OpenSearch a successful write becomes searchable at the next index refresh, about a
+second later. Set `"WriteVisibility": "WaitUntilSearchable"` under `SharedIndexSettings` or an `Indexes` entry
+to have index and remove calls return only once a search can see the write; Meilisearch and Lifti already
+wait. See [when writes are searchable](docs/articles/providers/elasticsearch.md#when-writes-are-searchable).
+
 Meilisearch, configured from `Bielu:BetterSearch:Meilisearch`:
 
 ```csharp
