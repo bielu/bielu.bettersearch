@@ -94,7 +94,9 @@ the library ships no adapter for it.
   sub-query with its occurrence, boost and values, paging, sorting, post filters, highlighting, `Properties` and
   `PreviewAt`. Values are written the same way on every machine, whatever its culture, and a string `"1"` and a
   number `1` give different keys. A `JsonElement` or `JsonNode` value is keyed by its JSON text. A query holding
-  something with no stable text, such as a delegate, is not cached.
+  something with no stable text is not cached: a delegate, or a value of any other type that is not a scalar, a
+  string, an enum, a collection, a tuple or part of the query model (a type in Abstractions, or one that implements
+  an Abstractions interface such as `ISearchSubQuery`).
 - A result whose hits hold a field value of a type the cached shape can't carry (anything other than a string,
   `bool`, `int`, `long`, `double`, `float`, `decimal`, `DateTime`, `DateTimeOffset`, `DateOnly`, `JsonElement` or
   `null`) is returned as the provider gave it and not cached.

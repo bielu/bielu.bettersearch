@@ -118,6 +118,39 @@ public class SearchCacheKeyTests
     }
 
     [Fact]
+    public void TryBuild_QueryHoldsTypeOutsideQueryModel_ReturnsNull()
+    {
+        var query = With(q => ((TermSubQuery)q.Query[Occurance.MUST][0]).Value = new Uri("https://example.com/a"));
+        SearchCacheKey.TryBuild(query, "provider", null).ShouldBeNull();
+    }
+
+    [Fact]
+    public void Build_FuzzinessTupleDiffers_DifferentKeys()
+    {
+        static SearchQuery Fuzzy(int low, int high) =>
+            With(q => q.Query[Occurance.MUST] = [new FuzzyQuery { Field = "Name", Value = "jane", Fuziness = Tuple.Create(low, high) }]);
+
+        Key(Fuzzy(1, 2)).ShouldNotBe(Key(Fuzzy(1, 3)));
+        Key(Fuzzy(1, 2)).ShouldBe(Key(Fuzzy(1, 2)));
+    }
+
+    [Fact]
+    public void Build_CustomSubQueryType_HasKeyFromItsProperties()
+    {
+        var jane = With(q => q.Query[Occurance.MUST] = [new CustomSubQuery { Text = "jane" }]);
+        var john = With(q => q.Query[Occurance.MUST] = [new CustomSubQuery { Text = "john" }]);
+
+        Key(jane).ShouldNotBe(Key(john));
+    }
+
+    private sealed class CustomSubQuery : ISearchSubQuery
+    {
+        public string Text { get; set; } = string.Empty;
+        public Occurance Occurance { get; set; } = Occurance.MUST;
+        public int BoostValue { get; set; } = 1;
+    }
+
+    [Fact]
     public void TryBuild_QueryHoldsDelegate_ReturnsNull()
     {
         var query = With(q => ((TermSubQuery)q.Query[Occurance.MUST][0]).Value = new Func<int>(() => 1));

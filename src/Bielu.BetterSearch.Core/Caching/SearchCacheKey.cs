@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -45,8 +46,9 @@ internal static class SearchCacheKey
 
     /// <summary>
     /// The canonical text of <paramref name="value"/>: its runtime type and every public property, in name order, with
-    /// dictionaries in key order, lists in their own order, JSON as its text and scalar values tagged with their type and
-    /// written with <see cref="QueryValueText"/>, so <c>1</c> and <c>"1"</c> differ while the machine's culture changes nothing.
+    /// dictionaries in key order, lists and tuples in their own order, JSON as its text and scalar values tagged with their
+    /// type and written with <see cref="QueryValueText"/>, so <c>1</c> and <c>"1"</c> differ while the machine's culture
+    /// changes nothing. Any other type outside the query model throws, as its public properties may not hold its state.
     /// </summary>
     internal static string Canonical(object? value)
     {
@@ -117,6 +119,19 @@ internal static class SearchCacheKey
             return;
         }
 
+        if (value is ITuple tuple)
+        {
+            text.Append(type.FullName).Append('(');
+            for (var i = 0; i < tuple.Length; i++)
+            {
+                Write(text, tuple[i], depth + 1);
+                text.Append(',');
+            }
+
+            text.Append(')');
+            return;
+        }
+
         if (value is IEnumerable sequence)
         {
             text.Append('[');
@@ -130,6 +145,13 @@ internal static class SearchCacheKey
             return;
         }
 
+        // Public properties are the whole state only of the query model; another type can keep what makes it differ
+        // out of them, as JsonElement does, so a query holding one is not cached.
+        if (!IsQueryModel(type))
+        {
+            throw new InvalidOperationException($"A query holding a {type.FullName} has no cache key.");
+        }
+
         text.Append(type.FullName).Append('(');
         foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
                      .Where(property => property.CanRead && property.GetIndexParameters().Length == 0)
@@ -141,6 +163,13 @@ internal static class SearchCacheKey
         }
 
         text.Append(')');
+    }
+
+    /// <summary>Whether <paramref name="type"/> is part of the query model: declared in Abstractions, or implementing one of its interfaces.</summary>
+    private static bool IsQueryModel(Type type)
+    {
+        var abstractions = typeof(ISearchQuery).Assembly;
+        return type.Assembly == abstractions || type.GetInterfaces().Any(contract => contract.Assembly == abstractions);
     }
 
     private static void WriteString(StringBuilder text, string? value)

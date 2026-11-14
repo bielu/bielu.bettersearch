@@ -8,7 +8,7 @@ using FluentResults;
 namespace Bielu.BetterSearch.Caching.Tests;
 
 /// <summary>A search provider that counts its calls and returns one hit naming the index and the call.</summary>
-internal sealed class CountingSearchProvider : ISearchProviderAsync
+internal class CountingSearchProvider : ISearchProviderAsync
 {
     private int _calls;
 
@@ -52,7 +52,7 @@ internal sealed class CountingSearchProvider : ISearchProviderAsync
 /// An indexing provider whose writes all succeed, or all fail when <see cref="Fail"/> is set, or fail for the document
 /// <see cref="FailId"/> only.
 /// </summary>
-internal sealed class FakeIndexingProvider : IIndexingProviderAsync
+internal class FakeIndexingProvider : IIndexingProviderAsync
 {
     public bool Fail { get; set; }
 
@@ -80,6 +80,11 @@ internal sealed class FakeIndexingProvider : IIndexingProviderAsync
     public Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default) => Task.FromResult(Result.Ok(true));
     public Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default) => Task.FromResult(Result.Ok(true));
 }
+
+/// <summary>A second provider type, for registering two providers under two keys.</summary>
+internal sealed class SecondCountingSearchProvider : CountingSearchProvider;
+
+internal sealed class SecondFakeIndexingProvider : FakeIndexingProvider;
 
 internal sealed class SortField : ISortOrderField
 {

@@ -498,6 +498,28 @@ public class SearchServiceCachingTests
         evicted.Value.Items.Single().Document.Id.ShouldBe("products-2");
     }
 
+    [Fact]
+    public async Task SearchAsync_TwoKeyedProvidersSameIndex_DoNotShareEntries()
+    {
+        //Arrange
+        var services = new ServiceCollection();
+        services.AddBetterSearch(c => c
+            .AddProvider<CountingSearchProvider, FakeIndexingProvider>("first")
+            .AddProvider<SecondCountingSearchProvider, SecondFakeIndexingProvider>("second")
+            .AddMemorySearchCache());
+        await using var built = services.BuildServiceProvider();
+        using var scope = built.CreateScope();
+        var second = (CountingSearchProvider)scope.ServiceProvider.GetRequiredKeyedService<ISearchProviderAsync>("second");
+
+        //Act
+        (await scope.ServiceProvider.GetRequiredKeyedService<ISearchServiceAsync>("first").SearchAsync(Queries.Term("products"), Token)).IsSuccess.ShouldBeTrue();
+        var result = await scope.ServiceProvider.GetRequiredKeyedService<ISearchServiceAsync>("second").SearchAsync(Queries.Term("products"), Token);
+
+        //Assert
+        result.IsSuccess.ShouldBeTrue();
+        second.Calls.ShouldBe(1);
+    }
+
     private sealed class CallbackObserver<T>(Action<T> onNext) : IObserver<T>
     {
         public void OnCompleted() { }
