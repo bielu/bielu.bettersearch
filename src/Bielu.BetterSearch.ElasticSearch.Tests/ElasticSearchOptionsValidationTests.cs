@@ -11,7 +11,7 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
 
-public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
+public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
 {
     private const string Key = "Bielu:BetterSearch:ElasticSearch";
 
@@ -216,6 +216,22 @@ public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
         ]);
     }
 
+    [Theory]
+    [InlineData("APIKEY", "ApiKey")]
+    [InlineData("BEARER", "Token")]
+    public void ValidateOnStart_ApiKeyOrBearerWithoutConnectionString_FailsNamingConnectionString(string authenticationType, string detail)
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = authenticationType,
+            [$"SharedIndexSettings:AuthenticationDetails:{detail}"] = "s3cret",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"ConnectionString is missing. Set {Key}:SharedIndexSettings:ConnectionString, or {Key}:Indexes:<index>:ConnectionString for one index."
+        ]);
+    }
+
     [Fact]
     public void ValidateOnStart_CloudWithoutConnectionString_Passes()
     {
@@ -238,7 +254,7 @@ public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"AuthenticationType 7 is not one of NONE, CLOUD, CLOUDAPI, PASSWORD. Set {Key}:SharedIndexSettings:AuthenticationType, or {Key}:Indexes:<index>:AuthenticationType for one index."
+            $"AuthenticationType 7 is not one of NONE, CLOUD, CLOUDAPI, PASSWORD, APIKEY, BEARER. Set {Key}:SharedIndexSettings:AuthenticationType, or {Key}:Indexes:<index>:AuthenticationType for one index."
         ]);
     }
 

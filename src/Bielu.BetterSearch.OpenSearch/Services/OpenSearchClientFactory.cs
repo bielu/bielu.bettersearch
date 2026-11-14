@@ -32,14 +32,18 @@ internal sealed class OpenSearchClientFactory(IOpenSearchClientSettingsManager s
         OpenSearchAuthenticationType? AuthenticationType,
         string? Username,
         string? Password,
-        string? ApiKey)
+        string? ApiKey,
+        string? CertificateFingerprint,
+        bool? DevelopmentOnlySkipCertificateValidation)
     {
         public static ClientKey From(OpenSearchIndexSettings settings) => new(
             settings.ConnectionString,
             settings.AuthenticationType,
             settings.AuthenticationDetails?.Username,
             settings.AuthenticationDetails?.Password,
-            settings.AuthenticationDetails?.ApiKey);
+            settings.AuthenticationDetails?.ApiKey,
+            settings.CertificateFingerprint,
+            settings.DevelopmentOnlySkipCertificateValidation);
 
         // The generated ToString prints every member; keep the credentials out of logs and exception messages.
         public override string ToString() =>

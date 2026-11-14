@@ -244,4 +244,149 @@ public class ElasticSearchClientSettingsManagerTests
 
         manager.GetIndexName("people").ShouldBe("green-people");
     }
+
+    [Fact]
+    public void CreateClientSettings_ApiKey_SendsTheKeyToTheConnectionString()
+    {
+        var settings = GetSettings(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                AuthenticationType = AuthenticationType.APIKEY,
+                AuthenticationDetails = new AuthenticationDetails { ApiKey = "a2V5" },
+            },
+        }, "people");
+
+        settings.NodePool.Nodes.Single().Uri.ShouldBe(new Uri("https://shared:9200"));
+        settings.Authentication.ShouldNotBeNull().AuthScheme.ShouldBe("ApiKey");
+        settings.Authentication.TryGetAuthorizationParameters(out var parameter).ShouldBeTrue();
+        parameter.ShouldBe("a2V5");
+    }
+
+    [Fact]
+    public void CreateClientSettings_Bearer_SendsTheToken()
+    {
+        var settings = GetSettings(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                AuthenticationType = AuthenticationType.BEARER,
+                AuthenticationDetails = new AuthenticationDetails { Token = "AAEAAWVsYXN0aWM" },
+            },
+        }, "people");
+
+        settings.Authentication.ShouldNotBeNull().AuthScheme.ShouldBe("Bearer");
+        settings.Authentication.TryGetAuthorizationParameters(out var parameter).ShouldBeTrue();
+        parameter.ShouldBe("AAEAAWVsYXN0aWM");
+    }
+
+    [Fact]
+    public void CreateClientSettings_ColonSeparatedFingerprint_SetsItWithoutColons()
+    {
+        var settings = GetSettings(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                CertificateFingerprint = string.Join(":", Enumerable.Repeat("ab", 32)),
+            },
+        }, "people");
+
+        settings.CertificateFingerprint.ShouldBe(string.Concat(Enumerable.Repeat("AB", 32)));
+        settings.ServerCertificateValidationCallback.ShouldBeNull();
+    }
+
+    [Fact]
+    public void CreateClientSettings_SkippedCertificateValidation_AcceptsAnyCertificate()
+    {
+        var settings = GetSettings(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                DevelopmentOnlySkipCertificateValidation = true,
+            },
+        }, "people");
+
+        settings.ServerCertificateValidationCallback.ShouldBe(CertificateValidations.AllowAll);
+    }
+
+    [Fact]
+    public void CreateClientSettings_NoTlsSettings_KeepsTheSystemsValidation()
+    {
+        var settings = GetSettings(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings { ConnectionString = "https://shared:9200" },
+        }, "people");
+
+        settings.CertificateFingerprint.ShouldBeNull();
+        settings.ServerCertificateValidationCallback.ShouldBeNull();
+    }
+
+    [Fact]
+    public void GetConnectionSettings_TlsSettings_ComeWithTheConnectionString()
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                CertificateFingerprint = new string('A', 64),
+            },
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings>
+            {
+                ["own"] = new() { ConnectionString = "https://own:9200", DevelopmentOnlySkipCertificateValidation = true },
+                ["inherits"] = new() { BulkBatchSize = 10, DevelopmentOnlySkipCertificateValidation = true },
+            },
+        };
+
+        var own = GetConnectionSettings(options, "own");
+        own.CertificateFingerprint.ShouldBeNull();
+        own.DevelopmentOnlySkipCertificateValidation.ShouldBe(true);
+        var inherits = GetConnectionSettings(options, "inherits");
+        inherits.CertificateFingerprint.ShouldBe(new string('A', 64));
+        inherits.DevelopmentOnlySkipCertificateValidation.ShouldBe(false);
+    }
+
+    [Fact]
+    public void ClientKey_ToString_LeavesOutTheTokenAndApiKey()
+    {
+        var key = ElasticsearchClientFactory.ClientKey.From(new ElasticSearchIndexSettings
+        {
+            ConnectionString = "https://shared:9200",
+            AuthenticationType = AuthenticationType.BEARER,
+            AuthenticationDetails = new AuthenticationDetails { Token = "s3cret-token", ApiKey = "s3cret-key" },
+        });
+
+        var text = key.ToString();
+
+        text.ShouldContain("BEARER");
+        text.ShouldNotContain("s3cret");
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_TokenChanges_UsesNewToken()
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                AuthenticationType = AuthenticationType.BEARER,
+                AuthenticationDetails = new AuthenticationDetails { Token = "old" },
+            },
+        };
+        var monitor = new TestOptionsMonitor<ElasticSearchOptions>(options);
+        var factory = new ElasticsearchClientFactory(new ElasticSearchClientSettingsManager(monitor));
+        var before = await factory.GetOrCreateClientAsync("people");
+
+        options.SharedIndexSettings.AuthenticationDetails = new AuthenticationDetails { Token = "new" };
+        var after = await factory.GetOrCreateClientAsync("people");
+
+        after.ShouldNotBeSameAs(before);
+        after.ElasticsearchClientSettings.Authentication!.TryGetAuthorizationParameters(out var parameter).ShouldBeTrue();
+        parameter.ShouldBe("new");
+    }
 }

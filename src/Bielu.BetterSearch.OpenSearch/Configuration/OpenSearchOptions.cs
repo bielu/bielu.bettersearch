@@ -60,6 +60,22 @@ public class OpenSearchIndexSettings : IndexSettings
     public OpenSearchAuthenticationDetails? AuthenticationDetails { get; set; }
 
     /// <summary>
+    /// The SHA-256 fingerprint of the server's certificate or of the CA that signed it, as hex, with or without colons.
+    /// A certificate the system does not trust is then accepted when it or a certificate in its chain has this
+    /// fingerprint, whatever host name it names. Like <see cref="DevelopmentOnlySkipCertificateValidation"/>, it goes with
+    /// the connection string: an <c>Indexes</c> entry with its own <c>ConnectionString</c> uses only its own TLS settings,
+    /// and one without takes the shared ones.
+    /// </summary>
+    public string? CertificateFingerprint { get; set; }
+
+    /// <summary>
+    /// Accepts any server certificate, so anyone between the application and the server can read and change the traffic,
+    /// credentials included. Only for a local development cluster with a self-signed certificate; set
+    /// <see cref="CertificateFingerprint"/> instead everywhere else. It can't be set together with <see cref="CertificateFingerprint"/>.
+    /// </summary>
+    public bool? DevelopmentOnlySkipCertificateValidation { get; set; }
+
+    /// <summary>
     /// Fields mapped explicitly when the index is created, or added to it by <c>EnsureIndexExistsAsync</c>. Fields not
     /// listed keep dynamic mapping. An <c>Indexes</c> entry adds to the shared mappings and replaces a shared mapping
     /// of the same field.

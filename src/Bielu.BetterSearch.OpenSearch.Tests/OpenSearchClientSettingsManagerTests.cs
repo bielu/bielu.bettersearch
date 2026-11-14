@@ -1,4 +1,7 @@
-﻿using Bielu.BetterSearch.Abstractions.Configuration;
+﻿using System.Net.Security;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
 using Bielu.BetterSearch.Tests;
@@ -397,4 +400,101 @@ public class OpenSearchClientSettingsManagerTests
     [InlineData("app-", "people", "app-people")]
     public void GetIndexName_Prefix_IsPutBeforeTheName(string? prefix, string index, string expected) =>
         CreateManager(new OpenSearchOptions { IndexPrefix = prefix }).GetIndexName(index).ShouldBe(expected);
+
+    [Fact]
+    public void CreateClientSettings_SkippedCertificateValidation_AcceptsAnyCertificate()
+    {
+        var settings = GetSettings(new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                DevelopmentOnlySkipCertificateValidation = true,
+            },
+        });
+
+        settings.ServerCertificateValidationCallback.ShouldBe(CertificateValidations.AllowAll);
+    }
+
+    [Fact]
+    public void CreateClientSettings_NoTlsSettings_KeepsTheSystemsValidation()
+    {
+        GetSettings(new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings { ConnectionString = "https://shared:9200" },
+        }).ServerCertificateValidationCallback.ShouldBeNull();
+    }
+
+    [Fact]
+    public void CreateClientSettings_CertificateFingerprint_AcceptsOnlyAChainWithThatCertificate()
+    {
+        using var ca = SelfSigned("CN=Test CA");
+        using var other = SelfSigned("CN=Other CA");
+        using var leaf = SelfSigned("CN=node");
+        using var chain = new X509Chain();
+        chain.ChainPolicy.ExtraStore.Add(ca);
+        chain.ChainPolicy.CustomTrustStore.Add(ca);
+        chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+        chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+        using var leafSignedByCa = SignedBy(ca, "CN=node");
+        chain.Build(leafSignedByCa);
+        string Fingerprint(X509Certificate2 certificate) =>
+            string.Join(":", certificate.GetCertHashString(HashAlgorithmName.SHA256).ToLowerInvariant().Chunk(2).Select(pair => new string(pair)));
+        Func<object, X509Certificate, X509Chain, SslPolicyErrors, bool> Callback(string fingerprint) =>
+            GetSettings(new OpenSearchOptions
+            {
+                SharedIndexSettings = new OpenSearchIndexSettings { ConnectionString = "https://shared:9200", CertificateFingerprint = fingerprint },
+            }).ServerCertificateValidationCallback.ShouldNotBeNull();
+        using var emptyChain = new X509Chain();
+
+        // The CA's fingerprint accepts a certificate it signed, through the chain; the leaf's accepts the leaf itself.
+        Callback(Fingerprint(ca))(this, leafSignedByCa, chain, SslPolicyErrors.RemoteCertificateChainErrors).ShouldBeTrue();
+        Callback(Fingerprint(leaf))(this, leaf, emptyChain, SslPolicyErrors.RemoteCertificateChainErrors | SslPolicyErrors.RemoteCertificateNameMismatch).ShouldBeTrue();
+        Callback(Fingerprint(other))(this, leafSignedByCa, chain, SslPolicyErrors.RemoteCertificateChainErrors).ShouldBeFalse();
+        Callback(Fingerprint(other))(this, leaf, emptyChain, SslPolicyErrors.RemoteCertificateChainErrors).ShouldBeFalse();
+        // A certificate the system trusts is still accepted.
+        Callback(Fingerprint(other))(this, leaf, emptyChain, SslPolicyErrors.None).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void GetConnectionSettings_TlsSettings_ComeWithTheConnectionString()
+    {
+        var options = new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                CertificateFingerprint = new string('A', 64),
+            },
+            Indexes = new Dictionary<string, OpenSearchIndexSettings>
+            {
+                ["own"] = new() { ConnectionString = "https://own:9200", DevelopmentOnlySkipCertificateValidation = true },
+                ["inherits"] = new() { BulkBatchSize = 10, DevelopmentOnlySkipCertificateValidation = true },
+            },
+        };
+        var manager = CreateManager(options);
+
+        var own = manager.GetConnectionSettings("own");
+        own.CertificateFingerprint.ShouldBeNull();
+        own.DevelopmentOnlySkipCertificateValidation.ShouldBe(true);
+        var inherits = manager.GetConnectionSettings("inherits");
+        inherits.CertificateFingerprint.ShouldBe(new string('A', 64));
+        inherits.DevelopmentOnlySkipCertificateValidation.ShouldBe(false);
+    }
+
+    private static X509Certificate2 SelfSigned(string subject)
+    {
+        // The certificate keeps using the key, as an issuer signs with it.
+        var key = RSA.Create(2048);
+        var request = new CertificateRequest(subject, key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        request.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
+        return request.CreateSelfSigned(new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2125, 1, 1, 0, 0, 0, TimeSpan.Zero));
+    }
+
+    private static X509Certificate2 SignedBy(X509Certificate2 issuer, string subject)
+    {
+        using var key = RSA.Create(2048);
+        var request = new CertificateRequest(subject, key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        return request.Create(issuer, new DateTimeOffset(2025, 6, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2124, 1, 1, 0, 0, 0, TimeSpan.Zero), [1, 2, 3, 4]);
+    }
 }

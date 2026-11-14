@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 namespace Bielu.BetterSearch.ElasticSearch.Configuration;
 
 /// <summary>
-/// Checks the connection settings, limits, field mappings, bulk batch sizes and the index prefix, at startup and whenever the options
+/// Checks the connection and TLS settings, limits, field mappings, bulk batch sizes and the index prefix, at startup and whenever the options
 /// are read, listing every setting that is wrong and naming each one. The connection settings are checked as each call
 /// checks them, after merging each <c>Indexes</c> entry with the shared settings.
 /// </summary>
@@ -23,6 +23,9 @@ internal sealed class ElasticSearchOptionsValidator : IValidateOptions<ElasticSe
             .Concat((options.Indexes ?? []).SelectMany(index =>
                 BulkBatchSizeFailures($"{key}:{nameof(ElasticSearchOptions.Indexes)}:{index.Key}", index.Value)))
             .Concat(IndexNames.ValidatePrefix($"{key}:{nameof(ElasticSearchOptions.IndexPrefix)}", options.IndexPrefix))
+            .Concat((options.Indexes ?? []).Where(index => index.Value is not null).Select(index =>
+                ConnectionSettingsChecks.TlsWithoutConnectionStringFailure(key, index.Key, index.Value.ConnectionString,
+                    index.Value.CertificateFingerprint, index.Value.DevelopmentOnlySkipCertificateValidation)).OfType<string>())
             .ToList();
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }

@@ -30,18 +30,21 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
 
     /// <summary>
     /// Builds a new settings object, leaving the live options untouched: the index's connection string and
-    /// authentication win, and an index without its own takes the shared one. Mappings are the shared ones with the
+    /// authentication win, and an index without its own takes the shared one. The TLS settings come from where the
+    /// connection string does. Mappings are the shared ones with the
     /// index's own on top, the bulk batch size is the index's own or else the shared one, and the index's write visibility wins over the shared one.
     /// </summary>
     internal static ElasticSearchIndexSettings MergeSettings(ElasticSearchIndexSettings indexSpecific,
         ElasticSearchIndexSettings shared)
     {
         var ownAuthentication = indexSpecific.AuthenticationType is not null;
+        // The TLS settings belong to the server, so they come with the connection string.
+        var connection = string.IsNullOrWhiteSpace(indexSpecific.ConnectionString) ? shared : indexSpecific;
         return new ElasticSearchIndexSettings
         {
-            ConnectionString = string.IsNullOrWhiteSpace(indexSpecific.ConnectionString)
-                ? shared.ConnectionString
-                : indexSpecific.ConnectionString,
+            ConnectionString = connection.ConnectionString,
+            CertificateFingerprint = connection.CertificateFingerprint,
+            DevelopmentOnlySkipCertificateValidation = connection.DevelopmentOnlySkipCertificateValidation ?? false,
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
                                  ?? AuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
@@ -82,9 +85,22 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
                 ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
                     (nameof(AuthenticationDetails.Id), details?.Id), (nameof(AuthenticationDetails.ApiKey), details?.ApiKey)),
             ],
+            AuthenticationType.APIKEY =>
+            [
+                ConnectionSettingsChecks.HttpUrlFailure(key, index, settings.ConnectionString),
+                ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                    (nameof(AuthenticationDetails.ApiKey), details?.ApiKey)),
+            ],
+            AuthenticationType.BEARER =>
+            [
+                ConnectionSettingsChecks.HttpUrlFailure(key, index, settings.ConnectionString),
+                ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                    (nameof(AuthenticationDetails.Token), details?.Token)),
+            ],
             _ => [ConnectionSettingsChecks.UnknownAuthenticationTypeFailure(key, index, settings.AuthenticationType)],
         };
-        return failures.OfType<string>();
+        return failures.OfType<string>()
+            .Concat(ConnectionSettingsChecks.TlsFailures(key, index, settings.CertificateFingerprint, settings.DevelopmentOnlySkipCertificateValidation));
     }
 
     /// <summary>
@@ -95,13 +111,39 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     {
         ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, null));
         var details = settings.AuthenticationDetails!;
-        return (settings.AuthenticationType ?? AuthenticationType.NONE) switch
+        var clientSettings = (settings.AuthenticationType ?? AuthenticationType.NONE) switch
         {
             AuthenticationType.PASSWORD => new ElasticsearchClientSettings(new SingleNodePool(new Uri(settings.ConnectionString)))
                 .Authentication(new BasicAuthentication(details.Username, details.Password)),
             AuthenticationType.CLOUD => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new BasicAuthentication(details.Username, details.Password))),
             AuthenticationType.CLOUDAPI => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new ApiKey(details.ApiKey))),
+            AuthenticationType.APIKEY => new ElasticsearchClientSettings(new SingleNodePool(new Uri(settings.ConnectionString)))
+                .Authentication(new ApiKey(details.ApiKey)),
+            AuthenticationType.BEARER => new ElasticsearchClientSettings(new SingleNodePool(new Uri(settings.ConnectionString)))
+                .Authentication(new BearerToken(details.Token!)),
             _ => new ElasticsearchClientSettings(new SingleNodePool(new Uri(settings.ConnectionString))),
         };
+        if (!string.IsNullOrWhiteSpace(settings.CertificateFingerprint))
+        {
+            clientSettings.CertificateFingerprint(ConnectionSettingsChecks.NormalizeFingerprint(settings.CertificateFingerprint)!);
+        }
+        else if (settings.DevelopmentOnlySkipCertificateValidation == true)
+        {
+            clientSettings.ServerCertificateValidationCallback(CertificateValidations.AllowAll);
+        }
+
+        return clientSettings;
+    }
+
+    /// <summary>Sends <c>Authorization: Bearer &lt;token&gt;</c>, which the transport has no type for.</summary>
+    private sealed class BearerToken(string token) : AuthorizationHeader
+    {
+        public override string AuthScheme => "Bearer";
+
+        public override bool TryGetAuthorizationParameters(out string parameter)
+        {
+            parameter = token;
+            return true;
+        }
     }
 }
