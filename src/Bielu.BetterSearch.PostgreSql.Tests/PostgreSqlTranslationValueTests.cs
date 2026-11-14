@@ -11,9 +11,8 @@ using Shouldly;
 namespace Bielu.BetterSearch.PostgreSql.Tests;
 
 /// <summary>
-/// The values each translator sends, under a culture that writes 3.5 as "3,5". xUnit runs public test classes only,
-/// so <see cref="PostgreSqlQueryTranslationTests"/>, internal as the filter type is, does not run; this class resolves
-/// the translators from the container instead.
+/// The values each translator sends, under a culture that writes 3.5 as "3,5", beyond the shared cases that
+/// <see cref="PostgreSqlQueryTranslationTests"/> runs.
 /// </summary>
 public sealed class PostgreSqlTranslationValueTests(IServiceProvider services)
 {
