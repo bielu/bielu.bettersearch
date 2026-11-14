@@ -527,20 +527,30 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
     public async Task IndexMultipleDocumentsAsync_MissingIdOrIndex_FailsForEachAndSendsNothing()
     {
         //Arrange
+        var index = $"bulk-{Guid.NewGuid():N}";
+        (await indexingProviderAsync.CreateIndexAsync(index, Token)).IsSuccess.ShouldBeTrue();
         var observer = new RecordingObserver<SearchDocument>();
         using var subscription = serviceAsync.Subscribe(observer);
+        try
+        {
+            //Act
+            var result = await serviceAsync.IndexMultipleDocumentsAsync(
+            [
+                CountDocument(index, "1"),
+                CountDocument(index, ""),
+                new SearchDocument { Id = "3", Type = "TestDocument", Index = null! },
+            ], Token);
 
-        //Act
-        var result = await serviceAsync.IndexMultipleDocumentsAsync(
-        [
-            new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index-1" },
-            new SearchDocument { Id = "", Type = "TestDocument", Index = "test-index-1" },
-            new SearchDocument { Id = "3", Type = "TestDocument", Index = null! },
-        ], Token);
-
-        //Assert
-        result.Errors.Select(error => error.Message).ShouldBe(["A document for index 'test-index-1' has a null or empty Id.", "Document 3 has a null or empty Index."]);
-        observer.Values.ShouldBeEmpty();
+            //Assert
+            result.Errors.Select(error => error.Message).ShouldBe([$"A document for index '{index}' has a null or empty Id.", "Document 3 has a null or empty Index."]);
+            // Document 1 is well formed, but must not have reached the engine.
+            (await CountDocumentsAsync(index)).ShouldBe(0);
+            observer.Values.ShouldBeEmpty();
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
     }
 
     [Fact]
