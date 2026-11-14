@@ -103,4 +103,12 @@ public class MeilisearchIndexSettings : IndexSettings
     /// It must be greater than 0.
     /// </summary>
     public int? BulkBatchSize { get; set; }
+
+    /// <summary>
+    /// How long one request to Meilisearch may take before it fails, set as the <see cref="HttpClient.Timeout"/> of the
+    /// client. It does not limit how long a write waits for its task, which <c>TaskTimeout</c> does. Unset on an
+    /// <c>Indexes</c> entry, the index takes the shared value, and unset there leaves the <see cref="HttpClient"/> default of
+    /// 100 seconds. It must be greater than 0.
+    /// </summary>
+    public TimeSpan? RequestTimeout { get; set; }
 }

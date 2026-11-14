@@ -29,7 +29,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
     /// Builds a new settings object, leaving the live options untouched: the index's connection string,
     /// authentication and pool type win, and an index without its own takes the shared one. The additional nodes go with
     /// the connection string: an index with its own connection string uses only its own nodes. Mappings are the shared ones with the
-    /// index's own on top, the bulk batch size is the index's own or else the shared one, and the index's write visibility wins over the shared one.
+    /// index's own on top, the bulk batch size is the index's own or else the shared one, the index's write visibility wins over the shared one, and so do its request timeout and retry count.
     /// </summary>
     internal static OpenSearchIndexSettings MergeSettings(OpenSearchIndexSettings indexSpecific,
         OpenSearchIndexSettings shared)
@@ -48,6 +48,8 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
             Mappings = FieldMappings.Merge(shared?.Mappings, indexSpecific.Mappings),
             BulkBatchSize = indexSpecific.BulkBatchSize ?? shared?.BulkBatchSize,
             WriteVisibility = indexSpecific.WriteVisibility ?? shared?.WriteVisibility ?? WriteVisibility.Default,
+            RequestTimeout = indexSpecific.RequestTimeout ?? shared?.RequestTimeout,
+            MaxRetries = indexSpecific.MaxRetries ?? shared?.MaxRetries,
         };
     }
 
@@ -55,24 +57,29 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
     /// The connection setting failures of <paramref name="settings"/>, already merged, each naming the setting to fix.
     /// The options validator runs the same checks at startup.
     /// </summary>
-    /// <remarks><c>index</c> is the <c>Indexes</c> entry the settings come from, or <c>null</c> when that is not known or they are the shared settings.</remarks>
-    internal static IEnumerable<string> ConnectionFailures(OpenSearchIndexSettings settings, string? index)
+    /// <remarks>
+    /// <c>connection</c> is where the connection string comes from, and <c>authentication</c> where the authentication
+    /// type and details come from, which an <c>Indexes</c> entry takes together. <c>nodes</c> and <c>pool</c> are where the
+    /// additional nodes and the pool type come from, the connection string's source when not given.
+    /// </remarks>
+    internal static IEnumerable<string> ConnectionFailures(OpenSearchIndexSettings settings, SettingSource connection, SettingSource authentication,
+        SettingSource? nodes = null, SettingSource? pool = null)
     {
         var key = OpenSearchOptions.OpenSearchOptionsKey;
         var authenticationType = settings.AuthenticationType ?? OpenSearchAuthenticationType.NONE;
         var details = settings.AuthenticationDetails;
         string?[] failures =
         [
-            .. ConnectionSettingsChecks.NodeFailures(key, index, settings.ConnectionString, settings.AdditionalNodes, settings.PoolType),
+            .. ConnectionSettingsChecks.NodeFailures(key, connection, nodes ?? connection, pool ?? connection, settings.ConnectionString, settings.AdditionalNodes, settings.PoolType),
             authenticationType switch
             {
                 OpenSearchAuthenticationType.NONE => null,
-                OpenSearchAuthenticationType.PASSWORD => ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                OpenSearchAuthenticationType.PASSWORD => ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(OpenSearchAuthenticationDetails.Username), details?.Username),
                     (nameof(OpenSearchAuthenticationDetails.Password), details?.Password)),
-                OpenSearchAuthenticationType.APIKEY => ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                OpenSearchAuthenticationType.APIKEY => ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(OpenSearchAuthenticationDetails.ApiKey), details?.ApiKey)),
-                _ => ConnectionSettingsChecks.UnknownAuthenticationTypeFailure(key, index, settings.AuthenticationType),
+                _ => ConnectionSettingsChecks.UnknownAuthenticationTypeFailure(key, authentication, settings.AuthenticationType),
             },
         ];
         return failures.OfType<string>();
@@ -80,7 +87,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
 
     public ConnectionSettings CreateClientSettings(OpenSearchIndexSettings settings)
     {
-        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, null));
+        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, SettingSource.Unknown, SettingSource.Unknown));
         var connectionSettings = new ConnectionSettings(CreateConnectionPool(settings));
         var details = settings.AuthenticationDetails!;
         switch (settings.AuthenticationType ?? OpenSearchAuthenticationType.NONE)
@@ -92,6 +99,16 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
                 // OpenSearch API keys are sent as they are, "Authorization: ApiKey <token>", not encoded with an id.
                 connectionSettings.ApiKeyAuthentication(new ApiKeyAuthenticationCredentials(details.ApiKey));
                 break;
+        }
+
+        if (settings.RequestTimeout is { } requestTimeout)
+        {
+            connectionSettings.RequestTimeout(requestTimeout);
+        }
+
+        if (settings.MaxRetries is { } maxRetries)
+        {
+            connectionSettings.MaximumRetries(maxRetries);
         }
 
         return connectionSettings;

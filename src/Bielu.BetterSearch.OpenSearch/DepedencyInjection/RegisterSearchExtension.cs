@@ -17,13 +17,20 @@ public static class RegisterSearchExtension
     /// <summary>
     /// Adds the OpenSearch provider under <paramref name="key"/>, so its services can be resolved with
     /// <c>[FromKeyedServices(key)]</c>; the unkeyed services use it when it is the only provider or the default.
+    /// <c>configureClient</c> sets what the options don't cover, such as a proxy or a header, on the <c>ConnectionSettings</c> of each client
+    /// the provider creates. It runs after the options are applied, so it can override them, and once per cached client,
+    /// not per request: clients are cached per connection. It applies to every OpenSearch client, whichever key routes to it.
     /// </summary>
-    public static Configurator AddOpenSearch(this Configurator configurator, string key = DefaultKey)
+    public static Configurator AddOpenSearch(this Configurator configurator, string key = DefaultKey,
+        Action<ConnectionSettings>? configureClient = null)
     {
         // AddBetterSearch registers the validator and the indexing and search services after this runs.
         configurator.AddProvider<OpenSearchSearchProviderAsync, OpenSearchIndexingProviderAsync>(key);
         configurator.Services.AddSingleton<IOpenSearchClientSettingsManager, OpenSearchClientSettingsManager>();
-        configurator.Services.AddSingleton<IClientFactoryAsync<IOpenSearchClient>, OpenSearchClientFactory>();
+        ClientConfiguration<ConnectionSettings>.Register(configurator.Services, configureClient);
+        configurator.Services.AddSingleton<IClientFactoryAsync<IOpenSearchClient>>(services => new OpenSearchClientFactory(
+            services.GetRequiredService<IOpenSearchClientSettingsManager>(),
+            services.GetServices<ClientConfiguration<ConnectionSettings>>()));
         configurator.Services.AddScoped<OpenSearchQueryTranslateService>();
         configurator.Services.AddScoped<IQueryTranslateServiceAsync<QueryContainer>>(sp =>
             sp.GetRequiredService<OpenSearchQueryTranslateService>());

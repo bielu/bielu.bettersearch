@@ -20,12 +20,15 @@
       <!-- Compiled into each provider rather than shared from another package, so a provider never calls into another package's internals. -->
       <Compile Include="..\Shared\StoredFields.cs" Link="Services\StoredFields.cs" />
       <Compile Include="..\Shared\DocumentIds.cs" Link="Services\DocumentIds.cs" />
+      <Compile Include="..\Shared\DocumentLookups.cs" Link="Services\DocumentLookups.cs" />
       <Compile Include="..\Shared\QueryValueText.cs" Link="Services\QueryValueText.cs" />
       <Compile Include="..\Shared\RangeBounds.cs" Link="Services\RangeBounds.cs" />
       <Compile Include="..\Shared\SortOrders.cs" Link="Services\SortOrders.cs" />
+      <Compile Include="..\Shared\IndexNames.cs" Link="Services\IndexNames.cs" />
       <Compile Include="..\Shared\ConnectionSettingsChecks.cs" Link="Services\ConnectionSettingsChecks.cs" />
       <Compile Include="..\Shared\CurrentOptions.cs" Link="Services\CurrentOptions.cs" />
       <Compile Include="..\Shared\OptionsRegistration.cs" Link="Services\OptionsRegistration.cs" />
+      <Compile Include="..\Shared\ClientConfiguration.cs" Link="Services\ClientConfiguration.cs" />
     </ItemGroup>
 
 </Project>

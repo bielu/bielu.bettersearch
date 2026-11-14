@@ -20,6 +20,9 @@ internal sealed class OpenSearchOptionsValidator : IValidateOptions<OpenSearchOp
             .Concat((options.Indexes ?? []).SelectMany(index =>
                 FieldMappings.Validate($"{key}:{nameof(OpenSearchOptions.Indexes)}:{index.Key}", index.Value?.Mappings?.ToList<OpenSearchFieldMapping?>())))
             .Concat(BulkBatchSizeFailures($"{key}:{nameof(OpenSearchOptions.SharedIndexSettings)}", options.SharedIndexSettings))
+            .Concat(ClientSettingsFailures($"{key}:{nameof(OpenSearchOptions.SharedIndexSettings)}", options.SharedIndexSettings))
+            .Concat((options.Indexes ?? []).SelectMany(index =>
+                ClientSettingsFailures($"{key}:{nameof(OpenSearchOptions.Indexes)}:{index.Key}", index.Value)))
             .Concat((options.Indexes ?? []).SelectMany(index =>
                 BulkBatchSizeFailures($"{key}:{nameof(OpenSearchOptions.Indexes)}:{index.Key}", index.Value)))
             .Concat(IndexNames.ValidatePrefix($"{key}:{nameof(OpenSearchOptions.IndexPrefix)}", options.IndexPrefix))
@@ -47,12 +50,17 @@ internal sealed class OpenSearchOptionsValidator : IValidateOptions<OpenSearchOp
         }
 
         var sharedFailures = sharedConnection || indexes.Count == 0 || indexes.Values.Any(index => index is null || !HasConnection(index))
-            ? OpenSearchClientSettingsManager.ConnectionFailures(OpenSearchClientSettingsManager.MergeSettings(new OpenSearchIndexSettings(), shared), null)
+            ? OpenSearchClientSettingsManager.ConnectionFailures(OpenSearchClientSettingsManager.MergeSettings(new OpenSearchIndexSettings(), shared),
+                SettingSource.Unknown, SettingSource.Unknown)
             : [];
         return sharedFailures.Concat(indexes
             .Where(index => index.Value is not null && HasConnection(index.Value))
             .SelectMany(index => OpenSearchClientSettingsManager.ConnectionFailures(
-                OpenSearchClientSettingsManager.MergeSettings(index.Value, shared), index.Key)));
+                OpenSearchClientSettingsManager.MergeSettings(index.Value, shared),
+                new SettingSource(index.Key, Inherited: string.IsNullOrWhiteSpace(index.Value.ConnectionString)),
+                new SettingSource(index.Key, Inherited: index.Value.AuthenticationType is null),
+                new SettingSource(index.Key, Inherited: string.IsNullOrWhiteSpace(index.Value.ConnectionString) && index.Value.AdditionalNodes is null),
+                new SettingSource(index.Key, Inherited: index.Value.PoolType is null))));
     }
 
     private static bool HasConnection(OpenSearchIndexSettings settings) =>
@@ -63,4 +71,15 @@ internal sealed class OpenSearchOptionsValidator : IValidateOptions<OpenSearchOp
         settings?.BulkBatchSize is <= 0
             ? [$"{path}:{nameof(OpenSearchIndexSettings.BulkBatchSize)} is {settings.BulkBatchSize}, but it must be greater than 0."]
             : [];
+
+    private static IEnumerable<string> ClientSettingsFailures(string path, OpenSearchIndexSettings? settings) =>
+        new[]
+        {
+            settings?.RequestTimeout is { } timeout
+                ? ConnectionSettingsChecks.RequestTimeoutFailure($"{path}:{nameof(OpenSearchIndexSettings.RequestTimeout)}", timeout)
+                : null,
+            settings?.MaxRetries is { } retries
+                ? ConnectionSettingsChecks.NotNegativeFailure($"{path}:{nameof(OpenSearchIndexSettings.MaxRetries)}", retries)
+                : null,
+        }.OfType<string>();
 }

@@ -195,7 +195,7 @@ public class OpenSearchOptionsValidationTests : OptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"APIKEY authentication needs AuthenticationDetails:ApiKey. Set {Key}:Indexes:people:AuthenticationDetails:ApiKey, or {Key}:SharedIndexSettings:AuthenticationDetails:ApiKey for every index."
+            $"APIKEY authentication needs AuthenticationDetails:ApiKey. Set {Key}:Indexes:people:AuthenticationDetails:ApiKey."
         ]);
     }
 
@@ -210,7 +210,7 @@ public class OpenSearchOptionsValidationTests : OptionsValidationTestBase
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
             $"ConnectionString is not an http or https URL. Set {Key}:SharedIndexSettings:ConnectionString, or {Key}:Indexes:<index>:ConnectionString for one index.",
-            $"PASSWORD authentication needs AuthenticationDetails. Set {Key}:SharedIndexSettings:AuthenticationDetails, or {Key}:Indexes:<index>:AuthenticationDetails for one index.",
+            $"PASSWORD authentication needs AuthenticationDetails. Set {Key}:SharedIndexSettings:AuthenticationDetails, or {Key}:Indexes:<index>:AuthenticationType with {Key}:Indexes:<index>:AuthenticationDetails for one index.",
         ]);
     }
 
@@ -238,8 +238,72 @@ public class OpenSearchOptionsValidationTests : OptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:Indexes:people:AuthenticationDetails:Password, or {Key}:SharedIndexSettings:AuthenticationDetails:Password for every index."
+            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:SharedIndexSettings:AuthenticationDetails:Password, which {Key}:Indexes:people inherits."
         ]);
+    }
+
+    [Theory]
+    [InlineData("SharedIndexSettings", "RequestTimeout", "00:00:00", "must be greater than 0.")]
+    [InlineData("Indexes:people", "RequestTimeout", "-00:00:01", "must be greater than 0.")]
+    [InlineData("SharedIndexSettings", "RequestTimeout", "30.00:00:00", "must be at most 24.20:31:23.6470000, the longest timeout HttpClient accepts.")]
+    [InlineData("Indexes:people", "RequestTimeout", "24.20:31:23.6480000", "must be at most 24.20:31:23.6470000, the longest timeout HttpClient accepts.")]
+    [InlineData("SharedIndexSettings", "MaxRetries", "-1", "must not be negative.")]
+    [InlineData("Indexes:people", "MaxRetries", "-2", "must not be negative.")]
+    public void ValidateOnStart_InvalidClientSetting_ThrowsNamingTheSetting(string path, string setting, string value, string rule)
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            [$"{Key}:{path}:{setting}"] = value,
+        });
+
+        var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
+
+        exception.Failures.ShouldBe([$"{Key}:{path}:{setting} is {value}, but it {rule}"]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_ValidClientSettings_Passes()
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            [$"{Key}:SharedIndexSettings:RequestTimeout"] = "00:00:05",
+            [$"{Key}:SharedIndexSettings:MaxRetries"] = "0",
+            [$"{Key}:Indexes:people:RequestTimeout"] = "24.20:31:23.6470000",
+        });
+
+        Should.NotThrow(() => ValidateOnStart(services));
+    }
+
+    [Fact]
+    public void ValidateOnStart_IndexWithOwnAuthenticationInheritingMissingConnectionString_FailsNamingOnlyTheSharedSetting()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["Indexes:people:AuthenticationType"] = "PASSWORD",
+            ["Indexes:people:AuthenticationDetails:Username"] = "admin",
+            ["Indexes:people:AuthenticationDetails:Password"] = "secret",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"ConnectionString is missing. Set {Key}:SharedIndexSettings:ConnectionString, which {Key}:Indexes:people inherits."
+        ]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_IndexWithOwnConnectionStringAndUnknownAuthenticationType_FailsNamingOnlyTheIndexSetting()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationDetails:Username"] = "admin",
+            ["SharedIndexSettings:AuthenticationDetails:Password"] = "secret",
+            ["Indexes:people:ConnectionString"] = "http://people:9200",
+            ["Indexes:people:AuthenticationType"] = "7",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldHaveSingleItem().ShouldEndWith($"Set {Key}:Indexes:people:AuthenticationType.");
     }
 
     [Fact]
@@ -287,7 +351,7 @@ public class OpenSearchOptionsValidationTests : OptionsValidationTestBase
 
         var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
 
-        exception.Message.ShouldContain($"AdditionalNodes:0 is not an http or https URL. Set {Key}:Indexes:people:AdditionalNodes:0, or {Key}:SharedIndexSettings:AdditionalNodes:0 for every index.");
+        exception.Message.ShouldContain($"AdditionalNodes:0 is not an http or https URL. Set {Key}:Indexes:people:AdditionalNodes:0.");
     }
 
     [Fact]
@@ -300,6 +364,6 @@ public class OpenSearchOptionsValidationTests : OptionsValidationTestBase
 
         var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
 
-        exception.Message.ShouldContain($"ConnectionString is missing. Set {Key}:Indexes:people:ConnectionString");
+        exception.Message.ShouldContain($"ConnectionString is missing. Set {Key}:SharedIndexSettings:ConnectionString, which {Key}:Indexes:people inherits.");
     }
 }

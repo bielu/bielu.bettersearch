@@ -2,6 +2,7 @@
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Caching;
 using Bielu.BetterSearch.Configuration;
+using Bielu.BetterSearch.Diagnostics;
 using Bielu.BetterSearch.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,6 +30,7 @@ public static class BetterSearchServiceCollectionExtensions
 
         // Providers register only their own services; the shared ones are registered here, once, after configure has run.
         services.TryAddSingleton(searchConfiguration);
+        OptionsRegistration.BindOnStart<BetterSearchInstrumentationOptions>(services, configuration, BetterSearchInstrumentationOptions.SectionKey);
         services.TryAddScoped(typeof(IDocumentValidatorAsync), searchConfiguration.DocumentValidatorType);
         foreach (var provider in searchConfiguration.Providers)
         {

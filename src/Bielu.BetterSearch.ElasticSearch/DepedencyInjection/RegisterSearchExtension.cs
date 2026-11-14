@@ -17,13 +17,20 @@ public static class RegisterSearchExtension
     /// <summary>
     /// Adds the ElasticSearch provider under <paramref name="key"/>, so its services can be resolved with
     /// <c>[FromKeyedServices(key)]</c>; the unkeyed services use it when it is the only provider or the default.
+    /// <c>configureClient</c> sets what the options don't cover, such as a proxy or a header, on the settings of each client
+    /// the provider creates. It runs after the options are applied, so it can override them, and once per cached client,
+    /// not per request: clients are cached per connection. It applies to every Elasticsearch client, whichever key routes to it.
     /// </summary>
-    public static Configurator AddElasticSearch(this Configurator configurator, string key = DefaultKey)
+    public static Configurator AddElasticSearch(this Configurator configurator, string key = DefaultKey,
+        Action<ElasticsearchClientSettings>? configureClient = null)
     {
         // AddBetterSearch registers the validator and the indexing and search services after this runs.
         configurator.AddProvider<ElasticSearchSearchProviderAsync, ElasticSearchIndexingProviderAsync>(key);
         configurator.Services.AddSingleton<IElasticSearchClientSettingsManager, ElasticSearchClientSettingsManager>();
-        configurator.Services.AddSingleton<IClientFactoryAsync<ElasticsearchClient>, ElasticsearchClientFactory>();
+        ClientConfiguration<ElasticsearchClientSettings>.Register(configurator.Services, configureClient);
+        configurator.Services.AddSingleton<IClientFactoryAsync<ElasticsearchClient>>(services => new ElasticsearchClientFactory(
+            services.GetRequiredService<IElasticSearchClientSettingsManager>(),
+            services.GetServices<ClientConfiguration<ElasticsearchClientSettings>>()));
         configurator.Services.AddScoped<ElasticSearchQueryTranslateService>();
         configurator.Services.AddScoped<IQueryTranslateServiceAsync<Query>>(sp =>
             sp.GetRequiredService<ElasticSearchQueryTranslateService>());

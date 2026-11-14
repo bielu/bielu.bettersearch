@@ -97,6 +97,21 @@ public class ElasticSearchIndexSettings : IndexSettings
     /// to turn the shared one off.
     /// </summary>
     public WriteVisibility? WriteVisibility { get; set; }
+
+    /// <summary>
+    /// How long a request may take before the client gives up on it, set as the client's <c>RequestTimeout</c>. The client
+    /// also limits a request's retries to this time unless its <c>MaxRetryTimeout</c> is set, which the
+    /// <c>configureClient</c> callback can do. Unset on an <c>Indexes</c> entry, the index takes the shared value, and unset
+    /// there leaves the client's default of 60 seconds. It must be greater than 0.
+    /// </summary>
+    public TimeSpan? RequestTimeout { get; set; }
+
+    /// <summary>
+    /// How many times the client retries a failed request, set as the client's <c>MaximumRetries</c>.
+    /// Unset on an <c>Indexes</c> entry, the index takes the shared value, and unset there leaves the client's default.
+    /// It must not be negative.
+    /// </summary>
+    public int? MaxRetries { get; set; }
 }
 
 /// <summary>An explicit mapping for one document field.</summary>
