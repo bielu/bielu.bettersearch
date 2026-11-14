@@ -65,7 +65,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
 | `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
 | `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` sends in one bulk request, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails |
 | `WriteVisibility` | `Default` or `WaitUntilSearchable`, in `SharedIndexSettings` or an `Indexes` entry; see [When writes are searchable](#when-writes-are-searchable). An entry that leaves it out takes the shared value, and `"WriteVisibility": "Default"` there turns the shared one off |
-| `IndexPrefix` | Put before every index name sent to the server, so applications or environments can share a cluster: with `app-`, the index `people` is `app-people` on the server. Indexing, search, removal, the index checks, `DeleteIndexAsync` and rebuilds all add it, and you keep using `people`. Lower case only, without `\ / * ? " < > \| , # :` or spaces, and not starting with `-`, `_` or `+`; startup validation fails otherwise, naming `IndexPrefix` |
+| `IndexPrefix` | Put before every index name sent to the server, so applications or environments can share a cluster: with `app-`, the index `people` is `app-people` on the server. Indexing, search, `GetDocumentAsync`, `CountAsync`, `UpdateDocumentAsync`, removal, the index checks, `DeleteIndexAsync` and rebuilds all add it, and you keep using `people`. Lower case only, without `\ / * ? " < > \| , # :` or spaces, and not starting with `-`, `_` or `+`; startup validation fails otherwise, naming `IndexPrefix` |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. It must be greater than 0, or startup validation fails |
 
 You can also set the options in code with `services.Configure<OpenSearchOptions>(...)`.
@@ -300,6 +300,20 @@ write them again after the swap. After a rebuild the index name is an alias: sea
   their ids, and the other documents are already removed. A missing index returns a failed `Result` naming the ids.
   A request cancelled through the `CancellationToken`, before or during the request, throws
   `OperationCanceledException`.
+
+## Getting, counting and updating documents
+
+- **`GetDocumentAsync(index, id)`** reads the document with `GET index/_doc/id` and returns its fields as hits
+  return them. A 404 that OpenSearch gave for a missing document (`found: false`) or a missing index
+  (`index_not_found_exception`) is success with `null`. Any other failure, such as a 401, a 5xx or a 404
+  without that answer (from a proxy, say), is a failed `Result`.
+- **`CountAsync(query)`** sends `_count` with the query and its post filter, so the count is exact, with no
+  cap at `MaxResultWindow`. A missing index is a failed `Result`, as a search there is.
+- **`UpdateDocumentAsync(index, id, fields)`** sends a partial `_update` that replaces each named field under
+  `fields` and keeps the others, and retries up to 3 times on a version conflict. It returns `false` for a
+  missing document or index and creates neither. OpenSearch creates a missing index on an update, without the
+  configured `Mappings`, so the provider checks the index exists first; an index deleted between that check and
+  the update is still created again. `WriteVisibility` applies to it as to the other writes.
 
 ## Checking an index exists
 

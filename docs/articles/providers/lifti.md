@@ -116,6 +116,13 @@ Lifti has no `IndexPrefix`, as its indexes live in the process and nothing else 
 either: the provider does not implement `IIndexLifecycleProviderAsync`, so every `IIndexLifecycleServiceAsync` call
 returns a failed `Result`.
 
+## Getting, counting and updating documents
+
+Lifti keeps only the words of each document, not its fields, so `GetDocumentAsync` and `UpdateDocumentAsync`
+return a failed `Result` saying so; index the whole document again to change it. `CountAsync` runs the query as
+a search does and counts every match, which is exact; on a missing index it creates the index and counts 0, as
+a search there does.
+
 ## Errors
 
 When a custom `ILiftiIndexManager` or `IClientFactoryAsync<IFullTextIndex<string>>` throws, every indexing method

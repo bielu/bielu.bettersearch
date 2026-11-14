@@ -28,6 +28,7 @@ public sealed class MeilisearchIndexingProviderAsync(
     private const string PrimaryKey = "id";
     private const string IndexNotFound = "index_not_found";
     private const string IndexAlreadyExists = "index_already_exists";
+    internal const string DocumentNotFound = "document_not_found";
     private const string QueuedTaskUid = "taskUid";
 
     // When each index's settings were last found complete, and for which MaxTotalHits, per client. The singleton
@@ -167,6 +168,62 @@ public sealed class MeilisearchIndexingProviderAsync(
     {
         var task = await RunTaskAsync(index.IndexName, client => client.Index(Name(index.IndexName)).DeleteAllDocumentsAsync(cancellationToken), cancellationToken).ConfigureAwait(false);
         return task.IsSuccess ? Result.Ok(GetDeletedDocuments(task.Value)) : Result.Fail<long?>(task.Errors);
+    }
+
+    /// <summary>
+    /// Reads the stored document, replaces the named fields and the filter copies made from them, and stores it again
+    /// whole. Meilisearch has no conditional partial update, so this is a read and a write: an update made by
+    /// another caller in between is lost, and a document removed in between is stored again with the merged fields.
+    /// <c>false</c> when the document or the index is missing, which creates neither.
+    /// </summary>
+    public async Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+        CancellationToken cancellationToken = default)
+    {
+        var check = DocumentLookups.CheckUpdate(index, id, fields);
+        if (check.IsFailed)
+        {
+            return check.ToResult<bool>();
+        }
+
+        var currentOptions = optionsMonitor.TryCurrentValue();
+        if (currentOptions.IsFailed)
+        {
+            return currentOptions.ToResult<bool>();
+        }
+
+        var options = currentOptions.Value;
+        var changes = MeilisearchDocument.From(new SearchDocument { Id = id, Index = index, Fields = fields }, options.GeoField,
+            options.PhraseFields?.ToHashSet(StringComparer.Ordinal));
+        if (changes.IsFailed)
+        {
+            return changes.ToResult<bool>();
+        }
+
+        MeilisearchDocument current;
+        try
+        {
+            var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
+            current = await client.Index(Name(index)).GetDocumentAsync<MeilisearchDocument>(id, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (MeilisearchApiError e) when (e.Code is IndexNotFound or DocumentNotFound)
+        {
+            return Result.Ok(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result.Fail<bool>(new Error(e.Message).CausedBy(e));
+        }
+
+        current.Replace(changes.Value, fields.Keys, options.GeoField);
+        // Configured only once the document was found, as updating a missing index's settings would create it.
+        var configured = await ConfigureIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        if (configured.IsFailed)
+        {
+            return Result.Fail<bool>(configured.Errors);
+        }
+
+        var (stored, _) = await AddDocumentsAsync(index, [current], cancellationToken).ConfigureAwait(false);
+        return stored.IsSuccess ? Result.Ok(true) : Result.Fail<bool>(stored.Errors);
     }
 
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)

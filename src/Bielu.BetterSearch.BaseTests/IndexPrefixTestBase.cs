@@ -96,6 +96,18 @@ public abstract class IndexPrefixTestBase(IServiceProvider services) : IDisposab
             ShouldSucceed(faceted);
             faceted.Value.RetrieveBucketAggregation("names").Buckets.Cast<KeyBucket>().Select(bucket => bucket.Key).Order()
                 .ShouldBe(["item a", "item b", "item c", "item d"]);
+            var got = await Search.GetDocumentAsync(index, "a", Token);
+            ShouldSucceed(got);
+            got.Value.ShouldNotBeNull().Fields["Name"].ShouldHaveSingleItem().ShouldBe("item a");
+            var counted = await Search.CountAsync(SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "item" }), Token);
+            ShouldSucceed(counted);
+            counted.Value.ShouldBe(4);
+            var updated = await Indexing.UpdateDocumentAsync(index, "d", new Dictionary<string, IList<object>> { ["Name"] = ["item d updated"] }, Token);
+            ShouldSucceed(updated);
+            updated.Value.ShouldBeTrue();
+            var gotUpdated = await Search.GetDocumentAsync(index, "d", Token);
+            ShouldSucceed(gotUpdated);
+            gotUpdated.Value.ShouldNotBeNull().Fields["Name"].ShouldHaveSingleItem().ShouldBe("item d updated");
             // Nothing was written under the unprefixed name.
             (await EngineIndexExistsAsync(index)).ShouldBeFalse();
 

@@ -108,6 +108,14 @@ internal sealed class CachingSearchServiceAsyncDecorator(
         }
     }
 
+    /// <summary>Not cached: reads the document from the decorated service each time.</summary>
+    public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default) =>
+        inner.GetDocumentAsync(index, id, cancellationToken);
+
+    /// <summary>Not cached: counts through the decorated service each time.</summary>
+    public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
+        inner.CountAsync(query, cancellationToken);
+
     /// <summary>
     /// The key and entry options of <paramref name="query"/>, <c>null</c> when it skips the cache, or a failed
     /// <see cref="Result"/> naming the setting that is not valid.

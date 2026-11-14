@@ -126,6 +126,93 @@ internal sealed class OpenSearchSearchProviderAsync(
     }
 
     /// <summary>
+    /// Gets the document with <c>GET index/_doc/id</c>. <c>null</c> when OpenSearch answers that the document or
+    /// the index is missing. A 404 without that answer is a failure.
+    /// </summary>
+    public async Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var check = DocumentLookups.CheckGet(index, id);
+        if (check.IsFailed)
+        {
+            return check.ToResult<SearchDocument?>();
+        }
+
+        return await clientFactoryAsync.TryWithClientAsync<SearchDocument?>(index, async client =>
+        {
+            var response = await client.GetAsync<SearchDocument>(new GetRequest(settingsManager.GetIndexName(index), id), cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            // A 404 is an answer only when OpenSearch gave it: index_not_found_exception, or a get response that
+            // names the index and says found false. Any other 404, such as one from a proxy, is a failure.
+            var notFound = response.ApiCall?.HttpStatusCode == 404;
+            if (notFound
+                && (response.ServerError?.Error?.Type == "index_not_found_exception"
+                    || (response.ServerError is null && !response.Found && !string.IsNullOrEmpty(response.Index))))
+            {
+                return Result.Ok<SearchDocument?>(null);
+            }
+
+            if (notFound || !response.IsValid || response.ServerError is not null)
+            {
+                return Result.Fail<SearchDocument?>(OpenSearchFailures.Describe($"get of document {id}", response));
+            }
+
+            return Result.Ok<SearchDocument?>(response.Found
+                ? new SearchDocument
+                {
+                    Id = response.Id,
+                    Type = response.Source?.Type ?? string.Empty,
+                    Index = index,
+                    Fields = DocumentLookups.ToFields(StoredFields.ToCustomProperties(response.Source?.Fields))
+                }
+                : null);
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Counts with <c>_count</c>, which is exact, on the main query and the post filter together, as a search
+    /// returns the hits that match both.
+    /// </summary>
+    public async Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var check = DocumentLookups.CheckCount(query.Index);
+        if (check.IsFailed)
+        {
+            return check.ToResult<long>();
+        }
+
+        var mainQuery = await queryTranslateServiceAsync.TranslateMainQueryAsync(query).ConfigureAwait(false);
+        if (mainQuery.IsFailed)
+        {
+            return mainQuery.ToResult<long>();
+        }
+
+        var postFilter = await postFilterTranslateService.TranslatePostFilterAsync(query).ConfigureAwait(false);
+        if (postFilter.IsFailed)
+        {
+            return postFilter.ToResult<long>();
+        }
+
+        QueryContainer countQuery = postFilter.Value is null
+            ? mainQuery.Value
+            : new BoolQuery { Must = [mainQuery.Value], Filter = [postFilter.Value] };
+        return await clientFactoryAsync.TryWithClientAsync(query.Index, async client =>
+        {
+            var response = await client.CountAsync(new CountRequest(Indices.Index(settingsManager.GetIndexName(query.Index))) { Query = countQuery }, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!response.IsValid || response.ServerError is not null)
+            {
+                return Result.Fail<long>(OpenSearchFailures.Describe("count", response));
+            }
+
+            return response.Shards.Failed > 0
+                ? Result.Fail<long>($"OpenSearch returned an incomplete count: {response.Shards.Failed} of {response.Shards.Total} shards failed.")
+                : Result.Ok(response.Count);
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// The <c>highlight</c> section for the query's <c>HighlightQueries</c>, or <c>null</c> when it has none. Each
     /// field is highlighted where the main query matched it, or where its own highlight query does when it has one;
     /// all fields is <c>fields.*</c>. Fragments use OpenSearch's default size and count.

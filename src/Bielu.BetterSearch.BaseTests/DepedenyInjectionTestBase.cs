@@ -434,6 +434,26 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
     }
 
     [Fact]
+    public async Task RouteIndex_GetCountAndUpdate_ReachTheRoutedProvider()
+    {
+        using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var token = TestContext.Current.CancellationToken;
+        var search = scope.ServiceProvider.GetRequiredService<ISearchServiceAsync>();
+        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
+
+        var get = await search.GetDocumentAsync("PEOPLE", "1", token);
+        var count = await search.CountAsync(new SearchQuery { Index = "products" }, token);
+        var update = await indexing.UpdateDocumentAsync("people", "1", new Dictionary<string, IList<object>> { ["Name"] = ["Ann"] }, token);
+        var unrouted = await search.CountAsync(new SearchQuery { Index = "other" }, token);
+
+        get.Errors.ShouldHaveSingleItem().Message.ShouldBe("first provider got 1");
+        count.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider counted");
+        update.Errors.ShouldHaveSingleItem().Message.ShouldBe("first provider updated 1");
+        unrouted.Errors.ShouldHaveSingleItem().Message.ShouldStartWith("No provider is routed for the index 'other', and there is no default provider.");
+    }
+
+    [Fact]
     public async Task RouteIndex_UnroutedIndexWithDefault_UsesTheDefault()
     {
         using var provider = TwoFakeProviders(search => RouteTwoIndexes(search.SetDefaultProvider(SecondKey))).BuildServiceProvider();
@@ -849,6 +869,16 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
 
         public Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index, CancellationToken cancellationToken = default) =>
             Task.FromResult(Result.Fail<long?>($"{name} provider removed all"));
+
+        public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Result.Fail<SearchDocument?>($"{name} provider got {id}"));
+
+        public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Result.Fail<long>($"{name} provider counted"));
+
+        public Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Result.Fail<bool>($"{name} provider updated {id}"));
 
         public Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default) =>
             Task.FromResult(Result.Fail<bool>($"{name} provider ensured {index}"));

@@ -71,7 +71,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeil
 | `ConnectionString` | Server URL, such as `http://localhost:7700` |
 | `ApiKey` | The master key or an API key; leave it empty when the server has none |
 | `Indexes` | Per-index settings. An entry with its own `ConnectionString` uses only its own key; an entry without one uses the shared server, with its own `ApiKey` if set or the shared one. Keys match index names whatever their case, so `People` applies to the index `people` |
-| `IndexPrefix` | Put before every index uid sent to the server, so applications or environments can share a server: with `app-`, the index `people` is `app-people` on the server. Indexing, search, removal, the index checks and `DeleteIndexAsync` all add it, and you keep using `people`. Meilisearch accepts only letters, digits, `-` and `_` in a uid, and the provider does not check the prefix at startup |
+| `IndexPrefix` | Put before every index uid sent to the server, so applications or environments can share a server: with `app-`, the index `people` is `app-people` on the server. Indexing, search, `GetDocumentAsync`, `CountAsync`, `UpdateDocumentAsync`, removal, the index checks and `DeleteIndexAsync` all add it, and you keep using `people`. Meilisearch accepts only letters, digits, `-` and `_` in a uid, and the provider does not check the prefix at startup |
 | `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` adds in one Meilisearch task, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails; a configuration reload that makes it invalid makes reads and writes return a failed `Result` naming the setting |
 | `TaskTimeout` | How long to wait for a write task to finish, 30 seconds by default. A timeout fails the `Result` but doesn't cancel the task, so the write may still be applied; the error's `taskUid` metadata holds the task's uid |
 | `MaxTotalHits` | Deepest result a search may page to, 10,000 by default; the provider sets it as each index's `pagination.maxTotalHits` |
@@ -200,6 +200,20 @@ timeout says the task may still index any or all of them.
   missing index returns a failed `Result` naming the ids, with Meilisearch's error. When the wait for the task
   times out (`TaskTimeout`), the `Result` fails saying the task was queued and may still remove any or all of the
   ids, with the task's uid in the error's `taskUid` metadata.
+
+## Getting, counting and updating documents
+
+- **`GetDocumentAsync(index, id)`** returns the document's fields as hits return them. Meilisearch's
+  `document_not_found` and `index_not_found` are success with `null`; any other error is a failed `Result` with
+  Meilisearch's code.
+- **`CountAsync(query)`** fetches documents with the filter a search would send, post filter included, and
+  reads the total, so the count is exact and not capped at the index's `maxTotalHits`. A missing index is a
+  failed `Result` with Meilisearch's code.
+- **`UpdateDocumentAsync(index, id, fields)`** reads the stored document, replaces each named field and the
+  filter copies made from it (`tokens`, `phrases`, `dates` and `_geo`), and stores the document again whole,
+  waiting for the task. It returns `false` for a missing document or index and creates neither. Meilisearch has
+  no conditional partial update, so this is a read and then a write: an update another caller makes in between
+  is lost, and a document removed in between is stored again with the merged fields.
 
 ## Checking an index exists
 

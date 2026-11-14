@@ -147,13 +147,14 @@ search.AddMemorySearchCache(cache =>
 ## What evicts, and what doesn't
 
 Every write on the decorated `IIndexingServiceAsync` (`IndexDocumentAsync`, `IndexMultipleDocumentsAsync`,
-`RemoveDocumentAsync`, `RemoveDocumentsAsync` and `RemoveAllDocumentsAsync`) evicts the tag
+`RemoveDocumentAsync`, `RemoveDocumentsAsync`, `RemoveAllDocumentsAsync` and `UpdateDocumentAsync`) evicts the tag
 `SearchCacheOptions.IndexTag(index)` once the decorated service returns. The index name is compared ignoring case.
 A write that fails still evicts, as it can have changed part of the index, and the eviction ignores the caller's
 cancellation, so a write that went through always evicts. A batch evicts each of its indexes once, after the one
 call to the decorated service. If the eviction itself throws, it is logged at `Error` and the write still returns its
 own `Result`. `CompleteRebuildAsync` on the decorated `IIndexLifecycleServiceAsync` evicts the rebuilt index the same way, as the
-swap changes what its searches return; starting, filling and aborting a rebuild don't evict.
+swap changes what its searches return; starting, filling and aborting a rebuild don't evict. `GetDocumentAsync` and `CountAsync` on the decorated `ISearchServiceAsync` are not cached:
+each call goes to the decorated service.
 
 The indexing decorator has its own observers too: `Subscribe` registers on it, and it notifies them after the
 eviction, following the `IIndexingServiceAsync` contract (once for each document indexed, each distinct id removed,
