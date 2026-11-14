@@ -14,7 +14,7 @@ namespace Bielu.BetterSearch.PostgreSql.Services;
 /// Writes to one table per index. Each write commits before it returns, so a document is searchable once a write
 /// succeeds. A missing table is created, with the provider's columns, by the first write to it.
 /// </summary>
-public sealed class PostgreSqlIndexingProviderAsync(
+internal sealed class PostgreSqlIndexingProviderAsync(
     IClientFactoryAsync<NpgsqlDataSource> dataSourceFactory,
     IOptionsMonitor<PostgreSqlOptions> optionsMonitor,
     ILogger<PostgreSqlIndexingProviderAsync> logger) : IIndexingProviderAsync

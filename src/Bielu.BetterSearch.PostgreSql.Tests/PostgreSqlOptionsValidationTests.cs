@@ -90,7 +90,7 @@ public class PostgreSqlOptionsValidationTests
         var failure = ValidateOnStart(new Dictionary<string, string?>
         {
             ["Indexes:People:ConnectionString"] = Valid,
-            ["Indexes:Places:IndexName"] = "places",
+            ["Indexes:Places:ConnectionString"] = "",
         }).ShouldNotBeNull().ShouldHaveSingleItem();
 
         failure.ShouldStartWith("ConnectionString is missing, and no NpgsqlDataSource is registered.");
