@@ -14,5 +14,10 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Aggregations
             query.TermFieldName = name;
             return this;
         }
+        public TermAggregationQueryConfigurator WithSize(int size)
+        {
+            query.Size = size;
+            return this;
+        }
     }
 }

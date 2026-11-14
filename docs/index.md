@@ -38,9 +38,9 @@ the core, and every provider runs the same shared tests.
 ## Errors as results
 
 Searching and indexing return [FluentResults](https://github.com/altmann/FluentResults) `Result`s, so a
-query a provider can't run is a failed result rather than an exception. Elasticsearch, OpenSearch and
-Meilisearch fail a query that asks for facets or highlighting; Lifti ignores paging, sorting, post filters,
-facets and highlighting. In this beta some paths still throw; the [roadmap](../ROADMAP.md) lists known
+query a provider can't run is a failed result rather than an exception. Meilisearch fails a query that asks for
+highlighting or for any facet other than a top-level term facet; Lifti fails one that asks for facets or
+highlighting and ignores paging, sorting and post filters. In this beta some paths still throw; the [roadmap](../ROADMAP.md) lists known
 defects.
 
 [API reference →](api/index.md)
