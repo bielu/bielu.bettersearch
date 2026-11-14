@@ -13,7 +13,7 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     public ElasticSearchIndexSettings GetConnectionSettings(string indexName)
     {
         var options = optionsMonitor.CurrentValue;
-        var shared = options.SharedIndexSettings;
+        var shared = options.SharedIndexSettings ?? new ElasticSearchIndexSettings();
         if (options.Indexes == null || !options.Indexes.TryGetValue(indexName, out var indexSpecific))
         {
             return MergeSettings(new ElasticSearchIndexSettings(), shared);
@@ -42,42 +42,44 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
                                  ?? AuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
-            Mappings = FieldMappings.Merge(shared?.Mappings, indexSpecific.Mappings),
-            BulkBatchSize = indexSpecific.BulkBatchSize ?? shared?.BulkBatchSize,
-            WriteVisibility = indexSpecific.WriteVisibility ?? shared?.WriteVisibility ?? WriteVisibility.Default,
+            Mappings = FieldMappings.Merge(shared.Mappings, indexSpecific.Mappings),
+            BulkBatchSize = indexSpecific.BulkBatchSize ?? shared.BulkBatchSize,
+            WriteVisibility = indexSpecific.WriteVisibility ?? shared.WriteVisibility ?? WriteVisibility.Default,
         };
     }
 
-    private static ElasticsearchClientSettings ParseMergedSettings(ElasticSearchIndexSettings finalSearchIndexSettings)
+    /// <summary>
+    /// Checks the settings as OpenSearch does, throwing an <see cref="ArgumentException"/> that names the setting to fix.
+    /// Elastic Cloud connects by its cloud id, so <c>CLOUD</c> and <c>CLOUDAPI</c> don't need a connection string.
+    /// </summary>
+    private static ElasticsearchClientSettings ParseMergedSettings(ElasticSearchIndexSettings settings)
     {
-        var settings = new ElasticsearchClientSettings(GetNodePool(finalSearchIndexSettings));
-        if (finalSearchIndexSettings.AuthenticationType == AuthenticationType.PASSWORD)
+        var key = ElasticSearchOptions.ElasticSearchOptionsKey;
+        var authenticationType = settings.AuthenticationType ?? AuthenticationType.NONE;
+        switch (authenticationType)
         {
-            if (finalSearchIndexSettings.AuthenticationDetails == null)
-            {
-                throw new ArgumentException("Authentication details are missing");
-            }
-            settings.Authentication(new BasicAuthentication(finalSearchIndexSettings.AuthenticationDetails.Username,
-                finalSearchIndexSettings.AuthenticationDetails.Password));
+            case AuthenticationType.NONE:
+                return new ElasticsearchClientSettings(new SingleNodePool(ConnectionSettingsChecks.HttpUrl(key, settings.ConnectionString)));
+            case AuthenticationType.PASSWORD:
+                var uri = ConnectionSettingsChecks.HttpUrl(key, settings.ConnectionString);
+                var password = ConnectionSettingsChecks.Details(key, authenticationType, settings.AuthenticationDetails);
+                ConnectionSettingsChecks.Credentials(key, authenticationType,
+                    (nameof(AuthenticationDetails.Username), password.Username), (nameof(AuthenticationDetails.Password), password.Password));
+                return new ElasticsearchClientSettings(new SingleNodePool(uri))
+                    .Authentication(new BasicAuthentication(password.Username, password.Password));
+            case AuthenticationType.CLOUD:
+                var cloud = ConnectionSettingsChecks.Details(key, authenticationType, settings.AuthenticationDetails);
+                ConnectionSettingsChecks.Credentials(key, authenticationType,
+                    (nameof(AuthenticationDetails.Id), cloud.Id), (nameof(AuthenticationDetails.Username), cloud.Username),
+                    (nameof(AuthenticationDetails.Password), cloud.Password));
+                return new ElasticsearchClientSettings(new CloudNodePool(cloud.Id, new BasicAuthentication(cloud.Username, cloud.Password)));
+            case AuthenticationType.CLOUDAPI:
+                var cloudApi = ConnectionSettingsChecks.Details(key, authenticationType, settings.AuthenticationDetails);
+                ConnectionSettingsChecks.Credentials(key, authenticationType,
+                    (nameof(AuthenticationDetails.Id), cloudApi.Id), (nameof(AuthenticationDetails.ApiKey), cloudApi.ApiKey));
+                return new ElasticsearchClientSettings(new CloudNodePool(cloudApi.Id, new ApiKey(cloudApi.ApiKey)));
+            default:
+                throw ConnectionSettingsChecks.UnknownAuthenticationType(key, settings.AuthenticationType);
         }
-        return settings;
     }
-
-    private static SingleNodePool GetNodePool(ElasticSearchIndexSettings connectionString) =>
-        //todo: figure out how to use StickyNodePool/StaticNodePool
-        (connectionString.AuthenticationType ?? AuthenticationType.NONE) switch
-        {
-            AuthenticationType.NONE => new SingleNodePool(new Uri(connectionString.ConnectionString)),
-            AuthenticationType.PASSWORD => new(new Uri(connectionString.ConnectionString)),
-            AuthenticationType.CLOUD => connectionString.AuthenticationDetails != null
-                ? new CloudNodePool(connectionString.AuthenticationDetails.Id,
-                    new BasicAuthentication(connectionString.AuthenticationDetails!.Username,
-                        connectionString.AuthenticationDetails.Password))
-                : throw new ArgumentException("Cloud authentication details are missing"),
-            AuthenticationType.CLOUDAPI => connectionString.AuthenticationDetails != null
-                ? new CloudNodePool(connectionString.AuthenticationDetails.Id,
-                    new ApiKey(connectionString.AuthenticationDetails.ApiKey))
-                : throw new ArgumentException("Cloud authentication details are missing"),
-            _ => throw new InvalidOperationException("Invalid authentication type")
-        };
 }

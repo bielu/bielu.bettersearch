@@ -1,0 +1,7 @@
+---
+"bielu-bettersearch": patch
+---
+
+Elasticsearch `SearchAsync` now returns a failed `Result` instead of throwing when the settings are missing or invalid (#90). The settings lookup, the client creation and the request all run inside the `try`, so a request that throws is a failed `Result` with the exception as its cause, and cancellation still propagates. `ElasticSearchOptions.SharedIndexSettings` now defaults to an empty settings object, so a missing `Bielu:BetterSearch:ElasticSearch` section no longer throws `NullReferenceException`. A `MaxResultWindow` of 0 or less now fails every Elasticsearch search with a message naming the setting, as on OpenSearch.
+
+Elasticsearch, OpenSearch and Meilisearch now check connection settings with one shared helper whose messages name the setting to fix, for example `ConnectionString is missing. Set Bielu:BetterSearch:ElasticSearch:SharedIndexSettings:ConnectionString, or Bielu:BetterSearch:ElasticSearch:Indexes:<index>:ConnectionString for one index.` Elasticsearch now rejects a connection string that isn't an absolute `http` or `https` URL, and `PASSWORD`, `CLOUD` and `CLOUDAPI` authentication with missing `AuthenticationDetails` or an empty credential. Meilisearch now rejects a connection string that isn't an absolute `http` or `https` URL. The error messages changed on all three providers, and no longer include the connection string's value.
