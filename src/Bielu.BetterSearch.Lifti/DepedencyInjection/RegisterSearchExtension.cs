@@ -10,12 +10,18 @@ namespace Bielu.BetterSearch.DepedencyInjection;
 
 public static class RegisterSearchExtension
 {
-    public static Configurator AddLiftiSearch(this Configurator configurator)
+    /// <summary>The key AddLiftiSearch registers its provider under when no key is given.</summary>
+    public const string DefaultKey = "Lifti";
+
+    /// <summary>
+    /// Adds the Lifti provider under <paramref name="key"/>, so its services can be resolved with
+    /// <c>[FromKeyedServices(key)]</c>; the unkeyed services use it when it is the only provider or the default.
+    /// </summary>
+    public static Configurator AddLiftiSearch(this Configurator configurator, string key = DefaultKey)
     {
-        configurator.Services.AddSingleton<ILiftiIndexManager, LiftiIndexManager>();
         // AddBetterSearch registers the validator and the indexing and search services after this runs.
-        configurator.SetSearchProviderType<LiftiSearchProviderAsync>()
-            .SetIndexingProviderType<LiftiIndexingProviderAsync>();
+        configurator.AddProvider<LiftiSearchProviderAsync, LiftiIndexingProviderAsync>(key);
+        configurator.Services.AddSingleton<ILiftiIndexManager, LiftiIndexManager>();
         configurator.Services.AddScoped(typeof(IClientFactoryAsync<IFullTextIndex<string>>),
             typeof(LiftiClientFactoryAsync));
         configurator.Services.AddScoped<IQueryTranslateServiceAsync<IQuery>, LiftiQueryTranslatorService>();
