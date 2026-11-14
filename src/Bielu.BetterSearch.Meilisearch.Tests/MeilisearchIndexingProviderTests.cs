@@ -190,6 +190,88 @@ public sealed class MeilisearchIndexingProviderTests(
     }
 
     [Fact]
+    public async Task IndexMultipleDocumentsAsync_SettingsTaskTimesOut_ReturnsFailureSayingNoneWereIndexed()
+    {
+        var index = UniqueIndex();
+        try
+        {
+            // A new index needs its settings updated first; a timeout this short ends that wait before the
+            // documents are sent.
+            var timingOut = ProviderWith(o => o.TaskTimeout = TimeSpan.FromTicks(1));
+
+            var result = await timingOut.IndexMultipleDocumentsAsync(CreateDocuments(index, 3), Token);
+
+            var error = result.Errors.ShouldHaveSingleItem();
+            error.Message.ShouldStartWith($"Indexing documents into {index} failed for ids 1, 2, 3: ");
+            error.Message.ShouldEndWith(" 0 of 3 documents were indexed.");
+            error.Metadata["ids"].ShouldBe(new List<string> { "1", "2", "3" });
+            error.Metadata.ShouldNotContainKey("taskUid");
+        }
+        finally
+        {
+            try
+            {
+                await provider.DeleteIndexAsync(index, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Cleanup must not hide the test's own failure.
+            }
+        }
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_ConnectionDropsAfterTheAddIsSent_ReturnsFailureSayingTheyMayStillBeIndexed()
+    {
+        var index = UniqueIndex();
+        var settings = options.CurrentValue.SharedIndexSettings;
+        // Meilisearch receives the documents, and the answer is lost on the way back.
+        var dropping = new DroppingDocumentsResponseHandler { InnerHandler = new HttpClientHandler() };
+        var client = new MeilisearchClient(new HttpClient(new MeilisearchMessageHandler(dropping)) { BaseAddress = new Uri(settings.ConnectionString) }, settings.ApiKey);
+        var droppingProvider = new MeilisearchIndexingProviderAsync(new FixedClientFactory(client), options,
+            NullLogger<MeilisearchIndexingProviderAsync>.Instance);
+        try
+        {
+            var result = await droppingProvider.IndexMultipleDocumentsAsync(CreateDocuments(index, 3), Token);
+
+            var error = result.Errors.ShouldHaveSingleItem();
+            error.Message.ShouldStartWith($"Indexing documents into {index} did not finish: ");
+            error.Message.ShouldEndWith(" so it may still index any or all of the 3 documents.");
+            error.Metadata["ids"].ShouldBe(new List<string> { "1", "2", "3" });
+            dropping.Dropped.ShouldBeTrue();
+        }
+        finally
+        {
+            try
+            {
+                await provider.DeleteIndexAsync(index, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Cleanup must not hide the test's own failure.
+            }
+        }
+    }
+
+    private sealed class DroppingDocumentsResponseHandler : DelegatingHandler
+    {
+        public bool Dropped { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = await base.SendAsync(request, cancellationToken);
+            if (request.Method != HttpMethod.Post || request.RequestUri?.AbsolutePath.EndsWith("/documents", StringComparison.Ordinal) != true)
+            {
+                return response;
+            }
+
+            response.Dispose();
+            Dropped = true;
+            throw new HttpRequestException("The connection was closed before the response arrived.");
+        }
+    }
+
+    [Fact]
     public async Task RemoveAllDocumentsAsync_IndexWithDocuments_ReturnsDeletedCount()
     {
         var index = UniqueIndex();

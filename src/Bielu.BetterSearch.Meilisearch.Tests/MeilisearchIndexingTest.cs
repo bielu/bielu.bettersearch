@@ -10,6 +10,12 @@ public sealed class MeilisearchIndexingTest(
     IClientFactoryAsync<MeilisearchClient> clientFactory)
     : IndexingTestBase(serviceAsync, indexingProviderAsync)
 {
+    protected override bool BulkIndexingIsAllOrNothing => true;
+
+    // Meilisearch accepts only letters, digits, - and _ in an id, and fails the whole task for one it rejects.
+    protected override SearchDocument CreateDocumentRejectedByEngine(string index) =>
+        new() { Id = "not valid!", Type = "TestDocument", Index = index };
+
     // The provider waits for each write task, so the stats already reflect it.
     protected override async Task<long> CountDocumentsAsync(string index)
     {

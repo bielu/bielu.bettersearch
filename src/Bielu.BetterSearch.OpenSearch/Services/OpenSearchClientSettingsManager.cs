@@ -25,7 +25,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
     /// <summary>
     /// Builds a new settings object, leaving the live options untouched: the index's connection string and
     /// authentication win, and an index without its own takes the shared one. Mappings are the shared ones with the
-    /// index's own on top, and the index's write visibility wins over the shared one.
+    /// index's own on top, the bulk batch size is the index's own or else the shared one, and the index's write visibility wins over the shared one.
     /// </summary>
     private static OpenSearchIndexSettings MergeSettings(OpenSearchIndexSettings indexSpecific,
         OpenSearchIndexSettings shared)
@@ -40,6 +40,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
                                  ?? OpenSearchAuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
             Mappings = FieldMappings.Merge(shared?.Mappings, indexSpecific.Mappings),
+            BulkBatchSize = indexSpecific.BulkBatchSize ?? shared?.BulkBatchSize,
             WriteVisibility = indexSpecific.WriteVisibility ?? shared?.WriteVisibility ?? WriteVisibility.Default,
         };
     }
