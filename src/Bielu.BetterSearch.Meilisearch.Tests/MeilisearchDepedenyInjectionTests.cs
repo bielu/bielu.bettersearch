@@ -13,6 +13,8 @@ public class MeilisearchDepedenyInjectionTests(IServiceProvider collection)
 {
     protected override void AddProvider(Configurator search) => search.AddMeilisearch();
 
+    protected override void AddProvider(Configurator search, string key) => search.AddMeilisearch(key);
+
     [Fact]
     public void SearchProviderShouldBeTypeOfMeilisearchSearchProviderAsync() => ServiceShouldBeTypeOf(typeof(ISearchProviderAsync), typeof(MeilisearchSearchProviderAsync));
 

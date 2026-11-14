@@ -15,6 +15,8 @@ public class OpenSearchDepedenyInjectionTests(IServiceProvider collection)
 {
     protected override void AddProvider(Configurator search) => search.AddOpenSearch();
 
+    protected override void AddProvider(Configurator search, string key) => search.AddOpenSearch(key);
+
     [Fact]
     public void SearchProviderShouldBeTypeOfOpenSearchSearchProviderAsync() => ServiceShouldBeTypeOf(typeof(ISearchProviderAsync), typeof(OpenSearchSearchProviderAsync));
 
