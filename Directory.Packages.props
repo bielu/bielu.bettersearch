@@ -6,12 +6,18 @@
   <ItemGroup>
     <!-- Core dependencies -->
     <PackageVersion Include="FluentResults" Version="4.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.14" />
+    <PackageVersion Include="Scrutor" Version="7.0.0" />
+    <!-- Caching -->
+    <PackageVersion Include="ZiggyCreatures.FusionCache" Version="2.9.0" />
+    <PackageVersion Include="ZiggyCreatures.FusionCache.Backplane.Memory" Version="2.9.0" />
+    <PackageVersion Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.9.0" />
     <!-- Observability: referenced by Bielu.BetterSearch.HealthChecks and Bielu.BetterSearch.OpenTelemetry only, never by Core. -->
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.14" />
     <PackageVersion Include="OpenTelemetry.Api" Version="1.21.0" />
@@ -27,6 +33,7 @@
     <PackageVersion Include="OpenTelemetry" Version="1.21.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
+    <PackageVersion Include="xunit.v3.assert" Version="4.0.2" />
     <PackageVersion Include="xunit.v3.extensibility.core" Version="4.0.2" />
     <PackageVersion Include="Xunit.DependencyInjection" Version="12.0.1" />
     <PackageVersion Include="Xunit.DependencyInjection.Logging" Version="12.0.0" />

@@ -19,6 +19,7 @@ The solution is `src/Bielu.BetterSearch.slnx`. Everything, tests included, lives
 | `Bielu.BetterSearch.ElasticSearch` | Elasticsearch provider |
 | `Bielu.BetterSearch.Meilisearch` | Meilisearch provider |
 | `Bielu.BetterSearch.OpenSearch` | OpenSearch provider |
+| `Bielu.BetterSearch.Typesense` | Typesense provider |
 | `Bielu.BetterSearch.Lifti` | In-memory provider |
 | `Bielu.BetterSearch.EndpointApi` | Placeholder (not packed) |
 | `examples/Bielu.BetterSearch.Examples.AppHost` | Aspire AppHost running the search engines and their UIs, for local development and the integration tests (not packed) |
@@ -148,7 +149,7 @@ Releases are driven by [changesets](https://github.com/changesets/changesets) in
 
 1. `dotnet build` succeeds with no new warnings.
 2. `dotnet test` passes.
-3. `dotnet format --verify-no-changes src/Bielu.BetterSearch.slnx` reports nothing new.
+3. `dotnet format --verify-no-changes src/Bielu.BetterSearch.slnx` reports nothing; CI checks this on every pull request.
 4. A changeset is included.
 5. `README.md`, `docs/articles/feature-matrix.md` and the provider pages in `docs/articles/providers/` are updated when behavior or public APIs change, and every claim in them has been checked against the code.
 6. You have gone through [Common review findings](#common-review-findings). You have worked through each logic scenario that applies, every provider has been checked and either has the change or the PR explains why not (an engine that can't support it returns a failed `Result` that the feature matrix records), each new test fails when the code it covers is broken, and the integration tests of every engine you touched pass.

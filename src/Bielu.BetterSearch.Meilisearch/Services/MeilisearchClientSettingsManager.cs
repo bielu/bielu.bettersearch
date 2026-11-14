@@ -16,11 +16,20 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
             : shared;
 
         // Checked here so a URL without a scheme fails with a message that names the setting.
-        ConnectionSettingsChecks.HttpUrl(MeilisearchOptions.MeilisearchOptionsKey, settings.ConnectionString);
+        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, null));
         return settings;
     }
 
-    private static MeilisearchIndexSettings MergeSettings(MeilisearchIndexSettings indexSpecific,
+    /// <summary>
+    /// The connection setting failures of <paramref name="settings"/>, already merged, each naming the setting to fix.
+    /// The options validator runs the same checks at startup. The API key is optional, as a server can run without one.
+    /// </summary>
+    /// <remarks><c>index</c> is the <c>Indexes</c> entry the settings come from, or <c>null</c> when that is not known or they are the shared settings.</remarks>
+    internal static IEnumerable<string> ConnectionFailures(MeilisearchIndexSettings settings, string? index) =>
+        new[] { ConnectionSettingsChecks.HttpUrlFailure(MeilisearchOptions.MeilisearchOptionsKey, index, settings.ConnectionString) }
+            .OfType<string>();
+
+    internal static MeilisearchIndexSettings MergeSettings(MeilisearchIndexSettings indexSpecific,
         MeilisearchIndexSettings shared)
     {
         if (!string.IsNullOrWhiteSpace(indexSpecific.ConnectionString))
@@ -35,11 +44,11 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
             IndexName = indexSpecific.IndexName,
             AliasName = indexSpecific.AliasName,
             TypeName = indexSpecific.TypeName,
-            AliasingEnabled = indexSpecific.AliasingEnabled,
             IndexingEnabled = indexSpecific.IndexingEnabled,
             DevMode = indexSpecific.DevMode,
             ConnectionString = shared.ConnectionString,
             ApiKey = indexSpecific.ApiKey ?? shared.ApiKey,
+            BulkBatchSize = indexSpecific.BulkBatchSize ?? shared.BulkBatchSize,
         };
     }
 }

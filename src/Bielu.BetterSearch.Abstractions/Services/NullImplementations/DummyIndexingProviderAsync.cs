@@ -29,4 +29,7 @@ public class DummyIndexingProviderAsync : IIndexingProviderAsync
     public Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<bool>(NoProviderMessage));
 
     public Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<bool>(NoProviderMessage));
+
+    public Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+        CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<bool>(NoProviderMessage));
 }

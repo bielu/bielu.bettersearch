@@ -1,6 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
+using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
 using Microsoft.Extensions.Configuration;
@@ -12,12 +13,12 @@ public class ElasticSearchClientSettingsManagerTests
 {
     private static IElasticsearchClientSettings GetSettings(ElasticSearchOptions options, string index)
     {
-        var manager = new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(options));
+        var manager = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options));
         return manager.CreateClientSettings(manager.GetConnectionSettings(index));
     }
 
     private static ElasticSearchIndexSettings GetConnectionSettings(ElasticSearchOptions options, string index) =>
-        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(options)).GetConnectionSettings(index);
+        new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options)).GetConnectionSettings(index);
 
     private static ElasticSearchIndexSettings PasswordSettings(string connectionString, string password) => new()
     {
@@ -216,9 +217,31 @@ public class ElasticSearchClientSettingsManagerTests
             Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() { WriteVisibility = own } },
         };
 
-        var manager = new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(options));
+        var manager = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options));
 
         manager.GetConnectionSettings("people").WriteVisibility.ShouldBe(expected);
         manager.GetConnectionSettings("other").WriteVisibility.ShouldBe(shared ?? WriteVisibility.Default);
+    }
+
+    [Theory]
+    [InlineData(null, "people", "people")]
+    [InlineData("", "people", "people")]
+    [InlineData("app-", "people", "app-people")]
+    public void GetIndexName_Prefix_IsPutBeforeTheName(string? prefix, string index, string expected)
+    {
+        var manager = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions { IndexPrefix = prefix }));
+
+        manager.GetIndexName(index).ShouldBe(expected);
+    }
+
+    [Fact]
+    public void GetIndexName_PrefixChanges_UsesTheCurrentPrefix()
+    {
+        var monitor = new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions { IndexPrefix = "blue-" });
+        IElasticSearchClientSettingsManager manager = new ElasticSearchClientSettingsManager(monitor);
+
+        monitor.CurrentValue = new ElasticSearchOptions { IndexPrefix = "green-" };
+
+        manager.GetIndexName("people").ShouldBe("green-people");
     }
 }

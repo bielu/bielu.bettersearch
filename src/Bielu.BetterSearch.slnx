@@ -1,6 +1,8 @@
 <Solution>
   <Project Path="Bielu.BetterSearch.Abstractions/Bielu.BetterSearch.Abstractions.csproj" />
   <Project Path="Bielu.BetterSearch.BaseTests/Bielu.BetterSearch.BaseTests.csproj" />
+  <Project Path="Bielu.BetterSearch.Caching.FusionCache/Bielu.BetterSearch.Caching.FusionCache.csproj" />
+  <Project Path="Bielu.BetterSearch.Caching.Tests/Bielu.BetterSearch.Caching.Tests.csproj" />
   <Project Path="Bielu.BetterSearch.Core.Tests/Bielu.BetterSearch.Core.Tests.csproj" />
   <Project Path="Bielu.BetterSearch.Core/Bielu.BetterSearch.Core.csproj" />
   <Project Path="Bielu.BetterSearch.ElasticSearch.Tests/Bielu.BetterSearch.ElasticSearch.Tests.csproj" />
@@ -13,6 +15,8 @@
   <Project Path="Bielu.BetterSearch.Lifti/Bielu.BetterSearch.Lifti.csproj" />
   <Project Path="Bielu.BetterSearch.Meilisearch.Tests/Bielu.BetterSearch.Meilisearch.Tests.csproj" />
   <Project Path="Bielu.BetterSearch.Meilisearch/Bielu.BetterSearch.Meilisearch.csproj" />
+  <Project Path="Bielu.BetterSearch.Typesense/Bielu.BetterSearch.Typesense.csproj" />
+  <Project Path="Bielu.BetterSearch.Typesense.Tests/Bielu.BetterSearch.Typesense.Tests.csproj" />
   <Project Path="Bielu.BetterSearch.Models/Bielu.BetterSearch.Models.csproj" />
   <Project Path="Bielu.BetterSearch.OpenSearch.Tests/Bielu.BetterSearch.OpenSearch.Tests.csproj" />
   <Project Path="Bielu.BetterSearch.OpenSearch/Bielu.BetterSearch.OpenSearch.csproj" />

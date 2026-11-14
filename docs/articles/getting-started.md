@@ -11,6 +11,7 @@ dotnet add package Bielu.BetterSearch.Core --prerelease
 dotnet add package Bielu.BetterSearch.ElasticSearch --prerelease   # Elasticsearch
 dotnet add package Bielu.BetterSearch.OpenSearch --prerelease      # OpenSearch
 dotnet add package Bielu.BetterSearch.Meilisearch --prerelease     # Meilisearch
+dotnet add package Bielu.BetterSearch.Typesense --prerelease       # Typesense
 dotnet add package Bielu.BetterSearch.Lifti --prerelease           # in-memory
 ```
 
@@ -23,6 +24,7 @@ dotnet add package Bielu.BetterSearch.Lifti --prerelease           # in-memory
 | `Bielu.BetterSearch.ElasticSearch` | [Elasticsearch provider](providers/elasticsearch.md) |
 | `Bielu.BetterSearch.OpenSearch` | [OpenSearch provider](providers/opensearch.md) |
 | `Bielu.BetterSearch.Meilisearch` | [Meilisearch provider](providers/meilisearch.md) |
+| `Bielu.BetterSearch.Typesense` | [Typesense provider](providers/typesense.md) |
 | `Bielu.BetterSearch.Lifti` | [In-memory provider](providers/lifti.md) |
 
 ## Register a provider
@@ -36,7 +38,7 @@ using Bielu.BetterSearch.DepedencyInjection;
 builder.Services.AddBetterSearch(search => search.AddLiftiSearch());
 ```
 
-The Elasticsearch, OpenSearch and Meilisearch providers read their settings from configuration, so use the
+The Elasticsearch, OpenSearch, Meilisearch and Typesense providers read their settings from configuration, so use the
 overload that takes it:
 
 ```csharp
@@ -53,6 +55,13 @@ registered. Calls that the services answer without the provider don't: an empty 
 `IndexMultipleDocumentsAsync` or an empty id list to `RemoveDocumentsAsync` returns `Ok(0)`, and a document
 with a null field or one that fails validation returns that error instead.
 
+`IndexingServiceAsync` checks its arguments before it calls the provider. A `null` document, list or request,
+a document with a `null` or empty `Id` or `Index`, a `DeleteDocumentRequest` with a `null` or empty `Id` or
+`Type`, and a `DeleteAllDocumentsRequest` with a `null` or empty `IndexName` return a failed `Result` that names
+what is missing. A document the validator rejects returns `Document <id> is not valid.`, and a validator that
+fails or throws returns `Validation of document <id> failed`, with the validator's errors or the exception as
+the cause. Either error holds the document's id in its `id` metadata. Cancellation still throws.
+
 Each provider has its own page with its settings and, importantly, **what it doesn't support**:
 
 | Provider | Register with | Configuration section |
@@ -60,12 +69,13 @@ Each provider has its own page with its settings and, importantly, **what it doe
 | [Elasticsearch](providers/elasticsearch.md) | `AddElasticSearch()` | `Bielu:BetterSearch:ElasticSearch` |
 | [OpenSearch](providers/opensearch.md) | `AddOpenSearch()` | `Bielu:BetterSearch:OpenSearch` |
 | [Meilisearch](providers/meilisearch.md) | `AddMeilisearch()` | `Bielu:BetterSearch:Meilisearch` |
+| [Typesense](providers/typesense.md) | `AddTypesense()` | `Bielu:BetterSearch:Typesense` |
 | [Lifti](providers/lifti.md) | `AddLiftiSearch()` | none |
 
 ## Use more than one provider
 
 Each provider extension registers its provider under a key, its name by default (`ElasticSearch`,
-`OpenSearch`, `Meilisearch`, `Lifti`, also in each extension class's `DefaultKey`), or the key you pass. For each
+`OpenSearch`, `Meilisearch`, `Typesense`, `Lifti`, also in each extension class's `DefaultKey`), or the key you pass. For each
 key, `AddBetterSearch` registers keyed services: `ISearchProviderAsync`, `IIndexingProviderAsync`,
 `ISearchServiceAsync`, `IIndexingServiceAsync` and `IDocumentValidatorAsync`. So one container can hold several
 engines, and you pick one with `[FromKeyedServices]`:
@@ -81,7 +91,8 @@ public class ProductSearch([FromKeyedServices("products")] ISearchServiceAsync s
 - With one provider, the unkeyed services use it, as before.
 - With two or more, resolving an unkeyed `ISearchServiceAsync`, `IIndexingServiceAsync`, `ISearchProviderAsync`
   or `IIndexingProviderAsync` throws an `InvalidOperationException` that lists the registered keys, unless you
-  choose a default with `SetDefaultProvider("products")`. A default that names no registered key makes
+  choose a default with `SetDefaultProvider("products")`, or [route indexes](#route-indexes-to-providers), which
+  stops the unkeyed search and indexing services from throwing. A default that names no registered key makes
   `AddBetterSearch` throw.
 - A key can be used once, and two keys that differ only in case are rejected; resolving by key is
   case-sensitive, as in `Microsoft.Extensions.DependencyInjection`. Each provider can be added once per
@@ -92,7 +103,54 @@ public class ProductSearch([FromKeyedServices("products")] ISearchServiceAsync s
 - Observers are per key: each keyed service is its own instance, so an observer subscribed to the `products`
   indexing service hears nothing indexed through `site`. The unkeyed service is a separate instance too, even
   when it uses the same provider, so it doesn't hear operations run through the keyed one.
-- Routing an index to an engine by its name is not supported yet ([#122](https://github.com/bielu/bielu.bettersearch/issues/122)); resolve the service for the engine you want.
+
+### Route indexes to providers
+
+To keep injecting the unkeyed `ISearchServiceAsync` and `IIndexingServiceAsync` with two or more providers, route
+each index to a provider key, in code or in the `Bielu:BetterSearch:Routes` configuration section:
+
+```csharp
+builder.Services.AddBetterSearch(builder.Configuration, search => search
+    .AddElasticSearch(key: "products")
+    .AddMeilisearch(key: "site")
+    .RouteIndex("products", "products")
+    .SetDefaultProvider("site"));
+```
+
+```json
+{ "Bielu": { "BetterSearch": { "Routes": { "products": "products", "pages": "site" } } } }
+```
+
+- With at least one route, the unkeyed services send each call to the keyed service of the provider routed for
+  its index: `SearchQuery.Index`, `SearchDocument.Index`, `DeleteDocumentRequest.Type` (which holds the index
+  name), the `index` of `RemoveDocumentsAsync`, `DeleteAllDocumentsRequest.IndexName`, and for
+  `IIndexLifecycleServiceAsync` the index being rebuilt (`IndexRebuild.Index`). Index names compare
+  ignoring case, and so do the keys a route names.
+- An index with no route goes to the default provider: the one `SetDefaultProvider` names, or the only one. With
+  no default, the call returns a failed `Result` that names the index and the registered keys; resolving the
+  unkeyed services doesn't throw.
+- A route that names a key no provider is registered under, or a configured route with an empty value, makes
+  `AddBetterSearch` throw. A `RouteIndex` call replaces a configured route for the same index, and a later
+  `RouteIndex` call for an index replaces an earlier one.
+- `IndexMultipleDocumentsAsync` checks every document for null values and a provider, and validates each one with
+  the validator of its provider, before indexing any of them. So a document whose index has no route when there is
+  no default provider, or that its provider's validator rejects, fails the whole batch with nothing stored, as
+  with one provider. It then splits the documents by provider and calls each provider's indexing service once.
+  When one fails or throws, the others are still called, and the failed `Result` has one error saying how many
+  documents each provider indexed. As for a single provider, its `ids` metadata holds the ids not confirmed as
+  stored, and its reasons have one error for each provider that failed, with the key in `key` and that
+  provider's ids not confirmed as stored in `ids`. A provider whose error has no `ids` metadata, as when it threw,
+  counts as having stored none of its documents. Cancellation is not caught: it stops the batch, and the
+  providers already called keep what they stored.
+- Routing applies to the unkeyed `ISearchServiceAsync` and `IIndexingServiceAsync` only. The unkeyed
+  `ISearchProviderAsync` and `IIndexingProviderAsync` still use the default provider, or throw on resolution
+  when there is none.
+- Observers: the routing services run each call on the keyed service of the same DI scope, so that keyed
+  service's observers hear routed calls too. The unkeyed observers hear what the keyed service reported for each
+  call made through the unkeyed service, whichever provider it went to, and nothing for calls made on a keyed
+  service directly, including writes an observer makes while it is being notified. For a batch they hear the
+  documents only when every provider succeeded; when the batch fails they hear nothing, even for documents a
+  provider stored, while each keyed service's own observers hear what that service stored.
 
 ## Index and search
 

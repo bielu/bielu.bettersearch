@@ -1,8 +1,8 @@
 ﻿using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
+using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
 using OpenSearch.Net;
 using Shouldly;
 
@@ -11,7 +11,7 @@ namespace Bielu.BetterSearch.OpenSearch.Tests;
 public class OpenSearchClientSettingsManagerTests
 {
     private static OpenSearchClientSettingsManager CreateManager(OpenSearchOptions options) =>
-        new(new StaticOptionsMonitor(options));
+        new(new TestOptionsMonitor<OpenSearchOptions>(options));
 
     private static IConnectionConfigurationValues GetSettings(OpenSearchOptions options, string index = "products")
     {
@@ -159,7 +159,7 @@ public class OpenSearchClientSettingsManagerTests
                 ["products"] = new() { ConnectionString = "http://products:9200" },
             },
         };
-        var monitor = new StaticOptionsMonitor(options);
+        var monitor = new TestOptionsMonitor<OpenSearchOptions>(options);
         var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor));
 
         var people = await factory.GetOrCreateClientAsync("people");
@@ -206,7 +206,7 @@ public class OpenSearchClientSettingsManagerTests
                 ["default"] = new() { ConnectionString = "http://other:9200" },
             },
         };
-        var monitor = new StaticOptionsMonitor(options);
+        var monitor = new TestOptionsMonitor<OpenSearchOptions>(options);
         var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor));
 
         var people = await factory.GetOrCreateClientAsync("people");
@@ -231,7 +231,7 @@ public class OpenSearchClientSettingsManagerTests
                 AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "old" },
             },
         };
-        var monitor = new StaticOptionsMonitor(options);
+        var monitor = new TestOptionsMonitor<OpenSearchOptions>(options);
         var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor));
         var before = await factory.GetOrCreateClientAsync("people");
 
@@ -265,7 +265,7 @@ public class OpenSearchClientSettingsManagerTests
     public async Task GetOrCreateClientAsync_InvalidSettingsFixed_CreatesTheClient()
     {
         var options = new OpenSearchOptions();
-        var monitor = new StaticOptionsMonitor(options);
+        var monitor = new TestOptionsMonitor<OpenSearchOptions>(options);
         var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor));
         await Should.ThrowAsync<ArgumentException>(() => factory.GetOrCreateClientAsync("people"));
 
@@ -353,15 +353,6 @@ public class OpenSearchClientSettingsManagerTests
     public void CreateClientSettings_MissingConnectionString_Throws() =>
         Should.Throw<ArgumentException>(() => GetSettings(new OpenSearchOptions()));
 
-    private sealed class StaticOptionsMonitor(OpenSearchOptions options) : IOptionsMonitor<OpenSearchOptions>
-    {
-        public OpenSearchOptions CurrentValue => options;
-
-        public OpenSearchOptions Get(string? name) => options;
-
-        public IDisposable? OnChange(Action<OpenSearchOptions, string?> listener) => null;
-    }
-
     [Fact]
     public void GetConnectionSettings_NoSharedSettingsAndIndexHasItsOwn_UsesIndexSettingsWithoutMappings()
     {
@@ -399,4 +390,11 @@ public class OpenSearchClientSettingsManagerTests
         manager.GetConnectionSettings("people").WriteVisibility.ShouldBe(expected);
         manager.GetConnectionSettings("other").WriteVisibility.ShouldBe(shared ?? WriteVisibility.Default);
     }
+
+    [Theory]
+    [InlineData(null, "people", "people")]
+    [InlineData("", "people", "people")]
+    [InlineData("app-", "people", "app-people")]
+    public void GetIndexName_Prefix_IsPutBeforeTheName(string? prefix, string index, string expected) =>
+        CreateManager(new OpenSearchOptions { IndexPrefix = prefix }).GetIndexName(index).ShouldBe(expected);
 }

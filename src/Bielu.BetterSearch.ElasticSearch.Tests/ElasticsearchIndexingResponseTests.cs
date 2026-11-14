@@ -5,10 +5,13 @@ using System.Text;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
+using Bielu.BetterSearch.Services;
+using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
 using FluentResults;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Shouldly;
 
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
@@ -16,7 +19,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Tests;
 /// <summary>
 /// Responses a healthy test cluster does not produce, served from an in-memory request invoker.
 /// </summary>
-public sealed class ElasticsearchIndexingResponseTests
+public sealed class ElasticsearchIndexingResponseTests : RemoveDocumentResponseTestBase
 {
     private sealed class FixedClientFactory(ElasticsearchClient client) : IClientFactoryAsync<ElasticsearchClient>
     {
@@ -29,10 +32,10 @@ public sealed class ElasticsearchIndexingResponseTests
     }
 
     private static readonly IElasticSearchClientSettingsManager NoMappings =
-        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions { SharedIndexSettings = new() }));
+        new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions { SharedIndexSettings = new() }));
 
     private static readonly IElasticSearchClientSettingsManager WithMappings =
-        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions
+        new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions
         {
             SharedIndexSettings = new() { Mappings = [new() { Field = "City", Type = ElasticSearchFieldType.Keyword }] }
         }));
@@ -83,6 +86,8 @@ public sealed class ElasticsearchIndexingResponseTests
         new(Encoding.UTF8.GetBytes(json), statusCode, null, "application/json",
             new Dictionary<string, IEnumerable<string>> { ["x-elastic-product"] = ["Elasticsearch"] });
 
+    protected override IIndexingProviderAsync ProviderAnswering(string json, int statusCode) => Provider(json, statusCode);
+
     private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false,
         IElasticSearchClientSettingsManager? settingsManager = null) =>
         Provider(Invoker(json, statusCode), throwExceptions, settingsManager);
@@ -119,26 +124,6 @@ public sealed class ElasticsearchIndexingResponseTests
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task RemoveDocumentAsync_DocumentNotFound_ReturnsSuccess()
-    {
-        var provider = Provider("""{"_index":"people","_id":"1","_version":1,"result":"not_found","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":0,"_primary_term":1}""", 404);
-
-        var result = await provider.RemoveDocumentAsync("1", "people", Token);
-
-        result.IsSuccess.ShouldBeTrue();
-    }
-
-    [Fact]
-    public async Task RemoveDocumentAsync_IndexNotFound_ReturnsFailure()
-    {
-        var provider = Provider("""{"error":{"root_cause":[{"type":"index_not_found_exception","reason":"no such index [people]"}],"type":"index_not_found_exception","reason":"no such index [people]"},"status":404}""", 404);
-
-        var result = await provider.RemoveDocumentAsync("1", "people", Token);
-
-        result.IsFailed.ShouldBeTrue();
-    }
-
-    [Fact]
     public async Task RemoveDocumentsAsync_OneItemFails_ReturnsFailureNamingOnlyThatId()
     {
         var provider = Provider("""{"took":5,"errors":true,"items":[{"delete":{"_index":"people","_id":"1","_version":2,"result":"deleted","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":1,"_primary_term":1,"status":200}},{"delete":{"_index":"people","_id":"2","_version":1,"result":"not_found","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":2,"_primary_term":1,"status":404}},{"delete":{"_index":"people","_id":"3","status":409,"error":{"type":"version_conflict_engine_exception","reason":"[3]: version conflict","index":"people"}}}]}""", 200);
@@ -151,7 +136,7 @@ public sealed class ElasticsearchIndexingResponseTests
     }
 
     private static IElasticSearchClientSettingsManager WithBulkBatchSize(int? bulkBatchSize) =>
-        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions { SharedIndexSettings = new() { BulkBatchSize = bulkBatchSize } }));
+        new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions { SharedIndexSettings = new() { BulkBatchSize = bulkBatchSize } }));
 
     private static List<SearchDocument> PeopleDocuments(int count) =>
         Enumerable.Range(1, count).Select(i => new SearchDocument
@@ -271,6 +256,51 @@ public sealed class ElasticsearchIndexingResponseTests
 
         var message = result.Errors.ShouldHaveSingleItem().Message;
         message.ShouldBe("Elasticsearch bulk delete failed with HTTP 403 (security_exception): no permissions");
+    }
+
+    private const string DeletedTwo = """{"took":5,"timed_out":false,"total":2,"deleted":2,"batches":1,"version_conflicts":0,"noops":0,"failures":[]}""";
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_RefreshForbidden_ReturnsTheRefreshFailureWithoutDeleting()
+    {
+        var invoker = new SequenceRequestInvoker(
+            Invoker("""{"error":{"type":"security_exception","reason":"no permissions for [indices:admin/refresh]"},"status":403}""", 403),
+            Invoker(DeletedTwo, 200));
+        var provider = Provider(invoker);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("Elasticsearch refresh of index people before removing all documents failed with HTTP 403 (security_exception): no permissions for [indices:admin/refresh]");
+        invoker.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_RefreshFailsOnAShard_ReturnsFailureWithoutDeleting()
+    {
+        var invoker = new SequenceRequestInvoker(
+            Invoker("""{"_shards":{"total":2,"successful":1,"failed":1}}""", 200),
+            Invoker(DeletedTwo, 200));
+        var provider = Provider(invoker);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("Refreshing index people before removing all documents failed on 1 of 2 shards, so no documents were removed.");
+        invoker.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_Refreshed_ReturnsTheDeletedCount()
+    {
+        var invoker = new SequenceRequestInvoker(
+            Invoker("""{"_shards":{"total":2,"successful":1,"failed":0}}""", 200),
+            Invoker(DeletedTwo, 200));
+        var provider = Provider(invoker);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(2);
+        invoker.Requests.ShouldBe(2);
     }
 
     [Theory]
@@ -421,7 +451,10 @@ public sealed class ElasticsearchIndexingResponseTests
     [Fact]
     public async Task DeleteIndexAsync_Deleted_ReturnsTrue()
     {
-        var provider = Provider("""{"acknowledged":true}""", 200);
+        // The alias lookup answers that people is no alias, so the index of that name is deleted.
+        var provider = Provider(new SequenceRequestInvoker(
+            Invoker("""{"error":"alias [people] missing","status":404}""", 404),
+            Invoker("""{"acknowledged":true}""", 200)));
 
         var result = await provider.DeleteIndexAsync("people", Token);
 
@@ -562,5 +595,69 @@ public sealed class ElasticsearchIndexingResponseTests
         await cancellation.CancelAsync();
 
         await Should.ThrowAsync<OperationCanceledException>(() => InvokeAsync(provider, method, cancellation.Token));
+    }
+
+    /// <summary>Gives prefix <c>blue-</c> until the first read after <see cref="Arm"/>, and <c>green-</c> from then on, as a configuration reload would.</summary>
+    private sealed class ReloadingPrefixOptionsMonitor : IOptionsMonitor<ElasticSearchOptions>
+    {
+        private readonly ElasticSearchOptions blue = new() { IndexPrefix = "blue-", SharedIndexSettings = new() };
+        private readonly ElasticSearchOptions green = new() { IndexPrefix = "green-", SharedIndexSettings = new() };
+        private bool armed;
+        private bool reloaded;
+
+        public void Arm() => armed = true;
+
+        public ElasticSearchOptions CurrentValue
+        {
+            get
+            {
+                var value = reloaded ? green : blue;
+                reloaded |= armed;
+                return value;
+            }
+        }
+
+        public ElasticSearchOptions Get(string? name) => CurrentValue;
+        public IDisposable? OnChange(Action<ElasticSearchOptions, string?> listener) => null;
+    }
+
+    private static readonly DateTimeOffset RebuildStarted = new(2026, 11, 14, 12, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public async Task CompleteRebuildAsync_RefreshFailedOnSomeShards_FailsWithoutTouchingTheAlias()
+    {
+        var invoker = new SequenceRequestInvoker(
+            Invoker("""{"_shards":{"total":2,"successful":1,"failed":1,"failures":[{"shard":0,"index":"people","status":"INTERNAL_SERVER_ERROR","reason":{"type":"exception","reason":"refresh failed"}}]}}""", 200));
+        var provider = Provider(invoker);
+        var rebuild = new Abstractions.Models.IndexRebuild("people", IndexNames.NewRebuildTarget("people", RebuildStarted));
+
+        var result = await provider.CompleteRebuildAsync(rebuild, Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldContain("failed on 1 of 2 shards");
+        invoker.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task CompleteRebuildAsync_PrefixReloadedDuringTheCall_UsesTheAliasItChecked()
+    {
+        var monitor = new ReloadingPrefixOptionsMonitor();
+        var settingsManager = new ElasticSearchClientSettingsManager(monitor);
+        // Refresh, alias lookup (no alias), exists check (no index), a rejected alias update, then the alias read again.
+        var invoker = new SequenceRequestInvoker(
+            Invoker("""{"_shards":{"total":1,"successful":1,"failed":0}}""", 200),
+            Invoker("""{"error":"alias [blue-people] missing","status":404}""", 404),
+            Invoker("", 404),
+            Invoker("""{"error":{"root_cause":[{"type":"illegal_argument_exception","reason":"rejected"}],"type":"illegal_argument_exception","reason":"rejected"},"status":400}""", 400),
+            Invoker("""{"error":"alias [blue-people] missing","status":404}""", 404));
+        var provider = Provider(invoker, settingsManager: settingsManager);
+        var rebuild = new Abstractions.Models.IndexRebuild("people", IndexNames.NewRebuildTarget("blue-people", RebuildStarted));
+        monitor.Arm();
+
+        var result = await provider.CompleteRebuildAsync(rebuild, Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldContain("pointing alias blue-people at");
+        invoker.Requests.ShouldBe(5);
     }
 }

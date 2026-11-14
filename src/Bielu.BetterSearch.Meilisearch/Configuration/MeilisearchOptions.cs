@@ -6,6 +6,15 @@ public class MeilisearchOptions
 {
     public static string MeilisearchOptionsKey { get; } = "Bielu:BetterSearch:Meilisearch";
     public MeilisearchIndexSettings SharedIndexSettings { get; set; } = new();
+
+    /// <summary>
+    /// Put before every index uid this provider sends to the server, so several applications or environments can share
+    /// one server: with <c>app-</c>, the index <c>people</c> is <c>app-people</c> on the server. Indexing, search,
+    /// removal and the index checks all add it, and callers keep using the name without it. Meilisearch accepts only
+    /// letters, digits, <c>-</c> and <c>_</c> in a uid, and fails a request whose uid has anything else.
+    /// </summary>
+    public string? IndexPrefix { get; set; }
+
     private Dictionary<string, MeilisearchIndexSettings>? _indexes = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -31,6 +40,11 @@ public class MeilisearchOptions
 
         return copy;
     }
+
+    /// <summary>The <c>BulkBatchSize</c> of the index's <c>Indexes</c> entry, or else the shared one; null when neither is set.</summary>
+    internal int? BulkBatchSizeFor(string index) =>
+        (Indexes != null && Indexes.TryGetValue(index, out var indexSpecific) ? indexSpecific?.BulkBatchSize : null)
+        ?? SharedIndexSettings?.BulkBatchSize;
 
     /// <summary>
     /// How long to wait for Meilisearch to finish a write. Meilisearch queues every write as a task;
@@ -79,4 +93,14 @@ public class MeilisearchIndexSettings : IndexSettings
 
     /// <summary>The master key or an API key; empty when the server runs without one.</summary>
     public string? ApiKey { get; set; }
+
+    /// <summary>
+    /// How many documents <c>IndexMultipleDocumentsAsync</c> adds in one Meilisearch task; a larger batch is split into
+    /// several tasks, sent one after another. It counts documents, not bytes: each request must still fit the server's
+    /// payload size limit (about 100 MB unless changed), so lower it when documents are large. Each task is applied or
+    /// failed as a whole, but an index's documents split into several tasks are not: when one fails, the tasks before
+    /// it stay stored. Unset on an <c>Indexes</c> entry, the index takes the shared value, and unset there means 1000.
+    /// It must be greater than 0.
+    /// </summary>
+    public int? BulkBatchSize { get; set; }
 }

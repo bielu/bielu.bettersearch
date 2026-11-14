@@ -31,16 +31,17 @@ internal sealed class OpenSearchSearchProviderAsync(
             return Result.Fail<ISearchResult>("The query needs an Index.");
         }
 
-        if (query.FacetQueries is { Count: > 0 })
+        var options = optionsMonitor.TryCurrentValue();
+        if (options.IsFailed)
         {
-            return Result.Fail<ISearchResult>("The OpenSearch provider does not support facets yet.");
+            return options.ToResult<ISearchResult>();
         }
 
-        var maxResultWindow = optionsMonitor.CurrentValue.MaxResultWindow;
-        if (maxResultWindow <= 0)
+        // Checked here too for a monitor that doesn't validate, with the validator's message.
+        var maxResultWindow = options.Value.MaxResultWindow;
+        if (ConnectionSettingsChecks.GreaterThanZeroFailure($"{OpenSearchOptions.OpenSearchOptionsKey}:MaxResultWindow", maxResultWindow) is { } invalidWindow)
         {
-            return Result.Fail<ISearchResult>(
-                $"MaxResultWindow is {maxResultWindow}, but it must be greater than 0. Set {OpenSearchOptions.OpenSearchOptionsKey}:MaxResultWindow to the indexes' index.max_result_window.");
+            return Result.Fail<ISearchResult>(invalidWindow);
         }
 
         if (LastResultOf(query) > maxResultWindow)
@@ -80,15 +81,23 @@ internal sealed class OpenSearchSearchProviderAsync(
         }
 
         var mappings = settingsManager.GetConnectionSettings(query.Index).Mappings ?? [];
-        var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
+        var aggregations = await OpenSearchAggregations.TranslateAsync(query, mappings, queryTranslateServiceAsync).ConfigureAwait(false);
+        if (aggregations.IsFailed)
+        {
+            return aggregations.ToResult<ISearchResult>();
+        }
+
+        var request = CreateRequest(query, settingsManager.GetIndexName(query.Index), mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
         request.Highlight = highlight.Value;
+        request.Aggregations = aggregations.Value;
         var response = await client.Value.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
         // The client reports a cancelled request as an invalid response; the caller cancelled, so say that instead.
         cancellationToken.ThrowIfCancellationRequested();
         // OpenSearch.Client treats some error responses as valid, so a server error is a failure too.
         if (!response.IsValid || response.ServerError is not null)
         {
-            return Result.Fail<ISearchResult>(OpenSearchFailures.Describe("search", response));
+            var failure = OpenSearchFailures.Describe("search", response);
+            return Result.Fail<ISearchResult>(aggregations.Value != null ? OpenSearchAggregations.TextFieldFailure(failure) ?? failure : failure);
         }
 
         // Partial results are disallowed in the request; this guards against a cluster that returns them anyway.
@@ -99,10 +108,108 @@ internal sealed class OpenSearchSearchProviderAsync(
         }
 
         var result = resultMapper.MapResult(response);
+        if (aggregations.Value != null)
+        {
+            var facets = OpenSearchAggregations.Map(query.FacetQueries, response.Aggregations);
+            if (facets.IsFailed)
+            {
+                return facets.ToResult<ISearchResult>();
+            }
+
+            result = new BaseSearchResults { Items = result.Items, Pagination = result.Pagination, Aggregations = facets.Value };
+        }
+
         result.Pagination.Page = PageOf(query);
         result.Pagination.PageSize = PageSizeOf(query);
         result.Pagination.TotalPages = (int)Math.Ceiling(result.Pagination.TotalCount / (double)result.Pagination.PageSize);
         return Result.Ok(result);
+    }
+
+    /// <summary>
+    /// Gets the document with <c>GET index/_doc/id</c>. <c>null</c> when OpenSearch answers that the document or
+    /// the index is missing. A 404 without that answer is a failure.
+    /// </summary>
+    public async Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var check = DocumentLookups.CheckGet(index, id);
+        if (check.IsFailed)
+        {
+            return check.ToResult<SearchDocument?>();
+        }
+
+        return await clientFactoryAsync.TryWithClientAsync<SearchDocument?>(index, async client =>
+        {
+            var response = await client.GetAsync<SearchDocument>(new GetRequest(settingsManager.GetIndexName(index), id), cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            // A 404 is an answer only when OpenSearch gave it: index_not_found_exception, or a get response that
+            // names the index and says found false. Any other 404, such as one from a proxy, is a failure.
+            var notFound = response.ApiCall?.HttpStatusCode == 404;
+            if (notFound
+                && (response.ServerError?.Error?.Type == "index_not_found_exception"
+                    || (response.ServerError is null && !response.Found && !string.IsNullOrEmpty(response.Index))))
+            {
+                return Result.Ok<SearchDocument?>(null);
+            }
+
+            if (notFound || !response.IsValid || response.ServerError is not null)
+            {
+                return Result.Fail<SearchDocument?>(OpenSearchFailures.Describe($"get of document {id}", response));
+            }
+
+            return Result.Ok<SearchDocument?>(response.Found
+                ? new SearchDocument
+                {
+                    Id = response.Id,
+                    Type = response.Source?.Type ?? string.Empty,
+                    Index = index,
+                    Fields = DocumentLookups.ToFields(StoredFields.ToCustomProperties(response.Source?.Fields))
+                }
+                : null);
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Counts with <c>_count</c>, which is exact, on the main query and the post filter together, as a search
+    /// returns the hits that match both.
+    /// </summary>
+    public async Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var check = DocumentLookups.CheckCount(query.Index);
+        if (check.IsFailed)
+        {
+            return check.ToResult<long>();
+        }
+
+        var mainQuery = await queryTranslateServiceAsync.TranslateMainQueryAsync(query).ConfigureAwait(false);
+        if (mainQuery.IsFailed)
+        {
+            return mainQuery.ToResult<long>();
+        }
+
+        var postFilter = await postFilterTranslateService.TranslatePostFilterAsync(query).ConfigureAwait(false);
+        if (postFilter.IsFailed)
+        {
+            return postFilter.ToResult<long>();
+        }
+
+        QueryContainer countQuery = postFilter.Value is null
+            ? mainQuery.Value
+            : new BoolQuery { Must = [mainQuery.Value], Filter = [postFilter.Value] };
+        return await clientFactoryAsync.TryWithClientAsync(query.Index, async client =>
+        {
+            var response = await client.CountAsync(new CountRequest(Indices.Index(settingsManager.GetIndexName(query.Index))) { Query = countQuery }, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!response.IsValid || response.ServerError is not null)
+            {
+                return Result.Fail<long>(OpenSearchFailures.Describe("count", response));
+            }
+
+            return response.Shards.Failed > 0
+                ? Result.Fail<long>($"OpenSearch returned an incomplete count: {response.Shards.Failed} of {response.Shards.Total} shards failed.")
+                : Result.Ok(response.Count);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -169,11 +276,11 @@ internal sealed class OpenSearchSearchProviderAsync(
     /// <summary>The position of the page's last result, in <c>long</c> so a large page can't overflow.</summary>
     private static long LastResultOf(ISearchQuery query) => (long)PageOf(query) * PageSizeOf(query);
 
-    private static SearchRequest<SearchDocument> CreateRequest(ISearchQuery query, QueryContainer mainQuery, QueryContainer? postFilter, int maxResultWindow,
+    private static SearchRequest<SearchDocument> CreateRequest(ISearchQuery query, string indexName, QueryContainer mainQuery, QueryContainer? postFilter, int maxResultWindow,
         IReadOnlyList<ISortOrderField> sortOrder, IReadOnlyList<OpenSearchFieldMapping> mappings)
     {
         var pageSize = PageSizeOf(query);
-        var request = new SearchRequest<SearchDocument>(query.Index)
+        var request = new SearchRequest<SearchDocument>(indexName)
         {
             Query = mainQuery,
             PostFilter = postFilter,

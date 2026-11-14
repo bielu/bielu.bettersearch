@@ -219,7 +219,13 @@ internal sealed class LuceneSubQueryTranslator(IOptionsMonitor<MeilisearchOption
             return Fail($"phrase '{query}' has {words.Count} words; Meilisearch matches phrases of at most {MeilisearchDocument.MaxPhraseTokens}.");
         }
 
-        if (optionsMonitor.CurrentValue.PhraseFields is { } phraseFields && !phraseFields.Contains(field.Value))
+        var options = optionsMonitor.TryCurrentValue();
+        if (options.IsFailed)
+        {
+            return options.ToResult<MeilisearchFilter>();
+        }
+
+        if (options.Value.PhraseFields is { } phraseFields && !phraseFields.Contains(field.Value))
         {
             return Fail($"phrase field '{field.Value}' is not in MeilisearchOptions.PhraseFields, so its phrases are not stored.");
         }

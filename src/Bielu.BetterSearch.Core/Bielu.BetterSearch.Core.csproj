@@ -5,14 +5,21 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <InternalsVisibleTo Include="Bielu.BetterSearch.Caching.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
       <ProjectReference Include="..\Bielu.BetterSearch.Abstractions\Bielu.BetterSearch.Abstractions.csproj" />
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
       <PackageReference Include="Microsoft.Extensions.Configuration" />
       <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
       <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+      <PackageReference Include="Microsoft.Extensions.Options" />
+      <PackageReference Include="Scrutor" />
     </ItemGroup>
 
     <ItemGroup>
@@ -22,6 +29,8 @@
     <ItemGroup>
       <!-- Compiled into each package rather than shared, so a package never calls into another package's internals. -->
       <Compile Include="..\Shared\DocumentIds.cs" Link="Services\DocumentIds.cs" />
+      <Compile Include="..\Shared\DocumentLookups.cs" Link="Services\DocumentLookups.cs" />
+      <Compile Include="..\Shared\QueryValueText.cs" Link="Services\QueryValueText.cs" />
     </ItemGroup>
 
 </Project>

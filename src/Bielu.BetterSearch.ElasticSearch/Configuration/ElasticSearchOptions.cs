@@ -7,6 +7,15 @@ public class ElasticSearchOptions
 {
     public static string ElasticSearchOptionsKey { get; } = "Bielu:BetterSearch:ElasticSearch";
     public ElasticSearchIndexSettings SharedIndexSettings { get; set; } = new();
+
+    /// <summary>
+    /// Put before every index name this provider sends to the server, so several applications or environments can share
+    /// one cluster: with <c>app-</c>, the index <c>people</c> is <c>app-people</c> on the server. Indexing, search,
+    /// removal, the index checks and rebuilds all add it, and callers keep using the name without it. Must be lower
+    /// case, and can't start with <c>-</c>, <c>_</c> or <c>+</c>.
+    /// </summary>
+    public string? IndexPrefix { get; set; }
+
     private Dictionary<string, ElasticSearchIndexSettings>? _indexes = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>

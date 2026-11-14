@@ -24,7 +24,22 @@ public class SearchApplicationConfiguration
     /// <summary>The keys of the providers added with <see cref="Configurator.AddProvider{TSearchProvider,TIndexingProvider}"/>, in the order they were added.</summary>
     public IReadOnlyList<string> ProviderKeys => Providers.Select(provider => provider.Key).ToList();
 
+    /// <summary>The configuration section <c>AddBetterSearch</c> reads routes from: index name to provider key.</summary>
+    public const string RoutesSectionKey = "Bielu:BetterSearch:Routes";
+
+    /// <summary>
+    /// Index name to provider key: the unkeyed services send a call for an index to the provider under its key.
+    /// Index names compare ignoring case. Set with <see cref="Configurator.RouteIndex"/> or in the
+    /// <see cref="RoutesSectionKey"/> section; once <c>AddBetterSearch</c> has run, this holds both.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Routes => RouteMap;
+
     internal List<ProviderRegistration> Providers { get; } = [];
+
+    internal Dictionary<string, string> RouteMap { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Whether a search cache was added, so <c>AddBetterSearch</c> decorates the search and indexing services with it.</summary>
+    internal bool UsesSearchCache { get; set; }
 }
 
 internal sealed record ProviderRegistration(string Key, Type SearchProviderType, Type IndexingProviderType);

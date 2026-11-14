@@ -9,7 +9,7 @@ namespace Bielu.BetterSearch.Meilisearch.Services;
 
 /// <summary>
 /// Translates the main query and the post filters into one Meilisearch filter, both of which must match.
-/// Without facets, which the provider does not support yet, a post filter and a filter return the same hits.
+/// The search provider counts facets with a second search without the post filters.
 /// </summary>
 internal sealed class MeilisearchQueryTranslateService(IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators)
     : IQueryTranslateServiceAsync<MeilisearchQuery>

@@ -33,8 +33,8 @@ public interface IIndexingServiceAsync : IObservable<SearchDocument>, IObservabl
     /// <summary>
     /// Checks and validates every document, then indexes them all with one call to
     /// <see cref="IIndexingProviderAsync.IndexMultipleDocumentsAsync"/> and returns how many were indexed. A document
-    /// that is <c>null</c>, has a <c>null</c> field or value, or that the validator rejects fails the batch before
-    /// anything is sent, so none of it is stored. A document the engine rejects fails the batch too; what the engine
+    /// that is <c>null</c>, has a <c>null</c> or empty <c>Id</c> or <c>Index</c>, has a <c>null</c> field or value,
+    /// or that the validator rejects fails the batch before anything is sent, so none of it is stored. A document the engine rejects fails the batch too; what the engine
     /// stored of the rest depends on the provider, and the error names the ids that were not stored in its
     /// <c>ids</c> metadata. On success the <see cref="SearchDocument"/> observers get one
     /// <see cref="IObserver{T}.OnNext"/> for each document; when the <see cref="Result"/> fails they get nothing,
@@ -57,4 +57,13 @@ public interface IIndexingServiceAsync : IObservable<SearchDocument>, IObservabl
     /// <see cref="Result"/> fails they get nothing.
     /// </summary>
     Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Replaces some fields of one document; see <see cref="IIndexingProviderAsync.UpdateDocumentAsync"/>. An empty
+    /// update, or one with a <c>null</c> field or value, fails before the provider is called. The document validator
+    /// is not run, as it checks whole documents, and observers are not notified.
+    /// </summary>
+    Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Fail<bool>($"{GetType().Name} does not support UpdateDocumentAsync."));
 }

@@ -3,13 +3,9 @@
 [Bielu.BetterSearch.OpenSearch](https://www.nuget.org/packages/Bielu.BetterSearch.OpenSearch/) runs queries
 on an [OpenSearch](https://opensearch.org/) cluster. It translates queries the same way as the
 [Elasticsearch provider](elasticsearch.md), so the same queries give the same results, with paging, sorting,
-post filters, highlighting and scores.
+post filters, facets, highlighting and scores.
 
 > [!WARNING]
-> **What won't work**
->
-> - **Facets** can be expressed, but a query that asks for them returns a failed `Result`.
->
 > Invalid or missing connection settings make searching and every indexing method return a failed `Result`
 > whose message names the setting to fix, such as `Bielu:BetterSearch:OpenSearch:SharedIndexSettings:ConnectionString`.
 > A request that throws, as it does when `ThrowExceptions()` is on in the connection settings, is a failed
@@ -69,9 +65,21 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
 | `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
 | `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` sends in one bulk request, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails |
 | `WriteVisibility` | `Default` or `WaitUntilSearchable`, in `SharedIndexSettings` or an `Indexes` entry; see [When writes are searchable](#when-writes-are-searchable). An entry that leaves it out takes the shared value, and `"WriteVisibility": "Default"` there turns the shared one off |
-| `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. It must be greater than 0, or every search fails with a configuration error |
+| `IndexPrefix` | Put before every index name sent to the server, so applications or environments can share a cluster: with `app-`, the index `people` is `app-people` on the server. Indexing, search, `GetDocumentAsync`, `CountAsync`, `UpdateDocumentAsync`, removal, the index checks, `DeleteIndexAsync` and rebuilds all add it, and you keep using `people`. Lower case only, without `\ / * ? " < > \| , # :` or spaces, and not starting with `-`, `_` or `+`; startup validation fails otherwise, naming `IndexPrefix` |
+| `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. It must be greater than 0, or startup validation fails |
 
 You can also set the options in code with `services.Configure<OpenSearchOptions>(...)`.
+
+The options are validated at startup (`ValidateOnStart`), so a host with invalid settings fails to start with
+`OptionsValidationException`, listing every setting that is wrong, each by its configuration path. The connection
+string and authentication are checked as each call checks them, after merging each `Indexes` entry with
+`SharedIndexSettings`. For example `ConnectionString is not an http or https URL. Set
+Bielu:BetterSearch:OpenSearch:Indexes:people:ConnectionString, or Bielu:BetterSearch:OpenSearch:SharedIndexSettings:ConnectionString for every index.`
+Connection messages never include the connection string or a credential; the other messages show the rejected value, such as `MaxResultWindow is 0`. A missing section, or one whose name is misspelled, gives the single
+failure `No Bielu:BetterSearch:OpenSearch settings were found.`, naming the section. The shared settings are not checked on their own when they set
+no connection string and every `Indexes` entry sets its own connection: shared authentication is then checked with each index that inherits it, and an index not listed fails when it is used. `MaxResultWindow` must be greater than 0. The same
+checks run whenever the options are read, so after a configuration reload to invalid settings, every call returns a
+failed `Result` with the same messages.
 
 ## How queries behave
 
@@ -172,6 +180,24 @@ the field name without the `fields.` prefix (`Name`, also when the request names
   `IsAllField`, two entries for the same field, also under different names for it (`Name` and `fields.Name`),
   and a `null` clause in a request's own `Queries`.
 
+## Facets
+
+`FacetQueries` become OpenSearch aggregations, and their results come back in `ISearchResult.Aggregations`, read with
+`RetrieveBucketAggregation(name)` and `RetrieveSingleAggregation(name)`:
+
+- **`TermAggregation`** is a `terms` aggregation: one `KeyBucket` per value, the values with the most documents
+  first, `Size` of them (10 when it is 0).
+- **`MultiTermAggreation`** is a `multi_terms` aggregation: one `KeyBucket` per combination of values, each value
+  in `Keys` and the joined key, such as `Red|acme`, in `Key`.
+- **`FilterAggregationQuery`** is a `filter` aggregation: a `SingleAggregation` whose one bucket holds the number of
+  documents its `Queries` match.
+- **`NestedAggregations`** are sub-aggregations, counted per bucket and returned in the bucket's `Aggregations`.
+- **Counts cover the main query's matches.** A post filter narrows the hits, not the counts.
+- **A field mapped as `Text`** in `Mappings` is counted on its `keyword` sub-field, so facet on the plain name.
+- **An unmapped text field**, such as a string field dynamic mapping created, can't be counted: the search returns
+  a failed `Result` saying to map the field or to facet on `Field.keyword`, the sub-field dynamic mapping adds.
+- **Keys are text**: a whole number comes back in the invariant culture, such as `5`.
+
 ## Indexing several documents
 
 `IndexMultipleDocumentsAsync` sends each index's documents in bulk requests of at most `BulkBatchSize`
@@ -204,6 +230,65 @@ refresh, about a second later unless `index.refresh_interval` is changed. Set `W
   for bulk loads and turn it on where a write must be visible straight away, such as tests and small sites.
 - Waiting doesn't change what a failure means: a failed or cancelled call may still have stored the write.
 
+Whatever `WriteVisibility` is, `RemoveAllDocumentsAsync` first refreshes the index, then sends the delete by query.
+Delete by query removes only the documents that are searchable when it starts, so without the refresh a write that
+was acknowledged under `Default` but not refreshed yet would be left behind. Remove all is rare, so the extra
+request is a small cost. When the refresh fails, for example with a 403, a missing index or a failed shard, the call
+returns a failed `Result` and removes nothing.
+
+## Rebuilding an index without downtime
+
+The indexing provider also implements `IIndexLifecycleProviderAsync`, which `IIndexLifecycleServiceAsync`, registered
+by `AddBetterSearch` and by key like the other services, runs:
+
+```csharp
+var rebuild = await lifecycle.StartRebuildAsync("people");      // creates app-people-rebuild-<time>-<random>
+if (rebuild.IsFailed)
+{
+    return;
+}
+
+var indexed = await lifecycle.IndexRebuildDocumentsAsync(rebuild.Value, documents); // searches still read the old index
+if (indexed.IsFailed)
+{
+    await lifecycle.AbortRebuildAsync(rebuild.Value);           // deletes the new index; the old one stays live
+    return;
+}
+
+var deleted = await lifecycle.CompleteRebuildAsync(rebuild.Value); // swaps the alias and deletes the old indexes
+```
+
+Complete doesn't know whether every document reached the new index, so check the result of each
+`IndexRebuildDocumentsAsync` call and abort, rather than complete, when one fails.
+
+- **Start** creates a new index named after the index (with the prefix), `-rebuild-`, the UTC start time and a random
+  suffix, with the index's configured `Mappings`.
+- **Index** writes the documents to the new index only. Each document's `Index` must be the index being rebuilt;
+  the service checks the whole batch, as `IndexMultipleDocumentsAsync` does, before writing any of it.
+- **Complete** refreshes the new index, and fails without touching the alias when the refresh fails on any shard. It
+  then sends one update aliases request that points an alias named like the index at it and deletes, with
+  `remove_index`, every index the alias pointed at before. OpenSearch applies the request atomically, so searches switch
+  from the old documents to the new ones at once, and when OpenSearch rejects it, nothing changes and the alias stays on
+  the old index. When OpenSearch doesn't acknowledge it in time, the `Result` fails but the change may still apply, so
+  the old indexes may already be gone: call `CompleteRebuildAsync` again, which succeeds once the alias points at the
+  new index. It returns the names of the deleted indexes. The first rebuild
+  of an index created as a plain index replaces that index with the alias in the same request. Completing a rebuild
+  that is already complete succeeds and deletes nothing.
+- **Abort** deletes the new index and leaves the alias where it is. It fails, deleting nothing, once the rebuild is
+  complete. Start gives the new index a pending alias, `<new index>-pending`. Complete removes it in its update
+  aliases request, and Abort removes it before deleting the new index, each with `must_exist`, so when a complete and
+  an abort of the same rebuild overlap, even in different processes, only one takes effect: either the rebuild
+  completes and the abort fails, or the abort deletes the new index and the complete fails. Two overlapping completes
+  both succeed.
+- Each call reads `IndexPrefix` once, so a configuration reload during a call can't make it check one alias and change
+  another. A rebuild whose new index is gone, aborted or deleted elsewhere, fails to complete and leaves the alias
+  on the old index.
+- A rebuild that names an index `StartRebuildAsync` could not have created for it fails without touching anything.
+
+Writes to the index name while a rebuild runs go to the old index and are not copied to the new one, so pause them or
+write them again after the swap. After a rebuild the index name is an alias: searches and writes go through it, and
+`DeleteIndexAsync` deletes the index behind it, and so the alias.
+
 ## Removing documents
 
 `DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.
@@ -215,6 +300,20 @@ refresh, about a second later unless `index.refresh_interval` is changed. Set `W
   their ids, and the other documents are already removed. A missing index returns a failed `Result` naming the ids.
   A request cancelled through the `CancellationToken`, before or during the request, throws
   `OperationCanceledException`.
+
+## Getting, counting and updating documents
+
+- **`GetDocumentAsync(index, id)`** reads the document with `GET index/_doc/id` and returns its fields as hits
+  return them. A 404 that OpenSearch gave for a missing document (`found: false`) or a missing index
+  (`index_not_found_exception`) is success with `null`. Any other failure, such as a 401, a 5xx or a 404
+  without that answer (from a proxy, say), is a failed `Result`.
+- **`CountAsync(query)`** sends `_count` with the query and its post filter, so the count is exact, with no
+  cap at `MaxResultWindow`. A missing index is a failed `Result`, as a search there is.
+- **`UpdateDocumentAsync(index, id, fields)`** sends a partial `_update` that replaces each named field under
+  `fields` and keeps the others, and retries up to 3 times on a version conflict. It returns `false` for a
+  missing document or index and creates neither. OpenSearch creates a missing index on an update, without the
+  configured `Mappings`, so the provider checks the index exists first; an index deleted between that check and
+  the update is still created again. `WriteVisibility` applies to it as to the other writes.
 
 ## Health check
 

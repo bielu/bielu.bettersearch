@@ -3,11 +3,10 @@ using Bielu.BetterSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
 using Bielu.BetterSearch.ElasticSearch.Services.Queries;
+using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 namespace Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
 
 public static class RegisterSearchExtension
@@ -44,11 +43,8 @@ public static class RegisterSearchExtension
         configurator.Services.AddScoped<ISubQueryTranslator<Query>, DateRangeSubQueryTranslator>();
         configurator.Services.AddScoped<ISubQueryTranslator<Query>, StringRangeSubQueryTranslator>();
         configurator.Services.AddScoped<ISubQueryTranslator<Query>, SpatialSearchSubQueryTranslator>();
-        configurator.Services.AddOptions<ElasticSearchOptions>()
-            .Bind(configurator.AppConfiguration.GetSection(ElasticSearchOptions.ElasticSearchOptionsKey))
-            .ValidateOnStart();
-        configurator.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IValidateOptions<ElasticSearchOptions>, ElasticSearchOptionsValidator>());
+        OptionsRegistration.BindAndValidateOnStart<ElasticSearchOptions, ElasticSearchOptionsValidator>(
+            configurator.Services, configurator.AppConfiguration, ElasticSearchOptions.ElasticSearchOptionsKey);
         return configurator;
     }
 }
