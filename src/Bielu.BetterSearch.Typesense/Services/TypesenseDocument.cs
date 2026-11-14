@@ -139,13 +139,14 @@ internal static partial class TypesenseDocument
 
     /// <summary>
     /// The document as Typesense stores it, every typed copy included; <c>null</c> when Typesense answers that the
-    /// document or the collection is not there. A <c>.</c> or <c>..</c> id would be resolved away in a path, so such
-    /// a document is read by an export filtered on its id instead.
+    /// document or the collection is not there. A <c>.</c> or <c>..</c> id would be resolved away in a path, and
+    /// <c>export</c> and <c>search</c> name the collection's own endpoints, so such a document is read by an export
+    /// filtered on its id instead.
     /// </summary>
     public static async Task<Result<JsonObject?>> GetAsync(TypesenseHttpClientWrapper client, string index, string id, CancellationToken cancellationToken)
     {
         var collection = $"collections/{TypesenseHttpClientWrapper.Escape(index)}/documents";
-        var path = id is "." or ".."
+        var path = id is "." or ".." or "export" or "search"
             ? $"{collection}/export?filter_by={Uri.EscapeDataString($"id:[`{id}`]")}"
             : $"{collection}/{TypesenseHttpClientWrapper.Escape(id)}";
         var response = await client.SendAsync(HttpMethod.Get, path, null, cancellationToken).ConfigureAwait(false);
@@ -159,9 +160,12 @@ internal static partial class TypesenseDocument
             return Result.Fail<JsonObject?>(response.Describe());
         }
 
-        // An export answers one document per line, and no line when no document has the id.
-        var line = response.Body.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-        return Result.Ok(line is null ? null : JsonNode.Parse(line) as JsonObject);
+        // An export answers one document per line, and no line when no document has the id. Only the requested
+        // document is returned, whatever else the answer holds.
+        var document = response.Body.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => JsonNode.Parse(line) as JsonObject)
+            .FirstOrDefault(stored => stored?["id"] is JsonValue value && value.TryGetValue<string>(out var storedId) && storedId == id);
+        return Result.Ok(document);
     }
 
     /// <summary>The fields a hit's <c>source</c> holds.</summary>

@@ -270,8 +270,8 @@ public sealed class TypesenseIndexingProviderAsync(
 
     /// <summary>
     /// Reads the document, then sends a Typesense partial update holding the named fields' new typed copies, <c>null</c>
-    /// for each copy a field held before but no longer has (a value of another kind), and <c>source</c> with the named
-    /// fields replaced. The other fields keep their stored values. The update is sent as a one-line import with
+    /// for each other copy a named field can have (so a value of another kind leaves none behind), and <c>source</c>
+    /// with the named fields replaced. The other fields keep their stored values. The update is sent as a one-line import with
     /// <c>action=update</c>, which takes the id in the body, so a <c>.</c> or <c>..</c> id works too; Typesense fails it
     /// for a missing document or collection rather than creating either, which gives <c>false</c>.
     /// </summary>
@@ -320,9 +320,11 @@ public sealed class TypesenseIndexingProviderAsync(
             body.Remove(TypesenseFieldNames.Type);
             body.Remove(TypesenseFieldNames.Index);
             body[TypesenseFieldNames.Source] = source.ToJsonString();
-            foreach (var (key, _) in current)
+            // Every copy a named field can have is removed unless the new value writes it, not only the copies the
+            // read saw, so a copy another update added after the read goes too.
+            foreach (var key in fields.Keys.SelectMany(name => TypesenseFieldNames.StoredPrefixes.Select(prefix => prefix + name)))
             {
-                if (!body.ContainsKey(key) && fields.Keys.Any(name => TypesenseFieldNames.StoredPrefixes.Any(prefix => key == prefix + name)))
+                if (!body.ContainsKey(key))
                 {
                     body[key] = null;
                 }

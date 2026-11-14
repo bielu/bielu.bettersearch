@@ -256,6 +256,32 @@ public sealed class TypesenseFakeServerTests
         Uri.UnescapeDataString(request.Uri.Query).ShouldBe("?filter_by=id:[`..`]");
     }
 
+    [Theory]
+    [InlineData("export")]
+    [InlineData("search")]
+    public async Task GetAsync_IdNamingAnEndpoint_ReadsByExportFilteredOnTheId(string id)
+    {
+        var server = new FakeServer(_ => (HttpStatusCode.OK, $$"""{"id":"{{id}}","type":"Person"}"""));
+
+        var result = await TypesenseDocument.GetAsync(Client(server), "people", id, TestContext.Current.CancellationToken);
+
+        result.Value.ShouldNotBeNull()["id"]!.GetValue<string>().ShouldBe(id);
+        var request = server.Requests.ShouldHaveSingleItem();
+        request.Uri.AbsolutePath.ShouldBe("/collections/people/documents/export");
+        Uri.UnescapeDataString(request.Uri.Query).ShouldBe($"?filter_by=id:[`{id}`]");
+    }
+
+    [Fact]
+    public async Task GetAsync_AnswerHoldsOnlyOtherDocuments_ReturnsNull()
+    {
+        var server = new FakeServer(_ => (HttpStatusCode.OK, "{\"id\":\"b\",\"type\":\"Person\"}\n{\"id\":\"c\",\"type\":\"Person\"}"));
+
+        var result = await TypesenseDocument.GetAsync(Client(server), "people", "export", TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeNull();
+    }
+
     [Fact]
     public async Task GetAsync_ExportFindsNothing_ReturnsNull()
     {
@@ -293,11 +319,45 @@ public sealed class TypesenseFakeServerTests
         server.Requests[1].Uri.PathAndQuery.ShouldBe("/collections/people/documents/import?action=update");
         var body = System.Text.Json.Nodes.JsonNode.Parse(sent!)!.AsObject();
         body.Select(field => field.Key).Order(StringComparer.Ordinal)
-            .ShouldBe(["i_Name", "id", "oi_Name", "os_Name", "p_Name", "s_Name", "source", "t_Name"]);
+            .ShouldBe(["b_Name", "d_Name", "g_Name", "i_Name", "id", "n_Name", "oi_Name", "on_Name", "os_Name", "p_Name", "s_Name", "source", "t_Name"]);
         body["i_Name"]!.ToJsonString().ShouldBe("[5]");
+        body["oi_Name"]!.ToJsonString().ShouldBe("5");
         body["t_Name"].ShouldBeNull();
         body["os_Name"].ShouldBeNull();
+        body.ContainsKey("i_Age").ShouldBeFalse();
         body["source"]!.GetValue<string>().ShouldBe("""{"Name":[5],"Age":[30]}""");
+    }
+
+    /// <summary>
+    /// The read sees <c>Name</c> as a string, but another update may have made it an integer since. Updating it to a
+    /// boolean removes the integer copies too, not only the string copies the read saw.
+    /// </summary>
+    [Fact]
+    public async Task UpdateDocumentAsync_CopyAddedAfterTheRead_IsRemovedToo()
+    {
+        string? sent = null;
+        var server = new FakeServer(request =>
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                return (HttpStatusCode.OK, """{"id":"a","type":"Person","source":"{\"Name\":[\"Jane\"]}","t_Name":["jane"],"s_Name":["Jane"],"p_Name":["jane"],"os_Name":"Jane"}""");
+            }
+
+            sent = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return (HttpStatusCode.OK, """{"success":true}""");
+        });
+
+        var result = await Indexing(server).UpdateDocumentAsync("people", "a",
+            new Dictionary<string, IList<object>> { ["Name"] = [true] }, TestContext.Current.CancellationToken);
+
+        result.Value.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+        var body = System.Text.Json.Nodes.JsonNode.Parse(sent!)!.AsObject();
+        body["b_Name"]!.ToJsonString().ShouldBe("[true]");
+        foreach (var copy in new[] { "i_Name", "oi_Name", "n_Name", "on_Name", "d_Name" })
+        {
+            body.ContainsKey(copy).ShouldBeTrue(copy);
+            body[copy].ShouldBeNull(copy);
+        }
     }
 
     [Fact]

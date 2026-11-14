@@ -151,14 +151,16 @@ returns the removed count.
 ## Getting, counting and updating documents
 
 `GetDocumentAsync` reads the document and returns its fields from `source`, as hits return them; a missing
-document or collection is success with `null`, and any other error, such as a 401, a failed `Result`.
+document or collection is success with `null`, and any other error, such as a 401, a failed `Result`. A document
+whose id is `.`, `..`, `export` or `search`, which a document path can't address, is read by an export filtered on
+its id.
 `CountAsync` sends the filter `SearchAsync` would, post filter included, in a search for no hits (`per_page` 0)
 and returns Typesense's `found`, which is exact. A missing collection is a failed `Result`, as a search there.
 
 `UpdateDocumentAsync` reads the document, then sends a partial update, an import with `action=update`, holding
-the named fields' new typed copies, `null` for each copy a named field held before and no longer has, and
-`source` with the named fields replaced. So a field that changes kind, from an integer to a string say, no longer
-matches its old value, and the fields left out keep their stored values. Typesense fails the update of a missing
+the named fields' new typed copies, `null` for every other copy a named field can have, and `source` with the
+named fields replaced. So a field that changes kind, from an integer to a string say, no longer matches its old
+value, even when another update gave it that value after the read, and the fields left out keep their stored values. Typesense fails the update of a missing
 document or collection without creating either, which gives `false`, also when the document is removed between the
 read and the update. `source` is written whole, so a change another caller makes to other fields in between is
 lost from results, while its typed copies stay searchable. The collection's schema keeps every field a document
