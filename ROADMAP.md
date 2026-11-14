@@ -12,7 +12,7 @@ What follows is a summary per provider. The [feature matrix](docs/articles/featu
 - **OpenSearch** does the same as Elasticsearch, except that it has no bearer authentication and its API key needs OpenSearch 3.x.
 - **Meilisearch** runs every query type its filters can express. Fuzzy queries and highlighting return a failed `Result`, raw Lucene queries are parsed with Lucene.NET's `QueryParser` and translated into one filter, spatial queries need `MeilisearchOptions.GeoField`, long ranges compare as doubles, and only top-level term facets run. It implements get, count, `IndexPrefix` and update, which reads the document and stores it again whole. Rebuilds return a failed `Result`, and it takes one `ConnectionString` with an API key.
 - **Typesense** runs every query type its filters can express. Fuzzy, raw Lucene and string range queries, a `MUSTNOT` range, prefix or spatial query, facets and highlighting return a failed `Result`; a page holds at most 250 hits and a sort at most 3 fields; spatial queries need `TypesenseOptions.GeoField`. Since [#146](https://github.com/bielu/bielu.bettersearch/issues/146) it implements get, count and update (which reads the document first), and since [#147](https://github.com/bielu/bielu.bettersearch/issues/147) `IndexPrefix` and rebuilds through collection aliases, under a single-writer contract; the first rebuild of a plain collection deletes it before creating the alias, so searches in between fail. It takes `AdditionalNodes`, tried in order, and an API key.
-- **PostgreSQL** full-text search ([#110](https://github.com/bielu/bielu.bettersearch/issues/110)) is in review in [#160](https://github.com/bielu/bielu.bettersearch/pull/160) and not on `main` yet, so the feature matrix has no column for it.
+- **PostgreSQL** ([#110](https://github.com/bielu/bielu.bettersearch/issues/110)) runs every query type except raw Lucene, which returns a failed `Result`, as SQL conditions on an index stored as a table. Fuzzy queries need the `fuzzystrmatch` extension, every hit has the score 1, and facets and highlighting return a failed `Result`. It implements get, count and update, which merges the named fields in one statement, and each write commits before it returns. It has no `IndexPrefix` setting, rebuilds return a failed `Result`, and it takes a `ConnectionString` or a registered `NpgsqlDataSource`, on PostgreSQL 16 or later.
 - **Lifti** (in memory) ignores `Field` on every query type, has no range, spatial or raw Lucene queries, ignores paging and sorting, has no post filters, facets or highlighting, returns only ids and scores on hits, and fails get, update and rebuilds. It is the weakest provider and the subject of [#107](https://github.com/bielu/bielu.bettersearch/issues/107).
 
 Nothing has shipped as stable, so breaking changes are still free. The 1.0 blockers below use that window, because it closes at 1.0.
@@ -93,6 +93,6 @@ Each of these can be checked:
 
 1. Put the blockers on a `1.0` milestone.
 2. Merge the blockers, then check the exit criteria.
-3. `npx changeset pre exit`, and publish a release candidate.
+3. Publish a release candidate while still in pre mode: `npx changeset pre exit`, then `npx changeset pre enter rc` in the same pull request, so the Version Packages PR publishes `1.0.0-rc.N`. A `pre exit` on its own makes the next Version Packages PR clear `VersionSuffix` and publish 1.0 stable.
 4. At least one real consumer runs the release candidate.
-5. Release 1.0.
+5. Release 1.0: `npx changeset pre exit`, and merge the Version Packages PR it produces.

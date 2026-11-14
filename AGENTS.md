@@ -20,6 +20,7 @@ The solution is `src/Bielu.BetterSearch.slnx`. Everything, tests included, lives
 | `Bielu.BetterSearch.Meilisearch` | Meilisearch provider |
 | `Bielu.BetterSearch.OpenSearch` | OpenSearch provider |
 | `Bielu.BetterSearch.Typesense` | Typesense provider |
+| `Bielu.BetterSearch.PostgreSql` | PostgreSQL full-text search provider |
 | `Bielu.BetterSearch.Lifti` | In-memory provider |
 | `Bielu.BetterSearch.Caching.FusionCache` | Search result cache on FusionCache (`AddFusionSearchCache`) |
 | `Bielu.BetterSearch.HealthChecks` | Health check (`AddBetterSearchHealthCheck`) |
@@ -30,7 +31,7 @@ The solution is `src/Bielu.BetterSearch.slnx`. Everything, tests included, lives
 | `Bielu.BetterSearch.Core.Tests` | Health check and telemetry tests (not packed) |
 | `Bielu.BetterSearch.Caching.Tests` | Search result cache tests, in memory and on FusionCache (not packed) |
 | `Bielu.BetterSearch.FluentApi.Tests` | Fluent query builder tests (not packed) |
-| `Bielu.BetterSearch.ElasticSearch.Tests`, `.OpenSearch.Tests`, `.Meilisearch.Tests`, `.Typesense.Tests`, `.Lifti.Tests` | Provider tests, inheriting `BaseTests`; all but Lifti run against the engine in the AppHost (not packed) |
+| `Bielu.BetterSearch.ElasticSearch.Tests`, `.OpenSearch.Tests`, `.Meilisearch.Tests`, `.Typesense.Tests`, `.PostgreSql.Tests`, `.Lifti.Tests` | Provider tests, inheriting `BaseTests`; all but Lifti run against the engine in the AppHost (not packed) |
 
 ## Conventions
 
