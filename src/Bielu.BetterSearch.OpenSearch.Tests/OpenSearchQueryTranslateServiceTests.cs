@@ -178,15 +178,46 @@ public class OpenSearchQueryTranslateServiceTests(
     }
 
     [Fact]
-    public async Task DateRangeQuery_LocalBound_KeepsTheLocalOffset()
+    public async Task DateRangeQuery_LocalBound_IsSentAsTheSameInstantInUtc()
     {
         var bound = new DateTime(2020, 5, 1, 12, 0, 0, DateTimeKind.Local);
         var subQuery = new DateRangeQuery { Field = "Born", MinValue = bound };
 
         var json = await TranslateToJsonAsync(subQuery);
 
-        var offset = new DateTimeOffset(bound).ToString("zzz", System.Globalization.CultureInfo.InvariantCulture);
-        json.ShouldContain($"\"gte\":\"2020-05-01T12:00:00{offset}\"");
+        var utc = bound.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss", System.Globalization.CultureInfo.InvariantCulture);
+        json.ShouldContain($"\"gte\":\"{utc}Z\"");
+    }
+
+    [Fact]
+    public async Task DateRangeQuery_UnspecifiedBound_IsSentAsUtc()
+    {
+        var subQuery = new DateRangeQuery { Field = "Born", MinValue = new DateTime(2020, 5, 1, 12, 0, 0, DateTimeKind.Unspecified) };
+
+        var json = await TranslateToJsonAsync(subQuery);
+
+        json.ShouldContain("\"gte\":\"2020-05-01T12:00:00Z\"");
+    }
+
+    [Fact]
+    public async Task DateRangeQuery_DateTimeOffsetBound_IsSentAsTheSameInstantInUtc()
+    {
+        var subQuery = new DateRangeQuery { Field = "Born", MaxValue = new DateTimeOffset(2020, 5, 1, 14, 0, 0, TimeSpan.FromHours(2)) };
+
+        var json = await TranslateToJsonAsync(subQuery);
+
+        json.ShouldContain("\"lte\":\"2020-05-01T12:00:00Z\"");
+    }
+
+    [Fact]
+    public async Task NumericRange_FractionalBounds_AreSentUnchanged()
+    {
+        var subQuery = new NumericRange { Field = "Price", MinValue = 9.99, MaxValue = 49.5 };
+
+        var json = await TranslateToJsonAsync(subQuery);
+
+        json.ShouldContain("\"gte\":9.99");
+        json.ShouldContain("\"lte\":49.5");
     }
 
     private async Task<string> TranslateToJsonAsync(ISearchSubQuery subQuery)

@@ -150,6 +150,24 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
         filter.ShouldBe("(id IN [])");
     }
 
+    /// <summary>Moving an excluded edge inward past the largest double would give an infinite bound, which is not a Meilisearch number.</summary>
+    [Theory]
+    [InlineData(double.MaxValue, double.MaxValue, false, true)]
+    [InlineData(double.MinValue, double.MinValue, true, false)]
+    public async Task TranslateMainQueryAsync_ExcludedEdgeAtTheLargestDouble_MatchesNothing(double min, double max, bool includeMin, bool includeMax)
+    {
+        var filter = await FilterAsync(Query(Occurance.MUST, new NumericRange
+        {
+            Field = "Age",
+            MinValue = min,
+            MaxValue = max,
+            IncludeMinEdge = includeMin,
+            IncludeMaxEdge = includeMax
+        }));
+
+        filter.ShouldBe("(id IN [])");
+    }
+
     [Fact]
     public async Task TranslateMainQueryAsync_PrefixPhraseOutsidePhraseFields_ReturnsFailure()
     {
