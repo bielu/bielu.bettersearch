@@ -244,4 +244,193 @@ public class ElasticSearchClientSettingsManagerTests
 
         manager.GetIndexName("people").ShouldBe("green-people");
     }
+
+    private static ElasticSearchOptions NodeOptions(NodePoolType? poolType, params string[] additionalNodes) => new()
+    {
+        SharedIndexSettings = new ElasticSearchIndexSettings
+        {
+            ConnectionString = "http://first:9200",
+            AdditionalNodes = additionalNodes,
+            PoolType = poolType,
+        },
+    };
+
+    private static Uri[] NodeUris(IElasticsearchClientSettings settings) => settings.NodePool.Nodes.Select(node => node.Uri).ToArray();
+
+    [Fact]
+    public void CreateClientSettings_OnlyConnectionString_UsesSingleNodePool()
+    {
+        var options = new ElasticSearchOptions { SharedIndexSettings = new ElasticSearchIndexSettings { ConnectionString = "http://first:9200" } };
+
+        var settings = GetSettings(options, "people");
+
+        settings.NodePool.ShouldBeOfType<SingleNodePool>();
+        NodeUris(settings).ShouldBe([new Uri("http://first:9200")]);
+    }
+
+    [Fact]
+    public void CreateClientSettings_AdditionalNodesWithoutPoolType_UsesStaticPoolWithEveryNode()
+    {
+        var settings = GetSettings(NodeOptions(null, "http://second:9200", "http://third:9201"), "people");
+
+        settings.NodePool.ShouldBeOfType<StaticNodePool>();
+        // A static pool starts from a random node, so the order is not checked.
+        NodeUris(settings).ShouldBe([new Uri("http://first:9200"), new Uri("http://second:9200"), new Uri("http://third:9201")], ignoreOrder: true);
+    }
+
+    [Theory]
+    [InlineData(NodePoolType.Static, typeof(StaticNodePool))]
+    [InlineData(NodePoolType.Sticky, typeof(StickyNodePool))]
+    [InlineData(NodePoolType.Sniffing, typeof(SniffingNodePool))]
+    public void CreateClientSettings_PoolType_UsesThatPoolWithEveryNode(NodePoolType poolType, Type expected)
+    {
+        var settings = GetSettings(NodeOptions(poolType, "http://second:9200"), "people");
+
+        settings.NodePool.GetType().ShouldBe(expected);
+        NodeUris(settings).ShouldBe([new Uri("http://first:9200"), new Uri("http://second:9200")], ignoreOrder: true);
+    }
+
+    [Fact]
+    public void CreateClientSettings_StickyPoolType_KeepsTheListedOrder()
+    {
+        var settings = GetSettings(NodeOptions(NodePoolType.Sticky, "http://second:9200", "http://third:9200"), "people");
+
+        NodeUris(settings).ShouldBe([new Uri("http://first:9200"), new Uri("http://second:9200"), new Uri("http://third:9200")]);
+    }
+
+    [Fact]
+    public void CreateClientSettings_PoolTypeWithOnlyConnectionString_UsesThatPool()
+    {
+        var settings = GetSettings(NodeOptions(NodePoolType.Sticky), "people");
+
+        settings.NodePool.ShouldBeOfType<StickyNodePool>();
+        NodeUris(settings).ShouldBe([new Uri("http://first:9200")]);
+    }
+
+    [Fact]
+    public void CreateClientSettings_InvalidAdditionalNode_ThrowsNamingItsPosition()
+    {
+        var manager = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(NodeOptions(null, "http://second:9200", "third:9200")));
+
+        var error = Should.Throw<ArgumentException>(() => manager.CreateClientSettings(manager.GetConnectionSettings("people")));
+
+        error.Message.ShouldStartWith($"AdditionalNodes:1 is not an http or https URL. Set {ElasticSearchOptions.ElasticSearchOptionsKey}:SharedIndexSettings:AdditionalNodes:1");
+    }
+
+    [Fact]
+    public void CreateClientSettings_AdditionalNodeWithAnotherScheme_ThrowsNamingItsPosition()
+    {
+        var manager = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(NodeOptions(null, "http://second:9200", "https://third:9200")));
+
+        var error = Should.Throw<ArgumentException>(() => manager.CreateClientSettings(manager.GetConnectionSettings("people")));
+
+        error.Message.ShouldBe($"AdditionalNodes:1 does not use http, as ConnectionString does, and every node must use the same scheme. Set {ElasticSearchOptions.ElasticSearchOptionsKey}:SharedIndexSettings:AdditionalNodes:1, or {ElasticSearchOptions.ElasticSearchOptionsKey}:Indexes:<index>:AdditionalNodes:1 for one index.");
+    }
+
+    [Fact]
+    public void CreateClientSettings_UndefinedPoolType_ThrowsNamingTheSetting()
+    {
+        var manager = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(NodeOptions((NodePoolType)42)));
+
+        var error = Should.Throw<ArgumentException>(() => manager.CreateClientSettings(manager.GetConnectionSettings("people")));
+
+        error.Message.ShouldStartWith("PoolType 42 is not one of Static, Sticky, Sniffing.");
+    }
+
+    [Fact]
+    public void GetConnectionSettings_IndexWithoutConnectionString_TakesSharedNodesAndPoolType()
+    {
+        var options = NodeOptions(NodePoolType.Sticky, "http://second:9200");
+        options.Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() { BulkBatchSize = 10 } };
+
+        var settings = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options)).GetConnectionSettings("people");
+
+        settings.ConnectionString.ShouldBe("http://first:9200");
+        settings.AdditionalNodes.ShouldBe(["http://second:9200"]);
+        settings.PoolType.ShouldBe(NodePoolType.Sticky);
+    }
+
+    [Fact]
+    public void GetConnectionSettings_IndexWithOwnNodesAndPoolType_UsesItsOwn()
+    {
+        var options = NodeOptions(NodePoolType.Sticky, "http://second:9200");
+        options.Indexes = new Dictionary<string, ElasticSearchIndexSettings>
+        {
+            ["people"] = new() { AdditionalNodes = ["http://people:9200"], PoolType = NodePoolType.Sniffing },
+        };
+
+        var settings = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options)).GetConnectionSettings("people");
+
+        settings.ConnectionString.ShouldBe("http://first:9200");
+        settings.AdditionalNodes.ShouldBe(["http://people:9200"]);
+        settings.PoolType.ShouldBe(NodePoolType.Sniffing);
+    }
+
+    [Fact]
+    public void GetConnectionSettings_IndexWithOwnConnectionString_DoesNotTakeSharedNodes()
+    {
+        var options = NodeOptions(NodePoolType.Sticky, "http://second:9200");
+        options.Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() { ConnectionString = "http://people:9200" } };
+
+        var settings = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options)).GetConnectionSettings("people");
+
+        settings.ConnectionString.ShouldBe("http://people:9200");
+        settings.AdditionalNodes.ShouldBeNull();
+        settings.PoolType.ShouldBe(NodePoolType.Sticky);
+        GetSettings(options, "people").NodePool.Nodes.Select(node => node.Uri).ShouldBe([new Uri("http://people:9200")]);
+    }
+
+    [Fact]
+    public void GetConnectionSettings_BoundFromConfiguration_ReadsNodesAndPoolType()
+    {
+        var options = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SharedIndexSettings:ConnectionString"] = "http://first:9200",
+                ["SharedIndexSettings:AdditionalNodes:0"] = "http://second:9200",
+                ["SharedIndexSettings:AdditionalNodes:1"] = "http://third:9200",
+                ["SharedIndexSettings:PoolType"] = "Sticky",
+            })
+            .Build()
+            .Get<ElasticSearchOptions>()!;
+
+        var settings = GetSettings(options, "people");
+
+        settings.NodePool.ShouldBeOfType<StickyNodePool>();
+        NodeUris(settings).ShouldBe([new Uri("http://first:9200"), new Uri("http://second:9200"), new Uri("http://third:9200")]);
+    }
+
+    [Fact]
+    public void CreateClientSettings_CloudWithAdditionalNodes_UsesCloudPool()
+    {
+        var options = NodeOptions(NodePoolType.Sticky, "not a url");
+        options.SharedIndexSettings.AuthenticationType = AuthenticationType.CLOUDAPI;
+        options.SharedIndexSettings.AuthenticationDetails = new AuthenticationDetails
+        {
+            // "name:" followed by base64 of "<domain>$<elasticsearch id>$<kibana id>", the format of an Elastic Cloud id.
+            Id = "name:" + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("cloud.example.com$abc123$kibana456")),
+            ApiKey = "key",
+        };
+
+        var settings = GetSettings(options, "people");
+
+        settings.NodePool.ShouldBeOfType<CloudNodePool>();
+    }
+
+    [Theory]
+    [InlineData("people")]
+    [InlineData("orders")]
+    public void GetConnectionSettings_ReturnedNodesChanged_LeavesOptionsUnchanged(string index)
+    {
+        var options = NodeOptions(NodePoolType.Sticky);
+        options.SharedIndexSettings!.AdditionalNodes = ["http://second:9200"];
+        options.Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["orders"] = new() { AdditionalNodes = ["http://orders:9200"] } };
+        var manager = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options));
+
+        manager.GetConnectionSettings(index).AdditionalNodes!.Clear();
+
+        options.SharedIndexSettings!.AdditionalNodes.ShouldBe(["http://second:9200"]);
+        options.Indexes["orders"].AdditionalNodes.ShouldBe(["http://orders:9200"]);
+        manager.GetConnectionSettings(index).AdditionalNodes.ShouldNotBeEmpty();
+    }
 }

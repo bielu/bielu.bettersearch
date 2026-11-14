@@ -29,19 +29,22 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
         IndexNames.WithPrefix(optionsMonitor.CurrentValue.IndexPrefix, indexName);
 
     /// <summary>
-    /// Builds a new settings object, leaving the live options untouched: the index's connection string and
-    /// authentication win, and an index without its own takes the shared one. Mappings are the shared ones with the
+    /// Builds a new settings object, leaving the live options untouched: the index's connection string,
+    /// authentication and pool type win, and an index without its own takes the shared one. The additional nodes go with
+    /// the connection string: an index with its own connection string uses only its own nodes. Mappings are the shared ones with the
     /// index's own on top, the bulk batch size is the index's own or else the shared one, the index's write visibility wins over the shared one, and so do its request timeout and retry count.
     /// </summary>
     internal static ElasticSearchIndexSettings MergeSettings(ElasticSearchIndexSettings indexSpecific,
         ElasticSearchIndexSettings shared)
     {
         var ownAuthentication = indexSpecific.AuthenticationType is not null;
+        var ownConnection = !string.IsNullOrWhiteSpace(indexSpecific.ConnectionString);
         return new ElasticSearchIndexSettings
         {
-            ConnectionString = string.IsNullOrWhiteSpace(indexSpecific.ConnectionString)
-                ? shared.ConnectionString
-                : indexSpecific.ConnectionString,
+            ConnectionString = ownConnection ? indexSpecific.ConnectionString : shared.ConnectionString,
+            // A copy, so a change to the returned list leaves the options, and every other index's nodes, untouched.
+            AdditionalNodes = (ownConnection ? indexSpecific.AdditionalNodes : indexSpecific.AdditionalNodes ?? shared.AdditionalNodes)?.ToList(),
+            PoolType = indexSpecific.PoolType ?? shared.PoolType,
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
                                  ?? AuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
@@ -56,23 +59,25 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     /// <summary>
     /// The connection setting failures of <paramref name="settings"/>, already merged, each naming the setting to fix.
     /// Checked as OpenSearch does, except that Elastic Cloud connects by its cloud id, so <c>CLOUD</c> and
-    /// <c>CLOUDAPI</c> don't need a connection string. The options validator runs the same checks at startup.
+    /// <c>CLOUDAPI</c> don't need a connection string, and don't use the additional nodes or the pool type. The options validator runs the same checks at startup.
     /// </summary>
     /// <remarks>
     /// <c>connection</c> is where the connection string comes from, and <c>authentication</c> where the authentication
-    /// type and details come from, which an <c>Indexes</c> entry takes together.
+    /// type and details come from, which an <c>Indexes</c> entry takes together. <c>nodes</c> and <c>pool</c> are where the
+    /// additional nodes and the pool type come from, the connection string's source when not given.
     /// </remarks>
-    internal static IEnumerable<string> ConnectionFailures(ElasticSearchIndexSettings settings, SettingSource connection, SettingSource authentication)
+    internal static IEnumerable<string> ConnectionFailures(ElasticSearchIndexSettings settings, SettingSource connection, SettingSource authentication,
+        SettingSource? nodes = null, SettingSource? pool = null)
     {
         var key = ElasticSearchOptions.ElasticSearchOptionsKey;
         var authenticationType = settings.AuthenticationType ?? AuthenticationType.NONE;
         var details = settings.AuthenticationDetails;
         string?[] failures = authenticationType switch
         {
-            AuthenticationType.NONE => [ConnectionSettingsChecks.HttpUrlFailure(key, connection, settings.ConnectionString)],
+            AuthenticationType.NONE => [.. NodeFailures(settings, connection, nodes ?? connection, pool ?? connection)],
             AuthenticationType.PASSWORD =>
             [
-                ConnectionSettingsChecks.HttpUrlFailure(key, connection, settings.ConnectionString),
+                .. NodeFailures(settings, connection, nodes ?? connection, pool ?? connection),
                 ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(AuthenticationDetails.Username), details?.Username), (nameof(AuthenticationDetails.Password), details?.Password)),
             ],
@@ -91,6 +96,10 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
         };
         return failures.OfType<string>();
     }
+
+    private static IEnumerable<string> NodeFailures(ElasticSearchIndexSettings settings, SettingSource connection, SettingSource nodes, SettingSource pool) =>
+        ConnectionSettingsChecks.NodeFailures(ElasticSearchOptions.ElasticSearchOptionsKey, connection, nodes, pool, settings.ConnectionString,
+            settings.AdditionalNodes, settings.PoolType);
 
     /// <summary>
     /// Builds the client settings, with the request timeout and retry count when they are set, throwing an
@@ -118,11 +127,28 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
         var details = settings.AuthenticationDetails!;
         return (settings.AuthenticationType ?? AuthenticationType.NONE) switch
         {
-            AuthenticationType.PASSWORD => new ElasticsearchClientSettings(new SingleNodePool(new Uri(settings.ConnectionString)))
+            AuthenticationType.PASSWORD => new ElasticsearchClientSettings(CreateNodePool(settings))
                 .Authentication(new BasicAuthentication(details.Username, details.Password)),
             AuthenticationType.CLOUD => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new BasicAuthentication(details.Username, details.Password))),
             AuthenticationType.CLOUDAPI => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new ApiKey(details.ApiKey))),
-            _ => new ElasticsearchClientSettings(new SingleNodePool(new Uri(settings.ConnectionString))),
+            _ => new ElasticsearchClientSettings(CreateNodePool(settings)),
+        };
+    }
+
+    /// <summary>
+    /// The pool of the connection string and the additional nodes: a single node pool, as before, when there is only
+    /// the connection string and no pool type, and a static pool when there are more nodes and no pool type.
+    /// </summary>
+    private static NodePool CreateNodePool(ElasticSearchIndexSettings settings)
+    {
+        var nodes = ConnectionSettingsChecks.NodeUrls(settings.ConnectionString, settings.AdditionalNodes);
+        return settings.PoolType switch
+        {
+            null when nodes.Count == 1 => new SingleNodePool(nodes[0]),
+            null or NodePoolType.Static => new StaticNodePool(nodes),
+            NodePoolType.Sticky => new StickyNodePool(nodes),
+            NodePoolType.Sniffing => new SniffingNodePool(nodes),
+            _ => throw new ArgumentOutOfRangeException(nameof(settings), settings.PoolType, "Unknown pool type."),
         };
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.Services;
@@ -10,7 +11,7 @@ namespace Bielu.BetterSearch.OpenSearch.Services;
 
 /// <summary>
 /// Creates one long-lived client per distinct connection, so connections are reused. Clients are keyed on the
-/// settings an index connects with, not its name: indexes with the same connection string and authentication
+/// settings an index connects with, not its name: indexes with the same nodes, pool type and authentication
 /// share a client, and a changed setting, such as a rotated password, gets a new client on the next call.
 /// The client for the old setting stays cached until the application restarts, which suits settings that rarely change.
 /// The request timeout and retry count are part of the key, so indexes that set different ones get different clients.
@@ -47,6 +48,8 @@ internal sealed class OpenSearchClientFactory(
 
     internal readonly record struct ClientKey(
         string ConnectionString,
+        string AdditionalNodes,
+        NodePoolType? PoolType,
         OpenSearchAuthenticationType? AuthenticationType,
         string? Username,
         string? Password,
@@ -56,6 +59,10 @@ internal sealed class OpenSearchClientFactory(
     {
         public static ClientKey From(OpenSearchIndexSettings settings) => new(
             settings.ConnectionString,
+            // A record compares a list by reference, so the nodes are compared as one string. Each node is prefixed with its
+            // length, because a URL that passes validation can hold any separator, a space included.
+            string.Concat((settings.AdditionalNodes ?? []).Select(node => $"{node?.Length}:{node};")),
+            settings.PoolType,
             settings.AuthenticationType,
             settings.AuthenticationDetails?.Username,
             settings.AuthenticationDetails?.Password,
@@ -65,7 +72,7 @@ internal sealed class OpenSearchClientFactory(
 
         // The generated ToString prints every member; keep the credentials out of logs and exception messages.
         public override string ToString() =>
-            $"{nameof(ClientKey)} {{ {nameof(ConnectionString)} = {ConnectionString}, {nameof(AuthenticationType)} = {AuthenticationType}, {nameof(RequestTimeout)} = {RequestTimeout}, {nameof(MaxRetries)} = {MaxRetries} }}";
+            $"{nameof(ClientKey)} {{ {nameof(ConnectionString)} = {ConnectionString}, {nameof(AdditionalNodes)} = {AdditionalNodes}, {nameof(PoolType)} = {PoolType}, {nameof(AuthenticationType)} = {AuthenticationType}, {nameof(RequestTimeout)} = {RequestTimeout}, {nameof(MaxRetries)} = {MaxRetries} }}";
     }
 }
 

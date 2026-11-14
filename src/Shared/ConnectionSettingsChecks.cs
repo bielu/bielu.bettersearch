@@ -1,4 +1,6 @@
-﻿namespace Bielu.BetterSearch.Services;
+﻿using Bielu.BetterSearch.Abstractions.Configuration;
+
+namespace Bielu.BetterSearch.Services;
 
 /// <summary>
 /// The settings checks the providers share, run by each provider's options validator at startup and whenever the
@@ -12,17 +14,33 @@
 internal static class ConnectionSettingsChecks
 {
     /// <summary>A failure when the connection string is not an absolute http or https URL.</summary>
-    public static string? HttpUrlFailure(string optionsKey, SettingSource source, string? connectionString)
+    public static string? HttpUrlFailure(string optionsKey, SettingSource source, string? connectionString) =>
+        HttpUrlFailure(optionsKey, source, "ConnectionString", connectionString);
+
+    /// <summary>
+    /// A failure for each of <paramref name="additionalNodes"/> that is not an absolute http or https URL, naming its
+    /// position as configuration does, such as <c>AdditionalNodes:1</c> for the second node.
+    /// </summary>
+    public static IEnumerable<string> AdditionalNodesFailures(string optionsKey, SettingSource source, IEnumerable<string?>? additionalNodes) =>
+        (additionalNodes ?? [])
+            .Select((node, position) => HttpUrlFailure(optionsKey, source, $"AdditionalNodes:{position}", node))
+            .OfType<string>();
+
+    /// <summary>The connection string and then each of <paramref name="additionalNodes"/>, as URLs already checked by <see cref="HttpUrlFailure(string, SettingSource, string?)"/> and <see cref="AdditionalNodesFailures"/>.</summary>
+    public static IReadOnlyList<Uri> NodeUrls(string connectionString, IEnumerable<string>? additionalNodes) =>
+        [new Uri(connectionString, UriKind.Absolute), .. (additionalNodes ?? []).Select(node => new Uri(node, UriKind.Absolute))];
+
+    private static string? HttpUrlFailure(string optionsKey, SettingSource source, string setting, string? url)
     {
-        if (string.IsNullOrWhiteSpace(connectionString))
+        if (string.IsNullOrWhiteSpace(url))
         {
-            return $"ConnectionString is missing. {Where(optionsKey, source, "ConnectionString")}";
+            return $"{setting} is missing. {Where(optionsKey, source, setting)}";
         }
 
-        return Uri.TryCreate(connectionString, UriKind.Absolute, out var uri) &&
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
             ? null
-            : $"ConnectionString is not an http or https URL. {Where(optionsKey, source, "ConnectionString")}";
+            : $"{setting} is not an http or https URL. {Where(optionsKey, source, setting)}";
     }
 
     /// <summary>The connection string as an absolute http or https URL.</summary>
@@ -55,6 +73,43 @@ internal static class ConnectionSettingsChecks
     /// <summary>The failure for an authentication type that is not one of <typeparamref name="TEnum"/>'s values.</summary>
     public static string UnknownAuthenticationTypeFailure<TEnum>(string optionsKey, SettingSource source, TEnum? authenticationType) where TEnum : struct, Enum =>
         $"AuthenticationType {authenticationType} is not one of {string.Join(", ", Enum.GetNames<TEnum>())}. {Where(optionsKey, source, "AuthenticationType")}";
+
+    /// <summary>A failure when the pool type is set to a value that is not one of <see cref="NodePoolType"/>'s.</summary>
+    public static string? PoolTypeFailure(string optionsKey, SettingSource source, NodePoolType? poolType) =>
+        poolType is not { } type || Enum.IsDefined(type)
+            ? null
+            : $"PoolType {type} is not one of {string.Join(", ", Enum.GetNames<NodePoolType>())}. {Where(optionsKey, source, "PoolType")}";
+
+    /// <summary>
+    /// The connection setting failures of the nodes: the connection string, each of the additional nodes, an additional
+    /// node whose scheme differs from the connection string's, which the Elasticsearch and OpenSearch clients reject, and
+    /// the pool type.
+    /// </summary>
+    /// <remarks>
+    /// <c>connection</c>, <c>nodes</c> and <c>pool</c> are where the connection string, the additional nodes and the pool
+    /// type come from: an <c>Indexes</c> entry can set its own nodes or pool type and inherit the connection string.
+    /// </remarks>
+    public static IEnumerable<string> NodeFailures(string optionsKey, SettingSource connection, SettingSource nodes, SettingSource pool,
+        string? connectionString, IEnumerable<string?>? additionalNodes, NodePoolType? poolType)
+    {
+        var nodeList = (additionalNodes ?? []).ToList();
+        var failures = new[] { HttpUrlFailure(optionsKey, connection, connectionString) }
+            .Concat(AdditionalNodesFailures(optionsKey, nodes, nodeList))
+            .Append(PoolTypeFailure(optionsKey, pool, poolType))
+            .OfType<string>()
+            .ToList();
+        if (failures.Count > 0)
+        {
+            return failures;
+        }
+
+        var scheme = new Uri(connectionString!, UriKind.Absolute).Scheme;
+        return nodeList
+            .Select((node, position) => new Uri(node!, UriKind.Absolute).Scheme == scheme
+                ? null
+                : $"AdditionalNodes:{position} does not use {scheme}, as ConnectionString does, and every node must use the same scheme. {Where(optionsKey, nodes, $"AdditionalNodes:{position}")}")
+            .OfType<string>();
+    }
 
     /// <summary>A failure when the limit at <paramref name="path"/>, such as <c>Bielu:BetterSearch:OpenSearch:MaxResultWindow</c>, is not greater than 0.</summary>
     public static string? GreaterThanZeroFailure(string path, long value) =>
