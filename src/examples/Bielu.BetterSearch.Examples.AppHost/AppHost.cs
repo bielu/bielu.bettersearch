@@ -40,4 +40,13 @@ builder.AddContainer("opensearch", "opensearchproject/opensearch", "3.3.2")
     .WithEnvironment("OPENSEARCH_JAVA_OPTS", "-Xms512m -Xmx512m")
     .WithHttpHealthCheck("/_cluster/health", endpointName: "http");
 
+// The provider talks to Typesense's HTTP API directly, so the image only needs to stay within the API it
+// uses: collections, import, delete by filter, truncate (Typesense 28 and later) and multi_search.
+var typesenseApiKey = builder.AddParameter("typesense-api-key", new GenerateParameterDefault { MinLength = 24, Special = false }, secret: true);
+builder.AddContainer("typesense", "typesense/typesense", "29.0")
+    .WithHttpEndpoint(targetPort: 8108, name: "http")
+    .WithEnvironment("TYPESENSE_DATA_DIR", "/tmp")
+    .WithEnvironment("TYPESENSE_API_KEY", typesenseApiKey)
+    .WithHttpHealthCheck("/health", endpointName: "http");
+
 await builder.Build().RunAsync().ConfigureAwait(false);

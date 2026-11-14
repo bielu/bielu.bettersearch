@@ -10,7 +10,7 @@
 </p>
 
 A provider-agnostic search abstraction for .NET: describe a query once, then run it against whichever
-search engine you configure. Elasticsearch, OpenSearch, Meilisearch and an in-memory provider ship today, and a new engine is a new
+search engine you configure. Elasticsearch, OpenSearch, Meilisearch, Typesense and an in-memory provider ship today, and a new engine is a new
 provider package, with no change to the core.
 
 📖 **Full documentation: [https://search.bielu.pl/](https://search.bielu.pl/)**
@@ -30,6 +30,7 @@ dotnet add package Bielu.BetterSearch.Core --prerelease
 dotnet add package Bielu.BetterSearch.ElasticSearch --prerelease   # Elasticsearch
 dotnet add package Bielu.BetterSearch.OpenSearch --prerelease      # OpenSearch
 dotnet add package Bielu.BetterSearch.Meilisearch --prerelease     # Meilisearch
+dotnet add package Bielu.BetterSearch.Typesense --prerelease       # Typesense
 dotnet add package Bielu.BetterSearch.Lifti --prerelease           # in-memory
 ```
 
@@ -86,8 +87,8 @@ fail at startup. See [field mappings](docs/articles/providers/elasticsearch.md#f
 
 On Elasticsearch and OpenSearch a successful write becomes searchable at the next index refresh, about a
 second later. Set `"WriteVisibility": "WaitUntilSearchable"` under `SharedIndexSettings` or an `Indexes` entry
-to have index and remove calls return only once a search can see the write; Meilisearch and Lifti already
-wait. See [when writes are searchable](docs/articles/providers/elasticsearch.md#when-writes-are-searchable).
+to have index and remove calls return only once a search can see the write; Meilisearch, Typesense and Lifti
+already wait. See [when writes are searchable](docs/articles/providers/elasticsearch.md#when-writes-are-searchable).
 
 Meilisearch, configured from `Bielu:BetterSearch:Meilisearch`:
 
@@ -120,6 +121,35 @@ they can be: a term needs a field, and a Lucene fuzzy term matches the exact wor
 `"GeoField"` under `Meilisearch`, holding a `"lat,lon"` string or a dictionary with `lat` and `lon`. Phrase
 prefix queries store word runs for every text field; list the fields that need them in `"PhraseFields"` to keep
 long texts small, and re-index after adding a field to it (see the [feature matrix](docs/articles/feature-matrix.md)).
+
+Typesense, configured from `Bielu:BetterSearch:Typesense`:
+
+```csharp
+using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.Typesense.DepedencyInjection;
+
+builder.Services.AddBetterSearch(builder.Configuration, search => search.AddTypesense());
+```
+
+```json
+{
+  "Bielu": {
+    "BetterSearch": {
+      "Typesense": {
+        "SharedIndexSettings": {
+          "ConnectionString": "http://localhost:8108",
+          "ApiKey": "..."
+        }
+      }
+    }
+  }
+}
+```
+
+`AdditionalNodes` lists a cluster's other nodes, tried in order when one can't be reached. Typesense also runs
+queries as filters, so hits aren't ranked; fuzzy, raw Lucene and string range queries, facets and highlighting
+return a failed `Result`, and so does a `MUSTNOT` range, prefix or spatial query, as Typesense filters can only
+negate an equality. See the [Typesense page](docs/articles/providers/typesense.md).
 
 Or in memory:
 
@@ -169,18 +199,18 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
   string ranges, geo distance, raw Lucene, and nested boolean logic with Lucene semantics
 - ✅ **Fluent query builder** in `Bielu.BetterSearch.FluentApi`
 - ✅ **Paging, sorting, post filters, highlighting and scores** on the Elasticsearch and OpenSearch providers;
-  paging, sorting and post filters on Meilisearch
+  paging, sorting and post filters on Meilisearch and Typesense
 - ✅ **Field mappings** on Elasticsearch and OpenSearch: `Text`, `Keyword`, `Date`, numeric, `Boolean` and
   `GeoPoint` fields, with an optional analyzer or format, validated at startup
 - ✅ **Errors as results**: searching and indexing return [FluentResults](https://github.com/altmann/FluentResults)
-  `Result`s. Lifti fails a query that asks for facets, and Meilisearch one that asks for any facet other than a
-  top-level term facet; Meilisearch and Lifti also fail a query that asks for highlighting. Lifti ignores paging, sorting and post filters, so check the [feature matrix](docs/articles/feature-matrix.md) for what
+  `Result`s. Lifti and Typesense fail a query that asks for facets, and Meilisearch one that asks for any facet other than a
+  top-level term facet; Meilisearch, Typesense and Lifti also fail a query that asks for highlighting. Lifti ignores paging, sorting and post filters, so check the [feature matrix](docs/articles/feature-matrix.md) for what
   your provider applies
 - ✅ **Opt-in search result cache**: the built-in memory cache for one instance, FusionCache with a backplane for
   several, or your own `ISearchResultCache`, as decorators over the search and indexing services; every write
   through the indexing service evicts the index's cached searches. See [caching](docs/articles/caching.md)
 - ✅ **Shared provider tests**: provider-agnostic behavior tests in `BaseTests` run against every provider
-- ✅ **.NET Aspire AppHost** that starts Elasticsearch, OpenSearch and Meilisearch for local development and the
+- ✅ **.NET Aspire AppHost** that starts Elasticsearch, OpenSearch, Meilisearch and Typesense for local development and the
   integration tests, with [meilisearch-ui](https://github.com/riccox/meilisearch-ui) for browsing Meilisearch
   indexes and trying queries
 

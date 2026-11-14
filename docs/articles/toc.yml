@@ -10,6 +10,8 @@
       href: providers/opensearch.md
     - name: Meilisearch
       href: providers/meilisearch.md
+    - name: Typesense
+      href: providers/typesense.md
     - name: Lifti (in memory)
       href: providers/lifti.md
 - name: Caching
