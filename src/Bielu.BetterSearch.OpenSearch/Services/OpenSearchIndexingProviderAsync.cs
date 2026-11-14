@@ -213,6 +213,50 @@ internal sealed class OpenSearchIndexingProviderAsync(
     private static string NotAcknowledged(string index) =>
         $"Adding the configured mappings to index {index} was not acknowledged in time. The mappings are not rolled back and may still apply; call EnsureIndexExistsAsync again to confirm them.";
 
+    /// <summary>
+    /// Sends the fields as a partial <c>_update</c>, which OpenSearch merges into <c>fields</c>, replacing each field
+    /// named and keeping the others; it retries on a version conflict, so two updates of different fields both apply.
+    /// <c>false</c> when the document or the index is missing, which creates neither. OpenSearch creates a missing
+    /// index on an update, without the configured mappings, so the index is checked first; an index deleted between
+    /// the check and the update is still created again.
+    /// </summary>
+    public async Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+        CancellationToken cancellationToken = default)
+    {
+        var check = DocumentLookups.CheckUpdate(index, id, fields);
+        if (check.IsFailed)
+        {
+            return check.ToResult<bool>();
+        }
+
+        var exists = await IndexExistsAsync(index, cancellationToken).ConfigureAwait(false);
+        if (exists.IsFailed || !exists.Value)
+        {
+            return exists;
+        }
+
+        return await clientFactory.TryWithClientAsync(index, async client =>
+        {
+            var request = new UpdateRequest<SearchDocument, Dictionary<string, object>>(index, id)
+            {
+                Doc = new Dictionary<string, object> { ["fields"] = StoredFields.WithDatesAsText(fields) },
+                RetryOnConflict = 3,
+                Refresh = WaitFor(index),
+            };
+            var response = await client.UpdateAsync(request, cancellationToken).ConfigureAwait(false);
+            if (IsSuccess(response))
+            {
+                return Result.Ok(true);
+            }
+
+            // A missing document or index is an answer: there is nothing to update.
+            return response.ApiCall?.HttpStatusCode == 404
+                   && response.ServerError?.Error?.Type is "document_missing_exception" or "index_not_found_exception"
+                ? Result.Ok(false)
+                : Result.Fail<bool>(RequestFailed(OpenSearchFailures.Describe($"update of document {id}", response), response.OriginalException));
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
     private bool WaitsUntilSearchable(string index) =>
         settingsManager.GetConnectionSettings(index).WriteVisibility == WriteVisibility.WaitUntilSearchable;
 

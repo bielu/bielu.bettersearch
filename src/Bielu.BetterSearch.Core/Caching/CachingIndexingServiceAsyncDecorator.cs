@@ -147,6 +147,23 @@ internal sealed class CachingIndexingServiceAsyncDecorator(
         return result;
     }
 
+    /// <summary>
+    /// Evicts the cached searches of <paramref name="index"/> once the update returns, as the other writes do. Observers
+    /// are not notified, as <see cref="IIndexingServiceAsync.UpdateDocumentAsync"/> says.
+    /// </summary>
+    public async Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await inner.UpdateDocumentAsync(index, id, fields, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            await EvictIndexAsync(index).ConfigureAwait(false);
+        }
+    }
+
     /// <summary>Evicts the cached searches of <paramref name="index"/>; never throws.</summary>
     private async Task EvictIndexAsync(string? index)
     {

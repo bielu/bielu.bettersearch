@@ -27,4 +27,16 @@ namespace Bielu.BetterSearch.Abstractions.Services;
 public interface ISearchServiceAsync : IObservable<ISearchModel>, IDisposable
 {
     public Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets one document by id; see <see cref="ISearchProviderAsync.GetDocumentAsync"/>. Observers are not notified.
+    /// </summary>
+    public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Fail<SearchDocument?>($"{GetType().Name} does not support GetDocumentAsync."));
+
+    /// <summary>
+    /// Counts the documents a query matches; see <see cref="ISearchProviderAsync.CountAsync"/>. Observers are not notified.
+    /// </summary>
+    public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Fail<long>($"{GetType().Name} does not support CountAsync."));
 }

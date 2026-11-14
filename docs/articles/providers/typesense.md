@@ -22,6 +22,7 @@ for `truncate`; the AppHost and the integration tests run 29.0.
 > - **`PrefixQuery` and `PrefixPhraseQuery`** with a value that isn't a string return a failed `Result`.
 > - **Relevance scores**: every hit has the `Score` 1.
 > - **Facets** and **highlighting** return a failed `Result`.
+> - **`GetDocumentAsync`, `CountAsync` and `UpdateDocumentAsync`** are not implemented yet and return a failed `Result`.
 > - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
 > - **`PageSize`** above 250, the most Typesense returns in one page, returns a failed `Result`.
 > - **`SortOrder`** takes at most 3 fields, as Typesense does, and only fields holding one number, date or

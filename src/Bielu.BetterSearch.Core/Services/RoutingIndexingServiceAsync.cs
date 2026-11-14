@@ -219,6 +219,19 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
         return await _services.RunAsync(key.Value, service => service.RemoveAllDocumentsAsync(request!, cancellationToken)).ConfigureAwait(false);
     }
 
+    /// <summary>Runs on the keyed indexing service routed for <paramref name="index"/>. Observers are not notified.</summary>
+    public async Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+        CancellationToken cancellationToken = default)
+    {
+        var key = _routes.KeyFor(index);
+        if (key.IsFailed)
+        {
+            return key.ToResult<bool>();
+        }
+
+        return await _services.RunAsync(key.Value, service => service.UpdateDocumentAsync(index, id, fields, cancellationToken)).ConfigureAwait(false);
+    }
+
     public void Dispose()
     {
         _services.Dispose();

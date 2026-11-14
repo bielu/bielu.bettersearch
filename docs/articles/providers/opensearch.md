@@ -247,6 +247,20 @@ returns a failed `Result` and removes nothing.
   A request cancelled through the `CancellationToken`, before or during the request, throws
   `OperationCanceledException`.
 
+## Getting, counting and updating documents
+
+- **`GetDocumentAsync(index, id)`** reads the document with `GET index/_doc/id` and returns its fields as hits
+  return them. A 404 that OpenSearch gave for a missing document (`found: false`) or a missing index
+  (`index_not_found_exception`) is success with `null`. Any other failure, such as a 401, a 5xx or a 404
+  without that answer (from a proxy, say), is a failed `Result`.
+- **`CountAsync(query)`** sends `_count` with the query and its post filter, so the count is exact, with no
+  cap at `MaxResultWindow`. A missing index is a failed `Result`, as a search there is.
+- **`UpdateDocumentAsync(index, id, fields)`** sends a partial `_update` that replaces each named field under
+  `fields` and keeps the others, and retries up to 3 times on a version conflict. It returns `false` for a
+  missing document or index and creates neither. OpenSearch creates a missing index on an update, without the
+  configured `Mappings`, so the provider checks the index exists first; an index deleted between that check and
+  the update is still created again. `WriteVisibility` applies to it as to the other writes.
+
 ## Checking an index exists
 
 `IndexExistsAsync` is success with `true` on a 200 and `false` on a 404. Any other answer, such as a 401, 403

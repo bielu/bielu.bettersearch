@@ -78,6 +78,37 @@ internal sealed partial class MeilisearchDocument
         return Result.Ok(stored);
     }
 
+    /// <summary>
+    /// Replaces the fields named by <paramref name="names"/>, and the filter copies made from them, with those of
+    /// <paramref name="changes"/>, and keeps every other field as stored.
+    /// </summary>
+    public void Replace(MeilisearchDocument changes, IEnumerable<string> names, string? geoField)
+    {
+        foreach (var name in names)
+        {
+            Fields[name] = changes.Fields[name];
+            ReplaceEntry(Tokens, changes.Tokens, name);
+            ReplaceEntry(Phrases, changes.Phrases, name);
+            ReplaceEntry(Dates, changes.Dates, name);
+            if (name == geoField)
+            {
+                Geo = changes.Geo;
+            }
+        }
+    }
+
+    private static void ReplaceEntry<T>(Dictionary<string, List<T>> map, Dictionary<string, List<T>> changes, string name)
+    {
+        if (changes.TryGetValue(name, out var values))
+        {
+            map[name] = values;
+        }
+        else
+        {
+            map.Remove(name);
+        }
+    }
+
     /// <summary>A <c>"lat,lon"</c> string or a dictionary with <c>lat</c> and <c>lon</c> or <c>lng</c>, within range.</summary>
     public static GeoPoint? ToGeoPoint(object? value)
     {

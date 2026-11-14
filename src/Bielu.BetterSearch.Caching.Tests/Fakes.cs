@@ -46,6 +46,17 @@ internal class CountingSearchProvider : ISearchProviderAsync
         };
         return Result.Ok(result);
     }
+
+    /// <summary>Counts as a call, and returns a document with the id asked for.</summary>
+    public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default)
+    {
+        Interlocked.Increment(ref _calls);
+        return Task.FromResult(Result.Ok<SearchDocument?>(new SearchDocument { Id = id, Index = index }));
+    }
+
+    /// <summary>Counts as a call, and returns the number of calls so far.</summary>
+    public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Ok((long)Interlocked.Increment(ref _calls)));
 }
 
 /// <summary>
@@ -74,6 +85,10 @@ internal class FakeIndexingProvider : IIndexingProviderAsync
 
     public Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index, CancellationToken cancellationToken = default) =>
         Task.FromResult(Outcome().ToResult<long?>(0));
+
+    public Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(Outcome().ToResult(true));
 
     public Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default) => Task.FromResult(Result.Ok(true));
     public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) => Task.FromResult(Result.Ok(true));
