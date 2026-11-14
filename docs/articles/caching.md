@@ -3,9 +3,12 @@
 Every `SearchAsync` call goes to the engine unless you register a search result cache. The cache is opt-in: without
 one, nothing is cached and no cache service is resolved.
 
-When a cache is registered, `SearchServiceAsync` caches each successful search, and `IndexingServiceAsync` evicts an
-index's cached searches after every write to it. It works the same for every provider, because it sits in Core and
-no provider changes.
+When a cache is registered, `AddBetterSearch` decorates every `ISearchProviderAsync` and `IIndexingProviderAsync`
+registration, keyed or not: the search decorator caches each successful search, and the indexing decorator evicts an
+index's cached searches after every write to it. The search and indexing services take their providers through those
+interfaces, so they get the cache without changing. It works the same for every provider, because the decorators sit
+in Core and no provider changes. Only the registrations that exist when `AddBetterSearch` runs are decorated, so
+register a provider of your own before calling it.
 
 ## Register a cache
 
@@ -105,8 +108,8 @@ the library ships no adapter for it.
 - If the cache throws before the search runs, for example because its store is down, the search runs without it. If
   it throws while storing a successful search, that search is returned uncached and the engine is not called again.
   Both are logged as warnings.
-- Observers subscribed to `ISearchServiceAsync` are notified of a search's hits on a cache hit too: they observe
-  searches, not engine calls.
+- Observers subscribed to `ISearchServiceAsync` are notified of a search's hits on a cache hit too: the service sits
+  above the decorator, so they observe searches, not engine calls.
 
 ## Options
 
@@ -135,22 +138,27 @@ search.AddMemorySearchCache(cache =>
 
 ## What evicts, and what doesn't
 
-Every write through `IIndexingServiceAsync` (`IndexDocumentAsync`, `IndexMultipleDocumentsAsync`,
-`RemoveDocumentAsync`, `RemoveDocumentsAsync` and `RemoveAllDocumentsAsync`) evicts the tag
-`SearchCacheOptions.IndexTag(index)` once the provider returns, before the observers are notified. The index name
-is compared ignoring case. A write that fails still evicts, as it can have changed part of the index, and the
-eviction ignores the caller's cancellation, so a write that went through always evicts. A batch evicts each of its
-indexes once, after the batch, and notifies the observers of the documents it indexed after that, so an observer
-that searches the index doesn't read the evicted results. If the eviction itself throws, it is logged at `Error` and the write still returns
-its own `Result`.
+Every write on the decorated `IIndexingProviderAsync` (`IndexDocumentAsync`, `IndexMultipleDocumentsAsync`,
+`RemoveDocumentAsync`, `RemoveDocumentsAsync`, `RemoveAllDocumentsAsync`, `CreateIndexAsync` and `DeleteIndexAsync`)
+evicts the tag `SearchCacheOptions.IndexTag(index)` once the provider returns. That covers the writes made through
+`IIndexingServiceAsync` and those made on a resolved provider directly. `EnsureIndexExistsAsync` doesn't evict. The
+index name is compared ignoring case. A write that fails still evicts, as it can have changed part of the index, and
+the eviction ignores the caller's cancellation, so a write that went through always evicts. A batch evicts each of its
+indexes once. The indexing service notifies its observers after the provider returns, so after the eviction, and an
+observer that searches the index doesn't read the evicted results. If the eviction itself throws, it is logged at
+`Error` and the write still returns its own `Result`.
 
 The cache can't see:
 
-- writes made directly on a provider (`IIndexingProviderAsync`), including creating or deleting an index, which
-  `IIndexingServiceAsync` doesn't offer;
+- writes made on a provider instance that didn't come from the container, or that was registered after
+  `AddBetterSearch` ran;
 - writes made by another process that doesn't share the cache;
 - on Elasticsearch and OpenSearch, the time until the index next refreshes: a search right after the eviction can
   still read the old documents and cache them again ([#102](https://github.com/bielu/bielu.bettersearch/issues/102)).
+  Set the index's `WriteVisibility` to `WaitUntilSearchable` to close that window: a write then returns, and evicts,
+  only once a search can see it. See When writes are searchable for
+  [Elasticsearch](providers/elasticsearch.md#when-writes-are-searchable) and
+  [OpenSearch](providers/opensearch.md#when-writes-are-searchable).
 
 Those are bounded only by the entry's duration, which is why the default is short. Evict by hand with
 `ISearchResultCache.RemoveByTagAsync(SearchCacheOptions.IndexTag(index))` after such a write.

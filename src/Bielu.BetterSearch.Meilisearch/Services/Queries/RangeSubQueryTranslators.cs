@@ -19,12 +19,12 @@ internal sealed class LongRangeSubQueryTranslator : MeilisearchSubQueryTranslato
         RangeFilter.Numbers(query, nameof(LongRange), MeilisearchFieldNames.Fields, query.MinValue, query.MaxValue);
 }
 
-/// <summary>Compares the dates the provider stores as Unix milliseconds; a date without a time zone is UTC.</summary>
+/// <summary>Compares the dates the provider stores as Unix milliseconds; an unspecified <see cref="DateTime"/> is UTC.</summary>
 internal sealed class DateRangeSubQueryTranslator : MeilisearchSubQueryTranslator<DateRangeQuery>
 {
     protected override Result<MeilisearchFilter> Translate(DateRangeQuery query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators) =>
         RangeFilter.Numbers(query, nameof(DateRangeQuery), MeilisearchFieldNames.Dates,
-            MeilisearchDocument.ToUnixMilliseconds(query.MinValue), MeilisearchDocument.ToUnixMilliseconds(query.MaxValue));
+            MeilisearchDocument.ToUnixMilliseconds(query.MinValue?.Instant), MeilisearchDocument.ToUnixMilliseconds(query.MaxValue?.Instant));
 }
 
 /// <summary>
@@ -68,10 +68,22 @@ internal static class RangeFilter
     /// </summary>
     public static Result<MeilisearchFilter> Numbers(BaseRangeQuery query, string queryName, string map, double? min, double? max)
     {
+        var finite = RangeBounds.RequireFinite(queryName, min, max);
+        if (finite.IsFailed)
+        {
+            return finite.ToResult<MeilisearchFilter>();
+        }
+
         if (min != null && max != null)
         {
             min = query.IncludeMinEdge ? min : Math.BitIncrement(min.Value);
             max = query.IncludeMaxEdge ? max : Math.BitDecrement(max.Value);
+            if (double.IsInfinity(min.Value) || double.IsInfinity(max.Value))
+            {
+                // Nothing lies above an excluded double.MaxValue or below an excluded double.MinValue.
+                var field = MeilisearchFieldNames.Require(query.Field, queryName);
+                return field.IsFailed ? field.ToResult<MeilisearchFilter>() : Result.Ok(new MeilisearchFilter(MeilisearchFieldNames.MatchNone));
+            }
         }
 
         return Create(query, queryName, map, MeilisearchFieldNames.Number(min), MeilisearchFieldNames.Number(max));

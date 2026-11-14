@@ -1,4 +1,6 @@
-﻿using Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Configuration;
+using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.Core.Bulk;
@@ -20,32 +22,51 @@ public class ElasticSearchIndexingProviderAsync(
     public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(document.Index, async client =>
         {
-            var indexResult = await client.IndexAsync(StoredFields.WithDatesAsText(document), document.Index, document.Id, cancellationToken).ConfigureAwait(false);
+            var request = new IndexRequest<SearchDocument>(StoredFields.WithDatesAsText(document), document.Index, document.Id) { Refresh = WaitFor(document.Index) };
+            var indexResult = await client.IndexAsync(request, cancellationToken).ConfigureAwait(false);
             return indexResult.IsSuccess() ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
         }, cancellationToken);
 
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents,
         CancellationToken cancellationToken = default)
     {
-        //implement bulk indexing
         var searchDocuments = documents.ToList();
-        var results = new List<Result>();
+        var results = new List<Result<int>>();
         foreach (var indexGroup in searchDocuments.GroupBy(x => x.Index))
         {
-            results.Add(await clientFactory.TryWithClientAsync(indexGroup.Key, async client =>
-            {
-                var bulkResponse = await client.BulkAsync(b => b.IndexMany(indexGroup.Select(StoredFields.WithDatesAsText), (descriptor, _) => descriptor.Index(indexGroup.Key)), cancellationToken).ConfigureAwait(false);
-                return bulkResponse.IsSuccess() ? Result.Ok() : Result.Fail(new Error(bulkResponse.DebugInformation));
-            }, cancellationToken).ConfigureAwait(false));
+            var group = indexGroup.ToList();
+            results.Add(await clientFactory.TryWithClientAsync(indexGroup.Key, client =>
+                BulkBatches.IndexAsync(indexGroup.Key, group, settingsManager.GetConnectionSettings(indexGroup.Key).BulkBatchSize,
+                    ElasticSearchOptions.ElasticSearchOptionsKey, async batch =>
+                    {
+                        var request = new BulkRequest(indexGroup.Key)
+                        {
+                            Operations = new BulkOperationsCollection(batch.Select(document =>
+                                new BulkIndexOperation<SearchDocument>(StoredFields.WithDatesAsText(document)) { Id = document.Id })),
+                            Refresh = WaitFor(indexGroup.Key),
+                        };
+                        var response = await client.BulkAsync(request, cancellationToken).ConfigureAwait(false);
+                        // A request rejected as a whole, such as a 403, has no items.
+                        if (response.Items is null || response.Items.Count != batch.Length)
+                        {
+                            return BulkBatches.Outcome.Failed(RequestFailed(ElasticSearchFailures.Describe("bulk index", response), response.ApiCallDetails?.OriginalException));
+                        }
+
+                        // Elasticsearch applies each item on its own, so the documents it accepted stay stored.
+                        var failed = response.Items.Where(item => item.Error is not null || item.Status is < 200 or >= 300).ToList();
+                        return BulkBatches.Outcome.Items(failed.Select(item => item.Id ?? "(unknown)").ToList(),
+                            failed.Count == 0 ? null : failed[0].Error?.Reason ?? $"status {failed[0].Status}");
+                    }), cancellationToken).ConfigureAwait(false));
         }
 
-        return results.Merge();
+        var merged = results.Merge();
+        return merged.IsSuccess ? Result.Ok(merged.Value.Sum()) : Result.Fail<int>(merged.Errors);
     }
 
     public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(type, async client =>
         {
-            var indexResult = await client.DeleteAsync(new DeleteRequest(type, id), cancellationToken).ConfigureAwait(false);
+            var indexResult = await client.DeleteAsync(new DeleteRequest(type, id) { Refresh = WaitFor(type) }, cancellationToken).ConfigureAwait(false);
             // Deletes are idempotent: a document that is not there is already gone. A missing index is still a failure,
             // and Elasticsearch reports it with an error rather than a not_found result.
             var removed = indexResult.ElasticsearchServerError is null
@@ -67,6 +88,7 @@ public class ElasticSearchIndexingProviderAsync(
             var request = new BulkRequest(index)
             {
                 Operations = new BulkOperationsCollection(distinctIds.Value.Select(id => new BulkDeleteOperation(id))),
+                Refresh = WaitFor(index),
             };
             var response = await client.BulkAsync(request, cancellationToken).ConfigureAwait(false);
             // A request rejected as a whole, such as a 403, has no items.
@@ -95,6 +117,8 @@ public class ElasticSearchIndexingProviderAsync(
         {
             var request = new DeleteByQueryRequest(Indices.Index(index.IndexName));
             request.Query = new MatchAllQuery();
+            // Delete by query can't wait for a refresh, so it refreshes the index itself.
+            request.Refresh = WaitsUntilSearchable(index.IndexName) ? true : null;
             var indexResult = await client.DeleteByQueryAsync(request, cancellationToken).ConfigureAwait(false);
             return indexResult.IsSuccess() ? Result.Ok(indexResult.Deleted) : Result.Fail(new Error(indexResult.DebugInformation));
         }, cancellationToken);
@@ -208,6 +232,12 @@ public class ElasticSearchIndexingProviderAsync(
             logger.LogError("Creating index {Index} failed: {Error}", index, result.DebugInformation);
             return Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe("create index", result), result.ApiCallDetails?.OriginalException));
         }, cancellationToken);
+
+    private bool WaitsUntilSearchable(string index) =>
+        settingsManager.GetConnectionSettings(index).WriteVisibility == WriteVisibility.WaitUntilSearchable;
+
+    /// <summary><c>refresh=wait_for</c> when the index's writes wait until they are searchable; otherwise the engine's default.</summary>
+    private Refresh? WaitFor(string index) => WaitsUntilSearchable(index) ? Refresh.WaitFor : null;
 
     private static string NotAcknowledged(string index) =>
         $"Adding the configured mappings to index {index} was not acknowledged in time. The mappings are not rolled back and may still apply; call EnsureIndexExistsAsync again to confirm them.";

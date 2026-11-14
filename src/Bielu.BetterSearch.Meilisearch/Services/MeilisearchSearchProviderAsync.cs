@@ -118,13 +118,14 @@ public sealed class MeilisearchSearchProviderAsync(
 
     private static Result<IEnumerable<string>?> Sort(ISearchQuery query)
     {
-        if (query.SortOrder is not { Count: > 0 })
+        var sortOrder = SortOrders.Ordered(query);
+        if (sortOrder.IsFailed || sortOrder.Value.Count == 0)
         {
-            return Result.Ok<IEnumerable<string>?>(null);
+            return sortOrder.IsFailed ? sortOrder.ToResult<IEnumerable<string>?>() : Result.Ok<IEnumerable<string>?>(null);
         }
 
         var sort = new List<string>();
-        foreach (var field in query.SortOrder.OrderBy(field => field.Order))
+        foreach (var field in sortOrder.Value)
         {
             var name = MeilisearchFieldNames.Require(field.FieldName, "SortOrder");
             if (name.IsFailed)

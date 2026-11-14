@@ -50,7 +50,7 @@ internal class CountingSearchProvider : ISearchProviderAsync
 
 /// <summary>
 /// An indexing provider whose writes all succeed, or all fail when <see cref="Fail"/> is set, or fail for the document
-/// <see cref="FailId"/> only.
+/// <see cref="FailId"/> only, and for a batch that holds it.
 /// </summary>
 internal class FakeIndexingProvider : IIndexingProviderAsync
 {
@@ -64,7 +64,7 @@ internal class FakeIndexingProvider : IIndexingProviderAsync
         Task.FromResult(document.Id == FailId ? Result.Fail("write failed") : Outcome());
 
     public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Outcome().ToResult(documents.Count()));
+        Task.FromResult(documents.Any(document => document.Id == FailId) ? Result.Fail<int>("write failed") : Outcome().ToResult(documents.Count()));
 
     public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) =>
         Task.FromResult(Outcome());

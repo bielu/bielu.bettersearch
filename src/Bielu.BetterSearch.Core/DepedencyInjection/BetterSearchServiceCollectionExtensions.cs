@@ -1,4 +1,6 @@
-﻿using Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Caching;
+using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Caching;
 using Bielu.BetterSearch.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,13 +37,25 @@ public static class BetterSearchServiceCollectionExtensions
             services.TryAddScoped<ISearchProviderAsync>(_ => throw new InvalidOperationException(message));
             services.TryAddScoped<IIndexingProviderAsync>(_ => throw new InvalidOperationException(message));
             services.TryAddScoped<ISearchServiceAsync>(_ => throw new InvalidOperationException(message));
-            return services;
+        }
+        else
+        {
+            services.TryAddScoped(typeof(IIndexingServiceAsync), searchConfiguration.IndexingServiceType);
+            services.TryAddScoped(typeof(ISearchProviderAsync), searchConfiguration.SearchProviderType);
+            services.TryAddScoped(typeof(IIndexingProviderAsync), searchConfiguration.IndexingProviderType);
+            services.TryAddScoped(typeof(ISearchServiceAsync), searchConfiguration.SearchServiceType);
         }
 
-        services.TryAddScoped(typeof(IIndexingServiceAsync), searchConfiguration.IndexingServiceType);
-        services.TryAddScoped(typeof(ISearchProviderAsync), searchConfiguration.SearchProviderType);
-        services.TryAddScoped(typeof(IIndexingProviderAsync), searchConfiguration.IndexingProviderType);
-        services.TryAddScoped(typeof(ISearchServiceAsync), searchConfiguration.SearchServiceType);
+        if (searchConfiguration.UsesSearchCache)
+        {
+            // The services take their providers through the interfaces, keyed or not, so decorating the provider
+            // registrations puts the cache under every search and indexing service without changing them.
+            Decorate<ISearchProviderAsync>(services, (sp, inner) => ActivatorUtilities.CreateInstance<CachingSearchProviderAsyncDecorator>(
+                sp, inner, sp.GetRequiredService<ISearchResultCache>()));
+            Decorate<IIndexingProviderAsync>(services, (sp, inner) => ActivatorUtilities.CreateInstance<CachingIndexingProviderAsyncDecorator>(
+                sp, inner, sp.GetRequiredService<ISearchResultCache>()));
+        }
+
         return services;
     }
 
@@ -86,6 +100,33 @@ public static class BetterSearchServiceCollectionExtensions
             sp,
             searchServiceType,
             sp.GetRequiredKeyedService<ISearchProviderAsync>(key)));
+    }
+
+    /// <summary>
+    /// Replaces every registration of <typeparamref name="TService"/>, keyed or not, with one that wraps the service it
+    /// used to resolve in <paramref name="decorate"/>, keeping its lifetime. Registrations added later are not decorated.
+    /// </summary>
+    private static void Decorate<TService>(IServiceCollection services, Func<IServiceProvider, TService, TService> decorate)
+        where TService : class
+    {
+        for (var i = 0; i < services.Count; i++)
+        {
+            var descriptor = services[i];
+            if (descriptor.ServiceType != typeof(TService))
+            {
+                continue;
+            }
+
+            services[i] = descriptor.IsKeyedService
+                ? new ServiceDescriptor(typeof(TService), descriptor.ServiceKey, (sp, key) => decorate(sp, (TService)(
+                    descriptor.KeyedImplementationInstance
+                    ?? descriptor.KeyedImplementationFactory?.Invoke(sp, key)
+                    ?? ActivatorUtilities.CreateInstance(sp, descriptor.KeyedImplementationType!))), descriptor.Lifetime)
+                : new ServiceDescriptor(typeof(TService), sp => decorate(sp, (TService)(
+                    descriptor.ImplementationInstance
+                    ?? descriptor.ImplementationFactory?.Invoke(sp)
+                    ?? ActivatorUtilities.CreateInstance(sp, descriptor.ImplementationType!))), descriptor.Lifetime);
+        }
     }
 
     private static string NoDefaultProviderMessage(IReadOnlyList<ProviderRegistration> providers)

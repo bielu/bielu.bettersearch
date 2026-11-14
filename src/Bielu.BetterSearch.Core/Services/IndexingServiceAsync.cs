@@ -1,23 +1,14 @@
-﻿using Bielu.BetterSearch.Abstractions.Caching;
-using Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 
 namespace Bielu.BetterSearch.Services;
 
 /// <summary>The default <see cref="IIndexingServiceAsync"/>; see it for the observer contract.</summary>
-/// <remarks>
-/// With an <see cref="ISearchResultCache"/>, every write that reaches the provider evicts the cached searches of its
-/// index (<see cref="SearchCacheOptions.IndexTag"/>) once the provider returns, whether the write succeeded or not, as a
-/// failed write can still have changed part of the index, and before the observers are notified. The eviction ignores
-/// the caller's cancellation, so a write that went through always evicts. An eviction that throws is logged and does
-/// not change the write's <see cref="Result"/>.
-/// </remarks>
 public class IndexingServiceAsync(
     IIndexingProviderAsync indexingProvider,
     IDocumentValidatorAsync documentValidator,
-    ILogger<IndexingServiceAsync>? logger = null,
-    ISearchResultCache? cache = null)
+    ILogger<IndexingServiceAsync>? logger = null)
     : IIndexingServiceAsync
 {
     private readonly ObserverList<SearchDocument> _indexingObservers = new(logger);
@@ -40,16 +31,7 @@ public class IndexingServiceAsync(
             return validationResult;
         }
 
-        Result result;
-        try
-        {
-            result = await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            await EvictIndexAsync(document.Index).ConfigureAwait(false);
-        }
-
+        var result = await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)
         {
             _indexingObservers.Notify(document);
@@ -69,56 +51,54 @@ public class IndexingServiceAsync(
             return Result.Fail<int>(nullFieldsResult.Errors);
         }
 
-        // Evicts each index once, after the batch rather than once for each document, and only then notifies the
-        // observers of the documents that were indexed, so an observer that searches doesn't read the evicted results.
-        var written = new HashSet<string?>(StringComparer.OrdinalIgnoreCase);
-        var indexed = new List<SearchDocument>();
-        try
+        if (documents.Count == 0)
+        {
+            return Result.Ok(0);
+        }
+
+        // Validate every document before sending any, so a rejected document can't leave the batch partly stored.
+        var errors = new List<IError>();
+        foreach (var doc in documents)
+        {
+            errors.AddRange((await ValidateAsync(doc, cancellationToken).ConfigureAwait(false)).Errors);
+        }
+
+        if (errors.Count > 0)
+        {
+            return Result.Fail<int>(errors);
+        }
+
+        // One bulk call. When it fails, observers get nothing, even for documents the engine already stored.
+        var result = await indexingProvider.IndexMultipleDocumentsAsync(documents, cancellationToken).ConfigureAwait(false);
+        if (result.IsSuccess)
         {
             foreach (var doc in documents)
-            {
-                var validationResult = await ValidateAsync(doc, cancellationToken).ConfigureAwait(false);
-                if (validationResult.IsFailed)
-                {
-                    return Result.Fail<int>(validationResult.Errors);
-                }
-
-                written.Add(doc.Index);
-                var result = await indexingProvider.IndexDocumentAsync(doc, cancellationToken).ConfigureAwait(false);
-                if (result.IsFailed)
-                {
-                    return Result.Fail<int>(result.Errors);
-                }
-
-                indexed.Add(doc);
-            }
-        }
-        finally
-        {
-            foreach (var index in written)
-            {
-                await EvictIndexAsync(index).ConfigureAwait(false);
-            }
-
-            foreach (var doc in indexed)
             {
                 _indexingObservers.Notify(doc);
             }
         }
 
-        return Result.Ok(documents.Count);
+        return result;
     }
 
-    /// <summary>Validates a document that <see cref="CheckNullFields"/> has already passed.</summary>
+    /// <summary>
+    /// Runs the validator on a document that <see cref="CheckNullFields"/> has already passed. The error names the
+    /// document and holds its id in the <c>id</c> metadata.
+    /// </summary>
     private async Task<Result> ValidateAsync(SearchDocument document, CancellationToken cancellationToken)
     {
         var validationResult = await documentValidator.ValidateDocumentAsync(document, cancellationToken).ConfigureAwait(false);
         if (validationResult.IsFailed)
         {
-            return Result.Fail("Validation failed");
+            return Result.Fail(new Error($"Validation of document {document.Id} failed.").WithMetadata("id", document.Id).CausedBy(validationResult.Errors));
         }
 
-        return validationResult.Value ? Result.Ok() : Result.Fail("Document is not valid");
+        if (validationResult.Value == false)
+        {
+            return Result.Fail(new Error($"Document {document.Id} is not valid.").WithMetadata("id", document.Id));
+        }
+
+        return Result.Ok();
     }
 
     /// <summary>
@@ -162,16 +142,7 @@ public class IndexingServiceAsync(
     public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
         CancellationToken cancellationToken = default)
     {
-        Result result;
-        try
-        {
-            result = await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            await EvictIndexAsync(document.Type).ConfigureAwait(false);
-        }
-
+        var result = await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)
         {
             _deleteDocumentObservers.Notify(document);
@@ -194,16 +165,7 @@ public class IndexingServiceAsync(
             return Result.Ok(0);
         }
 
-        Result<int> result;
-        try
-        {
-            result = await indexingProvider.RemoveDocumentsAsync(index, distinctIds.Value, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            await EvictIndexAsync(index).ConfigureAwait(false);
-        }
-
+        var result = await indexingProvider.RemoveDocumentsAsync(index, distinctIds.Value, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)
         {
             foreach (var id in distinctIds.Value)
@@ -217,40 +179,13 @@ public class IndexingServiceAsync(
 
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
     {
-        Result<long?> result;
-        try
-        {
-            result = await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            await EvictIndexAsync(request?.IndexName).ConfigureAwait(false);
-        }
-
+        var result = await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)
         {
             _deleteAllDocumentsObservers.Notify(request);
         }
 
         return result;
-    }
-
-    /// <summary>Evicts the cached searches of <paramref name="index"/>; never throws.</summary>
-    private async Task EvictIndexAsync(string? index)
-    {
-        if (cache is null)
-        {
-            return;
-        }
-
-        try
-        {
-            await cache.RemoveByTagAsync(SearchCacheOptions.IndexTag(index), CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            logger?.LogError(e, "The cached searches of index {Index} were not evicted after a write; they stay until they expire.", index);
-        }
     }
 
     public IDisposable Subscribe(IObserver<DeleteDocumentRequest> observer) => _deleteDocumentObservers.Subscribe(observer);

@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Models;
+﻿using Bielu.BetterSearch.Abstractions.Fields;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
@@ -48,6 +49,12 @@ internal sealed class OpenSearchSearchProviderAsync(
                 $"Page {PageOf(query)} with PageSize {PageSizeOf(query)} reaches result {LastResultOf(query)}, past the limit of {maxResultWindow} (index.max_result_window). Narrow the query or raise MaxResultWindow with the index setting.");
         }
 
+        var sortOrder = SortOrders.Ordered(query);
+        if (sortOrder.IsFailed)
+        {
+            return sortOrder.ToResult<ISearchResult>();
+        }
+
         var mainQuery = await queryTranslateServiceAsync.TranslateMainQueryAsync(query).ConfigureAwait(false);
         if (mainQuery.IsFailed)
         {
@@ -73,7 +80,7 @@ internal sealed class OpenSearchSearchProviderAsync(
         }
 
         var mappings = settingsManager.GetConnectionSettings(query.Index).Mappings ?? [];
-        var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow, mappings);
+        var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
         request.Highlight = highlight.Value;
         var response = await client.Value.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
         // The client reports a cancelled request as an invalid response; the caller cancelled, so say that instead.
@@ -155,7 +162,7 @@ internal sealed class OpenSearchSearchProviderAsync(
     private static long LastResultOf(ISearchQuery query) => (long)PageOf(query) * PageSizeOf(query);
 
     private static SearchRequest<SearchDocument> CreateRequest(ISearchQuery query, QueryContainer mainQuery, QueryContainer? postFilter, int maxResultWindow,
-        IReadOnlyList<OpenSearchFieldMapping> mappings)
+        IReadOnlyList<ISortOrderField> sortOrder, IReadOnlyList<OpenSearchFieldMapping> mappings)
     {
         var pageSize = PageSizeOf(query);
         var request = new SearchRequest<SearchDocument>(query.Index)
@@ -169,10 +176,9 @@ internal sealed class OpenSearchSearchProviderAsync(
             TrackTotalHits = new TrackTotalHits(maxResultWindow)
         };
 
-        if (query.SortOrder is { Count: > 0 })
+        if (sortOrder.Count > 0)
         {
-            request.Sort = query.SortOrder
-                .OrderBy(sort => sort.Order)
+            request.Sort = sortOrder
                 .Select(sort => (ISort)new FieldSort
                 {
                     // A field mapped as text sorts on its keyword sub-field.

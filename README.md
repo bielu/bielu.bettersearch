@@ -84,6 +84,11 @@ whole value under its plain name, a `Text` field sorts on its `keyword` sub-fiel
 `GeoPoint` field makes geo distance queries work. Fields not listed keep dynamic mapping, and invalid mappings
 fail at startup. See [field mappings](docs/articles/providers/elasticsearch.md#field-mappings).
 
+On Elasticsearch and OpenSearch a successful write becomes searchable at the next index refresh, about a
+second later. Set `"WriteVisibility": "WaitUntilSearchable"` under `SharedIndexSettings` or an `Indexes` entry
+to have index and remove calls return only once a search can see the write; Meilisearch and Lifti already
+wait. See [when writes are searchable](docs/articles/providers/elasticsearch.md#when-writes-are-searchable).
+
 Meilisearch, configured from `Bielu:BetterSearch:Meilisearch`:
 
 ```csharp
@@ -172,7 +177,7 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
   Lifti also fail a query that asks for highlighting. Lifti ignores paging, sorting and post filters, so check the [feature matrix](docs/articles/feature-matrix.md) for what
   your provider applies
 - ✅ **Opt-in search result cache**: the built-in memory cache for one instance, FusionCache with a backplane for
-  several, or your own `ISearchResultCache`; writes through the indexing service evict the index's cached
+  several, or your own `ISearchResultCache`, as decorators over the providers; every write evicts the index's cached
   searches. See [caching](docs/articles/caching.md)
 - ✅ **Shared provider tests**: provider-agnostic behavior tests in `BaseTests` run against every provider
 - ✅ **.NET Aspire AppHost** that starts Elasticsearch, OpenSearch and Meilisearch for local development and the

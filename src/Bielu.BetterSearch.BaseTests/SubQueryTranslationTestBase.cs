@@ -251,6 +251,25 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
             .ShouldBe($"{subQuery.GetType().Name} has neither MinValue nor MaxValue; set at least one bound.");
     }
 
+    public static TheoryData<double?, double?> NonFiniteBounds() => new()
+    {
+        { double.NaN, null },
+        { null, double.PositiveInfinity },
+        { double.NegativeInfinity, 10 }
+    };
+
+    // No engine compares NaN or an infinity as a number, so every provider fails it the same way.
+    [Theory]
+    [MemberData(nameof(NonFiniteBounds))]
+    public async Task NumericRangeWithNonFiniteBound_ReturnsFailedResult(double? min, double? max)
+    {
+        var result = await TranslateAsync(new NumericRange { Field = "Price", MinValue = min, MaxValue = max });
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message
+            .ShouldBe("NumericRange has a bound that is not a finite number; use a finite MinValue and MaxValue.");
+    }
+
     [Fact]
     public virtual async Task LuceneSubQueryShouldBeTranslatable()
     {

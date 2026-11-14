@@ -18,6 +18,7 @@
       <Compile Include="..\Shared\DocumentIds.cs" Link="Services\DocumentIds.cs" />
       <Compile Include="..\Shared\QueryValueText.cs" Link="Services\QueryValueText.cs" />
       <Compile Include="..\Shared\RangeBounds.cs" Link="Services\RangeBounds.cs" />
+      <Compile Include="..\Shared\SortOrders.cs" Link="Services\SortOrders.cs" />
     </ItemGroup>
 
 </Project>

@@ -40,7 +40,7 @@ public class IndexingObserverUnitTests
     }
 
     [Fact]
-    public async Task IndexMultipleDocumentsAsync_RejectedDocument_SendsOnNextOnlyForIndexedDocuments()
+    public async Task IndexMultipleDocumentsAsync_RejectedDocument_SendsNothingAndKeepsStreamOpen()
     {
         //Arrange
         var rejected = new SearchDocument { Id = "bad", Type = "TestDocument", Index = "test-index", };
@@ -54,8 +54,10 @@ public class IndexingObserverUnitTests
 
         //Assert
         result.IsFailed.ShouldBeTrue();
-        observer.Values.ShouldBe([indexed]);
+        observer.Values.ShouldBeEmpty();
         observer.CompletedCount.ShouldBe(0);
+        (await service.IndexDocumentAsync(indexed, Token)).IsSuccess.ShouldBeTrue();
+        observer.Values.ShouldBe([indexed]);
     }
 
     [Fact]

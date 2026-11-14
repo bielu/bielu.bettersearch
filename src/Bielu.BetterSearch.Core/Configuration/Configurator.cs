@@ -85,8 +85,10 @@ public class Configurator(IServiceCollection services, IConfiguration configurat
     }
 
     /// <summary>
-    /// Caches search results in <typeparamref name="TCache"/>, registered as a singleton, and evicts an index's results
-    /// on every write through <see cref="IIndexingServiceAsync"/>. Without this, nothing is cached.
+    /// Caches search results in <typeparamref name="TCache"/>, registered as a singleton. <c>AddBetterSearch</c> then
+    /// decorates every <see cref="ISearchProviderAsync"/> and <see cref="IIndexingProviderAsync"/> registered by the time
+    /// it runs, keyed or not: searches are cached, and every write evicts the cached searches of its index. Without
+    /// this, nothing is cached.
     /// </summary>
     public Configurator AddSearchCache<TCache>(Action<SearchCacheOptions>? configure = null)
         where TCache : class, ISearchResultCache
@@ -105,9 +107,13 @@ public class Configurator(IServiceCollection services, IConfiguration configurat
         return AddSearchCache<MemorySearchResultCache>(configure);
     }
 
-    /// <summary>Applies <paramref name="configure"/> to the <see cref="SearchCacheOptions"/>, for cache packages to share.</summary>
+    /// <summary>
+    /// Turns the search cache on and applies <paramref name="configure"/> to the <see cref="SearchCacheOptions"/>, for
+    /// cache packages that register their own <see cref="ISearchResultCache"/>.
+    /// </summary>
     public Configurator ConfigureSearchCache(Action<SearchCacheOptions>? configure = null)
     {
+        Configuration.UsesSearchCache = true;
         var options = services.AddOptions<SearchCacheOptions>();
         if (configure is not null)
         {

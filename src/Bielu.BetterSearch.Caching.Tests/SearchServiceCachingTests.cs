@@ -11,8 +11,8 @@ using Shouldly;
 namespace Bielu.BetterSearch.Caching.Tests;
 
 /// <summary>
-/// The search cache through <c>SearchServiceAsync</c> and <c>IndexingServiceAsync</c>, with a counting fake provider and
-/// the built-in <see cref="MemorySearchResultCache"/>; no provider changes, so every provider behaves this way.
+/// The search cache through the services, which reach it through the provider decorators, with a counting fake provider
+/// and the built-in <see cref="MemorySearchResultCache"/>; no provider changes, so every provider behaves this way.
 /// </summary>
 public class SearchServiceCachingTests
 {
@@ -422,25 +422,99 @@ public class SearchServiceCachingTests
     }
 
     [Fact]
-    public async Task IndexMultipleDocumentsAsync_LaterDocumentFails_NotifiesEarlierDocumentsAfterEvicting()
+    public async Task IndexMultipleDocumentsAsync_ProviderFails_EvictsAndNotifiesNothing()
     {
         //Arrange
         await using var services = Build();
         await SearchAsync(services, Queries.Term("products"));
         _indexing.FailId = "2";
         var indexing = Indexing(services);
-        var seen = new List<(string Document, string Hit)>();
-        using var subscription = indexing.Subscribe(new CallbackObserver<SearchDocument>(document =>
-            seen.Add((document.Id, SearchAsync(services, Queries.Term("products")).GetAwaiter().GetResult().Items.Single().Document.Id))));
+        var seen = new List<string>();
+        using var subscription = indexing.Subscribe(new CallbackObserver<SearchDocument>(document => seen.Add(document.Id)));
 
         //Act
         var result = await indexing.IndexMultipleDocumentsAsync(
             [new SearchDocument { Id = "1", Index = "products" }, new SearchDocument { Id = "2", Index = "products" }], Token);
+        var after = await SearchAsync(services, Queries.Term("products"));
 
         //Assert
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldBe("write failed");
-        seen.ShouldBe([("1", "products-2")]);
+        seen.ShouldBeEmpty();
+        after.Items.Single().Document.Id.ShouldBe("products-2");
+    }
+
+    [Theory]
+    [InlineData("create")]
+    [InlineData("delete")]
+    public async Task IndexingProvider_CreateOrDeleteIndex_EvictsCachedSearches(string write)
+    {
+        //Arrange
+        await using var services = Build();
+        await SearchAsync(services, Queries.Term("products"));
+        using var scope = services.CreateScope();
+        var provider = scope.ServiceProvider.GetRequiredService<IIndexingProviderAsync>();
+
+        //Act
+        var result = write == "create"
+            ? await provider.CreateIndexAsync("products", Token)
+            : await provider.DeleteIndexAsync("products", Token);
+        var after = await SearchAsync(services, Queries.Term("products"));
+
+        //Assert
+        result.Value.ShouldBeTrue();
+        after.Items.Single().Document.Id.ShouldBe("products-2");
+    }
+
+    [Fact]
+    public async Task IndexingProvider_EnsureIndexExists_KeepsCachedSearches()
+    {
+        //Arrange
+        await using var services = Build();
+        await SearchAsync(services, Queries.Term("products"));
+        using var scope = services.CreateScope();
+
+        //Act
+        var result = await scope.ServiceProvider.GetRequiredService<IIndexingProviderAsync>().EnsureIndexExistsAsync("products", Token);
+        var after = await SearchAsync(services, Queries.Term("products"));
+
+        //Assert
+        result.Value.ShouldBeTrue();
+        after.Items.Single().Document.Id.ShouldBe("products-1");
+    }
+
+    [Fact]
+    public async Task SearchProvider_ResolvedDirectly_CachesToo()
+    {
+        //Arrange
+        await using var services = Build();
+        using var scope = services.CreateScope();
+        var provider = scope.ServiceProvider.GetRequiredService<ISearchProviderAsync>();
+
+        //Act
+        var first = await provider.SearchAsync(Queries.Term("products"), Token);
+        var second = await provider.SearchAsync(Queries.Term("products"), Token);
+
+        //Assert
+        provider.ShouldBeOfType<CachingSearchProviderAsyncDecorator>();
+        _search.Calls.ShouldBe(1);
+        second.Value.Items.Single().Document.Id.ShouldBe(first.Value.Items.Single().Document.Id);
+    }
+
+    [Fact]
+    public async Task AddBetterSearch_NoCache_DoesNotDecorateProviders()
+    {
+        //Arrange
+        await using var services = Build(_ => { });
+        using var scope = services.CreateScope();
+
+        //Act
+        var search = scope.ServiceProvider.GetRequiredService<ISearchProviderAsync>();
+        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingProviderAsync>();
+
+        //Assert
+        search.ShouldBeSameAs(_search);
+        indexing.ShouldBeSameAs(_indexing);
     }
 
     [Fact]
@@ -509,7 +583,7 @@ public class SearchServiceCachingTests
             .AddMemorySearchCache());
         await using var built = services.BuildServiceProvider();
         using var scope = built.CreateScope();
-        var second = (CountingSearchProvider)scope.ServiceProvider.GetRequiredKeyedService<ISearchProviderAsync>("second");
+        var second = (CountingSearchProvider)((CachingSearchProviderAsyncDecorator)scope.ServiceProvider.GetRequiredKeyedService<ISearchProviderAsync>("second")).Inner;
 
         //Act
         (await scope.ServiceProvider.GetRequiredKeyedService<ISearchServiceAsync>("first").SearchAsync(Queries.Term("products"), Token)).IsSuccess.ShouldBeTrue();

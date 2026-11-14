@@ -92,7 +92,8 @@ A query on `Name` filters those copies; a query on `fields.Name` compares the va
 does on Elasticsearch. **Re-index** documents indexed before this version, and after adding a field to
 `PhraseFields`: until then they don't match.
 
-Writes wait for Meilisearch's task, so a successful `Result` means the write was applied. They also add the
+Writes wait for Meilisearch's task, so a successful `Result` means the write was applied and is searchable;
+there is no `WriteVisibility` setting to turn on, as on Elasticsearch and OpenSearch. They also add the
 filterable and sortable attributes the provider needs to the index settings, keeping any added by others.
 
 ## How queries behave
@@ -106,7 +107,7 @@ filterable and sortable attributes the provider needs to the index settings, kee
   value of `NaN` or an infinity returns a failed `Result`, as a Meilisearch filter reads `NaN` and `Infinity` as text
   and would match the strings `"NaN"` and `"Infinity"` rather than a number.
 - **`LongRange`** values past 2^53 lose precision, as Meilisearch compares numbers as doubles.
-- **Dates** without a time zone are read as UTC.
+- **Dates** without a time zone are read as UTC, as on every provider.
 - **Field names** can only contain letters, digits, `_`, `-` and `.`, and **document ids** letters, digits, `-`
   and `_`; anything else returns a failed `Result`.
 - **Total hit count** is exact up to `MaxTotalHits` matches, then that number.
@@ -130,6 +131,22 @@ accepts, and translated into one filter. `OR` is the default operator, as on Ela
 
 A warning is a FluentResults success reason, so a caller finds it with
 `result.Successes.OfType<TranslationWarning>()`. `SearchServiceAsync` returns it with the hits.
+
+## Indexing several documents
+
+`IndexMultipleDocumentsAsync` adds each index's documents in one task and returns how many documents it
+indexed. Meilisearch applies the task or fails it as a whole, so when it rejects one document (an invalid id,
+say), the `Result` fails naming every id of that index, with all of them in the error's `ids` metadata, and
+none of them is stored. When the wait for the task times out (`TaskTimeout`), the `Result` fails saying the
+task was queued and may still index any or all of the documents, with the task's uid in the error's `taskUid`
+metadata. When the request adding the documents fails with no answer from Meilisearch (a dropped connection,
+say), the `Result` fails saying Meilisearch may still index any or all of them, with no `taskUid`. A failure
+before the documents are sent, such as a timeout waiting for the index's settings update, stores none of them
+and says `0 of N documents were indexed`, with no `taskUid`.
+
+Each index's documents go in one request, so all of them are applied or none, and that request must fit
+Meilisearch's payload size limit, about 100 MB unless changed, or it fails. Raise the limit with the server's `--http-payload-size-limit` option (`MEILI_HTTP_PAYLOAD_SIZE_LIMIT`), or
+split the import into several `IndexMultipleDocumentsAsync` calls.
 
 ## Removing documents
 

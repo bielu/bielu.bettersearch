@@ -11,13 +11,6 @@ namespace Bielu.BetterSearch.Lifti.Tests;
 /// <summary>Runs queries against the in-memory Lifti index and checks what comes back.</summary>
 public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexingProviderAsync indexingProvider)
 {
-    private sealed class SortField : ISortOrderField
-    {
-        public string FieldName { get; set; } = string.Empty;
-        public bool Desc { get; set; }
-        public int Order { get; set; }
-    }
-
     private sealed class UnknownSubQuery : ISearchSubQuery
     {
         public Occurance Occurance { get; set; }
@@ -439,7 +432,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
             new SearchDocument { Id = "younger", Index = index, Fields = new Dictionary<string, IList<object>> { { "Name", ["doe doe doe"] }, { "Age", [20] } } }
         ], Token)).IsSuccess.ShouldBeTrue();
         var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" });
-        query.SortOrder = [new SortField { FieldName = "Age", Desc = true }];
+        query.SortOrder = [new SortOrderField { FieldName = "Age", Desc = true }];
 
         var result = await searchService.SearchAsync(query, Token);
 
