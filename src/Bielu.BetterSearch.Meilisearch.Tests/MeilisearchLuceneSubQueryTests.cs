@@ -4,6 +4,7 @@ using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
 using Bielu.BetterSearch.Meilisearch.Services;
 using Bielu.BetterSearch.Meilisearch.Services.Queries;
+using Bielu.BetterSearch.Tests;
 using FluentResults;
 using Shouldly;
 using MeilisearchQuery = Meilisearch.SearchQuery;
@@ -162,7 +163,7 @@ public class MeilisearchLuceneSubQueryTests(IQueryTranslateServiceAsync<Meilisea
     [Fact]
     public async Task TranslateAsync_PhraseOutsidePhraseFields_ReturnsFailure()
     {
-        var translator = new LuceneSubQueryTranslator(new StaticOptionsMonitor(new MeilisearchOptions { PhraseFields = ["Title"] }));
+        var translator = new LuceneSubQueryTranslator(new TestOptionsMonitor<MeilisearchOptions>(new MeilisearchOptions { PhraseFields = ["Title"] }));
 
         var inside = await translator.TranslateAsync(new LuceneSubQuery { LuceneQuery = "Title:\"a b\"" }, [translator]);
         var outside = await translator.TranslateAsync(new LuceneSubQuery { LuceneQuery = "Name:\"a b\"" }, [translator]);

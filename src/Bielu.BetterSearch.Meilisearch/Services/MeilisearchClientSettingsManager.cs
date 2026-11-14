@@ -49,6 +49,7 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
             DevMode = indexSpecific.DevMode,
             ConnectionString = shared.ConnectionString,
             ApiKey = indexSpecific.ApiKey ?? shared.ApiKey,
+            BulkBatchSize = indexSpecific.BulkBatchSize ?? shared.BulkBatchSize,
         };
     }
 }

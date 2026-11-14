@@ -58,9 +58,9 @@ public sealed class MeilisearchResource : IHostedService
             await _app.StartAsync(timeout.Token);
             await _app.ResourceNotifications.WaitForResourceHealthyAsync(ResourceName, timeout.Token);
 
-            Endpoint = _app.GetEndpoint(ResourceName, "http");
             var meilisearch = builder.Resources.OfType<Aspire.Hosting.ApplicationModel.MeilisearchResource>().Single();
             MasterKey = await meilisearch.MasterKeyParameter.GetValueAsync(timeout.Token);
+            Endpoint = _app.GetEndpoint(ResourceName, "http");
         }
         finally
         {

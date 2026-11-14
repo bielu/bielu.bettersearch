@@ -62,8 +62,8 @@ internal sealed class OpenSearchIndexingProviderAsync(
             var response = await client.DeleteAsync(new DeleteRequest(type, id) { Refresh = WaitFor(type) }, cancellationToken).ConfigureAwait(false);
             // Deletes are idempotent: a document that is not there is already gone. A missing index is still a failure,
             // and OpenSearch reports it with a server error rather than a not_found result.
-            var removed = response.ServerError is null
-                && (response.IsValid || response.Result == global::OpenSearch.Client.Result.NotFound);
+            var removed = IsSuccess(response)
+                || (response.ServerError is null && response.Result == global::OpenSearch.Client.Result.NotFound);
             return removed ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
         }, cancellationToken);
 
@@ -103,6 +103,19 @@ internal sealed class OpenSearchIndexingProviderAsync(
         CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync<long?>(index.IndexName, async client =>
         {
+            // Delete by query selects only the documents that are searchable when it starts, so refresh first to
+            // include every acknowledged write, whatever the write visibility.
+            var refreshed = await client.Indices.RefreshAsync(index.IndexName, ct: cancellationToken).ConfigureAwait(false);
+            if (!IsSuccess(refreshed))
+            {
+                return Result.Fail<long?>(RequestFailed(OpenSearchFailures.Describe($"refresh of index {index.IndexName} before removing all documents", refreshed), refreshed.OriginalException));
+            }
+
+            if (refreshed.Shards?.Failed > 0)
+            {
+                return Result.Fail<long?>(RefreshShardsFailed(index.IndexName, refreshed.Shards.Failed, refreshed.Shards.Total));
+            }
+
             // Delete by query can't wait for a refresh, so it refreshes the index itself.
             var response = await client.DeleteByQueryAsync<SearchDocument>(d => d.Index(index.IndexName).Query(q => q.MatchAll()).Refresh(WaitsUntilSearchable(index.IndexName) ? Refresh.True : null), cancellationToken).ConfigureAwait(false);
             if (!IsSuccess(response))
@@ -205,6 +218,9 @@ internal sealed class OpenSearchIndexingProviderAsync(
 
     /// <summary><c>refresh=wait_for</c> when the index's writes wait until they are searchable; otherwise the engine's default.</summary>
     private Refresh? WaitFor(string index) => WaitsUntilSearchable(index) ? Refresh.WaitFor : null;
+
+    private static string RefreshShardsFailed(string index, long failed, long total) =>
+        $"Refreshing index {index} before removing all documents failed on {failed} of {total} shards, so no documents were removed.";
 
     private static Error RequestFailed(string message, Exception? exception)
     {

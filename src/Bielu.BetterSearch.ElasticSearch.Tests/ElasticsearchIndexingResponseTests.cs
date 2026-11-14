@@ -5,6 +5,7 @@ using System.Text;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
+using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
 using FluentResults;
@@ -16,7 +17,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Tests;
 /// <summary>
 /// Responses a healthy test cluster does not produce, served from an in-memory request invoker.
 /// </summary>
-public sealed class ElasticsearchIndexingResponseTests
+public sealed class ElasticsearchIndexingResponseTests : RemoveDocumentResponseTestBase
 {
     private sealed class FixedClientFactory(ElasticsearchClient client) : IClientFactoryAsync<ElasticsearchClient>
     {
@@ -29,10 +30,10 @@ public sealed class ElasticsearchIndexingResponseTests
     }
 
     private static readonly IElasticSearchClientSettingsManager NoMappings =
-        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions { SharedIndexSettings = new() }));
+        new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions { SharedIndexSettings = new() }));
 
     private static readonly IElasticSearchClientSettingsManager WithMappings =
-        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions
+        new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions
         {
             SharedIndexSettings = new() { Mappings = [new() { Field = "City", Type = ElasticSearchFieldType.Keyword }] }
         }));
@@ -83,6 +84,8 @@ public sealed class ElasticsearchIndexingResponseTests
         new(Encoding.UTF8.GetBytes(json), statusCode, null, "application/json",
             new Dictionary<string, IEnumerable<string>> { ["x-elastic-product"] = ["Elasticsearch"] });
 
+    protected override IIndexingProviderAsync ProviderAnswering(string json, int statusCode) => Provider(json, statusCode);
+
     private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false,
         IElasticSearchClientSettingsManager? settingsManager = null) =>
         Provider(Invoker(json, statusCode), throwExceptions, settingsManager);
@@ -119,26 +122,6 @@ public sealed class ElasticsearchIndexingResponseTests
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task RemoveDocumentAsync_DocumentNotFound_ReturnsSuccess()
-    {
-        var provider = Provider("""{"_index":"people","_id":"1","_version":1,"result":"not_found","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":0,"_primary_term":1}""", 404);
-
-        var result = await provider.RemoveDocumentAsync("1", "people", Token);
-
-        result.IsSuccess.ShouldBeTrue();
-    }
-
-    [Fact]
-    public async Task RemoveDocumentAsync_IndexNotFound_ReturnsFailure()
-    {
-        var provider = Provider("""{"error":{"root_cause":[{"type":"index_not_found_exception","reason":"no such index [people]"}],"type":"index_not_found_exception","reason":"no such index [people]"},"status":404}""", 404);
-
-        var result = await provider.RemoveDocumentAsync("1", "people", Token);
-
-        result.IsFailed.ShouldBeTrue();
-    }
-
-    [Fact]
     public async Task RemoveDocumentsAsync_OneItemFails_ReturnsFailureNamingOnlyThatId()
     {
         var provider = Provider("""{"took":5,"errors":true,"items":[{"delete":{"_index":"people","_id":"1","_version":2,"result":"deleted","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":1,"_primary_term":1,"status":200}},{"delete":{"_index":"people","_id":"2","_version":1,"result":"not_found","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":2,"_primary_term":1,"status":404}},{"delete":{"_index":"people","_id":"3","status":409,"error":{"type":"version_conflict_engine_exception","reason":"[3]: version conflict","index":"people"}}}]}""", 200);
@@ -151,7 +134,7 @@ public sealed class ElasticsearchIndexingResponseTests
     }
 
     private static IElasticSearchClientSettingsManager WithBulkBatchSize(int? bulkBatchSize) =>
-        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions { SharedIndexSettings = new() { BulkBatchSize = bulkBatchSize } }));
+        new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions { SharedIndexSettings = new() { BulkBatchSize = bulkBatchSize } }));
 
     private static List<SearchDocument> PeopleDocuments(int count) =>
         Enumerable.Range(1, count).Select(i => new SearchDocument
@@ -271,6 +254,51 @@ public sealed class ElasticsearchIndexingResponseTests
 
         var message = result.Errors.ShouldHaveSingleItem().Message;
         message.ShouldBe("Elasticsearch bulk delete failed with HTTP 403 (security_exception): no permissions");
+    }
+
+    private const string DeletedTwo = """{"took":5,"timed_out":false,"total":2,"deleted":2,"batches":1,"version_conflicts":0,"noops":0,"failures":[]}""";
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_RefreshForbidden_ReturnsTheRefreshFailureWithoutDeleting()
+    {
+        var invoker = new SequenceRequestInvoker(
+            Invoker("""{"error":{"type":"security_exception","reason":"no permissions for [indices:admin/refresh]"},"status":403}""", 403),
+            Invoker(DeletedTwo, 200));
+        var provider = Provider(invoker);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("Elasticsearch refresh of index people before removing all documents failed with HTTP 403 (security_exception): no permissions for [indices:admin/refresh]");
+        invoker.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_RefreshFailsOnAShard_ReturnsFailureWithoutDeleting()
+    {
+        var invoker = new SequenceRequestInvoker(
+            Invoker("""{"_shards":{"total":2,"successful":1,"failed":1}}""", 200),
+            Invoker(DeletedTwo, 200));
+        var provider = Provider(invoker);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("Refreshing index people before removing all documents failed on 1 of 2 shards, so no documents were removed.");
+        invoker.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_Refreshed_ReturnsTheDeletedCount()
+    {
+        var invoker = new SequenceRequestInvoker(
+            Invoker("""{"_shards":{"total":2,"successful":1,"failed":0}}""", 200),
+            Invoker(DeletedTwo, 200));
+        var provider = Provider(invoker);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(2);
+        invoker.Requests.ShouldBe(2);
     }
 
     [Theory]

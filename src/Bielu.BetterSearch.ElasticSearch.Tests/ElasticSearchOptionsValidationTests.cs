@@ -134,7 +134,7 @@ public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
                 ["people"] = new() { Mappings = [new ElasticSearchFieldMapping { Field = "City", Type = ElasticSearchFieldType.Text }] }
             }
         };
-        var manager = new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(options));
+        var manager = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options));
 
         var mappings = manager.GetConnectionSettings("People").Mappings!;
 

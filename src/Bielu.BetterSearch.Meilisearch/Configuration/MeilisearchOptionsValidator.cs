@@ -5,9 +5,9 @@ using Microsoft.Extensions.Options;
 namespace Bielu.BetterSearch.Meilisearch.Configuration;
 
 /// <summary>
-/// Checks the connection settings, limits, intervals and field names, at startup and whenever the options are read,
-/// listing every setting that is wrong and naming each one. The connection settings are checked as each call checks
-/// them, after merging each <c>Indexes</c> entry with the shared settings.
+/// Checks the connection settings, limits, intervals, bulk batch sizes and field names, at startup and whenever the
+/// options are read, listing every setting that is wrong and naming each one. The connection settings are checked as
+/// each call checks them, after merging each <c>Indexes</c> entry with the shared settings.
 /// </summary>
 internal sealed class MeilisearchOptionsValidator : IValidateOptions<MeilisearchOptions>
 {
@@ -24,6 +24,9 @@ internal sealed class MeilisearchOptionsValidator : IValidateOptions<Meilisearch
             }.OfType<string>())
             .Concat((options.PhraseFields ?? []).Select((field, i) =>
                 FieldNameFailure($"{key}:{nameof(MeilisearchOptions.PhraseFields)}:{i}", field)).OfType<string>())
+            .Concat(BulkBatchSizeFailures($"{key}:{nameof(MeilisearchOptions.SharedIndexSettings)}", options.SharedIndexSettings))
+            .Concat((options.Indexes ?? []).SelectMany(index =>
+                BulkBatchSizeFailures($"{key}:{nameof(MeilisearchOptions.Indexes)}:{index.Key}", index.Value)))
             .ToList();
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
@@ -63,4 +66,9 @@ internal sealed class MeilisearchOptionsValidator : IValidateOptions<Meilisearch
             ? null
             : $"{path} {field} can only contain letters, digits, '_', '-' and '.', as Meilisearch filters write field names unquoted.";
     }
+
+    private static IEnumerable<string> BulkBatchSizeFailures(string path, MeilisearchIndexSettings? settings) =>
+        settings?.BulkBatchSize is <= 0
+            ? [$"{path}:{nameof(MeilisearchIndexSettings.BulkBatchSize)} is {settings.BulkBatchSize}, but it must be greater than 0."]
+            : [];
 }

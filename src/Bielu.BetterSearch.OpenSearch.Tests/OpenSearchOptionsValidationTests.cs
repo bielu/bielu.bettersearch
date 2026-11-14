@@ -134,20 +134,13 @@ public class OpenSearchOptionsValidationTests : OptionsValidationTestBase
                 ["people"] = new() { Mappings = [new OpenSearchFieldMapping { Field = "City", Type = OpenSearchFieldType.Text }] }
             }
         };
-        var manager = new OpenSearchClientSettingsManager(new StaticOptions(options));
+        var manager = new OpenSearchClientSettingsManager(new TestOptionsMonitor<OpenSearchOptions>(options));
 
         var mappings = manager.GetConnectionSettings("People").Mappings!;
 
         mappings.Select(m => (m.Field, m.Type)).ShouldBe([("Tags", OpenSearchFieldType.Keyword), ("City", OpenSearchFieldType.Text)]);
         options.SharedIndexSettings.Mappings!.Count.ShouldBe(2);
         manager.GetConnectionSettings("other").Mappings!.Select(m => m.Field).ShouldBe(["City", "Tags"]);
-    }
-
-    private sealed class StaticOptions(OpenSearchOptions value) : IOptionsMonitor<OpenSearchOptions>
-    {
-        public OpenSearchOptions CurrentValue => value;
-        public OpenSearchOptions Get(string? name) => value;
-        public IDisposable? OnChange(Action<OpenSearchOptions, string?> listener) => null;
     }
 
     [Theory]

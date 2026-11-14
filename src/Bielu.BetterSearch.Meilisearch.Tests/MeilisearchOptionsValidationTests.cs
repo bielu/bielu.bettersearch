@@ -1,9 +1,16 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query;
+using Bielu.BetterSearch.Abstractions.Query.SubQueries;
+using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Configuration;
+using Bielu.BetterSearch.DepedencyInjection;
 using Bielu.BetterSearch.Meilisearch.Configuration;
 using Bielu.BetterSearch.Meilisearch.DepedencyInjection;
 using Bielu.BetterSearch.Meilisearch.Services;
+using Bielu.BetterSearch.Meilisearch.Services.Queries;
 using Bielu.BetterSearch.Tests;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Shouldly;
 
 namespace Bielu.BetterSearch.Meilisearch.Tests;
@@ -96,6 +103,46 @@ public class MeilisearchOptionsValidationTests : OptionsValidationTestBase
     }
 
     [Fact]
+    public void ValidateOnStart_PositiveBulkBatchSizes_Passes()
+    {
+        ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "http://localhost:7700",
+            ["SharedIndexSettings:BulkBatchSize"] = "500",
+            ["Indexes:people:BulkBatchSize"] = "1",
+        }).ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("SharedIndexSettings", "0")]
+    [InlineData("Indexes:people", "-5")]
+    public void ValidateOnStart_BulkBatchSizeNotPositive_FailsNamingTheSetting(string path, string value)
+    {
+        Validate($"{path}:BulkBatchSize", value).Failures.ShouldBe([
+            $"{Key}:{path}:BulkBatchSize is {value}, but it must be greater than 0."
+        ]);
+    }
+
+    [Fact]
+    public void BulkBatchSizeFor_IndexValueWinsAndAnUnsetIndexTakesTheSharedOne()
+    {
+        var options = new MeilisearchOptions
+        {
+            SharedIndexSettings = new() { BulkBatchSize = 500 },
+            Indexes = new Dictionary<string, MeilisearchIndexSettings>
+            {
+                ["people"] = new() { BulkBatchSize = 50 },
+                ["places"] = new(),
+            },
+        };
+
+        options.BulkBatchSizeFor("PEOPLE").ShouldBe(50);
+        options.BulkBatchSizeFor("places").ShouldBe(500);
+        options.BulkBatchSizeFor("other").ShouldBe(500);
+        new MeilisearchOptions().BulkBatchSizeFor("other").ShouldBeNull();
+    }
+
+    [Fact]
     public async Task SearchAsync_MaxTotalHitsNotPositiveOnAMonitorThatDoesNotValidate_ReturnsFailedResultNamingTheSetting()
     {
         var options = new MeilisearchOptions
@@ -103,12 +150,64 @@ public class MeilisearchOptionsValidationTests : OptionsValidationTestBase
             SharedIndexSettings = new MeilisearchIndexSettings { ConnectionString = "http://localhost:7700" },
             MaxTotalHits = 0,
         };
-        var monitor = new StaticOptionsMonitor(options);
+        var monitor = new TestOptionsMonitor<MeilisearchOptions>(options);
         var provider = new MeilisearchSearchProviderAsync(null!,
             new MeilisearchClientFactory(new MeilisearchClientSettingsManager(monitor)), monitor);
 
         var result = await provider.SearchAsync(new SearchQuery { Index = "people" }, TestContext.Current.CancellationToken);
 
         result.Errors.ShouldHaveSingleItem().Message.ShouldBe($"{Key}:MaxTotalHits is 0, but it must be greater than 0.");
+    }
+
+    [Fact]
+    public async Task Providers_ReloadMakesBulkBatchSizeInvalid_ReturnFailedResultsNamingTheSetting()
+    {
+        // Nothing listens on port 1, so a call that got past the options would fail with a connection error instead.
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://127.0.0.1:1",
+        }).Build();
+        using var services = new ServiceCollection()
+            .AddLogging()
+            .AddBetterSearch(configuration, x => x.AddMeilisearch())
+            .BuildServiceProvider();
+        services.GetRequiredService<IStartupValidator>().Validate();
+        configuration[$"{Key}:SharedIndexSettings:BulkBatchSize"] = "0";
+        // The options monitor reads the reloaded options in the reload's change callback, so the validation failure
+        // surfaces there too; a file reload runs that callback on its own thread, away from the callers.
+        Should.Throw<AggregateException>(configuration.Reload).InnerException.ShouldBeOfType<OptionsValidationException>();
+        using var scope = services.CreateScope();
+        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingProviderAsync>();
+        var search = scope.ServiceProvider.GetRequiredService<ISearchProviderAsync>();
+        var monitor = services.GetRequiredService<IOptionsMonitor<MeilisearchOptions>>();
+        var token = TestContext.Current.CancellationToken;
+        var document = new SearchDocument { Id = "1", Type = "TestDocument", Index = "people" };
+        const string setting = $"{Key}:SharedIndexSettings:BulkBatchSize is 0, but it must be greater than 0.";
+
+        Should.Throw<OptionsValidationException>(() => monitor.CurrentValue);
+        var many = await indexing.IndexMultipleDocumentsAsync([document], token);
+        var one = await indexing.IndexDocumentAsync(document, token);
+        var found = await search.SearchAsync(new SearchQuery { Index = "people" }, token);
+        var phrasePrefix = new PrefixPhraseSubQueryTranslator(monitor);
+        var spatial = new SpatialSearchSubQueryTranslator(monitor);
+        var lucene = new LuceneSubQueryTranslator(monitor);
+        var translated = new[]
+        {
+            await phrasePrefix.TranslateAsync(new PrefixPhraseSubQuery { Field = "Name", Value = "jane d" }, [phrasePrefix]),
+            await spatial.TranslateAsync(new SpatialSearchQuery { Field = "Location", Distance = 10 }, [spatial]),
+            await lucene.TranslateAsync(new LuceneSubQuery { LuceneQuery = "Name:\"a b\"" }, [lucene]),
+        };
+
+        many.IsFailed.ShouldBeTrue();
+        many.Errors.Single().Message.ShouldContain(setting);
+        one.IsFailed.ShouldBeTrue();
+        one.Errors.Single().Message.ShouldContain(setting);
+        found.IsFailed.ShouldBeTrue();
+        found.Errors.Single().Message.ShouldContain(setting);
+        foreach (var result in translated)
+        {
+            result.IsFailed.ShouldBeTrue();
+            result.Errors.Single().Message.ShouldContain(setting);
+        }
     }
 }
