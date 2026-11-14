@@ -45,9 +45,29 @@ public sealed class OpenSearchIndexingResponseTests
     private static IClientFactoryAsync<IOpenSearchClient> InvalidSettingsFactory() =>
         new OpenSearchClientFactory(new OpenSearchClientSettingsManager(new InvalidSettingsOptionsMonitor()));
 
-    private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false)
+    /// <summary>Answers HEAD requests, such as the index exists check, with one connection and every other request with another.</summary>
+    private sealed class HeadRoutingConnectionDecorator(IConnection head, IConnection other) : IConnection
     {
-        var connection = new InMemoryConnection(Encoding.UTF8.GetBytes(json), statusCode);
+        private IConnection For(RequestData requestData) => requestData.Method == global::OpenSearch.Net.HttpMethod.HEAD ? head : other;
+
+        public TResponse Request<TResponse>(RequestData requestData)
+            where TResponse : class, IOpenSearchResponse, new() =>
+            For(requestData).Request<TResponse>(requestData);
+
+        public Task<TResponse> RequestAsync<TResponse>(RequestData requestData, CancellationToken cancellationToken)
+            where TResponse : class, IOpenSearchResponse, new() =>
+            For(requestData).RequestAsync<TResponse>(requestData, cancellationToken);
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false) =>
+        Provider(new InMemoryConnection(Encoding.UTF8.GetBytes(json), statusCode), throwExceptions);
+
+    private static OpenSearchIndexingProviderAsync Provider(IConnection connection, bool throwExceptions = false)
+    {
         var settings = new ConnectionSettings(new SingleNodeConnectionPool(new Uri("http://localhost:9200")), connection)
             .ThrowExceptions(throwExceptions);
         return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
@@ -102,26 +122,6 @@ public sealed class OpenSearchIndexingResponseTests
         result.Errors.Single().Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<HttpRequestException>();
     }
 
-    [Fact]
-    public async Task IndexExistsAsync_CancelledMidRequest_ThrowsOperationCanceledException()
-    {
-        // The server accepts the connection and never answers, so the request is still in flight when it is cancelled.
-        var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        try
-        {
-            var provider = LocalProvider(((IPEndPoint)listener.LocalEndpoint).Port);
-            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
-            cancellation.CancelAfter(TimeSpan.FromMilliseconds(500));
-
-            await Should.ThrowAsync<OperationCanceledException>(() => provider.IndexExistsAsync("people", cancellation.Token));
-        }
-        finally
-        {
-            listener.Stop();
-        }
-    }
-
     [Theory]
     [InlineData(200, true)]
     [InlineData(404, false)]
@@ -167,26 +167,6 @@ public sealed class OpenSearchIndexingResponseTests
 
         var message = result.Errors.ShouldHaveSingleItem().Message;
         message.ShouldBe("OpenSearch bulk delete failed with HTTP 403 (security_exception): no permissions");
-    }
-
-    [Fact]
-    public async Task RemoveDocumentsAsync_CancelledMidRequest_ThrowsOperationCanceledException()
-    {
-        // The server accepts the connection and never answers, so the request is still in flight when it is cancelled.
-        var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        try
-        {
-            var provider = LocalProvider(((IPEndPoint)listener.LocalEndpoint).Port);
-            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
-            cancellation.CancelAfter(TimeSpan.FromMilliseconds(500));
-
-            await Should.ThrowAsync<OperationCanceledException>(() => provider.RemoveDocumentsAsync("people", ["1", "2"], cancellation.Token));
-        }
-        finally
-        {
-            listener.Stop();
-        }
     }
 
     [Fact]
@@ -250,6 +230,21 @@ public sealed class OpenSearchIndexingResponseTests
         var result = await provider.EnsureIndexExistsAsync("people", Token);
 
         result.IsFailed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_CreatedByAnotherCallerFirst_ReturnsTrue()
+    {
+        // The exists check sees no index, then another caller creates it before this caller's create.
+        var alreadyExists = """{"error":{"root_cause":[{"type":"resource_already_exists_exception","reason":"index [people/abc] already exists","index":"people"}],"type":"resource_already_exists_exception","reason":"index [people/abc] already exists","index":"people"},"status":400}""";
+        var provider = Provider(new HeadRoutingConnectionDecorator(
+            new InMemoryConnection(Encoding.UTF8.GetBytes("{}"), 404),
+            new InMemoryConnection(Encoding.UTF8.GetBytes(alreadyExists), 400)));
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
     }
 
     [Fact]
@@ -350,11 +345,44 @@ public sealed class OpenSearchIndexingResponseTests
 
     [Theory]
     [MemberData(nameof(IndexingMethods))]
+    public async Task IndexingMethod_CancelledMidRequest_ThrowsOperationCanceledException(string method)
+    {
+        // The server accepts the connection and never answers, so the request is still in flight when it is cancelled.
+        // With ThrowExceptions off, the client reports that as a response with no status code rather than throwing.
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            var provider = LocalProvider(((IPEndPoint)listener.LocalEndpoint).Port);
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+            cancellation.CancelAfter(TimeSpan.FromMilliseconds(500));
+
+            await Should.ThrowAsync<OperationCanceledException>(() => InvokeAsync(provider, method, cancellation.Token));
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(IndexingMethods))]
     public async Task IndexingMethod_ClientFactoryCancelled_ThrowsOperationCanceledException(string method)
     {
         var provider = new OpenSearchIndexingProviderAsync(new CancelledClientFactory(), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
 
         await Should.ThrowAsync<OperationCanceledException>(() => InvokeAsync(provider, method, Token));
+    }
+
+    [Theory]
+    [MemberData(nameof(IndexingMethods))]
+    public async Task IndexingMethod_CancelledToken_ThrowsOperationCanceledException(string method)
+    {
+        var provider = Provider("{}", 200);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(() => InvokeAsync(provider, method, cancellation.Token));
     }
 
     [Theory]

@@ -65,8 +65,6 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
                 Operations = new BulkOperationsCollection(distinctIds.Value.Select(id => new BulkDeleteOperation(id))),
             };
             var response = await client.BulkAsync(request, cancellationToken).ConfigureAwait(false);
-            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
-            cancellationToken.ThrowIfCancellationRequested();
             // A request rejected as a whole, such as a 403, has no items.
             if (response.Items is null || response.Items.Count != distinctIds.Value.Count)
             {
@@ -108,25 +106,28 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
 
         if (exist.Value)
         {
-            return Result.Ok();
+            return Result.Ok(true);
         }
 
-        return await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        // A concurrent caller may create the index first, which CreateIndexAsync reports as Ok(false);
+        // the index exists either way.
+        var created = await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        return created.IsSuccess ? Result.Ok(true) : created;
     }
 
     public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) =>
-        clientFactory.TryWithClientAsync<bool>(index, async client =>
+        clientFactory.TryWithClientAsync(index, async client =>
         {
             var indexResult = await client.Indices.DeleteAsync(new DeleteIndexRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
-            return indexResult.IsSuccess() ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
+            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
+            cancellationToken.ThrowIfCancellationRequested();
+            return indexResult.IsSuccess() ? Result.Ok(true) : Result.Fail<bool>(new Error(indexResult.DebugInformation));
         }, cancellationToken);
 
     public Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(index, async client =>
         {
             var result = await client.Indices.ExistsAsync(new ExistsRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
-            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
-            cancellationToken.ThrowIfCancellationRequested();
             // Only 200 and 404 answer the question; anything else, such as no answer, a 401, 403 or 5xx, is a failure.
             return result.ApiCallDetails?.HttpStatusCode switch
             {
@@ -140,11 +141,21 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
         clientFactory.TryWithClientAsync(index, async client =>
         {
             var result = await client.Indices.CreateAsync(new CreateIndexRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
-            if (!result.IsSuccess())
+            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
+            cancellationToken.ThrowIfCancellationRequested();
+            if (result.IsSuccess())
             {
-                logger.LogError("Indexing failed: {Error}", result.DebugInformation);
+                return Result.Ok(true);
             }
-            return Result.Ok(result.IsSuccess());
+
+            // An index that already exists was not created, but nothing went wrong.
+            if (result.ElasticsearchServerError?.Error?.Type == "resource_already_exists_exception")
+            {
+                return Result.Ok(false);
+            }
+
+            logger.LogError("Creating index {Index} failed: {Error}", index, result.DebugInformation);
+            return Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe("create index", result), result.ApiCallDetails?.OriginalException));
         }, cancellationToken);
 
     private static Error RequestFailed(string message, Exception? exception)

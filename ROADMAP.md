@@ -32,8 +32,7 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Models | `new TermSubQuery().Occurance` is `0`, which is not a defined enum value | A defined default |
 | Lifti search | `Page` and `PageSize` are ignored; hits contain only an id | Paged hits with fields |
 | Fluent API | `.Should()` on a sub-query configurator is silently lost, and `.Must()`, `.MustNot()` and `.Filter()` take the same path | The chosen occurrence |
-| Elasticsearch | Provider methods return `Result.Ok()` where a `Result<bool>` or `Result<int>` is due, so `Value` is `false` or `0` even on success (*by inspection*) | The real value |
-| Elasticsearch | `CreateIndexAsync` reports a server rejection as a successful `false` (*by inspection*) | A failed `Result` |
+| Elasticsearch | `IndexMultipleDocumentsAsync` returns `Result.Ok()` where a `Result<int>` is due, so `Value` is `0` even on success (*by inspection*) | The real count |
 | Elasticsearch | Bulk indexing ignores per-item failures (*by inspection*) | A failed `Result` naming them |
 
 ## Replacing Lifti: use Lucene.NET

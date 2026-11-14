@@ -18,7 +18,7 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
         {
             var response = await client.IndexAsync(StoredFields.WithDatesAsText(document), i => i.Index(document.Index).Id(document.Id), cancellationToken).ConfigureAwait(false);
             return IsSuccess(response) ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
-        });
+        }, cancellationToken);
 
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents,
         CancellationToken cancellationToken = default)
@@ -31,7 +31,7 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
             {
                 var response = await client.BulkAsync(b => b.Index(indexGroup.Key).IndexMany(indexGroup.Select(StoredFields.WithDatesAsText), (descriptor, document) => descriptor.Id(document.Id)), cancellationToken).ConfigureAwait(false);
                 return IsSuccess(response) ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
-            }).ConfigureAwait(false));
+            }, cancellationToken).ConfigureAwait(false));
         }
 
         var merged = results.Merge();
@@ -47,7 +47,7 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
             var removed = response.ServerError is null
                 && (response.IsValid || response.Result == global::OpenSearch.Client.Result.NotFound);
             return removed ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
-        });
+        }, cancellationToken);
 
     public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,
         CancellationToken cancellationToken = default)
@@ -61,8 +61,6 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
         return await clientFactory.TryWithClientAsync(index, async client =>
         {
             var response = await client.BulkAsync(b => b.Index(index).DeleteMany<SearchDocument>(distinctIds.Value, (descriptor, id) => descriptor.Id(id)), cancellationToken).ConfigureAwait(false);
-            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
-            cancellationToken.ThrowIfCancellationRequested();
             // A request rejected as a whole, such as a 403, has no items.
             if (response.Items is null || response.Items.Count != distinctIds.Value.Count)
             {
@@ -80,7 +78,7 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
             }
 
             return Result.Ok(removed);
-        }).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     public Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
@@ -101,7 +99,7 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
             }
 
             return Result.Ok<long?>(response.Deleted);
-        });
+        }, cancellationToken);
 
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {
@@ -112,7 +110,15 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
             return exist;
         }
 
-        return exist.Value ? Result.Ok(true) : await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        if (exist.Value)
+        {
+            return Result.Ok(true);
+        }
+
+        // A concurrent caller may create the index first, which CreateIndexAsync reports as Ok(false);
+        // the index exists either way.
+        var created = await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        return created.IsSuccess ? Result.Ok(true) : created;
     }
 
     public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) =>
@@ -120,14 +126,12 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
         {
             var response = await client.Indices.DeleteAsync(index, ct: cancellationToken).ConfigureAwait(false);
             return IsSuccess(response) ? Result.Ok(true) : Result.Fail<bool>(new Error(response.DebugInformation));
-        });
+        }, cancellationToken);
 
     public Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(index, async client =>
         {
             var response = await client.Indices.ExistsAsync(index, ct: cancellationToken).ConfigureAwait(false);
-            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
-            cancellationToken.ThrowIfCancellationRequested();
             // Only 200 and 404 answer the question; anything else, such as no answer, a 401, 403 or 5xx, is a failure.
             return response.ApiCall?.HttpStatusCode switch
             {
@@ -135,7 +139,7 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
                 404 => Result.Ok(false),
                 _ => Result.Fail<bool>(RequestFailed(OpenSearchFailures.Describe("index exists check", response), response.OriginalException)),
             };
-        });
+        }, cancellationToken);
 
     private static Error RequestFailed(string message, Exception? exception)
     {
@@ -160,5 +164,5 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
 
             logger.LogError("Creating index {Index} failed: {Error}", index, response.DebugInformation);
             return Result.Fail<bool>(new Error(response.DebugInformation));
-        });
+        }, cancellationToken);
 }
