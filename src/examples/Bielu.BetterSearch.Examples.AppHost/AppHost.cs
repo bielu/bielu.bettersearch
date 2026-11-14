@@ -49,4 +49,10 @@ builder.AddContainer("typesense", "typesense/typesense", "29.0")
     .WithEnvironment("TYPESENSE_API_KEY", typesenseApiKey)
     .WithHttpHealthCheck("/health", endpointName: "http");
 
+// The provider uses PostgreSQL full-text search and jsonb, and pg_input_is_valid, which needs PostgreSQL 16 or later.
+// Aspire pins the image; pgweb is a UI for browsing the tables and trying queries.
+builder.AddPostgres("postgres")
+    .WithPgWeb()
+    .AddDatabase("bettersearch");
+
 await builder.Build().RunAsync().ConfigureAwait(false);

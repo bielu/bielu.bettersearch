@@ -12,6 +12,8 @@
       href: providers/meilisearch.md
     - name: Typesense
       href: providers/typesense.md
+    - name: PostgreSQL
+      href: providers/postgresql.md
     - name: Lifti (in memory)
       href: providers/lifti.md
 - name: Caching
