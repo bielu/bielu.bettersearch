@@ -39,8 +39,8 @@ public abstract class InvalidSettingsSearchTestBase
         var result = await SearchWithSettingsAsync(new Dictionary<string, string?>());
 
         result.IsFailed.ShouldBeTrue();
-        result.Errors.Single().Message.ShouldContain("ConnectionString is missing");
-        result.Errors.Single().Message.ShouldContain($"{OptionsKey}:SharedIndexSettings:ConnectionString");
+        result.Errors.Single().Message.ShouldBe(
+            $"No {OptionsKey} settings were found. Add the {OptionsKey} configuration section, with at least {OptionsKey}:SharedIndexSettings:ConnectionString.");
     }
 
     [Theory]
@@ -71,6 +71,6 @@ public abstract class InvalidSettingsSearchTestBase
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("ConnectionString is not an http or https URL");
-        result.Errors.Single().Message.ShouldContain($"{OptionsKey}:Indexes:<index>:ConnectionString");
+        result.Errors.Single().Message.ShouldContain($"Set {OptionsKey}:Indexes:People:ConnectionString,");
     }
 }

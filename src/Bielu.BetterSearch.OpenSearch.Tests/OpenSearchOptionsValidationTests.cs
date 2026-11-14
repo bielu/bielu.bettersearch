@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.DepedencyInjection;
+﻿using Bielu.BetterSearch.Configuration;
+using Bielu.BetterSearch.DepedencyInjection;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
 using Bielu.BetterSearch.OpenSearch.Services;
@@ -10,9 +11,13 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.OpenSearch.Tests;
 
-public class OpenSearchOptionsValidationTests
+public class OpenSearchOptionsValidationTests : OptionsValidationTestBase
 {
     private const string Key = "Bielu:BetterSearch:OpenSearch";
+
+    protected override string OptionsKey => Key;
+
+    protected override void AddProvider(Configurator search, string key) => search.AddOpenSearch(key);
 
     private static ServiceProvider Services(Dictionary<string, string?> settings)
     {
@@ -136,5 +141,77 @@ public class OpenSearchOptionsValidationTests
         mappings.Select(m => (m.Field, m.Type)).ShouldBe([("Tags", OpenSearchFieldType.Keyword), ("City", OpenSearchFieldType.Text)]);
         options.SharedIndexSettings.Mappings!.Count.ShouldBe(2);
         manager.GetConnectionSettings("other").Mappings!.Select(m => m.Field).ShouldBe(["City", "Tags"]);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    public void ValidateOnStart_MaxResultWindowNotPositive_FailsNamingTheSetting(string value)
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            ["MaxResultWindow"] = value,
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([$"{Key}:MaxResultWindow is {value}, but it must be greater than 0."]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_IndexApiKeyAuthenticationWithoutKey_FailsNamingTheIndexSetting()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            ["Indexes:people:AuthenticationType"] = "APIKEY",
+            ["Indexes:people:AuthenticationDetails:ApiKey"] = " ",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"APIKEY authentication needs AuthenticationDetails:ApiKey. Set {Key}:Indexes:people:AuthenticationDetails:ApiKey, or {Key}:SharedIndexSettings:AuthenticationDetails:ApiKey for every index."
+        ]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_SharedPasswordWithoutDetailsAndBadUrl_ListsBothFailures()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "localhost:9200",
+            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"ConnectionString is not an http or https URL. Set {Key}:SharedIndexSettings:ConnectionString, or {Key}:Indexes:<index>:ConnectionString for one index.",
+            $"PASSWORD authentication needs AuthenticationDetails. Set {Key}:SharedIndexSettings:AuthenticationDetails, or {Key}:Indexes:<index>:AuthenticationDetails for one index.",
+        ]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_SharedPasswordWithoutUrlAndEveryIndexWithItsOwn_Passes()
+    {
+        ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationDetails:Username"] = "admin",
+            ["SharedIndexSettings:AuthenticationDetails:Password"] = "secret",
+            ["Indexes:people:ConnectionString"] = "http://people:9200",
+            ["Indexes:places:ConnectionString"] = "https://places:9200",
+        }).ShouldBeNull();
+    }
+
+    [Fact]
+    public void ValidateOnStart_SharedPasswordWithoutUrlOrPassword_FailsNamingEachIndexThatInheritsIt()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationDetails:Username"] = "admin",
+            ["Indexes:people:ConnectionString"] = "http://people:9200",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:Indexes:people:AuthenticationDetails:Password, or {Key}:SharedIndexSettings:AuthenticationDetails:Password for every index."
+        ]);
     }
 }
