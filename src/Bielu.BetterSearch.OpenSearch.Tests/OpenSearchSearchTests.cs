@@ -17,13 +17,6 @@ public sealed class OpenSearchSearchTests(
     IIndexingProviderAsync indexingProvider,
     IClientFactoryAsync<IOpenSearchClient> clientFactory)
 {
-    private sealed class SortField : ISortOrderField
-    {
-        public string FieldName { get; set; } = string.Empty;
-        public bool Desc { get; set; }
-        public int Order { get; set; }
-    }
-
     private static SearchDocument Person(string index, string id, string name, int age, long views, DateTime born, string city) => new()
     {
         Id = id,
@@ -357,7 +350,7 @@ public sealed class OpenSearchSearchTests(
             Index = index,
             Page = 2,
             PageSize = 2,
-            SortOrder = [new SortField { FieldName = "Age" }]
+            SortOrder = [new SortOrderField { FieldName = "Age" }]
         };
 
         var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
@@ -413,7 +406,7 @@ public sealed class OpenSearchSearchTests(
     {
         var index = await CreatePeopleAsync();
         var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "john" });
-        query.SortOrder = [new SortField { FieldName = "_score", Desc = true }];
+        query.SortOrder = [new SortOrderField { FieldName = "_score", Desc = true }];
 
         var ids = await SearchIdsAsync(query);
 
@@ -442,8 +435,8 @@ public sealed class OpenSearchSearchTests(
             PageSize = 100,
             SortOrder =
             [
-                new SortField { FieldName = "Age", Desc = true, Order = 2 },
-                new SortField { FieldName = "City.keyword", Order = 1 }
+                new SortOrderField { FieldName = "Age", Desc = true, Order = 2 },
+                new SortOrderField { FieldName = "City.keyword", Order = 1 }
             ]
         };
 

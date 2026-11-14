@@ -20,13 +20,6 @@ public sealed class OpenSearchMappingTests(
     IQueryTranslateServiceAsync<QueryContainer> queryTranslateService,
     IPostFilterTranslateServiceAsync<QueryContainer> postFilterTranslateService)
 {
-    private sealed class SortField : ISortOrderField
-    {
-        public string FieldName { get; set; } = string.Empty;
-        public bool Desc { get; set; }
-        public int Order { get; set; }
-    }
-
     private sealed class FixedOptionsMonitor(OpenSearchOptions value) : IOptionsMonitor<OpenSearchOptions>
     {
         public OpenSearchOptions CurrentValue => value;
@@ -99,7 +92,7 @@ public sealed class OpenSearchMappingTests(
         return query;
     }
 
-    private static SearchQuery SortedBy(string field) => new() { SortOrder = [new SortField { FieldName = field }] };
+    private static SearchQuery SortedBy(string field) => new() { SortOrder = [new SortOrderField { FieldName = field }] };
 
     private async Task DeleteAsync(Providers providers)
     {
@@ -222,12 +215,12 @@ public sealed class OpenSearchMappingTests(
                 ScoredDocument("2", "apple banana cherry date", "zzz"));
 
             var byRelevance = Term("Name", "apple");
-            byRelevance.SortOrder = [new SortField { FieldName = "_score", Desc = true }];
+            byRelevance.SortOrder = [new SortOrderField { FieldName = "_score", Desc = true }];
             (await SearchIdsAsync(providers, byRelevance, sorted: false)).ShouldBe(["1", "2"]);
 
             // The document field is still sortable through its prefixed name.
             var byField = Term("Name", "apple");
-            byField.SortOrder = [new SortField { FieldName = "fields._score", Desc = true }];
+            byField.SortOrder = [new SortOrderField { FieldName = "fields._score", Desc = true }];
             (await SearchIdsAsync(providers, byField, sorted: false)).ShouldBe(["2", "1"]);
         }
         finally

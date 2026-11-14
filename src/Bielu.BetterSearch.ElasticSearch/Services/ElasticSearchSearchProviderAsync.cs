@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Models;
+﻿using Bielu.BetterSearch.Abstractions.Fields;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
@@ -49,6 +50,12 @@ public class ElasticSearchSearchProviderAsync(
                 $"Page {PageOf(query)} with PageSize {PageSizeOf(query)} reaches result {LastResultOf(query)}, past the limit of {maxResultWindow} (index.max_result_window). Narrow the query or raise MaxResultWindow with the index setting.");
         }
 
+        var sortOrder = SortOrders.Ordered(query);
+        if (sortOrder.IsFailed)
+        {
+            return sortOrder.ToResult<ISearchResult>();
+        }
+
         var mainQuery = await queryTranslateServiceAsync.TranslateMainQueryAsync(query).ConfigureAwait(false);
         if (mainQuery.IsFailed)
         {
@@ -72,7 +79,7 @@ public class ElasticSearchSearchProviderAsync(
         return await clientFactoryAsync.TryWithClientAsync(query.Index, async client =>
         {
             var mappings = settingsManager.GetConnectionSettings(query.Index).Mappings ?? [];
-            var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow, mappings);
+            var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
             request.Highlight = highlight.Value;
             var response = await client.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
             // The client reports a cancelled request as an invalid response; the caller cancelled, so say that instead.
@@ -154,7 +161,7 @@ public class ElasticSearchSearchProviderAsync(
     private static long LastResultOf(ISearchQuery query) => (long)PageOf(query) * PageSizeOf(query);
 
     private static SearchRequest CreateRequest(ISearchQuery query, EsQuery mainQuery, EsQuery? postFilter, int maxResultWindow,
-        IReadOnlyList<ElasticSearchFieldMapping> mappings)
+        IReadOnlyList<ISortOrderField> sortOrder, IReadOnlyList<ElasticSearchFieldMapping> mappings)
     {
         var pageSize = PageSizeOf(query);
         var request = new SearchRequest(query.Index)
@@ -168,10 +175,9 @@ public class ElasticSearchSearchProviderAsync(
             TrackTotalHits = new TrackHits(maxResultWindow)
         };
 
-        if (query.SortOrder is { Count: > 0 })
+        if (sortOrder.Count > 0)
         {
-            request.Sort = query.SortOrder
-                .OrderBy(sort => sort.Order)
+            request.Sort = sortOrder
                 .Select(sort => new SortOptions
                 {
                     Field = new FieldSort
