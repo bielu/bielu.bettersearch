@@ -32,11 +32,6 @@ public class ElasticSearchSearchProviderAsync(
             return Result.Fail<ISearchResult>("The query needs an Index.");
         }
 
-        if (query.FacetQueries is { Count: > 0 })
-        {
-            return Result.Fail<ISearchResult>("The Elasticsearch provider does not support facets yet.");
-        }
-
         var maxResultWindow = optionsMonitor.CurrentValue.MaxResultWindow;
         if (LastResultOf(query) > maxResultWindow)
         {
@@ -69,15 +64,23 @@ public class ElasticSearchSearchProviderAsync(
         }
 
         var mappings = settingsManager.GetConnectionSettings(query.Index).Mappings ?? [];
+        var aggregations = await ElasticSearchAggregations.TranslateAsync(query, mappings, queryTranslateServiceAsync).ConfigureAwait(false);
+        if (aggregations.IsFailed)
+        {
+            return aggregations.ToResult<ISearchResult>();
+        }
+
         var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
         request.Highlight = highlight.Value;
+        request.Aggregations = aggregations.Value;
         var client = await clientFactoryAsync.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
         var response = await client.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
         // The client reports a cancelled request as an invalid response; the caller cancelled, so say that instead.
         cancellationToken.ThrowIfCancellationRequested();
         if (!response.IsValidResponse)
         {
-            return Result.Fail<ISearchResult>(ElasticSearchFailures.Describe("search", response));
+            var failure = ElasticSearchFailures.Describe("search", response);
+            return Result.Fail<ISearchResult>(aggregations.Value != null ? ElasticSearchAggregations.TextFieldFailure(failure) ?? failure : failure);
         }
 
         // Partial results are disallowed in the request; this guards against a cluster that returns them anyway.
@@ -88,6 +91,17 @@ public class ElasticSearchSearchProviderAsync(
         }
 
         var result = resultMapper.MapResult(response);
+        if (aggregations.Value != null)
+        {
+            var facets = ElasticSearchAggregations.Map(query.FacetQueries, response.Aggregations);
+            if (facets.IsFailed)
+            {
+                return facets.ToResult<ISearchResult>();
+            }
+
+            result = new BaseSearchResults { Items = result.Items, Pagination = result.Pagination, Aggregations = facets.Value };
+        }
+
         result.Pagination.Page = PageOf(query);
         result.Pagination.PageSize = PageSizeOf(query);
         result.Pagination.TotalPages = (int)Math.Ceiling(result.Pagination.TotalCount / (double)result.Pagination.PageSize);

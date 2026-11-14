@@ -19,4 +19,9 @@ public class MultiTermAggregationQueryConfigurator(MultiTermAggreation query)
         query.Terms = fieldsNames.Select(x => new SimpleTerm() { TermFieldName = x }).ToList();
         return this;
     }
+    public MultiTermAggregationQueryConfigurator WithSize(int size)
+    {
+        query.Size = size;
+        return this;
+    }
 }
