@@ -20,15 +20,25 @@ internal sealed class SpatialSearchSubQueryTranslator(IOptionsMonitor<Meilisearc
     /// <summary>Metres in one of each unit, by every name Elasticsearch accepts.</summary>
     private static readonly Dictionary<string, double> MetresPerUnit = new(StringComparer.Ordinal)
     {
-        ["mi"] = 1609.344, ["miles"] = 1609.344,
-        ["yd"] = 0.9144, ["yards"] = 0.9144,
-        ["ft"] = 0.3048, ["feet"] = 0.3048,
-        ["in"] = 0.0254, ["inch"] = 0.0254,
-        ["km"] = 1000, ["kilometers"] = 1000,
-        ["m"] = 1, ["meters"] = 1,
-        ["cm"] = 0.01, ["centimeters"] = 0.01,
-        ["mm"] = 0.001, ["millimeters"] = 0.001,
-        ["NM"] = 1852, ["nmi"] = 1852, ["nauticalmiles"] = 1852,
+        ["mi"] = 1609.344,
+        ["miles"] = 1609.344,
+        ["yd"] = 0.9144,
+        ["yards"] = 0.9144,
+        ["ft"] = 0.3048,
+        ["feet"] = 0.3048,
+        ["in"] = 0.0254,
+        ["inch"] = 0.0254,
+        ["km"] = 1000,
+        ["kilometers"] = 1000,
+        ["m"] = 1,
+        ["meters"] = 1,
+        ["cm"] = 0.01,
+        ["centimeters"] = 0.01,
+        ["mm"] = 0.001,
+        ["millimeters"] = 0.001,
+        ["NM"] = 1852,
+        ["nmi"] = 1852,
+        ["nauticalmiles"] = 1852,
     };
 
     protected override Result<MeilisearchFilter> Translate(SpatialSearchQuery query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators)

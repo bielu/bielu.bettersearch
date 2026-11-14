@@ -5,6 +5,7 @@ using System.Text;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
+using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
 using FluentResults;
@@ -16,7 +17,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Tests;
 /// <summary>
 /// Responses a healthy test cluster does not produce, served from an in-memory request invoker.
 /// </summary>
-public sealed class ElasticsearchIndexingResponseTests
+public sealed class ElasticsearchIndexingResponseTests : RemoveDocumentResponseTestBase
 {
     private sealed class FixedClientFactory(ElasticsearchClient client) : IClientFactoryAsync<ElasticsearchClient>
     {
@@ -83,6 +84,8 @@ public sealed class ElasticsearchIndexingResponseTests
         new(Encoding.UTF8.GetBytes(json), statusCode, null, "application/json",
             new Dictionary<string, IEnumerable<string>> { ["x-elastic-product"] = ["Elasticsearch"] });
 
+    protected override IIndexingProviderAsync ProviderAnswering(string json, int statusCode) => Provider(json, statusCode);
+
     private static ElasticSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false,
         IElasticSearchClientSettingsManager? settingsManager = null) =>
         Provider(Invoker(json, statusCode), throwExceptions, settingsManager);
@@ -117,26 +120,6 @@ public sealed class ElasticsearchIndexingResponseTests
     }
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
-
-    [Fact]
-    public async Task RemoveDocumentAsync_DocumentNotFound_ReturnsSuccess()
-    {
-        var provider = Provider("""{"_index":"people","_id":"1","_version":1,"result":"not_found","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":0,"_primary_term":1}""", 404);
-
-        var result = await provider.RemoveDocumentAsync("1", "people", Token);
-
-        result.IsSuccess.ShouldBeTrue();
-    }
-
-    [Fact]
-    public async Task RemoveDocumentAsync_IndexNotFound_ReturnsFailure()
-    {
-        var provider = Provider("""{"error":{"root_cause":[{"type":"index_not_found_exception","reason":"no such index [people]"}],"type":"index_not_found_exception","reason":"no such index [people]"},"status":404}""", 404);
-
-        var result = await provider.RemoveDocumentAsync("1", "people", Token);
-
-        result.IsFailed.ShouldBeTrue();
-    }
 
     [Fact]
     public async Task RemoveDocumentsAsync_OneItemFails_ReturnsFailureNamingOnlyThatId()

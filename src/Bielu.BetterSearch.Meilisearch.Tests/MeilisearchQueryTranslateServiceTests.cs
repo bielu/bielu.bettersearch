@@ -287,7 +287,11 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     {
         var filter = await FilterAsync(Query(Occurance.MUST, new SpatialSearchQuery
         {
-            Field = "Location", Distance = 10, Lat = 52.23, Lng = 21.01, UnitOfDistance = unit
+            Field = "Location",
+            Distance = 10,
+            Lat = 52.23,
+            Lng = 21.01,
+            UnitOfDistance = unit
         }));
 
         filter.ShouldBe($"({expected})");

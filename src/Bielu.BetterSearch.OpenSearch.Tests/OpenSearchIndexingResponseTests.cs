@@ -6,6 +6,7 @@ using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
+using Bielu.BetterSearch.Tests;
 using FluentResults;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -18,7 +19,7 @@ namespace Bielu.BetterSearch.OpenSearch.Tests;
 /// <summary>
 /// Responses a healthy test cluster does not produce, served from an in-memory connection.
 /// </summary>
-public sealed class OpenSearchIndexingResponseTests
+public sealed class OpenSearchIndexingResponseTests : RemoveDocumentResponseTestBase
 {
     private sealed class FixedClientFactory(IOpenSearchClient client) : IClientFactoryAsync<IOpenSearchClient>
     {
@@ -92,6 +93,8 @@ public sealed class OpenSearchIndexingResponseTests
         {
         }
     }
+
+    protected override IIndexingProviderAsync ProviderAnswering(string json, int statusCode) => Provider(json, statusCode);
 
     private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false,
         IOpenSearchClientSettingsManager? settingsManager = null) =>
@@ -354,26 +357,6 @@ public sealed class OpenSearchIndexingResponseTests
     }
 
     [Fact]
-    public async Task RemoveDocumentAsync_DocumentNotFound_ReturnsSuccess()
-    {
-        var provider = Provider("""{"_index":"people","_id":"1","_version":1,"result":"not_found","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":0,"_primary_term":1}""", 404);
-
-        var result = await provider.RemoveDocumentAsync("1", "people", Token);
-
-        result.IsSuccess.ShouldBeTrue();
-    }
-
-    [Fact]
-    public async Task RemoveDocumentAsync_IndexNotFound_ReturnsFailure()
-    {
-        var provider = Provider("""{"error":{"root_cause":[{"type":"index_not_found_exception","reason":"no such index [people]"}],"type":"index_not_found_exception","reason":"no such index [people]"},"status":404}""", 404);
-
-        var result = await provider.RemoveDocumentAsync("1", "people", Token);
-
-        result.IsFailed.ShouldBeTrue();
-    }
-
-    [Fact]
     public async Task CreateIndexAsync_Forbidden_ReturnsFailureWithTheCause()
     {
         var provider = Provider("""{"error":{"root_cause":[{"type":"security_exception","reason":"no permissions for [indices:admin/create]"}],"type":"security_exception","reason":"no permissions for [indices:admin/create]"},"status":403}""", 403);
@@ -573,7 +556,7 @@ public sealed class OpenSearchIndexingResponseTests
         var translateService = new OpenSearchQueryTranslateService([]);
         var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), new InvalidSettingsOptionsMonitor(maxResultWindow), NoMappings);
 
-        var result = await provider.SearchAsync(new SearchQuery { Index = "people" });
+        var result = await provider.SearchAsync(new SearchQuery { Index = "people" }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldBe($"MaxResultWindow is {maxResultWindow}, but it must be greater than 0. Set Bielu:BetterSearch:OpenSearch:MaxResultWindow to the indexes' index.max_result_window.");
@@ -586,7 +569,7 @@ public sealed class OpenSearchIndexingResponseTests
         var translateService = new OpenSearchQueryTranslateService([]);
         var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), options, NoMappings);
 
-        var result = await provider.SearchAsync(new SearchQuery { Index = "people" });
+        var result = await provider.SearchAsync(new SearchQuery { Index = "people" }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("people");
