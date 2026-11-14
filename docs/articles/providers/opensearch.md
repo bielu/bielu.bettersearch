@@ -88,7 +88,14 @@ Documents are stored with their values under `fields`, as with Elasticsearch, so
   sub-field under its plain name; an unmapped text field still sorts as `Field.keyword`.
 - **`SpatialSearchQuery`** needs the field mapped as `GeoPoint` in `Mappings`; dynamic mapping doesn't create one.
 - **`LuceneQuery`** field names need the `fields.` prefix.
-- **`FuzzyQuery`** allows at most 2 edits, and uses `AUTO` when `Fuziness` is unset.
+- **`FuzzyQuery`** allows at most 2 edits, and uses `AUTO` when `Fuziness` is unset. A value that is not a string or
+  a number, such as a date or a boolean, returns a failed `Result`.
+- **Dates are stored and queried as ISO 8601 text in UTC**, with fractional seconds only when they are not zero
+  (`2026-11-08T13:05:00Z`, `2026-11-08T13:05:00.123Z`). A local `DateTime` and a `DateTimeOffset` are converted to
+  UTC, and a `DateTime` with `Kind.Unspecified` is taken as UTC, so a date comes back from a search in UTC. A
+  `TermQuery`, `TermsQuery` or `PrefixQuery` with a date value matches that text on a keyword field. Dynamic mapping maps these strings as
+  dates, which OpenSearch rejects a prefix query on. Re-index documents indexed before this version, which keep the text
+  the client wrote then.
 - **Total hit count** is exact up to `MaxResultWindow` matches, then a lower bound.
 
 ## Field mappings
@@ -127,7 +134,7 @@ unless the first value it sees looks like a date (`2026-11-13`), which date dete
 - **`GeoPoint`** makes `SpatialSearchQuery` work. A point is a `"lat,lon"` string or a dictionary with `lat`
   and `lon`.
 - **`Date`** with a `Format` must accept the values documents hold, or indexing them fails. The provider writes a
-  `DateTime` or `DateTimeOffset` as ISO 8601 text and a `DateOnly` as `yyyy-MM-dd`, so a custom format has to
+  `DateTime` or `DateTimeOffset` as ISO 8601 text in UTC (`2026-11-08T13:05:00Z`) and a `DateOnly` as `yyyy-MM-dd`, so a custom format has to
   accept ISO 8601 as well, for example `strict_date_optional_time||yyyy-MM-dd`. `yyyy-MM-dd` alone rejects every
   `DateTime` document.
 

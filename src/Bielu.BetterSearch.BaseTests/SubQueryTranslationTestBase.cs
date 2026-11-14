@@ -131,13 +131,47 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
     public virtual async Task TermsSubQuery_CommaDecimalCulture_SendsInvariantValue()
         => await SubQueryShouldSendInvariantAsync(new TermsSubQuery { Field = "Name", Value = [3.5] }, "3.5", "3,5");
 
+    // A date or boolean cannot be matched within a few edits, so a provider that sends fuzzy values as text fails it.
     [Fact]
-    public virtual async Task FuzzyQuery_DateValue_SendsInvariantDate()
-        => await SubQueryShouldSendInvariantAsync(new FuzzyQuery { Field = "Born", Value = Date }, "11/08/2026", "08.11.2026");
+    public virtual async Task FuzzyQuery_DateValue_ReturnsFailedResult()
+        => await FuzzyValueShouldFailAsync(Date, "DateTime");
 
     [Fact]
-    public virtual async Task PrefixSubQuery_DateValue_SendsInvariantDate()
-        => await SubQueryShouldSendInvariantAsync(new PrefixSubQuery { Field = "Born", Value = Date }, "11/08/2026", "08.11.2026");
+    public virtual async Task FuzzyQuery_DateTimeOffsetValue_ReturnsFailedResult()
+        => await FuzzyValueShouldFailAsync(new DateTimeOffset(Date), "DateTimeOffset");
+
+    [Fact]
+    public virtual async Task FuzzyQuery_BooleanValue_ReturnsFailedResult()
+        => await FuzzyValueShouldFailAsync(true, "Boolean");
+
+    protected async Task FuzzyValueShouldFailAsync(object value, string typeName)
+    {
+        var result = await TranslateAsync(new FuzzyQuery { Field = "Born", Value = value });
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldContain($"is a {typeName}; a fuzzy match needs a string or a number");
+    }
+
+    [Fact]
+    public virtual async Task PrefixSubQuery_DateValue_SendsIsoDateInUtc()
+        => await SubQueryShouldSendInvariantAsync(new PrefixSubQuery { Field = "Born", Value = Date }, "2026-11-08T00:00:00Z", "11/08/2026");
+
+    [Fact]
+    public virtual async Task PrefixPhraseSubQuery_DateValue_SendsIsoDateInUtc()
+        => await SubQueryShouldSendInvariantAsync(
+            new PrefixPhraseSubQuery { Field = "Born", Value = new DateTimeOffset(2026, 11, 8, 1, 0, 0, 120, TimeSpan.FromHours(1)) },
+            "2026-11-08T00:00:00.12Z", "+01:00");
+
+    [Fact]
+    public virtual async Task TermSubQuery_DateValue_SendsIsoDateInUtc()
+        => await SubQueryShouldSendInvariantAsync(
+            new TermSubQuery { Field = "Born", Value = new DateTimeOffset(2026, 11, 8, 1, 0, 0, 120, TimeSpan.FromHours(1)) },
+            "2026-11-08T00:00:00.12Z", "+01:00");
+
+    [Fact]
+    public virtual async Task TermsSubQuery_DateValue_SendsIsoDateInUtc()
+        => await SubQueryShouldSendInvariantAsync(
+            new TermsSubQuery { Field = "Born", Value = [new DateTimeOffset(2026, 11, 8, 1, 0, 0, 120, TimeSpan.FromHours(1))] },
+            "2026-11-08T00:00:00.12Z", "+01:00");
 
     [Fact]
     public virtual async Task SpatialSearchQueryShouldBeTranslatable()

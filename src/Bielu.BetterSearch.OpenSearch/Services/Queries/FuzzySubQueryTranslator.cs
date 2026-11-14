@@ -26,6 +26,14 @@ internal sealed class FuzzySubQueryTranslator : OpenSearchSubQueryTranslator<Fuz
             return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(FuzzyQuery)} needs a Value."));
         }
 
+        // A date or boolean is not text to match within a few edits: a date field rejects a fuzzy match at search
+        // time, and a text field splits a date into numbers that fuzzily match unrelated documents.
+        if (query.Value is not string && !QueryValueText.IsNumber(query.Value))
+        {
+            return Task.FromResult(Result.Fail<QueryContainer>(
+                $"{nameof(FuzzyQuery)} value '{QueryValueText.From(query.Value)}' is a {query.Value.GetType().Name}; a fuzzy match needs a string or a number."));
+        }
+
         // As in the other providers, the larger number of the pair is the edit distance. OpenSearch
         // allows at most 2 edits.
         var fuzziness = query.Fuziness == null

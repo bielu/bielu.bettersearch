@@ -49,15 +49,61 @@ public class QueryTranslationUnitTests(IEnumerable<ISubQueryTranslator<IQuery>> 
     public override async Task TermsSubQuery_CommaDecimalCulture_SendsInvariantValue()
         => (await RenderUnderLetterDecimalCultureAsync(new TermsSubQuery { Field = "Name", Value = [3.5] })).ShouldBe("\"3 5\"");
 
-    // A day-first culture would send the words 08 11 2026 instead.
-    [Fact]
-    public override async Task FuzzyQuery_DateValue_SendsInvariantDate()
-        => (await RenderUnderCommaDecimalCultureAsync(new FuzzyQuery { Field = "Born", Value = Date }))
-            .ShouldBe("\"?2,?11 ?2,?08 ?2,?2026 ?2,?00 ?2,?00 ?2,?00\"");
+    // Lifti matches a fuzzy date or boolean as the words of its text, as indexed, rather than failing, so the
+    // shared tests that expect a failure are replaced by the ones below. The offset is converted, so the
+    // DateTimeOffset matches the same words as the UTC date.
+    private const string FuzzyMatchesWords = "Lifti translates a fuzzy date or boolean as the words of its text; see the FuzzyQuery_*Value_MatchesWordsOfItsText tests";
+
+    [Fact(Skip = FuzzyMatchesWords)]
+    public override Task FuzzyQuery_DateValue_ReturnsFailedResult() => Task.CompletedTask;
+
+    [Fact(Skip = FuzzyMatchesWords)]
+    public override Task FuzzyQuery_DateTimeOffsetValue_ReturnsFailedResult() => Task.CompletedTask;
+
+    [Fact(Skip = FuzzyMatchesWords)]
+    public override Task FuzzyQuery_BooleanValue_ReturnsFailedResult() => Task.CompletedTask;
 
     [Fact]
-    public override async Task PrefixSubQuery_DateValue_SendsInvariantDate()
-        => (await RenderUnderCommaDecimalCultureAsync(new PrefixSubQuery { Field = "Born", Value = Date })).ShouldBe("\"11 08 2026 00 00 00*\"");
+    public async Task FuzzyQuery_DateValue_MatchesWordsOfItsText()
+        => (await RenderUnderCommaDecimalCultureAsync(new FuzzyQuery { Field = "Born", Value = Date }))
+            .ShouldBe("\"?2,?2026 ?2,?11 ?2,?08T00 ?2,?00 ?2,?00Z\"");
+
+    [Fact]
+    public async Task FuzzyQuery_DateTimeOffsetValue_MatchesWordsOfItsText()
+        => (await RenderUnderCommaDecimalCultureAsync(new FuzzyQuery { Field = "Born", Value = new DateTimeOffset(Date) }))
+            .ShouldBe("\"?2,?2026 ?2,?11 ?2,?08T00 ?2,?00 ?2,?00Z\"");
+
+    [Fact]
+    public async Task FuzzyQuery_BooleanValue_MatchesWordsOfItsText()
+        => (await RenderUnderCommaDecimalCultureAsync(new FuzzyQuery { Field = "Born", Value = true })).ShouldBe("?2,?TRUE");
+
+    [Fact]
+    public override async Task TermSubQuery_DateValue_SendsIsoDateInUtc()
+        => (await RenderUnderCommaDecimalCultureAsync(new TermSubQuery
+        {
+            Field = "Born",
+            Value = new DateTimeOffset(2026, 11, 8, 1, 0, 0, 120, TimeSpan.FromHours(1))
+        })).ShouldBe("\"2026 11 08T00 00 00 12Z\"");
+
+    [Fact]
+    public override async Task TermsSubQuery_DateValue_SendsIsoDateInUtc()
+        => (await RenderUnderCommaDecimalCultureAsync(new TermsSubQuery
+        {
+            Field = "Born",
+            Value = [new DateTimeOffset(2026, 11, 8, 1, 0, 0, 120, TimeSpan.FromHours(1))]
+        })).ShouldBe("\"2026 11 08T00 00 00 12Z\"");
+
+    [Fact]
+    public override async Task PrefixSubQuery_DateValue_SendsIsoDateInUtc()
+        => (await RenderUnderCommaDecimalCultureAsync(new PrefixSubQuery { Field = "Born", Value = Date })).ShouldBe("\"2026 11 08T00 00 00Z*\"");
+
+    [Fact]
+    public override async Task PrefixPhraseSubQuery_DateValue_SendsIsoDateInUtc()
+        => (await RenderUnderCommaDecimalCultureAsync(new PrefixPhraseSubQuery
+        {
+            Field = "Born",
+            Value = new DateTimeOffset(2026, 11, 8, 1, 0, 0, 120, TimeSpan.FromHours(1))
+        })).ShouldBe("\"2026 11 08T00 00 00 12Z*\"");
 
     [Fact]
     public override async Task DateRangeQueryShouldBeTranslatable()

@@ -273,6 +273,46 @@ public abstract class QueryResultBaseTests(
         }
     }
 
+    /// <summary>
+    /// Dates are stored as the text a query sends for them: ISO 8601 in UTC, a date without a time zone taken as UTC,
+    /// and fractional seconds only when they are not zero.
+    /// </summary>
+    [Fact]
+    public async Task SearchAsync_StoredDates_ComeBackAsIsoTextInUtc()
+    {
+        var index = $"query-results-{Guid.NewGuid():N}";
+        (await indexingServiceAsync.IndexDocumentAsync(new SearchDocument
+        {
+            Id = "dates-1",
+            Index = index,
+            Fields = new Dictionary<string, IList<object>>
+            {
+                { "Name", ["Dated Values"] },
+                { "Unspecified", [new DateTime(2026, 11, 8, 13, 5, 0, 123, DateTimeKind.Unspecified)] },
+                { "Utc", [new DateTime(2026, 11, 8, 13, 5, 0, DateTimeKind.Utc)] },
+                { "Offset", [new DateTimeOffset(2026, 11, 8, 0, 0, 0, TimeSpan.FromHours(1))] },
+                { "Day", [new DateOnly(2026, 11, 8)] }
+            }
+        }, TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        await DocumentsIndexedAsync(index);
+        var query = new SearchQuery { Index = index };
+        query.Add(Occurance.MUST, Name("dated"));
+
+        var result = await serviceAsync.SearchAsync(query, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+        var hit = result.Value.Items.ShouldHaveSingleItem();
+        hit.Document.Id.ShouldBe("dates-1");
+        if (ReturnsStoredFields)
+        {
+            var fields = hit.Document.CustomProperties;
+            fields["Unspecified"].ShouldHaveSingleItem().ShouldBe("2026-11-08T13:05:00.123Z");
+            fields["Utc"].ShouldHaveSingleItem().ShouldBe("2026-11-08T13:05:00Z");
+            fields["Offset"].ShouldHaveSingleItem().ShouldBe("2026-11-07T23:00:00Z");
+            fields["Day"].ShouldHaveSingleItem().ShouldBe("2026-11-08");
+        }
+    }
+
     [Fact]
     public virtual async Task SearchAsync_FluentCultureFilter_ReturnsOnlyThatCulture()
     {

@@ -86,6 +86,9 @@ Filters compare whole values, so alongside each document the provider stores:
 - the runs of up to 16 words a phrase prefix can start at (`phrases`), for every field or only `PhraseFields`;
 - each date as Unix milliseconds (`dates`).
 
+Under `fields`, a date is stored as ISO 8601 text in UTC (`2026-11-08T13:05:00Z`), as Elasticsearch and OpenSearch
+store it, so it comes back from a search that way.
+
 A query on `Name` filters those copies; a query on `fields.Name` compares the value as given, as `Name.keyword`
 does on Elasticsearch. **Re-index** documents indexed before this version, and after adding a field to
 `PhraseFields`: until then they don't match.

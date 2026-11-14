@@ -143,7 +143,7 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
             ("2026", [new DateTime(2026, 11, 8, 0, 0, 0, DateTimeKind.Utc)]),
             ("1926", [new DateTime(1926, 11, 8, 0, 0, 0, DateTimeKind.Utc)]));
 
-        var ids = await SearchIdsAsync(index, new PrefixSubQuery { Field = "Value", Value = "11/08/20" });
+        var ids = await SearchIdsAsync(index, new PrefixSubQuery { Field = "Value", Value = "2026-11-0" });
 
         ids.ShouldBe(["2026"]);
     }
@@ -188,9 +188,10 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
     }
 
     [Fact]
-    public async Task SearchAsync_TermForDayOfDate_MatchesDocument()
+    public async Task SearchAsync_TermForYearOfDate_MatchesDocument()
     {
-        // A date is indexed with the invariant culture, "11/08/2026 13:05:00", so each of its parts is a word.
+        // A date is indexed as ISO 8601 text in UTC, "2026-11-08T13:05:00Z", so the parts between dashes and colons
+        // are words: 2026, 11, 08T13, 05 and 00Z.
         var index = $"culture-{Guid.NewGuid():N}";
         using var _ = CultureScope.CommaDecimal();
         var indexed = await indexingService.IndexDocumentAsync(new SearchDocument
@@ -202,7 +203,7 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
         indexed.IsSuccess.ShouldBeTrue();
 
         var query = new SearchQuery { Index = index };
-        query.Add(Occurance.MUST, new TermSubQuery { Field = "Born", Value = "08" });
+        query.Add(Occurance.MUST, new TermSubQuery { Field = "Born", Value = "2026" });
         var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
