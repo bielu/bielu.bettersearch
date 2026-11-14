@@ -4,15 +4,15 @@ namespace Bielu.BetterSearch.Services;
 
 /// <summary>
 /// The keyed services a routing service has used in its DI scope, each resolved once. <paramref name="subscribe"/>
-/// subscribes the router to each of them, with observers from <see cref="ForwardTo{T}"/>, which pass on only the
-/// notifications of this router's own calls.
+/// subscribes the router to each of them, with observers from <see cref="ForwardTo{T}"/> of the instance it is passed,
+/// which pass on only the notifications of this router's own calls.
 /// </summary>
 /// <remarks>
 /// A routed call marks itself in <see cref="RoutedCall.Current"/>, so concurrent calls, routed or direct, can't pick
 /// up each other's notifications, and <see cref="ObserverList{T}"/> clears the mark while it calls observers, so a
 /// write an observer starts on a keyed service isn't taken for part of the routed call.
 /// </remarks>
-internal sealed class RoutedServices<TService>(IServiceProvider serviceProvider, Func<TService, IEnumerable<IDisposable>> subscribe)
+internal sealed class RoutedServices<TService>(IServiceProvider serviceProvider, Func<TService, RoutedServices<TService>, IEnumerable<IDisposable>> subscribe)
     where TService : notnull
 {
     private readonly object _lock = new();
@@ -58,7 +58,7 @@ internal sealed class RoutedServices<TService>(IServiceProvider serviceProvider,
                 // Once the router is disposed its observers are completed, so there is nothing to forward to.
                 if (!_disposed)
                 {
-                    _subscriptions.AddRange(subscribe(service));
+                    _subscriptions.AddRange(subscribe(service, this));
                     _services.Add(key, service);
                 }
             }
