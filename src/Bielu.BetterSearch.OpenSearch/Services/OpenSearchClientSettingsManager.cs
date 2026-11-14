@@ -26,22 +26,24 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
         IndexNames.WithPrefix(optionsMonitor.CurrentValue.IndexPrefix, indexName);
 
     /// <summary>
-    /// Builds a new settings object, leaving the live options untouched: the index's connection string and
-    /// authentication win, and an index without its own takes the shared one. Mappings are the shared ones with the
+    /// Builds a new settings object, leaving the live options untouched: the index's connection string,
+    /// authentication and pool type win, and an index without its own takes the shared one. The additional nodes go with
+    /// the connection string: an index with its own connection string uses only its own nodes. Mappings are the shared ones with the
     /// index's own on top, the bulk batch size is the index's own or else the shared one, and the index's write visibility wins over the shared one.
     /// </summary>
     internal static OpenSearchIndexSettings MergeSettings(OpenSearchIndexSettings indexSpecific,
         OpenSearchIndexSettings shared)
     {
         var ownAuthentication = indexSpecific.AuthenticationType is not null;
+        var ownConnection = !string.IsNullOrWhiteSpace(indexSpecific.ConnectionString);
         return new OpenSearchIndexSettings
         {
-            ConnectionString = string.IsNullOrWhiteSpace(indexSpecific.ConnectionString)
-                ? shared.ConnectionString
-                : indexSpecific.ConnectionString,
+            ConnectionString = ownConnection ? indexSpecific.ConnectionString : shared.ConnectionString,
+            AdditionalNodes = ownConnection ? indexSpecific.AdditionalNodes : indexSpecific.AdditionalNodes ?? shared.AdditionalNodes,
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
                                  ?? OpenSearchAuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
+            PoolType = indexSpecific.PoolType ?? shared?.PoolType,
             Mappings = FieldMappings.Merge(shared?.Mappings, indexSpecific.Mappings),
             BulkBatchSize = indexSpecific.BulkBatchSize ?? shared?.BulkBatchSize,
             WriteVisibility = indexSpecific.WriteVisibility ?? shared?.WriteVisibility ?? WriteVisibility.Default,
@@ -60,7 +62,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
         var details = settings.AuthenticationDetails;
         string?[] failures =
         [
-            ConnectionSettingsChecks.HttpUrlFailure(key, index, settings.ConnectionString),
+            .. ConnectionSettingsChecks.NodeFailures(key, index, settings.ConnectionString, settings.AdditionalNodes, settings.PoolType),
             authenticationType switch
             {
                 OpenSearchAuthenticationType.NONE => null,
@@ -78,7 +80,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
     public ConnectionSettings CreateClientSettings(OpenSearchIndexSettings settings)
     {
         ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, null));
-        var connectionSettings = new ConnectionSettings(new SingleNodeConnectionPool(new Uri(settings.ConnectionString)));
+        var connectionSettings = new ConnectionSettings(CreateConnectionPool(settings));
         var details = settings.AuthenticationDetails!;
         switch (settings.AuthenticationType ?? OpenSearchAuthenticationType.NONE)
         {
@@ -92,5 +94,22 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
         }
 
         return connectionSettings;
+    }
+
+    /// <summary>
+    /// The pool of the connection string and the additional nodes: a single node pool, as before, when there is only
+    /// the connection string and no pool type, and a static pool when there are more nodes and no pool type.
+    /// </summary>
+    private static IConnectionPool CreateConnectionPool(OpenSearchIndexSettings settings)
+    {
+        var nodes = ConnectionSettingsChecks.NodeUrls(settings.ConnectionString, settings.AdditionalNodes);
+        return settings.PoolType switch
+        {
+            null when nodes.Count == 1 => new SingleNodeConnectionPool(nodes[0]),
+            null or NodePoolType.Static => new StaticConnectionPool(nodes),
+            NodePoolType.Sticky => new StickyConnectionPool(nodes),
+            NodePoolType.Sniffing => new SniffingConnectionPool(nodes),
+            _ => throw new ArgumentOutOfRangeException(nameof(settings), settings.PoolType, "Unknown pool type."),
+        };
     }
 }

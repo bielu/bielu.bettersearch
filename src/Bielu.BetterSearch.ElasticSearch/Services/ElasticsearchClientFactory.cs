@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Elastic.Clients.Elasticsearch;
@@ -9,7 +10,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 
 /// <summary>
 /// Creates one long-lived client per distinct connection, as Elastic recommends. Clients are keyed on the
-/// settings an index connects with, not its name: indexes with the same connection string and authentication
+/// settings an index connects with, not its name: indexes with the same nodes, pool type and authentication
 /// share a client, and a changed setting, such as a rotated password, gets a new client on the next call.
 /// The client for the old setting stays cached until the application restarts, which suits settings that rarely change.
 /// </summary>
@@ -29,6 +30,8 @@ public class ElasticsearchClientFactory(IElasticSearchClientSettingsManager sear
 
     internal readonly record struct ClientKey(
         string ConnectionString,
+        string AdditionalNodes,
+        NodePoolType? PoolType,
         AuthenticationType? AuthenticationType,
         string? Id,
         string? Username,
@@ -37,6 +40,9 @@ public class ElasticsearchClientFactory(IElasticSearchClientSettingsManager sear
     {
         public static ClientKey From(ElasticSearchIndexSettings settings) => new(
             settings.ConnectionString,
+            // A record compares a list by reference, so the nodes are compared as one string; a valid URL has no spaces.
+            string.Join(' ', settings.AdditionalNodes ?? []),
+            settings.PoolType,
             settings.AuthenticationType,
             settings.AuthenticationDetails?.Id,
             settings.AuthenticationDetails?.Username,
@@ -45,7 +51,7 @@ public class ElasticsearchClientFactory(IElasticSearchClientSettingsManager sear
 
         // The generated ToString prints every member; keep the credentials out of logs and exception messages.
         public override string ToString() =>
-            $"{nameof(ClientKey)} {{ {nameof(ConnectionString)} = {ConnectionString}, {nameof(AuthenticationType)} = {AuthenticationType} }}";
+            $"{nameof(ClientKey)} {{ {nameof(ConnectionString)} = {ConnectionString}, {nameof(AdditionalNodes)} = {AdditionalNodes}, {nameof(PoolType)} = {PoolType}, {nameof(AuthenticationType)} = {AuthenticationType} }}";
     }
 }
 

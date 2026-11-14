@@ -397,4 +397,180 @@ public class OpenSearchClientSettingsManagerTests
     [InlineData("app-", "people", "app-people")]
     public void GetIndexName_Prefix_IsPutBeforeTheName(string? prefix, string index, string expected) =>
         CreateManager(new OpenSearchOptions { IndexPrefix = prefix }).GetIndexName(index).ShouldBe(expected);
+
+    private static OpenSearchOptions NodeOptions(NodePoolType? poolType, params string[] additionalNodes) => new()
+    {
+        SharedIndexSettings = new OpenSearchIndexSettings
+        {
+            ConnectionString = "http://first:9200",
+            AdditionalNodes = additionalNodes,
+            PoolType = poolType,
+        },
+    };
+
+    private static Uri[] NodeUris(IConnectionConfigurationValues settings) => settings.ConnectionPool.Nodes.Select(node => node.Uri).ToArray();
+
+    [Fact]
+    public void CreateClientSettings_OnlyConnectionString_UsesSingleNodePool()
+    {
+        var options = new OpenSearchOptions { SharedIndexSettings = new OpenSearchIndexSettings { ConnectionString = "http://first:9200" } };
+
+        var settings = GetSettings(options, "people");
+
+        settings.ConnectionPool.ShouldBeOfType<SingleNodeConnectionPool>();
+        NodeUris(settings).ShouldBe([new Uri("http://first:9200")]);
+    }
+
+    [Fact]
+    public void CreateClientSettings_AdditionalNodesWithoutPoolType_UsesStaticPoolWithEveryNode()
+    {
+        var settings = GetSettings(NodeOptions(null, "http://second:9200", "http://third:9201"), "people");
+
+        settings.ConnectionPool.ShouldBeOfType<StaticConnectionPool>();
+        // A static pool starts from a random node, so the order is not checked.
+        NodeUris(settings).ShouldBe([new Uri("http://first:9200"), new Uri("http://second:9200"), new Uri("http://third:9201")], ignoreOrder: true);
+    }
+
+    [Theory]
+    [InlineData(NodePoolType.Static, typeof(StaticConnectionPool))]
+    [InlineData(NodePoolType.Sticky, typeof(StickyConnectionPool))]
+    [InlineData(NodePoolType.Sniffing, typeof(SniffingConnectionPool))]
+    public void CreateClientSettings_PoolType_UsesThatPoolWithEveryNode(NodePoolType poolType, Type expected)
+    {
+        var settings = GetSettings(NodeOptions(poolType, "http://second:9200"), "people");
+
+        settings.ConnectionPool.GetType().ShouldBe(expected);
+        NodeUris(settings).ShouldBe([new Uri("http://first:9200"), new Uri("http://second:9200")], ignoreOrder: true);
+    }
+
+    [Fact]
+    public void CreateClientSettings_StickyPoolType_KeepsTheListedOrder()
+    {
+        var settings = GetSettings(NodeOptions(NodePoolType.Sticky, "http://second:9200", "http://third:9200"), "people");
+
+        NodeUris(settings).ShouldBe([new Uri("http://first:9200"), new Uri("http://second:9200"), new Uri("http://third:9200")]);
+    }
+
+    [Fact]
+    public void CreateClientSettings_PoolTypeWithOnlyConnectionString_UsesThatPool()
+    {
+        var settings = GetSettings(NodeOptions(NodePoolType.Sticky), "people");
+
+        settings.ConnectionPool.ShouldBeOfType<StickyConnectionPool>();
+        NodeUris(settings).ShouldBe([new Uri("http://first:9200")]);
+    }
+
+    [Fact]
+    public void CreateClientSettings_InvalidAdditionalNode_ThrowsNamingItsPosition()
+    {
+        var manager = new OpenSearchClientSettingsManager(new TestOptionsMonitor<OpenSearchOptions>(NodeOptions(null, "http://second:9200", "third:9200")));
+
+        var error = Should.Throw<ArgumentException>(() => manager.CreateClientSettings(manager.GetConnectionSettings("people")));
+
+        error.Message.ShouldStartWith($"AdditionalNodes:1 is not an http or https URL. Set {OpenSearchOptions.OpenSearchOptionsKey}:SharedIndexSettings:AdditionalNodes:1");
+    }
+
+    [Fact]
+    public void CreateClientSettings_AdditionalNodeWithAnotherScheme_ThrowsNamingItsPosition()
+    {
+        var manager = new OpenSearchClientSettingsManager(new TestOptionsMonitor<OpenSearchOptions>(NodeOptions(null, "http://second:9200", "https://third:9200")));
+
+        var error = Should.Throw<ArgumentException>(() => manager.CreateClientSettings(manager.GetConnectionSettings("people")));
+
+        error.Message.ShouldBe($"AdditionalNodes:1 does not use http, as ConnectionString does, and every node must use the same scheme. Set {OpenSearchOptions.OpenSearchOptionsKey}:SharedIndexSettings:AdditionalNodes:1, or {OpenSearchOptions.OpenSearchOptionsKey}:Indexes:<index>:AdditionalNodes:1 for one index.");
+    }
+
+    [Fact]
+    public void CreateClientSettings_UndefinedPoolType_ThrowsNamingTheSetting()
+    {
+        var manager = new OpenSearchClientSettingsManager(new TestOptionsMonitor<OpenSearchOptions>(NodeOptions((NodePoolType)42)));
+
+        var error = Should.Throw<ArgumentException>(() => manager.CreateClientSettings(manager.GetConnectionSettings("people")));
+
+        error.Message.ShouldStartWith("PoolType 42 is not one of Static, Sticky, Sniffing.");
+    }
+
+    [Fact]
+    public void GetConnectionSettings_IndexWithoutConnectionString_TakesSharedNodesAndPoolType()
+    {
+        var options = NodeOptions(NodePoolType.Sticky, "http://second:9200");
+        options.Indexes = new Dictionary<string, OpenSearchIndexSettings> { ["people"] = new() { BulkBatchSize = 10 } };
+
+        var settings = new OpenSearchClientSettingsManager(new TestOptionsMonitor<OpenSearchOptions>(options)).GetConnectionSettings("people");
+
+        settings.ConnectionString.ShouldBe("http://first:9200");
+        settings.AdditionalNodes.ShouldBe(["http://second:9200"]);
+        settings.PoolType.ShouldBe(NodePoolType.Sticky);
+    }
+
+    [Fact]
+    public void GetConnectionSettings_IndexWithOwnNodesAndPoolType_UsesItsOwn()
+    {
+        var options = NodeOptions(NodePoolType.Sticky, "http://second:9200");
+        options.Indexes = new Dictionary<string, OpenSearchIndexSettings>
+        {
+            ["people"] = new() { AdditionalNodes = ["http://people:9200"], PoolType = NodePoolType.Sniffing },
+        };
+
+        var settings = new OpenSearchClientSettingsManager(new TestOptionsMonitor<OpenSearchOptions>(options)).GetConnectionSettings("people");
+
+        settings.ConnectionString.ShouldBe("http://first:9200");
+        settings.AdditionalNodes.ShouldBe(["http://people:9200"]);
+        settings.PoolType.ShouldBe(NodePoolType.Sniffing);
+    }
+
+    [Fact]
+    public void GetConnectionSettings_IndexWithOwnConnectionString_DoesNotTakeSharedNodes()
+    {
+        var options = NodeOptions(NodePoolType.Sticky, "http://second:9200");
+        options.Indexes = new Dictionary<string, OpenSearchIndexSettings> { ["people"] = new() { ConnectionString = "http://people:9200" } };
+
+        var settings = new OpenSearchClientSettingsManager(new TestOptionsMonitor<OpenSearchOptions>(options)).GetConnectionSettings("people");
+
+        settings.ConnectionString.ShouldBe("http://people:9200");
+        settings.AdditionalNodes.ShouldBeNull();
+        settings.PoolType.ShouldBe(NodePoolType.Sticky);
+        GetSettings(options, "people").ConnectionPool.Nodes.Select(node => node.Uri).ShouldBe([new Uri("http://people:9200")]);
+    }
+
+    [Fact]
+    public void GetConnectionSettings_BoundFromConfiguration_ReadsNodesAndPoolType()
+    {
+        var options = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SharedIndexSettings:ConnectionString"] = "http://first:9200",
+                ["SharedIndexSettings:AdditionalNodes:0"] = "http://second:9200",
+                ["SharedIndexSettings:AdditionalNodes:1"] = "http://third:9200",
+                ["SharedIndexSettings:PoolType"] = "Sticky",
+            })
+            .Build()
+            .Get<OpenSearchOptions>()!;
+
+        var settings = GetSettings(options, "people");
+
+        settings.ConnectionPool.ShouldBeOfType<StickyConnectionPool>();
+        NodeUris(settings).ShouldBe([new Uri("http://first:9200"), new Uri("http://second:9200"), new Uri("http://third:9200")]);
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_AdditionalNodesOrPoolTypeChange_GetsNewClient()
+    {
+        OpenSearchIndexSettings Shared(NodePoolType? poolType, params string[] nodes) =>
+            new() { ConnectionString = "http://first:9200", AdditionalNodes = nodes, PoolType = poolType };
+        var monitor = new TestOptionsMonitor<OpenSearchOptions>(new OpenSearchOptions { SharedIndexSettings = Shared(null, "http://second:9200") });
+        var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor));
+        var before = await factory.GetOrCreateClientAsync("people");
+        (await factory.GetOrCreateClientAsync("people")).ShouldBeSameAs(before);
+
+        monitor.CurrentValue = new OpenSearchOptions { SharedIndexSettings = Shared(null, "http://third:9200") };
+        var otherNodes = await factory.GetOrCreateClientAsync("people");
+        monitor.CurrentValue = new OpenSearchOptions { SharedIndexSettings = Shared(NodePoolType.Sticky, "http://third:9200") };
+        var otherPool = await factory.GetOrCreateClientAsync("people");
+
+        otherNodes.ShouldNotBeSameAs(before);
+        otherNodes.ConnectionSettings.ConnectionPool.Nodes.Select(node => node.Uri).ShouldContain(new Uri("http://third:9200"));
+        otherPool.ShouldNotBeSameAs(otherNodes);
+        otherPool.ConnectionSettings.ConnectionPool.ShouldBeOfType<StickyConnectionPool>();
+    }
 }

@@ -1,8 +1,10 @@
 ﻿using System.Text;
+using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
 using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
+using Elastic.Transport;
 using Shouldly;
 
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
@@ -249,5 +251,26 @@ public class ElasticsearchClientFactoryTests
             Interlocked.Increment(ref _calls) == 1
                 ? throw new InvalidOperationException("first call fails")
                 : inner.CreateClientSettings(settings);
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_AdditionalNodesOrPoolTypeChange_GetsNewClient()
+    {
+        ElasticSearchIndexSettings Shared(NodePoolType? poolType, params string[] nodes) =>
+            new() { ConnectionString = "http://first:9200", AdditionalNodes = nodes, PoolType = poolType };
+        var monitor = new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions { SharedIndexSettings = Shared(null, "http://second:9200") });
+        var factory = CreateFactory(monitor);
+        var before = await factory.GetOrCreateClientAsync("people");
+        (await factory.GetOrCreateClientAsync("people")).ShouldBeSameAs(before);
+
+        monitor.CurrentValue = new ElasticSearchOptions { SharedIndexSettings = Shared(null, "http://third:9200") };
+        var otherNodes = await factory.GetOrCreateClientAsync("people");
+        monitor.CurrentValue = new ElasticSearchOptions { SharedIndexSettings = Shared(NodePoolType.Sticky, "http://third:9200") };
+        var otherPool = await factory.GetOrCreateClientAsync("people");
+
+        otherNodes.ShouldNotBeSameAs(before);
+        otherNodes.ElasticsearchClientSettings.NodePool.Nodes.Select(node => node.Uri).ShouldContain(new Uri("http://third:9200"));
+        otherPool.ShouldNotBeSameAs(otherNodes);
+        otherPool.ElasticsearchClientSettings.NodePool.ShouldBeOfType<StickyNodePool>();
     }
 }

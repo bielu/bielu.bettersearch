@@ -55,6 +55,21 @@ public class ElasticSearchIndexSettings : IndexSettings
     public string ConnectionString { get; set; }
 
     /// <summary>
+    /// The URLs of the cluster's other nodes, beside <see cref="ConnectionString"/>. A request that cannot reach a node
+    /// is sent to the next one. Left unset on an <c>Indexes</c> entry that takes the shared connection string, the
+    /// index takes the shared nodes; an entry with its own connection string uses only its own. <c>CLOUD</c> and <c>CLOUDAPI</c> authentication connect by the cloud id and don't use it.
+    /// </summary>
+    public IList<string>? AdditionalNodes { get; set; }
+
+    /// <summary>
+    /// How the client spreads requests over the nodes. Unset, a single <see cref="ConnectionString"/> is the only node
+    /// the client uses, as before, and with <see cref="AdditionalNodes"/> the nodes take turns as with
+    /// <see cref="Abstractions.Configuration.NodePoolType.Static"/>. Left unset on an <c>Indexes</c> entry, the index
+    /// takes the shared setting. <c>CLOUD</c> and <c>CLOUDAPI</c> authentication connect by the cloud id and don't use it.
+    /// </summary>
+    public NodePoolType? PoolType { get; set; }
+
+    /// <summary>
     /// How to authenticate. Left unset on an <c>Indexes</c> entry, the index takes the shared authentication;
     /// set it to <see cref="Configuration.AuthenticationType.NONE"/> there to turn the shared authentication off.
     /// </summary>

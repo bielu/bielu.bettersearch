@@ -1,0 +1,7 @@
+---
+"bielu-bettersearch": minor
+---
+
+Elasticsearch and OpenSearch take several nodes of a cluster (#150). `AdditionalNodes`, in `SharedIndexSettings` or an `Indexes` entry, lists the cluster's other nodes beside `ConnectionString`, named and shaped as on Typesense, and a request that can't reach a node is sent to the next one. An `Indexes` entry with its own `ConnectionString` uses only its own nodes; one without takes its own `AdditionalNodes` if set, or the shared ones. The new `PoolType` (`NodePoolType`, in `Bielu.BetterSearch.Abstractions.Configuration`) is `Static`, `Sticky` or `Sniffing`, and an `Indexes` entry that leaves it out takes the shared one. Unset, a lone `ConnectionString` still uses a single node pool, as before, and with `AdditionalNodes` the pool is `Static`. Elasticsearch's `CLOUD` and `CLOUDAPI` authentication still connect by the cloud id and don't use either setting.
+
+The options validators and each call check every additional node as they check `ConnectionString`, and that it uses the same scheme, which the clients require, naming its position, such as `Bielu:BetterSearch:OpenSearch:SharedIndexSettings:AdditionalNodes:1`, and reject an undefined `PoolType`. An `Indexes` entry that sets only `AdditionalNodes` or `PoolType` is now checked after merging, as one with its own connection string or authentication is. Clients are cached per connection string, additional nodes, pool type and authentication, so indexes that differ only in their nodes or pool type get separate clients.

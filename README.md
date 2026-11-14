@@ -75,6 +75,10 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
 for that one index and takes the rest from the shared settings (set `"AuthenticationType": "NONE"` there to
 turn the shared authentication off for that index), and `MaxResultWindow` (10,000 by default)
 should match the indexes' `index.max_result_window`.
+`AdditionalNodes` lists the cluster's other nodes, on OpenSearch and Elasticsearch, and `PoolType` (`Static`,
+`Sticky` or `Sniffing`) chooses how requests are spread over them; a request that can't reach a node goes to the
+next one. See the [OpenSearch](docs/articles/providers/opensearch.md) and
+[Elasticsearch](docs/articles/providers/elasticsearch.md) pages.
 
 In every provider, keys under `Indexes` match index names whatever their case, so `Indexes:People` applies
 to the index `people`.
