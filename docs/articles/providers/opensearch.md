@@ -10,6 +10,8 @@ post filters, highlighting and scores.
 >
 > - **Facets** can be expressed, but a query that asks for them returns a failed `Result`.
 >
+> Invalid or missing connection settings make searching and every indexing method return a failed `Result`
+> whose message names the setting to fix, such as `Bielu:BetterSearch:OpenSearch:SharedIndexSettings:ConnectionString`.
 > A request that throws, as it does when `ThrowExceptions()` is on in the connection settings, is a failed
 > `Result` from every indexing method, with the exception as its cause. So is a client factory that throws.
 > `OperationCanceledException` still propagates.

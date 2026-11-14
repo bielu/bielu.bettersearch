@@ -47,45 +47,28 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
 
     public ConnectionSettings CreateClientSettings(OpenSearchIndexSettings settings)
     {
-        if (string.IsNullOrWhiteSpace(settings.ConnectionString))
-        {
-            throw new ArgumentException("OpenSearch connection string is missing");
-        }
-
-        if (!Uri.TryCreate(settings.ConnectionString, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-        {
-            throw new ArgumentException($"OpenSearch connection string {settings.ConnectionString} is not an http or https URL");
-        }
-
-        var connectionSettings = new ConnectionSettings(new SingleNodeConnectionPool(uri));
-        switch (settings.AuthenticationType ?? OpenSearchAuthenticationType.NONE)
+        var key = OpenSearchOptions.OpenSearchOptionsKey;
+        var connectionSettings = new ConnectionSettings(new SingleNodeConnectionPool(ConnectionSettingsChecks.HttpUrl(key, settings.ConnectionString)));
+        var authenticationType = settings.AuthenticationType ?? OpenSearchAuthenticationType.NONE;
+        switch (authenticationType)
         {
             case OpenSearchAuthenticationType.NONE:
                 break;
             case OpenSearchAuthenticationType.PASSWORD:
-                var passwordDetails = settings.AuthenticationDetails
-                                      ?? throw new ArgumentException("Authentication details are missing");
-                if (string.IsNullOrWhiteSpace(passwordDetails.Username) || string.IsNullOrWhiteSpace(passwordDetails.Password))
-                {
-                    throw new ArgumentException("PASSWORD authentication needs a Username and a Password");
-                }
-
+                var passwordDetails = ConnectionSettingsChecks.Details(key, authenticationType, settings.AuthenticationDetails);
+                ConnectionSettingsChecks.Credentials(key, authenticationType,
+                    (nameof(OpenSearchAuthenticationDetails.Username), passwordDetails.Username),
+                    (nameof(OpenSearchAuthenticationDetails.Password), passwordDetails.Password));
                 connectionSettings.BasicAuthentication(passwordDetails.Username, passwordDetails.Password);
                 break;
             case OpenSearchAuthenticationType.APIKEY:
-                var apiKeyDetails = settings.AuthenticationDetails
-                                    ?? throw new ArgumentException("Authentication details are missing");
-                if (string.IsNullOrWhiteSpace(apiKeyDetails.ApiKey))
-                {
-                    throw new ArgumentException("APIKEY authentication needs an ApiKey");
-                }
-
+                var apiKeyDetails = ConnectionSettingsChecks.Details(key, authenticationType, settings.AuthenticationDetails);
+                ConnectionSettingsChecks.Credentials(key, authenticationType, (nameof(OpenSearchAuthenticationDetails.ApiKey), apiKeyDetails.ApiKey));
                 // OpenSearch API keys are sent as they are, "Authorization: ApiKey <token>", not encoded with an id.
                 connectionSettings.ApiKeyAuthentication(new ApiKeyAuthenticationCredentials(apiKeyDetails.ApiKey));
                 break;
             default:
-                throw new ArgumentException($"Invalid authentication type {settings.AuthenticationType}");
+                throw ConnectionSettingsChecks.UnknownAuthenticationType(key, settings.AuthenticationType);
         }
 
         return connectionSettings;
