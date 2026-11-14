@@ -60,7 +60,9 @@ public static class RegisterSearchExtension
     /// <summary>
     /// Sends the requests of every OpenSearch client the provider creates through the connection
     /// <paramref name="createConnection"/> returns, such as one that signs each request, instead of the client's default
-    /// <c>HttpConnection</c>. It runs once for each cached client, when the client is created, not per request. The
+    /// <c>HttpConnection</c>. It runs when a client is created, not per request; two calls racing to create the same client
+    /// can each run it, and only one client and its connection are kept. The other connection is dropped without being
+    /// disposed, so a connection should take disposable resources on its first request, not when it is created. The
     /// options still apply, so a connection that sets its own <c>Authorization</c> header needs <c>AuthenticationType</c>
     /// left at <c>NONE</c>. Called more than once, the last call wins. It can be called before or after <c>AddOpenSearch</c>.
     /// </summary>

@@ -137,8 +137,9 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search
 | `Credentials` | Set in code only, through `AddOpenSearchAwsSigV4(options => options.Credentials = ...)`. Unset, the AWS SDK's default credential chain finds them: environment variables, the AWS profile, or the role of the container or instance. Session credentials send `X-Amz-Security-Token` |
 
 Leave `AuthenticationType` at `NONE`: the signature is the request's `Authorization` header. Every OpenSearch client the
-provider creates signs its requests, whichever `Indexes` entry it is for, and each cached client gets its connection
-once, when it is created, with the settings current then.
+provider creates signs its requests, whichever `Indexes` entry it is for, and each client gets its connection when it
+is created, with the settings current then. Two calls racing to create the same client can each create a connection,
+and only one client and its connection are kept.
 
 > [!NOTE]
 > The signing is tested against a local endpoint, not a real Amazon OpenSearch domain or Serverless collection: the
@@ -147,7 +148,9 @@ once, when it is created, with the settings current then.
 > the signature with a reference signer that matches AWS's published SigV4 examples.
 
 `AddOpenSearchAwsSigV4` is built on `UseOpenSearchConnection`, in the base package, which sends every OpenSearch
-client's requests through the `IConnection` its callback returns, once for each cached client. `configureClient` can't
+client's requests through the `IConnection` its callback returns. The callback runs when a client is created, with the
+same race as `configureClient`: two calls creating the same client can each run it, and the connection of the client
+that isn't kept is dropped without being disposed. `configureClient` can't
 do this, as the client takes its connection when it is created.
 
 ## How queries behave
