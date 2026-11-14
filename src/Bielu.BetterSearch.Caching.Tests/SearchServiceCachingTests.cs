@@ -103,7 +103,11 @@ public class SearchServiceCachingTests
         result.Items.Single().Document.Id.ShouldEndWith("-2");
     }
 
+    /// <summary>The writes that notify an observer once.</summary>
     public static TheoryData<string> Writes => ["index", "index many", "remove", "remove many", "remove all"];
+
+    /// <summary>Every write, each of which evicts its index; an update notifies no observer.</summary>
+    public static TheoryData<string> EvictingWrites => ["index", "index many", "remove", "remove many", "remove all", "update"];
 
     private static Task WriteAsync(IIndexingServiceAsync indexing, string write, string index) => write switch
     {
@@ -112,11 +116,12 @@ public class SearchServiceCachingTests
         "remove" => indexing.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "1", Type = index }, Token),
         "remove many" => indexing.RemoveDocumentsAsync(index, ["1"], Token),
         "remove all" => indexing.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = index }, Token),
+        "update" => indexing.UpdateDocumentAsync(index, "1", new Dictionary<string, IList<object>> { ["Name"] = ["x"] }, Token),
         _ => throw new ArgumentOutOfRangeException(nameof(write))
     };
 
     [Theory]
-    [MemberData(nameof(Writes))]
+    [MemberData(nameof(EvictingWrites))]
     public async Task IndexingWrite_SameIndex_EvictsCachedSearches(string write)
     {
         //Arrange
@@ -134,7 +139,7 @@ public class SearchServiceCachingTests
     }
 
     [Theory]
-    [MemberData(nameof(Writes))]
+    [MemberData(nameof(EvictingWrites))]
     public async Task IndexingWrite_OtherIndex_KeepsCachedSearches(string write)
     {
         //Arrange
@@ -598,6 +603,46 @@ public class SearchServiceCachingTests
 
         //Assert
         notifications.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task UpdateDocumentAsync_CacheRegistered_ReachesProviderAndNotifiesNoObserver()
+    {
+        //Arrange
+        await using var services = Build();
+        var indexing = Indexing(services);
+        var notifications = 0;
+        using var indexed = indexing.Subscribe(new CallbackObserver<SearchDocument>(_ => notifications++));
+
+        //Act
+        var result = await indexing.UpdateDocumentAsync("products", "1", new Dictionary<string, IList<object>> { ["Name"] = ["x"] }, Token);
+
+        //Assert
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.Message)));
+        result.Value.ShouldBeTrue();
+        notifications.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task GetDocumentAndCountAsync_CacheRegistered_ReachProviderEveryTime()
+    {
+        //Arrange
+        await using var services = Build();
+        using var scope = services.CreateScope();
+        var search = scope.ServiceProvider.GetRequiredService<ISearchServiceAsync>();
+
+        //Act
+        var first = await search.CountAsync(Queries.Term("products"), Token);
+        var second = await search.CountAsync(Queries.Term("products"), Token);
+        var document = await search.GetDocumentAsync("products", "7", Token);
+
+        //Assert
+        first.IsSuccess.ShouldBeTrue(string.Join("; ", first.Errors.Select(e => e.Message)));
+        first.Value.ShouldBe(1);
+        second.Value.ShouldBe(2);
+        document.IsSuccess.ShouldBeTrue(string.Join("; ", document.Errors.Select(e => e.Message)));
+        document.Value.ShouldNotBeNull().Id.ShouldBe("7");
+        _search.Calls.ShouldBe(3);
     }
 
     [Fact]

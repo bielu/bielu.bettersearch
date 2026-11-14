@@ -39,6 +39,32 @@ internal sealed class RoutingSearchServiceAsync : ISearchServiceAsync
         return await _services.RunAsync(key.Value, service => service.SearchAsync(query!, cancellationToken)).ConfigureAwait(false);
     }
 
+    /// <summary>Runs on the keyed search service routed for <paramref name="index"/>. Observers are not notified.</summary>
+    public async Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var key = _routes.KeyFor(index);
+        if (key.IsFailed)
+        {
+            return key.ToResult<SearchDocument?>();
+        }
+
+        return await _services.RunAsync(key.Value, service => service.GetDocumentAsync(index, id, cancellationToken)).ConfigureAwait(false);
+    }
+
+    /// <summary>Runs on the keyed search service routed for the query's index. Observers are not notified.</summary>
+    public async Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var key = _routes.KeyFor(query?.Index);
+        if (key.IsFailed)
+        {
+            return key.ToResult<long>();
+        }
+
+        return await _services.RunAsync(key.Value, service => service.CountAsync(query!, cancellationToken)).ConfigureAwait(false);
+    }
+
     public void Dispose()
     {
         _services.Dispose();
