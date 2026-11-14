@@ -149,7 +149,7 @@ public class IndexingServiceAsync(
         return result;
     }
 
-    public async Task<Result<int>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
+    public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
     {
         var result = await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)
@@ -157,7 +157,7 @@ public class IndexingServiceAsync(
             _deleteAllDocumentsObservers.Notify(request);
         }
 
-        return result.ToResult();
+        return result;
     }
 
     public IDisposable Subscribe(IObserver<DeleteDocumentRequest> observer) => _deleteDocumentObservers.Subscribe(observer);

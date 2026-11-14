@@ -21,7 +21,6 @@ which matches or doesn't, so hits aren't ranked. Paging, sorting and post filter
 > - **Highlighting** returns a failed `Result`. Meilisearch marks only matches of the search text, and this
 >   provider runs every query as a filter with no search text, so there is nothing to mark.
 > - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
-> - **Remove all documents** reports a count of 0 through the service.
 >
 > A missing connection string makes each search and write for that index return a failed `Result`. An
 > `OperationCanceledException` thrown by the client factory propagates rather than becoming a failed `Result`.

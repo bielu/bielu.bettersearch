@@ -39,5 +39,12 @@ public interface IIndexingServiceAsync : IObservable<SearchDocument>, IObservabl
     /// removed or not there; when the <see cref="Result"/> fails they get nothing, even for documents already removed.
     /// </summary>
     Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids, CancellationToken cancellationToken = default);
-    Task<Result<int>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Removes every document from the index named by <paramref name="request"/> and returns how many were removed,
+    /// as reported by <see cref="IIndexingProviderAsync.RemoveAllDocumentsAsync"/>. A <c>null</c> value means the
+    /// engine removed the documents but did not report how many. On success, the
+    /// <see cref="DeleteAllDocumentsRequest"/> observers get one <see cref="IObserver{T}.OnNext"/>; when the
+    /// <see cref="Result"/> fails they get nothing.
+    /// </summary>
+    Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default);
 }

@@ -2,30 +2,8 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
-    public class PrefixPhraseQueryConfigurator
+    public class PrefixPhraseQueryConfigurator : SubQueryConfigurator<PrefixPhraseQueryConfigurator>
     {
-        public PrefixPhraseQueryConfigurator Must()
-        {
-            Query.Occurance = Occurance.MUST;
-            return this;
-        }
-        public PrefixPhraseQueryConfigurator MustNot()
-        {
-            Query.Occurance = Occurance.MUSTNOT;
-            return this;
-        }
-        public PrefixPhraseQueryConfigurator Should()
-        {
-            Query.Occurance = Occurance.SHOULD;
-            return this;
-        }
-
-        public PrefixPhraseQueryConfigurator Filter()
-        {
-            Query.Occurance = Occurance.FILTER;
-            return this;
-        }
-
         public PrefixPhraseQueryConfigurator WithField(string fieldName)
         {
             _query.Field = fieldName;
@@ -39,5 +17,6 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
 
         private PrefixPhraseSubQuery _query = new();
         public ISearchSubQuery Query => _query;
+        protected override ISearchSubQuery SubQuery => _query;
     }
 }

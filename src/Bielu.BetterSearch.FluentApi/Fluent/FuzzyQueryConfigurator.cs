@@ -2,33 +2,11 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
-    public class FuzzyQueryConfigurator
+    public class FuzzyQueryConfigurator : SubQueryConfigurator<FuzzyQueryConfigurator>
     {
         public FuzzyQueryConfigurator()
         {
             _query = new FuzzyQuery();
-        }
-
-        public FuzzyQueryConfigurator Must()
-        {
-            Query.Occurance = Occurance.MUST;
-            return this;
-        }
-        public FuzzyQueryConfigurator MustNot()
-        {
-            Query.Occurance = Occurance.MUSTNOT;
-            return this;
-        }
-        public FuzzyQueryConfigurator Should()
-        {
-            Query.Occurance = Occurance.SHOULD;
-            return this;
-        }
-
-        public FuzzyQueryConfigurator Filter()
-        {
-            Query.Occurance = Occurance.FILTER;
-            return this;
         }
 
         public FuzzyQueryConfigurator WithField(string fieldName)
@@ -44,5 +22,6 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
 
         private FuzzyQuery _query;
         public ISearchSubQuery Query => _query;
+        protected override ISearchSubQuery SubQuery => _query;
     }
 }

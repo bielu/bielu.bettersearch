@@ -20,6 +20,7 @@
     <PackageVersion Include="MeiliSearch" Version="0.20.0" />
     <PackageVersion Include="OpenSearch.Client" Version="2.3.0" />
     <!-- Test frameworks -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
     <PackageVersion Include="xunit.v3.extensibility.core" Version="4.0.2" />

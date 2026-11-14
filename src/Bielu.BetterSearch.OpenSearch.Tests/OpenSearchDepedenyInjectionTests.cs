@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Configuration;
 using Bielu.BetterSearch.DepedencyInjection;
 using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
 using Bielu.BetterSearch.OpenSearch.Services;
@@ -12,22 +13,20 @@ namespace Bielu.BetterSearch.OpenSearch.Tests;
 public class OpenSearchDepedenyInjectionTests(IServiceProvider collection)
     : DepedenyInjectionTestBase<IIndexingProviderAsync, IOpenSearchClient, QueryContainer>(collection)
 {
+    protected override void AddProvider(Configurator search) => search.AddOpenSearch();
+
     [Fact]
     public void SearchProviderShouldBeTypeOfOpenSearchSearchProviderAsync() => ServiceShouldBeTypeOf(typeof(ISearchProviderAsync), typeof(OpenSearchSearchProviderAsync));
 
     [Fact]
     public void IndexingProviderShouldBeTypeOfOpenSearchIndexingProviderAsync() => ServiceShouldBeTypeOf(typeof(IIndexingProviderAsync), typeof(OpenSearchIndexingProviderAsync));
 
-    [Theory]
-    [InlineData(typeof(IDocumentValidatorAsync))]
-    [InlineData(typeof(IIndexingServiceAsync))]
-    [InlineData(typeof(ISearchServiceAsync))]
-    [InlineData(typeof(IClientFactoryAsync<IOpenSearchClient>))]
-    public void AddOpenSearch_CoreServices_AreRegisteredOnce(Type serviceType)
+    [Fact]
+    public void AddOpenSearch_ClientFactory_IsRegisteredOnce()
     {
         var services = new ServiceCollection().AddBetterSearch(search => search.AddOpenSearch());
 
-        services.Count(descriptor => descriptor.ServiceType == serviceType).ShouldBe(1);
+        services.Count(descriptor => descriptor.ServiceType == typeof(IClientFactoryAsync<IOpenSearchClient>)).ShouldBe(1);
     }
 
     [Fact]
