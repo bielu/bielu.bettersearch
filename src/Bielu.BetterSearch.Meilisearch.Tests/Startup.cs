@@ -13,13 +13,14 @@ public class Startup
         services.AddLogging(lb => lb.AddXunitOutput())
             .AddBetterSearch(x => x.AddMeilisearch());
 
-        // The host starts hosted services before any test runs, and options are bound on first use,
-        // so the endpoint is known by the time a test asks for a client.
+        // Startup validation reads the options before the host starts its hosted services, so the options
+        // start the server themselves when it is not running yet.
         services.AddSingleton<MeilisearchResource>();
         services.AddHostedService(sp => sp.GetRequiredService<MeilisearchResource>());
         services.AddOptions<MeilisearchOptions>()
             .Configure<MeilisearchResource>((options, meilisearch) =>
             {
+                meilisearch.EnsureStarted();
                 options.SharedIndexSettings = new MeilisearchIndexSettings
                 {
                     ConnectionString = meilisearch.Endpoint!.ToString(),

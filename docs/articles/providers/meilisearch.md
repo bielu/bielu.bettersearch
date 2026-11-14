@@ -70,6 +70,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeil
 | `ConnectionString` | Server URL, such as `http://localhost:7700` |
 | `ApiKey` | The master key or an API key; leave it empty when the server has none |
 | `Indexes` | Per-index settings. An entry with its own `ConnectionString` uses only its own key; an entry without one uses the shared server, with its own `ApiKey` if set or the shared one. Keys match index names whatever their case, so `People` applies to the index `people` |
+| `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` adds in one Meilisearch task, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails; a configuration reload that makes it invalid makes reads and writes return a failed `Result` naming the setting |
 | `TaskTimeout` | How long to wait for a write task to finish, 30 seconds by default. A timeout fails the `Result` but doesn't cancel the task, so the write may still be applied; the error's `taskUid` metadata holds the task's uid |
 | `MaxTotalHits` | Deepest result a search may page to, 10,000 by default; the provider sets it as each index's `pagination.maxTotalHits` |
 | `SettingsCheckInterval` | How long a write trusts an index's settings before checking them again, 5 seconds by default |
@@ -135,19 +136,28 @@ A warning is a FluentResults success reason, so a caller finds it with
 
 ## Indexing several documents
 
-`IndexMultipleDocumentsAsync` adds each index's documents in one task and returns how many documents it
-indexed. Meilisearch applies the task or fails it as a whole, so when it rejects one document (an invalid id,
-say), the `Result` fails naming every id of that index, with all of them in the error's `ids` metadata, and
-none of them is stored. When the wait for the task times out (`TaskTimeout`), the `Result` fails saying the
-task was queued and may still index any or all of the documents, with the task's uid in the error's `taskUid`
-metadata. When the request adding the documents fails with no answer from Meilisearch (a dropped connection,
-say), the `Result` fails saying Meilisearch may still index any or all of them, with no `taskUid`. A failure
-before the documents are sent, such as a timeout waiting for the index's settings update, stores none of them
-and says `0 of N documents were indexed`, with no `taskUid`.
+`IndexMultipleDocumentsAsync` adds each index's documents in tasks of at most `BulkBatchSize` documents (1000
+unless set), one after another, waiting for each, and returns how many documents it indexed. Each task's request
+must fit Meilisearch's payload size limit, about 100 MB unless changed (`--http-payload-size-limit`,
+`MEILI_HTTP_PAYLOAD_SIZE_LIMIT`), so lower `BulkBatchSize` when documents are large. Every document is checked, and
+the index's settings updated, before the first task, so a document the provider rejects (an invalid location, say)
+stores none of that index's documents, and so does a failure before the first task, such as a timeout waiting for
+the settings update; the error then says `0 of N documents were indexed`, with no `taskUid`.
 
-Each index's documents go in one request, so all of them are applied or none, and that request must fit
-Meilisearch's payload size limit, about 100 MB unless changed, or it fails. Raise the limit with the server's `--http-payload-size-limit` option (`MEILI_HTTP_PAYLOAD_SIZE_LIMIT`), or
-split the import into several `IndexMultipleDocumentsAsync` calls.
+Meilisearch applies each task or fails it as a whole, but an index's documents split into several tasks are not
+all or nothing: the first task that fails stops that index's import, and the tasks before it stay stored. Documents
+for other indexes in the same call are still written, and each index that fails gives its own error. The error's
+`ids` metadata holds every document of that index not confirmed as stored, and its message tells three groups apart:
+
+- the documents earlier tasks stored, by count (`2 of 5 documents were indexed`);
+- the documents of the failed task. When Meilisearch rejects one of them (an invalid id, say), the task stores
+  none of them. When the wait for the task times out (`TaskTimeout`), the task was queued and may still index any
+  or all of them, and the error's `taskUid` metadata holds its uid. When the request fails with no answer from
+  Meilisearch (a dropped connection, say), Meilisearch may still index any or all of them, with no `taskUid`;
+- the index's documents after them, which were not sent.
+
+When every document fits in one task, the import is still all or nothing: a failure names every id, and a
+timeout says the task may still index any or all of them.
 
 ## Removing documents
 

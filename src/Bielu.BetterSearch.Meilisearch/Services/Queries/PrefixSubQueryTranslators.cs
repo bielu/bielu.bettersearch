@@ -42,8 +42,14 @@ internal sealed class PrefixPhraseSubQueryTranslator(IOptionsMonitor<Meilisearch
             return field.ToResult<MeilisearchFilter>();
         }
 
+        var options = optionsMonitor.Current();
+        if (options.IsFailed)
+        {
+            return options.ToResult<MeilisearchFilter>();
+        }
+
         // A fields. name compares the stored value, so it needs no phrases.
-        if (!MeilisearchFieldNames.IsStoredValue(field.Value) && optionsMonitor.CurrentValue.PhraseFields is { } phraseFields
+        if (!MeilisearchFieldNames.IsStoredValue(field.Value) && options.Value.PhraseFields is { } phraseFields
             && !phraseFields.Contains(field.Value))
         {
             return Result.Fail<MeilisearchFilter>(

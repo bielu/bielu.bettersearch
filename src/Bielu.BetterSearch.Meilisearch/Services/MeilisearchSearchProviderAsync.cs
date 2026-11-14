@@ -49,7 +49,13 @@ public sealed class MeilisearchSearchProviderAsync(
 
         var page = Math.Max(query.Page, 1);
         var pageSize = query.PageSize > 0 ? query.PageSize : DefaultPageSize;
-        var maxTotalHits = optionsMonitor.CurrentValue.MaxTotalHits;
+        var options = optionsMonitor.Current();
+        if (options.IsFailed)
+        {
+            return options.ToResult<ISearchResult>();
+        }
+
+        var maxTotalHits = options.Value.MaxTotalHits;
         if ((long)page * pageSize > maxTotalHits)
         {
             return Result.Fail<ISearchResult>(

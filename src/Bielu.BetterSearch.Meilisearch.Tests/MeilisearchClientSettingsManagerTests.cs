@@ -53,6 +53,18 @@ public class MeilisearchClientSettingsManagerTests
     }
 
     [Fact]
+    public void GetOrCreateClientSettings_IndexSettingsWithoutConnectionStringOrBulkBatchSize_TakesTheSharedBulkBatchSize()
+    {
+        var settings = GetSettings(new MeilisearchOptions
+        {
+            SharedIndexSettings = new MeilisearchIndexSettings { ConnectionString = "http://shared:7700", BulkBatchSize = 200 },
+            Indexes = new Dictionary<string, MeilisearchIndexSettings> { ["products"] = new() },
+        });
+
+        settings.BulkBatchSize.ShouldBe(200);
+    }
+
+    [Fact]
     public void GetOrCreateClientSettings_IndexSettingsWithoutConnectionString_DoesNotChangeConfiguredOptions()
     {
         var indexSettings = new MeilisearchIndexSettings();
