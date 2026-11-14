@@ -83,6 +83,15 @@ public sealed class FluentQueryBuilderTests
         boolQuery.NestedQueries.ShouldHaveSingleItem().ShouldBeOfType<PrefixSubQuery>().BoostValue.ShouldBe(7);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-2)]
+    public void WithBoost_ZeroOrNegative_Throws(int boost)
+    {
+        Should.Throw<ArgumentOutOfRangeException>(() => new TermQueryConfigurator().WithBoost(boost)).ParamName.ShouldBe("boost");
+        Should.Throw<ArgumentOutOfRangeException>(() => new BooleanQueryConfigurator().WithBoost(boost)).ParamName.ShouldBe("boost");
+    }
+
     [Fact]
     public void SortBy_TwoFields_AddsThemInOrder()
     {

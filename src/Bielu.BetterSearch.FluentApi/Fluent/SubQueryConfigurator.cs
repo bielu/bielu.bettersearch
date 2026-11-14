@@ -34,8 +34,10 @@
         public TSelf Filter() => With(Abstractions.Query.Occurance.FILTER);
 
         /// <summary>Sets the <see cref="ISearchSubQuery.BoostValue"/> of the sub-query.</summary>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="boost"/> is 0 or less.</exception>
         public TSelf WithBoost(int boost)
         {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(boost);
             SubQuery.BoostValue = boost;
             return (TSelf)this;
         }

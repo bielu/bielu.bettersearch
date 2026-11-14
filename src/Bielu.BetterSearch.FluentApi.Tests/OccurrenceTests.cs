@@ -187,6 +187,23 @@ public class OccurrenceTests
     }
 
     [Fact]
+    public void CreateBoolQuery_ShouldOnTheBool_BoolTakesParentOccurrenceAndChildrenShould()
+    {
+        var topLevel = Build(q => q.CreateBoolQuery(b => b.Should()
+            .CreateTermQuery(t => t.WithField("City").WithValue("Warsaw"))));
+        var nested = BuildNested(outer => outer.CreateBoolQuery(b => b.Should()
+            .CreateTermQuery(t => t.WithField("City").WithValue("Warsaw"))));
+
+        topLevel.Query.Keys.ShouldBe([Occurance.MUST]);
+        var topLevelBool = topLevel.Query[Occurance.MUST].ShouldHaveSingleItem().ShouldBeOfType<BoolSearchSubQuery>();
+        topLevelBool.Occurance.ShouldBe(Occurance.MUST);
+        topLevelBool.NestedQueries.ShouldHaveSingleItem().Occurance.ShouldBe(Occurance.SHOULD);
+        var nestedBool = nested.NestedQueries.ShouldHaveSingleItem().ShouldBeOfType<BoolSearchSubQuery>();
+        nestedBool.Occurance.ShouldBe(Occurance.MUST);
+        nestedBool.NestedQueries.ShouldHaveSingleItem().Occurance.ShouldBe(Occurance.SHOULD);
+    }
+
+    [Fact]
     public void BooleanQueryConfigurator_New_OccuranceIsMust() =>
         new BooleanQueryConfigurator().Occurance.ShouldBe(Occurance.MUST);
 
