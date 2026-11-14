@@ -8,6 +8,7 @@
 
     <ItemGroup>
         <PackageReference Include="CommunityToolkit.Aspire.Hosting.Meilisearch" />
+        <PackageReference Include="Aspire.Hosting.PostgreSQL" />
     </ItemGroup>
 
     <!-- Referenced by the integration tests; coverage should only count library code. -->
