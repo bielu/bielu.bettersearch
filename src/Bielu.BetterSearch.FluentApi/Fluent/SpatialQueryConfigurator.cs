@@ -19,6 +19,13 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
             _query.Distance = value;
             return this;
         }
+        /// <summary>Sets the centre the distance is measured from, as latitude and longitude in degrees.</summary>
+        public SpatialQueryConfigurator WithCenter(double lat, double lng)
+        {
+            _query.Lat = lat;
+            _query.Lng = lng;
+            return this;
+        }
         public SpatialQueryConfigurator WithUnitOfDistance(string value)
         {
             _query.UnitOfDistance = value;
