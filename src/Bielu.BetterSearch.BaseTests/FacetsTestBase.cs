@@ -340,8 +340,28 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
             "unknown nested type",
             [new TermAggregation { AggregationName = "colors", TermFieldName = Color, NestedAggregations = [new UnknownAggregation()] }],
             "Facet unknown is a UnknownAggregation"
-        }
+        },
+        { "nested in itself", [NestedInItself()], "Facet colors is nested inside itself." },
+        { "nested too deep", [NestedLevels(17)], "Facet level17 is nested past the limit of 16 levels." }
     };
+
+    private static TermAggregation NestedInItself()
+    {
+        var facet = new TermAggregation { AggregationName = "colors", TermFieldName = Color };
+        facet.NestedAggregations = [new TermAggregation { AggregationName = "brands", TermFieldName = Brand, NestedAggregations = [facet] }];
+        return facet;
+    }
+
+    private static TermAggregation NestedLevels(int levels)
+    {
+        var facet = new TermAggregation { AggregationName = $"level{levels}", TermFieldName = Color };
+        for (var level = levels - 1; level >= 1; level--)
+        {
+            facet = new TermAggregation { AggregationName = $"level{level}", TermFieldName = Color, NestedAggregations = [facet] };
+        }
+
+        return facet;
+    }
 
     /// <summary>A malformed facet fails before the engine is asked, so the index doesn't have to exist.</summary>
     [Theory]

@@ -107,6 +107,15 @@ public sealed class MeilisearchSearchProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
+
+            // The index's own limit, which can be below the default, so a cut-off distribution isn't taken as complete.
+            var maxValuesPerFacet = MeilisearchFacets.MaxValuesPerFacet;
+            if (facetAttributes.Count > 0)
+            {
+                var faceting = await client.Index(query.Index).GetFacetingAsync(cancellationToken).ConfigureAwait(false);
+                maxValuesPerFacet = faceting?.MaxValuesPerFacet ?? MeilisearchFacets.MaxValuesPerFacet;
+            }
+
             var response = await client.Index(query.Index).SearchAsync<MeilisearchDocument>(null, meilisearchQuery, cancellationToken).ConfigureAwait(false);
             if (response is not PaginatedSearchResult paginated)
             {
@@ -125,7 +134,7 @@ public sealed class MeilisearchSearchProviderAsync(
                 distribution = facetPaginated.FacetDistribution;
             }
 
-            var aggregations = MeilisearchFacets.Map(facets.Value, distribution);
+            var aggregations = MeilisearchFacets.Map(facets.Value, distribution, maxValuesPerFacet);
             if (aggregations.IsFailed)
             {
                 return aggregations.ToResult<ISearchResult>();

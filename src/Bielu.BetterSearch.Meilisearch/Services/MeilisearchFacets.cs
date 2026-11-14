@@ -17,8 +17,9 @@ internal static class MeilisearchFacets
     public const string UnsupportedComplexFacets = "The Meilisearch provider counts only term facets without NestedAggregations";
 
     /// <summary>
-    /// Meilisearch's default <c>maxValuesPerFacet</c>: it returns at most this many values of a facet, in alphabetical
-    /// order, so when it returns this many it may have left out values with more documents.
+    /// Meilisearch's default <c>maxValuesPerFacet</c>, used when the index's faceting settings don't give one.
+    /// Meilisearch returns at most that many values of a facet, in alphabetical order, so when it returns that many it
+    /// may have left out values with more documents.
     /// </summary>
     public const int MaxValuesPerFacet = 100;
 
@@ -63,10 +64,11 @@ internal static class MeilisearchFacets
 
     /// <summary>
     /// The facet results, in the query's order, from Meilisearch's <c>facetDistribution</c>: the values with the most
-    /// documents first, ties in ordinal order of the value, cut to the facet's <c>Size</c>.
+    /// documents first, ties in ordinal order of the value, cut to the facet's <c>Size</c>. A facet with
+    /// <paramref name="maxValuesPerFacet"/> values or more fails, as Meilisearch may have left values out.
     /// </summary>
     public static Result<IReadOnlyList<IAggregation>> Map(IReadOnlyList<(TermAggregation Facet, string Attribute)> requested,
-        IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>>? distribution)
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>>? distribution, int maxValuesPerFacet)
     {
         var results = new List<IAggregation>();
         foreach (var (facet, attribute) in requested)
@@ -74,10 +76,10 @@ internal static class MeilisearchFacets
             IReadOnlyDictionary<string, int>? counts = null;
             distribution?.TryGetValue(attribute, out counts);
             counts ??= new Dictionary<string, int>();
-            if (counts.Count >= MaxValuesPerFacet)
+            if (counts.Count >= maxValuesPerFacet)
             {
                 return Result.Fail<IReadOnlyList<IAggregation>>(
-                    $"Facet {facet.AggregationName} has {MaxValuesPerFacet} or more values, Meilisearch's maxValuesPerFacet, which returns them in alphabetical order, so the values with the most documents may be missing. Narrow the query or facet a field with fewer values.");
+                    $"Facet {facet.AggregationName} has {maxValuesPerFacet} or more values, the index's maxValuesPerFacet, past which Meilisearch returns them in alphabetical order, so the values with the most documents may be missing. Narrow the query, facet a field with fewer values, or raise maxValuesPerFacet.");
             }
 
             var aggregation = new BucketAggregation { AggregationName = facet.AggregationName };

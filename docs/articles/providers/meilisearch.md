@@ -122,9 +122,10 @@ the most documents first, ties in ordinal order of the value, `Size` of them (10
 
 - **Counts cover the main query's matches.** Meilisearch has no post filter, so when the query has one, the
   provider runs a second search, without it and with no hits, for the counts.
-- **100 values or more**: Meilisearch returns at most `maxValuesPerFacet` values of a facet (100 by default), in
-  alphabetical order, so it can leave out the values with the most documents. A facet whose field has 100 or more
-  values among the matches returns a failed `Result` rather than counts that may be wrong.
+- **`maxValuesPerFacet` values or more**: Meilisearch returns at most the index's `maxValuesPerFacet` values of a
+  facet (100 by default), in alphabetical order, so it can leave out the values with the most documents. The provider
+  reads the index's faceting settings before each search with facets, and a facet whose field has that many values
+  or more among the matches returns a failed `Result` rather than counts that may be wrong.
 - **Multi-term, filter and nested facets** return a failed `Result`: Meilisearch counts single values only.
 
 ## Lucene queries

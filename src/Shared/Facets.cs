@@ -14,14 +14,22 @@ internal static class Facets
     public const string MissingName = "A facet needs an AggregationName.";
 
     /// <summary>
+    /// The deepest a facet can sit in <c>NestedAggregations</c>, top level included, so that validating, translating
+    /// and mapping it can't exhaust the stack.
+    /// </summary>
+    public const int MaxNestingDepth = 16;
+
+    /// <summary>
     /// Fails on a <c>null</c> facet, a facet without a name, two facets of the same name side by side, a term facet
     /// without a field, a multi-term facet with fewer than two fields, a <c>Size</c> below 0 or above
     /// <see cref="TermAggregation.MaxSize"/>, and a facet type other than term, multi-term or filter, at every level
-    /// of nesting.
+    /// of nesting; also a facet nested in itself and nesting deeper than <see cref="MaxNestingDepth"/>.
     /// </summary>
-    public static Result Validate(ISearchQuery query) => Validate(query.FacetQueries ?? [], "FacetQueries");
+    public static Result Validate(ISearchQuery query) =>
+        Validate(query.FacetQueries ?? [], "FacetQueries", new HashSet<IAggregationQuery>(ReferenceEqualityComparer.Instance));
 
-    private static Result Validate(IEnumerable<IAggregationQuery?> facets, string path)
+    // ancestors: the facets that hold these ones, compared by reference.
+    private static Result Validate(IEnumerable<IAggregationQuery?> facets, string path, HashSet<IAggregationQuery> ancestors)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var facet in facets)
@@ -54,7 +62,19 @@ internal static class Facets
                 return own;
             }
 
-            var nested = Validate(facet.NestedAggregations ?? [], $"The NestedAggregations of facet {name}");
+            if (ancestors.Contains(facet))
+            {
+                return Result.Fail($"Facet {name} is nested inside itself.");
+            }
+
+            if (ancestors.Count == MaxNestingDepth)
+            {
+                return Result.Fail($"Facet {name} is nested past the limit of {MaxNestingDepth} levels.");
+            }
+
+            ancestors.Add(facet);
+            var nested = Validate(facet.NestedAggregations ?? [], $"The NestedAggregations of facet {name}", ancestors);
+            ancestors.Remove(facet);
             if (nested.IsFailed)
             {
                 return nested;
