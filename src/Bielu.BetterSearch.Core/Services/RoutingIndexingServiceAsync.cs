@@ -42,10 +42,10 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
 
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
     {
-        var nullFields = IndexingServiceAsync.CheckNullFields(document);
-        if (nullFields.IsFailed)
+        var documentCheck = IndexingServiceAsync.CheckDocument(document);
+        if (documentCheck.IsFailed)
         {
-            return nullFields;
+            return documentCheck;
         }
 
         var key = _routes.KeyFor(document.Index);
@@ -71,14 +71,14 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
     {
         if (document is null)
         {
-            return Result.Fail<int>("The documents are null; pass an empty list to index nothing.");
+            return Result.Fail<int>("The documents to index are null; pass an empty list to index nothing.");
         }
 
         var documents = document.ToList();
-        var nullFields = Result.Merge(documents.Select(IndexingServiceAsync.CheckNullFields).ToArray());
-        if (nullFields.IsFailed)
+        var documentCheck = Result.Merge(documents.Select(IndexingServiceAsync.CheckDocument).ToArray());
+        if (documentCheck.IsFailed)
         {
-            return Result.Fail<int>(nullFields.Errors);
+            return Result.Fail<int>(documentCheck.Errors);
         }
 
         var keys = new List<string>();

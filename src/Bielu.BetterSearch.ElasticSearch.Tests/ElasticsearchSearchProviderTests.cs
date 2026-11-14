@@ -3,6 +3,7 @@ using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
+using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using FluentResults;
 using Microsoft.Extensions.Options;
@@ -67,7 +68,7 @@ public sealed class ElasticsearchSearchProviderTests(
             postFilterTranslateService,
             clientFactory,
             new ElasticSearchResultMapper(),
-            new FixedOptionsMonitor(new ElasticSearchOptions { MaxResultWindow = 3 }),
+            new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions { MaxResultWindow = 3 }),
             settingsManager);
 
         var result = await provider.SearchAsync(new SearchQuery { Index = index, PageSize = 1 }, TestContext.Current.CancellationToken);

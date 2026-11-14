@@ -108,4 +108,6 @@ field. `WithQuery` highlights where its own bool query matches, rather than wher
 ## Facets
 
 `CreateAggregationQuery` adds facets: `CreateTermQuery` for a term facet, `CreateMultiTermQuery` for one over several
-fields, and `CreateFilterQuery` for a filter facet.
+fields, and `CreateFilterQuery` for a filter facet. `WithSize` on a term or multi-term facet sets how many buckets
+come back (10 when it isn't set). Read the results with `RetrieveBucketAggregation` and `RetrieveSingleAggregation`;
+the [feature matrix](feature-matrix.md#facets) says which providers run which facets.

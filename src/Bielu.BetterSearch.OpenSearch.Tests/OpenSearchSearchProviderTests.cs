@@ -3,6 +3,7 @@ using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
+using Bielu.BetterSearch.Tests;
 using FluentResults;
 using Microsoft.Extensions.Options;
 using OpenSearch.Client;
@@ -18,13 +19,6 @@ public sealed class OpenSearchSearchProviderTests(
     IPostFilterTranslateServiceAsync<QueryContainer> postFilterTranslateService,
     IIndexingProviderAsync indexingProvider)
 {
-    private sealed class FixedOptionsMonitor(OpenSearchOptions value) : IOptionsMonitor<OpenSearchOptions>
-    {
-        public OpenSearchOptions CurrentValue => value;
-        public OpenSearchOptions Get(string? name) => value;
-        public IDisposable? OnChange(Action<OpenSearchOptions, string?> listener) => null;
-    }
-
     private sealed class RejectingTranslateService : IQueryTranslateServiceAsync<QueryContainer>
     {
         public Task<Result<QueryContainer>> TranslateMainQueryAsync(ISearchQuery query) =>
@@ -63,7 +57,7 @@ public sealed class OpenSearchSearchProviderTests(
             postFilterTranslateService,
             clientFactory,
             new OpenSearchResultMapper(),
-            new FixedOptionsMonitor(new OpenSearchOptions { MaxResultWindow = 3 }),
+            new TestOptionsMonitor<OpenSearchOptions>(new OpenSearchOptions { MaxResultWindow = 3 }),
             new OpenSearchClientSettingsManager(options));
 
         var result = await provider.SearchAsync(new SearchQuery { Index = index, PageSize = 1 }, TestContext.Current.CancellationToken);

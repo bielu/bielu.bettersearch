@@ -1,9 +1,12 @@
-﻿using Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Caching;
+using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Caching;
 using Bielu.BetterSearch.Configuration;
 using Bielu.BetterSearch.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Scrutor;
 
 namespace Bielu.BetterSearch.DepedencyInjection;
 
@@ -50,13 +53,20 @@ public static class BetterSearchServiceCollectionExtensions
             services.TryAddScoped<ISearchProviderAsync>(_ => throw new InvalidOperationException(message));
             services.TryAddScoped<IIndexingProviderAsync>(_ => throw new InvalidOperationException(message));
             services.TryAddScoped<ISearchServiceAsync>(_ => throw new InvalidOperationException(message));
-            return services;
+        }
+        else
+        {
+            services.TryAddScoped(typeof(IIndexingServiceAsync), searchConfiguration.IndexingServiceType);
+            services.TryAddScoped(typeof(ISearchProviderAsync), searchConfiguration.SearchProviderType);
+            services.TryAddScoped(typeof(IIndexingProviderAsync), searchConfiguration.IndexingProviderType);
+            services.TryAddScoped(typeof(ISearchServiceAsync), searchConfiguration.SearchServiceType);
         }
 
-        services.TryAddScoped(typeof(IIndexingServiceAsync), searchConfiguration.IndexingServiceType);
-        services.TryAddScoped(typeof(ISearchProviderAsync), searchConfiguration.SearchProviderType);
-        services.TryAddScoped(typeof(IIndexingProviderAsync), searchConfiguration.IndexingProviderType);
-        services.TryAddScoped(typeof(ISearchServiceAsync), searchConfiguration.SearchServiceType);
+        if (searchConfiguration.UsesSearchCache)
+        {
+            AddSearchCacheDecorators(services, defaultProvider?.Key ?? string.Empty);
+        }
+
         return services;
     }
 
@@ -137,6 +147,36 @@ public static class BetterSearchServiceCollectionExtensions
             sp,
             searchServiceType,
             sp.GetRequiredKeyedService<ISearchProviderAsync>(key)));
+    }
+
+    /// <summary>
+    /// Wraps every <see cref="ISearchServiceAsync"/> and <see cref="IIndexingServiceAsync"/> registered by now, keyed or
+    /// not, in the caching and the evicting decorator, keeping its lifetime. Whatever service type is registered gets the
+    /// cache, and a decorator added later, with Scrutor or otherwise, wraps these. The cache key of a keyed search service
+    /// holds its provider key, and that of the unkeyed one <paramref name="unkeyedProviderKey"/>, the default provider's.
+    /// </summary>
+    private static void AddSearchCacheDecorators(IServiceCollection services, string unkeyedProviderKey)
+    {
+        services.Decorate(new AnyKeyDecoration(typeof(ISearchServiceAsync), (inner, sp, key) =>
+            ActivatorUtilities.CreateInstance<CachingSearchServiceAsyncDecorator>(sp, inner, key ?? unkeyedProviderKey, sp.GetRequiredService<ISearchResultCache>())));
+        services.Decorate(new AnyKeyDecoration(typeof(IIndexingServiceAsync), (inner, sp, _) =>
+            ActivatorUtilities.CreateInstance<CachingIndexingServiceAsyncDecorator>(sp, inner, sp.GetRequiredService<ISearchResultCache>())));
+    }
+
+    /// <summary>
+    /// A Scrutor decoration of every registration of a service type, unkeyed or under a string key, whose decorator is
+    /// given the key it was resolved with. Scrutor's own decorations match one key only.
+    /// </summary>
+    private sealed class AnyKeyDecoration(Type serviceType, Func<object, IServiceProvider, string?, object> decorate)
+        : DecorationStrategy(serviceType, serviceKey: null)
+    {
+        public override bool CanDecorate(ServiceDescriptor descriptor) =>
+            descriptor.ServiceType == ServiceType && descriptor.ServiceKey is null or string;
+
+        protected override bool CanDecorate(Type serviceType) => serviceType == ServiceType;
+
+        public override Func<IServiceProvider, object?, object> CreateDecorator(Type serviceType, string serviceKey) =>
+            (sp, key) => decorate(sp.GetRequiredKeyedService(serviceType, serviceKey), sp, key as string);
     }
 
     private static string NoDefaultProviderMessage(IReadOnlyList<ProviderRegistration> providers)

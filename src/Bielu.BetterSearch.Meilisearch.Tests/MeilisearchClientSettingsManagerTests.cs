@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.Meilisearch.Configuration;
 using Bielu.BetterSearch.Meilisearch.Services;
+using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.Configuration;
 using Shouldly;
 
@@ -8,7 +9,7 @@ namespace Bielu.BetterSearch.Meilisearch.Tests;
 public class MeilisearchClientSettingsManagerTests
 {
     private static MeilisearchIndexSettings GetSettings(MeilisearchOptions options, string index = "products") =>
-        new MeilisearchClientSettingsManager(new StaticOptionsMonitor(options)).GetOrCreateClientSettings(index);
+        new MeilisearchClientSettingsManager(new TestOptionsMonitor<MeilisearchOptions>(options)).GetOrCreateClientSettings(index);
 
     [Fact]
     public void GetOrCreateClientSettings_NoIndexSettings_UsesSharedSettings()
@@ -52,6 +53,18 @@ public class MeilisearchClientSettingsManagerTests
     }
 
     [Fact]
+    public void GetOrCreateClientSettings_IndexSettingsWithoutConnectionStringOrBulkBatchSize_TakesTheSharedBulkBatchSize()
+    {
+        var settings = GetSettings(new MeilisearchOptions
+        {
+            SharedIndexSettings = new MeilisearchIndexSettings { ConnectionString = "http://shared:7700", BulkBatchSize = 200 },
+            Indexes = new Dictionary<string, MeilisearchIndexSettings> { ["products"] = new() },
+        });
+
+        settings.BulkBatchSize.ShouldBe(200);
+    }
+
+    [Fact]
     public void GetOrCreateClientSettings_IndexSettingsWithoutConnectionString_DoesNotChangeConfiguredOptions()
     {
         var indexSettings = new MeilisearchIndexSettings();
@@ -88,7 +101,7 @@ public class MeilisearchClientSettingsManagerTests
     [Fact]
     public async Task GetOrCreateClientAsync_SameServerAndKey_ReusesClient()
     {
-        var factory = new MeilisearchClientFactory(new MeilisearchClientSettingsManager(new StaticOptionsMonitor(new MeilisearchOptions
+        var factory = new MeilisearchClientFactory(new MeilisearchClientSettingsManager(new TestOptionsMonitor<MeilisearchOptions>(new MeilisearchOptions
         {
             SharedIndexSettings = new MeilisearchIndexSettings { ConnectionString = "http://shared:7700" },
             Indexes = new Dictionary<string, MeilisearchIndexSettings>

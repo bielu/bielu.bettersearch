@@ -738,16 +738,4 @@ public sealed class ElasticsearchSearchTests(
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("Field");
     }
-
-    [Fact]
-    public async Task SearchAsync_Facets_ReturnsUnsupportedFailure()
-    {
-        var query = new SearchQuery { Index = "any" };
-        query.FacetQueries.Add(new TermAggregation { AggregationName = "cities", TermFieldName = "City" });
-
-        var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
-
-        result.IsFailed.ShouldBeTrue();
-        result.Errors.Single().Message.ShouldContain("facets");
-    }
 }

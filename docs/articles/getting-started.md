@@ -53,6 +53,13 @@ registered. Calls that the services answer without the provider don't: an empty 
 `IndexMultipleDocumentsAsync` or an empty id list to `RemoveDocumentsAsync` returns `Ok(0)`, and a document
 with a null field or one that fails validation returns that error instead.
 
+`IndexingServiceAsync` checks its arguments before it calls the provider. A `null` document, list or request,
+a document with a `null` or empty `Id` or `Index`, a `DeleteDocumentRequest` with a `null` or empty `Id` or
+`Type`, and a `DeleteAllDocumentsRequest` with a `null` or empty `IndexName` return a failed `Result` that names
+what is missing. A document the validator rejects returns `Document <id> is not valid.`, and a validator that
+fails or throws returns `Validation of document <id> failed`, with the validator's errors or the exception as
+the cause. Either error holds the document's id in its `id` metadata. Cancellation still throws.
+
 Each provider has its own page with its settings and, importantly, **what it doesn't support**:
 
 | Provider | Register with | Configuration section |

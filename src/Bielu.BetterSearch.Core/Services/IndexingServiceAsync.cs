@@ -19,10 +19,10 @@ public class IndexingServiceAsync(
 
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
     {
-        var nullFieldsResult = CheckNullFields(document);
-        if (nullFieldsResult.IsFailed)
+        var documentResult = CheckDocument(document);
+        if (documentResult.IsFailed)
         {
-            return nullFieldsResult;
+            return documentResult;
         }
 
         var validationResult = await ValidateAsync(documentValidator, document, cancellationToken).ConfigureAwait(false);
@@ -43,12 +43,17 @@ public class IndexingServiceAsync(
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
         CancellationToken cancellationToken = default)
     {
+        if (document is null)
+        {
+            return Result.Fail<int>("The documents to index are null; pass an empty list to index nothing.");
+        }
+
         var documents = document.ToList();
         // Reject the whole batch before indexing any of it, so a null field can't leave it partly stored.
-        var nullFieldsResult = Result.Merge(documents.Select(CheckNullFields).ToArray());
-        if (nullFieldsResult.IsFailed)
+        var documentsResult = Result.Merge(documents.Select(CheckDocument).ToArray());
+        if (documentsResult.IsFailed)
         {
-            return Result.Fail<int>(nullFieldsResult.Errors);
+            return Result.Fail<int>(documentsResult.Errors);
         }
 
         if (documents.Count == 0)
@@ -82,12 +87,22 @@ public class IndexingServiceAsync(
     }
 
     /// <summary>
-    /// Runs <paramref name="documentValidator"/> on a document that <see cref="CheckNullFields"/> has already passed.
-    /// The error names the document and holds its id in the <c>id</c> metadata.
+    /// Runs <paramref name="documentValidator"/> on a document that <see cref="CheckDocument"/> has already passed. The error names the
+    /// document and holds its id in the <c>id</c> metadata. A validator that throws fails the same way, with the
+    /// exception as the cause; cancellation still propagates.
     /// </summary>
     internal static async Task<Result> ValidateAsync(IDocumentValidatorAsync documentValidator, SearchDocument document, CancellationToken cancellationToken)
     {
-        var validationResult = await documentValidator.ValidateDocumentAsync(document, cancellationToken).ConfigureAwait(false);
+        Result<bool> validationResult;
+        try
+        {
+            validationResult = await documentValidator.ValidateDocumentAsync(document, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result.Fail(new Error($"Validation of document {document.Id} failed: the validator threw {e.GetType().Name}.").WithMetadata("id", document.Id).CausedBy(e));
+        }
+
         if (validationResult.IsFailed)
         {
             return Result.Fail(new Error($"Validation of document {document.Id} failed.").WithMetadata("id", document.Id).CausedBy(validationResult.Errors));
@@ -102,14 +117,25 @@ public class IndexingServiceAsync(
     }
 
     /// <summary>
-    /// Fails when the document, a field or a value in a field is <c>null</c>. <c>null</c> fields can't reach here,
-    /// as <see cref="SearchDocument.Fields"/> turns them into an empty dictionary.
+    /// Fails when the document, a field or a value in a field is <c>null</c>, or when its <c>Id</c> or <c>Index</c>
+    /// is <c>null</c> or empty. <c>null</c> fields can't reach here, as <see cref="SearchDocument.Fields"/> turns them
+    /// into an empty dictionary.
     /// </summary>
-    internal static Result CheckNullFields(SearchDocument document)
+    internal static Result CheckDocument(SearchDocument document)
     {
         if (document is null)
         {
             return Result.Fail("A document is null.");
+        }
+
+        if (string.IsNullOrEmpty(document.Id))
+        {
+            return Result.Fail($"A document for index '{document.Index}' has a null or empty Id.");
+        }
+
+        if (string.IsNullOrEmpty(document.Index))
+        {
+            return Result.Fail($"Document {document.Id} has a null or empty Index.");
         }
 
         var nullFields = new List<string>();
@@ -142,6 +168,21 @@ public class IndexingServiceAsync(
     public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
         CancellationToken cancellationToken = default)
     {
+        if (document is null)
+        {
+            return Result.Fail("The request to remove a document is null.");
+        }
+
+        if (string.IsNullOrEmpty(document.Id))
+        {
+            return Result.Fail($"The request to remove a document from '{document.Type}' has a null or empty Id.");
+        }
+
+        if (string.IsNullOrEmpty(document.Type))
+        {
+            return Result.Fail($"The request to remove document {document.Id} has a null or empty Type, the name of the index.");
+        }
+
         var result = await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)
         {
@@ -179,6 +220,16 @@ public class IndexingServiceAsync(
 
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
     {
+        if (request is null)
+        {
+            return Result.Fail<long?>("The request to remove all documents is null.");
+        }
+
+        if (string.IsNullOrEmpty(request.IndexName))
+        {
+            return Result.Fail<long?>("The request to remove all documents has a null or empty IndexName.");
+        }
+
         var result = await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)
         {
