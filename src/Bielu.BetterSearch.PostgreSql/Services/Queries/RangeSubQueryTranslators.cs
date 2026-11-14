@@ -35,11 +35,12 @@ internal static class RangeFilter
 
     /// <summary>
     /// The element as a <c>timestamptz</c> when it is a string starting with an ISO 8601 date, else <c>NULL</c>. A
-    /// date or time without an offset is UTC, as <see cref="QueryValueText"/> writes dates.
+    /// date or time without an offset is UTC, as <see cref="QueryValueText"/> writes dates, whatever the session's
+    /// time zone. An offset counts only after a time, so the day of <c>2026-01-02</c> is not read as <c>-02</c>.
     /// </summary>
     public const string Timestamp =
         "(CASE WHEN jsonb_typeof(e) = 'string' AND (e #>> '{}') ~ '^\\d{4}-\\d{2}-\\d{2}' AND pg_input_is_valid(e #>> '{}', 'timestamptz') " +
-        "THEN CASE WHEN (e #>> '{}') ~ '([Zz]|[+-]\\d{2}(:?\\d{2})?)$' THEN (e #>> '{}')::timestamptz " +
+        "THEN CASE WHEN (e #>> '{}') ~ '\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?\\s*([Zz]|[+-]\\d{2}(:?\\d{2})?)$' THEN (e #>> '{}')::timestamptz " +
         "ELSE (e #>> '{}')::timestamp AT TIME ZONE 'UTC' END END)";
 }
 

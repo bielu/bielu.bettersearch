@@ -132,6 +132,137 @@ public sealed class PostgreSqlSearchTests(
     }
 
     [Fact]
+    public async Task SearchAsync_NumericStringBeyondLong_MatchesTheExactStoredInteger()
+    {
+        await WithIndexAsync(index =>
+        [
+            Document(index, "1", new() { { "Big", [ulong.MaxValue] } }),
+            // ulong.MaxValue + 1, which a double rounds ulong.MaxValue to.
+            Document(index, "2", new() { { "Big", [18446744073709551616m] } }),
+        ], async index =>
+        {
+            (await IdsAsync(index, new TermSubQuery { Field = "Big", Value = "18446744073709551615" })).ShouldBe(["1"]);
+            (await IdsAsync(index, new TermSubQuery { Field = "Big", Value = "18446744073709551616" })).ShouldBe(["2"]);
+        });
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_StructuredValues_KeepTheirContent()
+    {
+        await WithIndexAsync(index =>
+        [
+            Document(index, "1", new()
+            {
+                { "Nested", [new Dictionary<string, object> { ["tags"] = new[] { "red", "blue" } }] },
+                { "Item", [new Dimensions(2, "cm")] },
+            }),
+        ], async index =>
+        {
+            var document = (await searchService.GetDocumentAsync(index, "1", Token)).Value.ShouldNotBeNull();
+            var nested = document.Fields["Nested"].ShouldHaveSingleItem().ShouldBeOfType<System.Text.Json.JsonElement>();
+            nested.GetProperty("tags").EnumerateArray().Select(tag => tag.GetString()).ShouldBe(["red", "blue"]);
+            var item = document.Fields["Item"].ShouldHaveSingleItem().ShouldBeOfType<System.Text.Json.JsonElement>();
+            item.GetProperty("Width").GetInt32().ShouldBe(2);
+            item.GetProperty("Unit").GetString().ShouldBe("cm");
+            // The strings inside are words of the document, as other string values are.
+            (await IdsAsync(index, new TermSubQuery { Field = "Nested", Value = "blue" })).ShouldBe(["1"]);
+        });
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_OneDocumentCannotBeWritten_ReportsEveryIdAsNotIndexed()
+    {
+        var index = $"pg-failed-{Guid.NewGuid():N}";
+        try
+        {
+            var result = await indexingProvider.IndexMultipleDocumentsAsync(
+            [
+                Document(index, "1", new() { { "Rating", [1.5] } }),
+                Document(index, "2", new() { { "Rating", [double.NaN] } }),
+                Document(index, "3", new() { { "Rating", [2.5] } }),
+            ], Token);
+
+            var error = result.Errors.ShouldHaveSingleItem();
+            error.Message.ShouldContain("document 2: Field Rating holds NaN");
+            error.Metadata["ids"].ShouldBe(new List<string> { "1", "2", "3" });
+            (await indexingProvider.IndexExistsAsync(index, Token)).Value.ShouldBeFalse();
+        }
+        finally
+        {
+            try
+            {
+                await indexingProvider.DeleteIndexAsync(index, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Cleanup must not hide the test's own failure.
+            }
+        }
+    }
+
+    [Fact]
+    public async Task IndexAndUpdate_DefaultJsonElement_FailInsteadOfThrowing()
+    {
+        await WithIndexAsync(index => [Document(index, "1", new() { { "Name", ["Jane"] } })], async index =>
+        {
+            var indexed = await indexingProvider.IndexDocumentAsync(Document(index, "2", new() { { "Value", [default(System.Text.Json.JsonElement)] } }), Token);
+            var updated = await indexingProvider.UpdateDocumentAsync(index, "1", new Dictionary<string, IList<object>> { { "Value", [default(System.Text.Json.JsonElement)] } }, Token);
+
+            indexed.Errors.ShouldHaveSingleItem().Message.ShouldContain("Field Value holds a JsonElement with no value");
+            updated.Errors.ShouldHaveSingleItem().Message.ShouldContain("Field Value holds a JsonElement with no value");
+            (await searchService.SearchIdsAsync(new SearchQuery { Index = index }, Token)).ShouldBe(["1"]);
+        });
+    }
+
+    [Fact]
+    public async Task SearchAsync_DateOnlyValueInASessionOutsideUtc_IsTakenAsUtc()
+    {
+        var index = $"pg-zone-{Guid.NewGuid():N}";
+        // Europe/Warsaw is ahead of UTC, so a date read in it starts an hour before the UTC midnight.
+        var builder = new NpgsqlConnectionStringBuilder(postgres.EnsureStarted()) { Timezone = "Europe/Warsaw" };
+        var options = new TestOptionsMonitor<Configuration.PostgreSqlOptions>(new Configuration.PostgreSqlOptions
+        {
+            SharedIndexSettings = new Configuration.PostgreSqlIndexSettings { ConnectionString = builder.ConnectionString },
+        });
+        using var factory = new PostgreSqlDataSourceFactory(new PostgreSqlClientSettingsManager(options), new EmptyServiceProvider());
+        var indexing = new PostgreSqlIndexingProviderAsync(factory, options,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<PostgreSqlIndexingProviderAsync>.Instance);
+        var search = new PostgreSqlSearchProviderAsync(
+            new PostgreSqlQueryTranslateService([new Services.Queries.DateRangeSubQueryTranslator()]), factory, options);
+        try
+        {
+            var indexed = await indexing.IndexMultipleDocumentsAsync(
+            [
+                Document(index, "1", new() { { "Day", [new DateOnly(2026, 1, 2)] } }),
+                Document(index, "2", new() { { "Day", ["2026-01-02T00:30:00+01:00"] } }),
+            ], Token);
+            indexed.IsSuccess.ShouldBeTrue(string.Join("; ", indexed.Errors.Select(error => error.Message)));
+
+            var result = await search.SearchAsync(SearchTestHelpers.Query(index, Occurance.MUST, new DateRangeQuery
+            {
+                Field = "Day",
+                MinValue = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
+                MaxValue = new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc)
+            }), Token);
+
+            // "2" is 2026-01-01T23:30Z, so only the date-only value is inside the range.
+            result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+            result.Value.Items.Select(item => item.Document.Id).ShouldBe(["1"]);
+        }
+        finally
+        {
+            try
+            {
+                await indexing.DeleteIndexAsync(index, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Cleanup must not hide the test's own failure.
+            }
+        }
+    }
+
+    [Fact]
     public async Task SearchAsync_RangeOnSeveralValues_NeedsOneValueWithinBothBounds()
     {
         await WithIndexAsync(index =>
@@ -331,10 +462,35 @@ public sealed class PostgreSqlSearchTests(
     }
 
     [Fact]
+    public async Task CreateIndexAsync_NameTakenByACompositeType_FailsAndDoesNotExist()
+    {
+        var index = $"pg-type-{Guid.NewGuid():N}";
+        await using var dataSource = NpgsqlDataSource.Create(postgres.EnsureStarted());
+        await using (var create = dataSource.CreateCommand($"CREATE TYPE public.\"{index}\" AS (a int)"))
+        {
+            await create.ExecuteNonQueryAsync(Token);
+        }
+
+        try
+        {
+            (await indexingProvider.IndexExistsAsync(index, Token)).Value.ShouldBeFalse();
+            (await indexingProvider.CreateIndexAsync(index, Token)).Errors.ShouldHaveSingleItem().Message.ShouldContain("not a table");
+            (await indexingProvider.EnsureIndexExistsAsync(index, Token)).Errors.ShouldHaveSingleItem().Message.ShouldContain("not a table");
+        }
+        finally
+        {
+            await using var drop = dataSource.CreateCommand($"DROP TYPE IF EXISTS public.\"{index}\"");
+            await drop.ExecuteNonQueryAsync(CancellationToken.None);
+        }
+    }
+
+    [Fact]
     public async Task DeleteIndexAsync_MissingIndex_ReturnsFalse()
     {
         (await indexingProvider.DeleteIndexAsync($"pg-missing-{Guid.NewGuid():N}", Token)).Value.ShouldBeFalse();
     }
+
+    private sealed record Dimensions(int Width, string Unit);
 
     private sealed class EmptyServiceProvider : IServiceProvider
     {

@@ -83,8 +83,10 @@ Each index is a table in `Schema`, named exactly as the index (quoted, so the ca
 
 Values keep their types through the round trip. An integer is stored exactly at any size, as `jsonb` numbers are
 decimals; a `double`, `float` or `decimal` is written with a fraction (`3.0`), so it comes back as a `double`; a
-date is stored as ISO 8601 text in UTC, as on the other providers. `NaN` and infinities fail the write, naming the
-field, and a string holding the null character is rejected by PostgreSQL.
+date is stored as ISO 8601 text in UTC, as on the other providers. A list is stored as a JSON array and any other
+object, such as a dictionary or a class, as a JSON object of its properties, and both come back as a
+`JsonElement`. `NaN` and infinities fail the write, naming the field, and a string holding the null character is
+rejected by PostgreSQL.
 
 The `search` column is generated with the `TextSearchConfiguration` the table was created with. After changing
 the setting, rebuild the existing indexes: until then, the GIN index holds words split the old way, and a query
@@ -116,20 +118,25 @@ name can hold any character.
 - **Boolean logic** follows Lucene: `SHOULD` beside `MUST` or `FILTER` changes nothing, and `MUSTNOT` on its own
   returns the complement. A document without the field matches the negation of any query on it.
 
-Word queries are answered from the GIN index on `search` first, then checked against their field. Ranges, sorting
-and spatial queries read each document's `fields`, which is fine for thousands of documents; for much more, add
-an expression index on the fields you filter on, or move to a search engine.
+A `PrefixQuery` or `PrefixPhraseQuery` that is a condition of the whole query, rather than inside an `OR` or a
+negation, is answered from the GIN index on `search` first, then checked against its field. Term, terms and fuzzy
+queries, ranges, sorting and spatial queries read each document, and fuzzy queries also split each document's
+field into words; this is fine for thousands of documents. For much more, add an expression index on the fields
+you filter on, or move to a search engine.
 
 **Sorting** orders by the field's numbers, then its dates, then its strings by their UTF-8 bytes, each by the lowest
 value ascending and the highest descending, as Elasticsearch orders a field with several values. Documents without
-the field come last, and ties are ordered by id, so pages never overlap. **Paging** uses `LIMIT` and `OFFSET`, and
-the total is counted in the same snapshot as the page.
+the field come last, and ties are ordered by id, so the order is the same on every request while the index does
+not change. **Paging** uses `LIMIT` and `OFFSET`, and the total is counted in the same snapshot as the page. Each
+page is a separate request, so a write between two requests can move a document onto the next page, where it is
+returned again, or onto an earlier page, where it is missed.
 
 ## Writes
 
 Each write commits before it returns, so a successful write is searchable at once. `IndexMultipleDocumentsAsync`
 writes every document of an index in one transaction, in inserts of up to 1000 documents: when PostgreSQL rejects
-one, none of them is stored, and the error names every id of that index. When an id repeats in a batch, the last
+one, or a value can't be written (such as `NaN`), none of them is stored, and the error names every id of that
+index. When an id repeats in a batch, the last
 document wins. `UpdateDocumentAsync` merges the named fields into the stored ones in one statement, so a
 concurrent update of other fields is not lost.
 

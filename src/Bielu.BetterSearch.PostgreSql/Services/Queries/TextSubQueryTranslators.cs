@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Numerics;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Services;
 using FluentResults;
@@ -54,8 +55,9 @@ internal static class TermValues
                     {
                         stored.Add(flag ? "true" : "false");
                     }
-                    // Not a conditional of long and double: it would turn the long into a double, losing precision past 2^53.
-                    else if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer))
+                    // Not a conditional of an integer and a double: it would turn the integer into a double, losing
+                    // precision past 2^53. Integers of any size are compared exactly, as they are stored.
+                    else if (BigInteger.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer))
                     {
                         stored.Add(integer.ToString(CultureInfo.InvariantCulture));
                     }
@@ -149,8 +151,12 @@ internal static class PrefixFilter
         var toQuery = phrase ? "phraseto_tsquery" : "plainto_tsquery";
         var words = phrase ? "numnode(w) > 0" : "numnode(w) = 1";
         return Result.Ok<PostgreSqlFilter>(new PostgreSqlFilter.Condition($"{queryName} on {field}", p =>
-            $"coalesce((SELECT d.search @@ q AND {p.Words(field)} @@ q FROM {toQuery}({p.Configuration}, {p.Add(text, NpgsqlDbType.Text)}) w, " +
-            $"LATERAL (SELECT CASE WHEN {words} THEN (w::text || ':*')::tsquery END AS q) x), false)"));
+        {
+            // Not correlated with the row, so PostgreSQL computes it once, and d.search @@ q stays a condition the
+            // GIN index answers. The IS NOT NULL check keeps the condition false rather than NULL when q is NULL.
+            var q = $"(SELECT CASE WHEN {words} THEN (w::text || ':*')::tsquery END FROM {toQuery}({p.Configuration}, {p.Add(text, NpgsqlDbType.Text)}) w)";
+            return $"({q} IS NOT NULL AND d.search @@ {q} AND {p.Words(field)} @@ {q})";
+        }));
     }
 }
 

@@ -13,6 +13,7 @@ namespace Bielu.BetterSearch.PostgreSql.Services;
 /// A <see cref="double"/>, <see cref="float"/> or <see cref="decimal"/> is written with a fraction (<c>3.0</c>), which
 /// <c>jsonb</c> keeps, so it comes back as a <see cref="double"/> rather than a <see cref="long"/>; integers are exact
 /// at any size, as <c>jsonb</c> numbers are decimals. Dates are stored as <see cref="QueryValueText"/> writes them.
+/// A list is stored as a JSON array and any other object as a JSON object of its properties.
 /// </summary>
 internal static class PostgreSqlDocument
 {
@@ -80,6 +81,8 @@ internal static class PostgreSqlDocument
             case bool flag:
                 writer.WriteBooleanValue(flag);
                 return Result.Ok();
+            case JsonElement { ValueKind: JsonValueKind.Undefined }:
+                return Result.Fail($"Field {name} holds a JsonElement with no value (default(JsonElement)); give it a value or leave it out.");
             case JsonElement element:
                 element.WriteTo(writer);
                 return Result.Ok();
@@ -116,9 +119,33 @@ internal static class PostgreSqlDocument
 
                 writer.WriteEndObject();
                 return Result.Ok();
-            default:
+            case IEnumerable items:
+                writer.WriteStartArray();
+                foreach (var item in items)
+                {
+                    var nested = Write(writer, item, name);
+                    if (nested.IsFailed)
+                    {
+                        return nested;
+                    }
+                }
+
+                writer.WriteEndArray();
+                return Result.Ok();
+            case IFormattable or IConvertible:
                 writer.WriteStringValue(QueryValueText.From(value));
                 return Result.Ok();
+            default:
+                // Any other object, such as a POCO, keeps its properties, as a JSON serializer writes them.
+                try
+                {
+                    JsonSerializer.Serialize(writer, value, value.GetType());
+                    return Result.Ok();
+                }
+                catch (Exception e) when (e is NotSupportedException or JsonException or InvalidOperationException)
+                {
+                    return Result.Fail(new Error($"Field {name} holds a {value.GetType().Name} that can't be written as JSON: {e.Message}").CausedBy(e));
+                }
         }
     }
 

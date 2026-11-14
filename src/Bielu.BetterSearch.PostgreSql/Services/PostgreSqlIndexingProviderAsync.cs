@@ -57,22 +57,23 @@ public sealed class PostgreSqlIndexingProviderAsync(
             return table.ToResult();
         }
 
-        var rows = new Dictionary<string, (string Type, string Fields)>(StringComparer.Ordinal);
-        foreach (var document in documents)
-        {
-            var fields = PostgreSqlDocument.FieldsJson(document.Fields);
-            if (fields.IsFailed)
-            {
-                return Result.Fail(DocumentIds.IndexFailedError(index, 0, documents.Count, [document.Id], fields.Errors[0].Message));
-            }
-
-            rows.Remove(document.Id);
-            rows[document.Id] = (document.Type ?? string.Empty, fields.Value);
-        }
-
+        // None of the group is written when one document fails, so every id is reported as not indexed.
         var ids = documents.Select(document => document.Id).ToList();
         try
         {
+            var rows = new Dictionary<string, (string Type, string Fields)>(StringComparer.Ordinal);
+            foreach (var document in documents)
+            {
+                var fields = PostgreSqlDocument.FieldsJson(document.Fields);
+                if (fields.IsFailed)
+                {
+                    return Result.Fail(DocumentIds.IndexFailedError(index, 0, documents.Count, ids, $"document {document.Id}: {fields.Errors[0].Message}"));
+                }
+
+                rows.Remove(document.Id);
+                rows[document.Id] = (document.Type ?? string.Empty, fields.Value);
+            }
+
             var dataSource = await dataSourceFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
             await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
             for (var attempt = 0; ; attempt++)
@@ -199,14 +200,14 @@ public sealed class PostgreSqlIndexingProviderAsync(
             return Result.Fail<bool>($"UpdateDocumentAsync field {invalid} is null or holds a null value.");
         }
 
-        var json = PostgreSqlDocument.FieldsJson(fields);
-        if (json.IsFailed)
-        {
-            return json.ToResult<bool>();
-        }
-
         try
         {
+            var json = PostgreSqlDocument.FieldsJson(fields);
+            if (json.IsFailed)
+            {
+                return json.ToResult<bool>();
+            }
+
             var options = optionsMonitor.TryCurrentValue();
             if (options.IsFailed)
             {
@@ -301,9 +302,7 @@ public sealed class PostgreSqlIndexingProviderAsync(
 
             var dataSource = await dataSourceFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
             await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-            await using var command = PostgreSqlCommands.Command(connection, "SELECT to_regclass($1) IS NOT NULL");
-            command.Parameters.Add(new NpgsqlParameter { Value = table.Value, NpgsqlDbType = NpgsqlDbType.Text });
-            return Result.Ok((bool)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!);
+            return Result.Ok(await TableExistsAsync(connection, table.Value, cancellationToken).ConfigureAwait(false));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -381,12 +380,25 @@ public sealed class PostgreSqlIndexingProviderAsync(
         }
         catch (Exception e) when (PostgreSqlCommands.IsExistingTable(e))
         {
-            return Result.Ok(false);
+            // The name may be taken by something other than a table, such as a view or a composite type.
+            return await TableExistsAsync(connection, table, cancellationToken).ConfigureAwait(false)
+                ? Result.Ok(false)
+                : Result.Fail<bool>(new Error($"Creating index {index} failed: {table} is already taken by a database object that is not a table, " +
+                                              $"so it can't hold an index ({PostgreSqlCommands.Describe(e)}).").CausedBy(e));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             logger.LogError(e, "Creating index {Index} failed", index);
             return Result.Fail<bool>(new Error($"Creating index {index} failed: {PostgreSqlCommands.Describe(e)}").CausedBy(e));
         }
+    }
+
+    /// <summary>Whether <paramref name="table"/> is a table; a view, sequence or composite type of that name is not.</summary>
+    private static async Task<bool> TableExistsAsync(NpgsqlConnection connection, string table, CancellationToken cancellationToken)
+    {
+        await using var command = PostgreSqlCommands.Command(connection,
+            "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_class WHERE oid = to_regclass($1) AND relkind IN ('r', 'p'))");
+        command.Parameters.Add(new NpgsqlParameter { Value = table, NpgsqlDbType = NpgsqlDbType.Text });
+        return (bool)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
     }
 }
