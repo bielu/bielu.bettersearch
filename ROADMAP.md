@@ -89,7 +89,7 @@ Breaking, and cheapest now.
 
 ## Recommended cuts for 1.0
 
-- **`Bielu.BetterSearch.EndpointApi`:** delete it now. Its controllers are empty classes and it doesn't reference ASP.NET, so it can return as a minimal API package after 1.0.
+- ~~**`Bielu.BetterSearch.EndpointApi`:** delete it now. Its controllers are empty classes and it doesn't reference ASP.NET, so it can return as a minimal API package after 1.0.~~ Done (#97).
 - **Spatial and raw Lucene queries:** keep them if Lucene.NET makes them cheap, but don't let them hold up the release.
 
 ## Exit criteria for 1.0
