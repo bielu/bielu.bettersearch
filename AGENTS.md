@@ -20,6 +20,7 @@ The solution is `src/Bielu.BetterSearch.slnx`. Everything, tests included, lives
 | `Bielu.BetterSearch.Meilisearch` | Meilisearch provider |
 | `Bielu.BetterSearch.OpenSearch` | OpenSearch provider |
 | `Bielu.BetterSearch.Typesense` | Typesense provider |
+| `Bielu.BetterSearch.PostgreSql` | PostgreSQL full-text search provider |
 | `Bielu.BetterSearch.Lifti` | In-memory provider |
 | `Bielu.BetterSearch.EndpointApi` | Placeholder (not packed) |
 | `examples/Bielu.BetterSearch.Examples.AppHost` | Aspire AppHost running the search engines and their UIs, for local development and the integration tests (not packed) |
