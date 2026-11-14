@@ -19,6 +19,24 @@ public class OpenSearchClientSettingsManagerTests
     }
 
     [Fact]
+    public void GetConnectionSettings_BulkBatchSize_IndexValueWinsAndAnUnsetIndexTakesTheSharedOne()
+    {
+        var manager = CreateManager(new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings { BulkBatchSize = 500 },
+            Indexes = new Dictionary<string, OpenSearchIndexSettings>
+            {
+                ["people"] = new() { BulkBatchSize = 50 },
+                ["places"] = new() { IndexName = "places" },
+            },
+        });
+
+        manager.GetConnectionSettings("people").BulkBatchSize.ShouldBe(50);
+        manager.GetConnectionSettings("places").BulkBatchSize.ShouldBe(500);
+        manager.GetConnectionSettings("other").BulkBatchSize.ShouldBe(500);
+    }
+
+    [Fact]
     public void CreateClientSettings_NoIndexSettings_UsesSharedConnectionString()
     {
         var settings = GetSettings(new OpenSearchOptions

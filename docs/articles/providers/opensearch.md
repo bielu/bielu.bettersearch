@@ -65,6 +65,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
 | `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`) or `APIKEY` (an OpenSearch 3.x API key in `ApiKey`, sent as `Authorization: ApiKey <key>`) |
 | `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people` |
 | `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
+| `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` sends in one bulk request, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. It must be greater than 0, or every search fails with a configuration error |
 
 You can also set the options in code with `services.Configure<OpenSearchOptions>(...)`.
@@ -170,11 +171,16 @@ the field name without the `fields.` prefix (`Name`, also when the request names
 
 ## Indexing several documents
 
-`IndexMultipleDocumentsAsync` sends one bulk request per index and returns how many documents it indexed.
-OpenSearch applies each document of a bulk request on its own, so when it rejects some (a value that doesn't fit
-the field's mapping, say), the `Result` fails naming their ids, with every id in the error's `ids` metadata,
-and the other documents are already stored. A request rejected as a whole, such as a 403, is a failed `Result`
-with OpenSearch's error.
+`IndexMultipleDocumentsAsync` sends each index's documents in bulk requests of at most `BulkBatchSize`
+documents (1000 unless set), one after another, so a large import stays under the cluster's
+`http.max_content_length` (100 MB unless changed), and returns how many documents it indexed. OpenSearch
+applies each document of a bulk request on its own, so when it rejects some (a value that doesn't fit the field's
+mapping, say), the remaining requests are still sent, and the `Result` fails naming their ids, with every id in the
+error's `ids` metadata, and the other documents are already stored. When the first request is rejected as a
+whole, such as a 403, the `Result` fails with OpenSearch's error and nothing after it is sent. When a later request
+fails as a whole, the requests after it are not sent, and the `Result` fails naming every document not confirmed
+as stored: the ones rejected so far, the ones in that request, which may or may not be stored, and the ones not
+sent.
 
 ## Removing documents
 

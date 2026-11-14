@@ -143,6 +143,10 @@ say), the `Result` fails saying Meilisearch may still index any or all of them, 
 before the documents are sent, such as a timeout waiting for the index's settings update, stores none of them
 and says `0 of N documents were indexed`, with no `taskUid`.
 
+Each index's documents go in one request, so all of them are applied or none, and that request must fit
+Meilisearch's payload size limit, about 100 MB unless changed, or it fails. Raise the limit with the server's `--http-payload-size-limit` option (`MEILI_HTTP_PAYLOAD_SIZE_LIMIT`), or
+split the import into several `IndexMultipleDocumentsAsync` calls.
+
 ## Removing documents
 
 `DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.

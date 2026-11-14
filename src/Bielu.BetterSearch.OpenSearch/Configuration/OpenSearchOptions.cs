@@ -56,6 +56,13 @@ public class OpenSearchIndexSettings : IndexSettings
     /// of the same field.
     /// </summary>
     public List<OpenSearchFieldMapping>? Mappings { get; set; }
+
+    /// <summary>
+    /// How many documents <c>IndexMultipleDocumentsAsync</c> sends in one bulk request; a larger batch is split into
+    /// several requests, so it stays under the cluster's <c>http.max_content_length</c> (100 MB unless changed). Unset
+    /// on an <c>Indexes</c> entry, the index takes the shared value, and unset there means 1000. It must be greater than 0.
+    /// </summary>
+    public int? BulkBatchSize { get; set; }
 }
 
 /// <summary>An explicit mapping for one document field.</summary>

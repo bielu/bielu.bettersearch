@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.Core.Bulk;
@@ -32,30 +33,27 @@ public class ElasticSearchIndexingProviderAsync(
         foreach (var indexGroup in searchDocuments.GroupBy(x => x.Index))
         {
             var group = indexGroup.ToList();
-            results.Add(await clientFactory.TryWithClientAsync(indexGroup.Key, async client =>
-            {
-                var request = new BulkRequest(indexGroup.Key)
-                {
-                    Operations = new BulkOperationsCollection(group.Select(document =>
-                        new BulkIndexOperation<SearchDocument>(StoredFields.WithDatesAsText(document)) { Id = document.Id })),
-                };
-                var response = await client.BulkAsync(request, cancellationToken).ConfigureAwait(false);
-                // A request rejected as a whole, such as a 403, has no items.
-                if (response.Items is null || response.Items.Count != group.Count)
-                {
-                    return Result.Fail<int>(RequestFailed(ElasticSearchFailures.Describe("bulk index", response), response.ApiCallDetails?.OriginalException));
-                }
+            results.Add(await clientFactory.TryWithClientAsync(indexGroup.Key, client =>
+                BulkBatches.IndexAsync(indexGroup.Key, group, settingsManager.GetConnectionSettings(indexGroup.Key).BulkBatchSize,
+                    ElasticSearchOptions.ElasticSearchOptionsKey, async batch =>
+                    {
+                        var request = new BulkRequest(indexGroup.Key)
+                        {
+                            Operations = new BulkOperationsCollection(batch.Select(document =>
+                                new BulkIndexOperation<SearchDocument>(StoredFields.WithDatesAsText(document)) { Id = document.Id })),
+                        };
+                        var response = await client.BulkAsync(request, cancellationToken).ConfigureAwait(false);
+                        // A request rejected as a whole, such as a 403, has no items.
+                        if (response.Items is null || response.Items.Count != batch.Length)
+                        {
+                            return BulkBatches.Outcome.Failed(RequestFailed(ElasticSearchFailures.Describe("bulk index", response), response.ApiCallDetails?.OriginalException));
+                        }
 
-                // Elasticsearch applies each item on its own, so the documents it accepted stay stored.
-                var failed = response.Items.Where(item => item.Error is not null || item.Status is < 200 or >= 300).ToList();
-                if (failed.Count > 0)
-                {
-                    return Result.Fail<int>(DocumentIds.IndexFailedError(indexGroup.Key, group.Count - failed.Count, group.Count,
-                        failed.Select(item => item.Id ?? "(unknown)").ToList(), failed[0].Error?.Reason ?? $"status {failed[0].Status}"));
-                }
-
-                return Result.Ok(group.Count);
-            }, cancellationToken).ConfigureAwait(false));
+                        // Elasticsearch applies each item on its own, so the documents it accepted stay stored.
+                        var failed = response.Items.Where(item => item.Error is not null || item.Status is < 200 or >= 300).ToList();
+                        return BulkBatches.Outcome.Items(failed.Select(item => item.Id ?? "(unknown)").ToList(),
+                            failed.Count == 0 ? null : failed[0].Error?.Reason ?? $"status {failed[0].Status}");
+                    }), cancellationToken).ConfigureAwait(false));
         }
 
         var merged = results.Merge();
