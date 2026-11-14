@@ -41,6 +41,21 @@ jobs:
     with:
       suffix: "pr"
 
+  # Pull request: keep the solution formatted, so AGENTS.md's "dotnet format reports nothing" check needs no
+  # sorting of new errors from old ones. Run `dotnet format src/Bielu.BetterSearch.slnx` locally to fix a failure.
+  format:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Verify formatting
+        run: dotnet format --verify-no-changes src/Bielu.BetterSearch.slnx
+
   # Pull request: require a changeset so the version bump + changelog are recorded. Skipped for the
   # "Version Packages" PR that changesets/action itself opens (branch changeset-release/main,
   # configured by versionChangeset.yml's default) — that PR only consumes changesets, it never adds

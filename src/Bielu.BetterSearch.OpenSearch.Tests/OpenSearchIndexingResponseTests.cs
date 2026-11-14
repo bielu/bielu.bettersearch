@@ -6,6 +6,7 @@ using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
+using Bielu.BetterSearch.Tests;
 using FluentResults;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -18,7 +19,7 @@ namespace Bielu.BetterSearch.OpenSearch.Tests;
 /// <summary>
 /// Responses a healthy test cluster does not produce, served from an in-memory connection.
 /// </summary>
-public sealed class OpenSearchIndexingResponseTests
+public sealed class OpenSearchIndexingResponseTests : RemoveDocumentResponseTestBase
 {
     private sealed class FixedClientFactory(IOpenSearchClient client) : IClientFactoryAsync<IOpenSearchClient>
     {
@@ -92,6 +93,8 @@ public sealed class OpenSearchIndexingResponseTests
         {
         }
     }
+
+    protected override IIndexingProviderAsync ProviderAnswering(string json, int statusCode) => Provider(json, statusCode);
 
     private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false,
         IOpenSearchClientSettingsManager? settingsManager = null) =>
@@ -351,26 +354,6 @@ public sealed class OpenSearchIndexingResponseTests
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("failures: 1");
-    }
-
-    [Fact]
-    public async Task RemoveDocumentAsync_DocumentNotFound_ReturnsSuccess()
-    {
-        var provider = Provider("""{"_index":"people","_id":"1","_version":1,"result":"not_found","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":0,"_primary_term":1}""", 404);
-
-        var result = await provider.RemoveDocumentAsync("1", "people", Token);
-
-        result.IsSuccess.ShouldBeTrue();
-    }
-
-    [Fact]
-    public async Task RemoveDocumentAsync_IndexNotFound_ReturnsFailure()
-    {
-        var provider = Provider("""{"error":{"root_cause":[{"type":"index_not_found_exception","reason":"no such index [people]"}],"type":"index_not_found_exception","reason":"no such index [people]"},"status":404}""", 404);
-
-        var result = await provider.RemoveDocumentAsync("1", "people", Token);
-
-        result.IsFailed.ShouldBeTrue();
     }
 
     [Fact]
