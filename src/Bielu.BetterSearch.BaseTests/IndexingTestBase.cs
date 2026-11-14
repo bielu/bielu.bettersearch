@@ -337,7 +337,7 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
             result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
             result.Value.ShouldBe(3);
             (await CountDocumentsAsync(index)).ShouldBe(3);
-            observer.Values.ShouldBe(documents);
+            observer.Values.Where(document => document.Index == index).ShouldBe(documents);
         }
         finally
         {
@@ -417,8 +417,9 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
                 (await CountDocumentsAsync(index)).ShouldBe(3);
             }
 
-            // A failed batch notifies nobody, even for the documents the engine stored.
-            observer.Values.ShouldBeEmpty();
+            // A failed batch notifies nobody, even for the documents the engine stored. The service can be shared
+            // with tests running in parallel, so only this index's documents count.
+            observer.Values.Where(document => document.Index == index).ShouldBeEmpty();
         }
         finally
         {
