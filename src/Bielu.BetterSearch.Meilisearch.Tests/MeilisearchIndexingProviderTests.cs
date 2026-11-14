@@ -1,6 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
 using Bielu.BetterSearch.Meilisearch.Services;
+using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -119,7 +120,9 @@ public sealed class MeilisearchIndexingProviderTests(
         var index = UniqueIndex();
         var document = new SearchDocument
         {
-            Id = "1", Type = "TestDocument", Index = index,
+            Id = "1",
+            Type = "TestDocument",
+            Index = index,
             Fields = new Dictionary<string, IList<object>> { ["Location"] = [location] },
         };
 
@@ -135,7 +138,9 @@ public sealed class MeilisearchIndexingProviderTests(
     {
         var document = new SearchDocument
         {
-            Id = "1", Type = "TestDocument", Index = UniqueIndex(),
+            Id = "1",
+            Type = "TestDocument",
+            Index = UniqueIndex(),
             Fields = new Dictionary<string, IList<object>> { ["Location"] = ["52.23,21.01", "50.06,19.94"] },
         };
 
@@ -253,6 +258,173 @@ public sealed class MeilisearchIndexingProviderTests(
         }
     }
 
+    /// <summary>How many documents each add-documents task on <paramref name="index"/> received, oldest first.</summary>
+    private async Task<List<long>> ReceivedDocumentsPerTaskAsync(string index)
+    {
+        var client = await clientFactory.GetOrCreateClientAsync(index);
+        var tasks = await client.Index(index).GetTasksAsync(cancellationToken: Token);
+        return tasks.Results
+            .Where(task => task.Details?.ContainsKey("receivedDocuments") == true)
+            .OrderBy(task => task.Uid)
+            .Select(task => ((System.Text.Json.JsonElement)task.Details!["receivedDocuments"]).GetInt64())
+            .ToList();
+    }
+
+    private async Task DeleteIndexQuietlyAsync(string index)
+    {
+        try
+        {
+            await provider.DeleteIndexAsync(index, CancellationToken.None);
+        }
+        catch (Exception)
+        {
+            // Cleanup must not hide the test's own failure.
+        }
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_MoreDocumentsThanBulkBatchSize_StoresEveryDocumentInOneTaskPerBatch()
+    {
+        var index = UniqueIndex();
+        try
+        {
+            var batched = ProviderWith(o => o.SharedIndexSettings = new MeilisearchIndexSettings
+            {
+                ConnectionString = options.CurrentValue.SharedIndexSettings.ConnectionString,
+                ApiKey = options.CurrentValue.SharedIndexSettings.ApiKey,
+                BulkBatchSize = 2,
+            });
+
+            var result = await batched.IndexMultipleDocumentsAsync(CreateDocuments(index, 5), Token);
+
+            result.IsSuccess.ShouldBeTrue();
+            result.Value.ShouldBe(5);
+            (await CountAsync(index)).ShouldBe(5);
+            (await ReceivedDocumentsPerTaskAsync(index)).ShouldBe([2, 2, 1]);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_BulkBatchSizeOnTheIndexEntry_WinsOverTheSharedOne()
+    {
+        var index = UniqueIndex();
+        try
+        {
+            var batched = ProviderWith(o =>
+            {
+                o.SharedIndexSettings = new MeilisearchIndexSettings
+                {
+                    ConnectionString = options.CurrentValue.SharedIndexSettings.ConnectionString,
+                    ApiKey = options.CurrentValue.SharedIndexSettings.ApiKey,
+                    BulkBatchSize = 1,
+                };
+                o.Indexes = new Dictionary<string, MeilisearchIndexSettings> { [index.ToUpperInvariant()] = new() { BulkBatchSize = 3 } };
+            });
+
+            (await batched.IndexMultipleDocumentsAsync(CreateDocuments(index, 5), Token)).Value.ShouldBe(5);
+
+            (await ReceivedDocumentsPerTaskAsync(index)).ShouldBe([3, 2]);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_DocumentRejectedInTheSecondBatch_KeepsTheFirstBatchAndNamesTheRest()
+    {
+        var index = UniqueIndex();
+        try
+        {
+            var batched = ProviderWith(o => o.SharedIndexSettings = new MeilisearchIndexSettings
+            {
+                ConnectionString = options.CurrentValue.SharedIndexSettings.ConnectionString,
+                ApiKey = options.CurrentValue.SharedIndexSettings.ApiKey,
+                BulkBatchSize = 2,
+            });
+            var documents = CreateDocuments(index, 5);
+            // Meilisearch rejects the id in its task, so the whole second task fails.
+            documents[3].Id = "not a valid id!";
+
+            var result = await batched.IndexMultipleDocumentsAsync(documents, Token);
+
+            var error = result.Errors.ShouldHaveSingleItem();
+            error.Message.ShouldStartWith($"Indexing documents into {index} failed for ids 3, not a valid id!, 5: ");
+            error.Message.ShouldContain(". The Meilisearch task for documents 3 to 4 failed and stored none of them, and the 1 documents after them were not sent. 2 of 5 documents were indexed.");
+            error.Metadata["ids"].ShouldBe(new List<string> { "3", "not a valid id!", "5" });
+            error.Metadata["code"].ShouldBe("invalid_document_id");
+            error.Metadata.ShouldNotContainKey("taskUid");
+            (await CountAsync(index)).ShouldBe(2);
+            (await ReceivedDocumentsPerTaskAsync(index)).ShouldBe([2, 2]);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_FirstOfSeveralTasksTimesOut_ReturnsFailureNamingTheTaskAndTheDocumentsNotSent()
+    {
+        var index = UniqueIndex();
+        try
+        {
+            // Checks the settings, so the provider below trusts them and its first request adds documents.
+            (await provider.IndexMultipleDocumentsAsync(CreateDocuments(index, 1), Token)).Value.ShouldBe(1);
+            var timingOut = ProviderWith(o =>
+            {
+                o.TaskTimeout = TimeSpan.FromTicks(1);
+                o.SettingsCheckInterval = TimeSpan.FromMinutes(5);
+                o.SharedIndexSettings = new MeilisearchIndexSettings
+                {
+                    ConnectionString = options.CurrentValue.SharedIndexSettings.ConnectionString,
+                    ApiKey = options.CurrentValue.SharedIndexSettings.ApiKey,
+                    BulkBatchSize = 2,
+                };
+            });
+
+            var result = await timingOut.IndexMultipleDocumentsAsync(CreateDocuments(index, 5), Token);
+
+            var error = result.Errors.ShouldHaveSingleItem();
+            var taskUid = error.Metadata["taskUid"];
+            error.Message.ShouldStartWith($"Indexing documents into {index} did not finish: ");
+            error.Message.ShouldEndWith($" 0 of 5 documents were indexed by earlier tasks. Meilisearch task {taskUid}, for documents 1 to 2, was queued and may still index any or all of them, and the 3 documents after them were not sent.");
+            error.Metadata["ids"].ShouldBe(new List<string> { "1", "2", "3", "4", "5" });
+            var client = await clientFactory.GetOrCreateClientAsync(index);
+            await client.WaitForTaskAsync((int)taskUid, cancellationToken: Token);
+            (await ReceivedDocumentsPerTaskAsync(index)).ShouldBe([1, 2]);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task IndexMultipleDocumentsAsync_BulkBatchSizeNotPositive_ReturnsFailureNamingTheSettingWithoutCreatingTheIndex(int bulkBatchSize)
+    {
+        var index = UniqueIndex();
+        var batched = ProviderWith(o => o.SharedIndexSettings = new MeilisearchIndexSettings
+        {
+            ConnectionString = options.CurrentValue.SharedIndexSettings.ConnectionString,
+            ApiKey = options.CurrentValue.SharedIndexSettings.ApiKey,
+            BulkBatchSize = bulkBatchSize,
+        });
+
+        var result = await batched.IndexMultipleDocumentsAsync(CreateDocuments(index, 1), Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe(
+            $"BulkBatchSize is {bulkBatchSize} for index {index}, but it must be greater than 0. Set Bielu:BetterSearch:Meilisearch:SharedIndexSettings:BulkBatchSize, or BulkBatchSize on the index's Indexes entry.");
+        (await provider.IndexExistsAsync(index, Token)).Value.ShouldBeFalse();
+    }
+
     private sealed class DroppingDocumentsResponseHandler : DelegatingHandler
     {
         public bool Dropped { get; private set; }
@@ -351,7 +523,7 @@ public sealed class MeilisearchIndexingProviderTests(
     {
         var changed = new MeilisearchOptions { SharedIndexSettings = options.CurrentValue.SharedIndexSettings };
         configure(changed);
-        return new MeilisearchIndexingProviderAsync(clientFactory, new StaticOptionsMonitor(changed),
+        return new MeilisearchIndexingProviderAsync(clientFactory, new TestOptionsMonitor<MeilisearchOptions>(changed),
             NullLogger<MeilisearchIndexingProviderAsync>.Instance);
     }
 
@@ -485,7 +657,7 @@ public sealed class MeilisearchIndexingProviderTests(
             SharedIndexSettings = options.CurrentValue.SharedIndexSettings,
             PhraseFields = ["Title"],
         };
-        var other = new MeilisearchIndexingProviderAsync(clientFactory, new StaticOptionsMonitor(restricted),
+        var other = new MeilisearchIndexingProviderAsync(clientFactory, new TestOptionsMonitor<MeilisearchOptions>(restricted),
             NullLogger<MeilisearchIndexingProviderAsync>.Instance);
         var document = CreateDocuments(index, 1)[0];
         document.Fields["Title"] = ["Jane Doe"];
@@ -600,7 +772,7 @@ public sealed class MeilisearchIndexingProviderTests(
 
     private static MeilisearchIndexingProviderAsync CreateProvider(string connectionString, string? apiKey)
     {
-        var monitor = new StaticOptionsMonitor(new MeilisearchOptions
+        var monitor = new TestOptionsMonitor<MeilisearchOptions>(new MeilisearchOptions
         {
             SharedIndexSettings = new MeilisearchIndexSettings { ConnectionString = connectionString, ApiKey = apiKey },
         });

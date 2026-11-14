@@ -21,6 +21,9 @@ public sealed class ElasticsearchIndexLifecycleTests(ElasticsearchResource elast
 
     protected override string Prefix => IndexPrefix;
 
+    // Dynamic mapping makes Name text with a keyword sub-field, and only the keyword form can be counted.
+    protected override string FacetField => "Name.keyword";
+
     private static ServiceProvider CreateServices(ElasticsearchResource elasticsearch)
     {
         var services = new ServiceCollection();

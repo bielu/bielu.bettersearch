@@ -21,6 +21,9 @@ public sealed class OpenSearchIndexLifecycleTests(OpenSearchResource openSearch)
 
     protected override string Prefix => IndexPrefix;
 
+    // Dynamic mapping makes Name text with a keyword sub-field, and only the keyword form can be counted.
+    protected override string FacetField => "Name.keyword";
+
     private static ServiceProvider CreateServices(OpenSearchResource openSearch)
     {
         var services = new ServiceCollection();

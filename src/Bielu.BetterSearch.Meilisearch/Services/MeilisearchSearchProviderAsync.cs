@@ -37,9 +37,10 @@ public sealed class MeilisearchSearchProviderAsync(
             return Result.Fail<ISearchResult>("The query needs an Index.");
         }
 
-        if (query.FacetQueries is { Count: > 0 })
+        var facets = MeilisearchFacets.Requested(query);
+        if (facets.IsFailed)
         {
-            return Result.Fail<ISearchResult>("The Meilisearch provider does not support facets yet.");
+            return facets.ToResult<ISearchResult>();
         }
 
         if (query.HighlightQueries is { Count: > 0 })
@@ -49,7 +50,13 @@ public sealed class MeilisearchSearchProviderAsync(
 
         var page = Math.Max(query.Page, 1);
         var pageSize = query.PageSize > 0 ? query.PageSize : DefaultPageSize;
-        var maxTotalHits = optionsMonitor.CurrentValue.MaxTotalHits;
+        var options = optionsMonitor.Current();
+        if (options.IsFailed)
+        {
+            return options.ToResult<ISearchResult>();
+        }
+
+        var maxTotalHits = options.Value.MaxTotalHits;
         if ((long)page * pageSize > maxTotalHits)
         {
             return Result.Fail<ISearchResult>(
@@ -60,6 +67,25 @@ public sealed class MeilisearchSearchProviderAsync(
         if (request.IsFailed)
         {
             return request.ToResult<ISearchResult>();
+        }
+
+        // Meilisearch has no post filter: the hits match it, so facets, which count the main query's matches as on
+        // the other providers, are counted by a second search without it.
+        var facetAttributes = facets.Value.Select(facet => facet.Attribute).Distinct(StringComparer.Ordinal).ToList();
+        MeilisearchQuery? facetQuery = null;
+        if (facetAttributes.Count > 0 && query.PostFilterQuery?.Values.Any(clauses => clauses.Count > 0) == true)
+        {
+            var mainOnly = await queryTranslateService.TranslateMainQueryAsync(new SearchQuery { Index = query.Index, Query = query.Query })
+                .ConfigureAwait(false);
+            if (mainOnly.IsFailed)
+            {
+                return mainOnly.ToResult<ISearchResult>();
+            }
+
+            facetQuery = mainOnly.Value;
+            facetQuery.Page = 1;
+            facetQuery.HitsPerPage = 0;
+            facetQuery.Facets = facetAttributes;
         }
 
         var sort = Sort(query);
@@ -74,6 +100,11 @@ public sealed class MeilisearchSearchProviderAsync(
         meilisearchQuery.HitsPerPage = pageSize;
         meilisearchQuery.Sort = sort.Value;
         meilisearchQuery.ShowRankingScore = true;
+        if (facetAttributes.Count > 0 && facetQuery == null)
+        {
+            meilisearchQuery.Facets = facetAttributes;
+        }
+
         // Only what results carry, not the copies the filters use.
         meilisearchQuery.AttributesToRetrieve = properties is { Count: > 0 }
             ? ["id", "type", .. properties.Select(property => MeilisearchFieldNames.In(MeilisearchFieldNames.Fields, property))]
@@ -82,16 +113,45 @@ public sealed class MeilisearchSearchProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
-            var response = await client.Index(IndexNames.WithPrefix(optionsMonitor.CurrentValue.IndexPrefix, query.Index)).SearchAsync<MeilisearchDocument>(null, meilisearchQuery, cancellationToken).ConfigureAwait(false);
+            var meilisearchIndex = client.Index(IndexNames.WithPrefix(options.Value.IndexPrefix, query.Index));
+
+            // The index's own limit, which can be below the default, so a cut-off distribution isn't taken as complete.
+            var maxValuesPerFacet = MeilisearchFacets.MaxValuesPerFacet;
+            if (facetAttributes.Count > 0)
+            {
+                var faceting = await meilisearchIndex.GetFacetingAsync(cancellationToken).ConfigureAwait(false);
+                maxValuesPerFacet = faceting?.MaxValuesPerFacet ?? MeilisearchFacets.MaxValuesPerFacet;
+            }
+
+            var response = await meilisearchIndex.SearchAsync<MeilisearchDocument>(null, meilisearchQuery, cancellationToken).ConfigureAwait(false);
             if (response is not PaginatedSearchResult paginated)
             {
                 return Result.Fail<ISearchResult>("Meilisearch returned an unpaginated result for a paginated search.");
+            }
+
+            var distribution = paginated.FacetDistribution;
+            if (facetQuery != null)
+            {
+                var facetResponse = await meilisearchIndex.SearchAsync<MeilisearchDocument>(null, facetQuery, cancellationToken).ConfigureAwait(false);
+                if (facetResponse is not PaginatedSearchResult facetPaginated)
+                {
+                    return Result.Fail<ISearchResult>("Meilisearch returned an unpaginated result for a paginated search.");
+                }
+
+                distribution = facetPaginated.FacetDistribution;
+            }
+
+            var aggregations = MeilisearchFacets.Map(facets.Value, distribution, maxValuesPerFacet);
+            if (aggregations.IsFailed)
+            {
+                return aggregations.ToResult<ISearchResult>();
             }
 
             var totalPages = (int)Math.Ceiling(paginated.TotalHits / (double)pageSize);
             return Result.Ok<ISearchResult>(new BaseSearchResults
             {
                 Items = paginated.Hits.Select(MapHit).ToList(),
+                Aggregations = aggregations.Value,
                 Pagination = new Pagination
                 {
                     TotalCount = paginated.TotalHits,

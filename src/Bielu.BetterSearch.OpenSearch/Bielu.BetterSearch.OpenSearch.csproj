@@ -29,6 +29,7 @@
       <Compile Include="..\Shared\ConnectionSettingsChecks.cs" Link="Services\ConnectionSettingsChecks.cs" />
       <Compile Include="..\Shared\SortOrders.cs" Link="Services\SortOrders.cs" />
       <Compile Include="..\Shared\IndexNames.cs" Link="Services\IndexNames.cs" />
+      <Compile Include="..\Shared\Facets.cs" Link="Services\Facets.cs" />
     </ItemGroup>
 
 </Project>

@@ -5,6 +5,8 @@ using Bielu.BetterSearch.Meilisearch.Services;
 using Bielu.BetterSearch.Meilisearch.Services.Queries;
 using Meilisearch;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using MeilisearchQuery = Meilisearch.SearchQuery;
 
 namespace Bielu.BetterSearch.Meilisearch.DepedencyInjection;
@@ -38,8 +40,11 @@ public static class RegisterSearchExtension
         configurator.Services.AddScoped<ISubQueryTranslator<MeilisearchFilter>, DateRangeSubQueryTranslator>();
         configurator.Services.AddScoped<ISubQueryTranslator<MeilisearchFilter>, StringRangeSubQueryTranslator>();
         configurator.Services.AddScoped<ISubQueryTranslator<MeilisearchFilter>, SpatialSearchSubQueryTranslator>();
-        configurator.Services.Configure<MeilisearchOptions>(
-            configurator.AppConfiguration.GetSection(MeilisearchOptions.MeilisearchOptionsKey));
+        configurator.Services.AddOptions<MeilisearchOptions>()
+            .Bind(configurator.AppConfiguration.GetSection(MeilisearchOptions.MeilisearchOptionsKey))
+            .ValidateOnStart();
+        configurator.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<MeilisearchOptions>, MeilisearchOptionsValidator>());
         return configurator;
     }
 }

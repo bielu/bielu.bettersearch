@@ -5,8 +5,8 @@ using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
+using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using OpenSearch.Client;
 using OpenSearch.Net;
 using Shouldly;
@@ -20,13 +20,6 @@ public sealed class OpenSearchMappingTests(
     IQueryTranslateServiceAsync<QueryContainer> queryTranslateService,
     IPostFilterTranslateServiceAsync<QueryContainer> postFilterTranslateService)
 {
-    private sealed class FixedOptionsMonitor(OpenSearchOptions value) : IOptionsMonitor<OpenSearchOptions>
-    {
-        public OpenSearchOptions CurrentValue => value;
-        public OpenSearchOptions Get(string? name) => value;
-        public IDisposable? OnChange(Action<OpenSearchOptions, string?> listener) => null;
-    }
-
     private sealed record Providers(string Index, OpenSearchIndexingProviderAsync Indexing, OpenSearchSearchProviderAsync Search);
 
     /// <summary>Providers for a new index of its own, whose <c>Indexes</c> entry has <paramref name="mappings"/>.</summary>
@@ -34,7 +27,7 @@ public sealed class OpenSearchMappingTests(
 
     private Providers ForIndex(string index, params OpenSearchFieldMapping[] mappings)
     {
-        var monitor = new FixedOptionsMonitor(new OpenSearchOptions
+        var monitor = new TestOptionsMonitor<OpenSearchOptions>(new OpenSearchOptions
         {
             SharedIndexSettings = new OpenSearchIndexSettings
             {

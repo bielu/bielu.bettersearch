@@ -40,7 +40,7 @@ public class IndexLifecycleServiceAsync(IIndexingProviderAsync indexingProvider,
 
         var batch = documents?.ToList() ?? [];
         // Reject the whole batch before indexing any of it, as IndexingServiceAsync does.
-        var checkedFields = Result.Merge(batch.Select(IndexingServiceAsync.CheckNullFields).ToArray());
+        var checkedFields = Result.Merge(batch.Select(IndexingServiceAsync.CheckDocument).ToArray());
         if (checkedFields.IsFailed)
         {
             return Result.Fail<int>(checkedFields.Errors);

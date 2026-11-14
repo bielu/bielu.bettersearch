@@ -31,11 +31,6 @@ internal sealed class OpenSearchSearchProviderAsync(
             return Result.Fail<ISearchResult>("The query needs an Index.");
         }
 
-        if (query.FacetQueries is { Count: > 0 })
-        {
-            return Result.Fail<ISearchResult>("The OpenSearch provider does not support facets yet.");
-        }
-
         var maxResultWindow = optionsMonitor.CurrentValue.MaxResultWindow;
         if (maxResultWindow <= 0)
         {
@@ -80,15 +75,23 @@ internal sealed class OpenSearchSearchProviderAsync(
         }
 
         var mappings = settingsManager.GetConnectionSettings(query.Index).Mappings ?? [];
+        var aggregations = await OpenSearchAggregations.TranslateAsync(query, mappings, queryTranslateServiceAsync).ConfigureAwait(false);
+        if (aggregations.IsFailed)
+        {
+            return aggregations.ToResult<ISearchResult>();
+        }
+
         var request = CreateRequest(query, settingsManager.GetIndexName(query.Index), mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
         request.Highlight = highlight.Value;
+        request.Aggregations = aggregations.Value;
         var response = await client.Value.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
         // The client reports a cancelled request as an invalid response; the caller cancelled, so say that instead.
         cancellationToken.ThrowIfCancellationRequested();
         // OpenSearch.Client treats some error responses as valid, so a server error is a failure too.
         if (!response.IsValid || response.ServerError is not null)
         {
-            return Result.Fail<ISearchResult>(OpenSearchFailures.Describe("search", response));
+            var failure = OpenSearchFailures.Describe("search", response);
+            return Result.Fail<ISearchResult>(aggregations.Value != null ? OpenSearchAggregations.TextFieldFailure(failure) ?? failure : failure);
         }
 
         // Partial results are disallowed in the request; this guards against a cluster that returns them anyway.
@@ -99,6 +102,17 @@ internal sealed class OpenSearchSearchProviderAsync(
         }
 
         var result = resultMapper.MapResult(response);
+        if (aggregations.Value != null)
+        {
+            var facets = OpenSearchAggregations.Map(query.FacetQueries, response.Aggregations);
+            if (facets.IsFailed)
+            {
+                return facets.ToResult<ISearchResult>();
+            }
+
+            result = new BaseSearchResults { Items = result.Items, Pagination = result.Pagination, Aggregations = facets.Value };
+        }
+
         result.Pagination.Page = PageOf(query);
         result.Pagination.PageSize = PageSizeOf(query);
         result.Pagination.TotalPages = (int)Math.Ceiling(result.Pagination.TotalCount / (double)result.Pagination.PageSize);

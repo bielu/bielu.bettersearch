@@ -1,6 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
 using Bielu.BetterSearch.Meilisearch.Services;
+using Bielu.BetterSearch.Tests;
 using FluentResults;
 using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;
@@ -14,7 +15,7 @@ public sealed class MeilisearchClientFactoryExceptionTests
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     private static MeilisearchIndexingProviderAsync Provider(Exception exception) =>
-        new(new ThrowingClientFactory(exception), new StaticOptionsMonitor(new MeilisearchOptions()), NullLogger<MeilisearchIndexingProviderAsync>.Instance);
+        new(new ThrowingClientFactory(exception), new TestOptionsMonitor<MeilisearchOptions>(new MeilisearchOptions()), NullLogger<MeilisearchIndexingProviderAsync>.Instance);
 
     [Fact]
     public async Task IndexDocumentAsync_ClientFactoryThrows_ReturnsFailureCausedByTheException()

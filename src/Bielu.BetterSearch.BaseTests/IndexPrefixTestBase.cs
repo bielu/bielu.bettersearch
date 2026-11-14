@@ -1,4 +1,6 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+﻿using Bielu.BetterSearch.Abstractions.Models;
+using Bielu.BetterSearch.Abstractions.Query;
+using Bielu.BetterSearch.Abstractions.Query.Aggregations;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
@@ -21,6 +23,9 @@ public abstract class IndexPrefixTestBase(IServiceProvider services) : IDisposab
 
     /// <summary>The index prefix the services are configured with.</summary>
     protected abstract string Prefix { get; }
+
+    /// <summary>The field the test counts a term facet on: <c>Name</c>, or a keyword form of it on an engine that needs one.</summary>
+    protected virtual string FacetField => "Name";
 
     /// <summary>Whether the engine has an index, not an alias, named exactly <paramref name="engineName"/>.</summary>
     protected abstract Task<bool> EngineIndexExistsAsync(string engineName);
@@ -83,6 +88,14 @@ public abstract class IndexPrefixTestBase(IServiceProvider services) : IDisposab
             ShouldSucceed(await Indexing.IndexDocumentAsync(Document(index, "a"), Token));
             ShouldSucceed(await Indexing.IndexMultipleDocumentsAsync([Document(index, "b"), Document(index, "c"), Document(index, "d")], Token));
             (await IdsAsync(index)).ShouldBe(["a", "b", "c", "d"]);
+            var faceted = await Search.SearchAsync(new SearchQuery
+            {
+                Index = index,
+                FacetQueries = [new TermAggregation { AggregationName = "names", TermFieldName = FacetField }]
+            }, Token);
+            ShouldSucceed(faceted);
+            faceted.Value.RetrieveBucketAggregation("names").Buckets.Cast<KeyBucket>().Select(bucket => bucket.Key).Order()
+                .ShouldBe(["item a", "item b", "item c", "item d"]);
             // Nothing was written under the unprefixed name.
             (await EngineIndexExistsAsync(index)).ShouldBeFalse();
 
