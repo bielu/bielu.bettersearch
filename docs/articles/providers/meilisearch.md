@@ -22,7 +22,8 @@ which matches or doesn't, so hits aren't ranked. Paging, sorting and post filter
 >   provider runs every query as a filter with no search text, so there is nothing to mark.
 > - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
 >
-> A missing connection string makes each search and write for that index return a failed `Result`. An
+> A missing connection string, or one that isn't an absolute `http` or `https` URL, makes each search and write
+> for that index return a failed `Result` whose message names the setting to fix. An
 > `OperationCanceledException` thrown by the client factory propagates rather than becoming a failed `Result`.
 
 ## Install

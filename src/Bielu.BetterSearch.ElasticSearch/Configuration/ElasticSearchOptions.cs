@@ -6,7 +6,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Configuration;
 public class ElasticSearchOptions
 {
     public static string ElasticSearchOptionsKey { get; } = "Bielu:BetterSearch:ElasticSearch";
-    public ElasticSearchIndexSettings SharedIndexSettings { get; set; }
+    public ElasticSearchIndexSettings SharedIndexSettings { get; set; } = new();
     private Dictionary<string, ElasticSearchIndexSettings>? _indexes = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
