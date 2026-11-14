@@ -124,9 +124,10 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search
 - `IndexMultipleDocumentsAsync` checks every document for null values and routes before indexing any of them, so
   a document with no route fails the whole batch with nothing stored. It then splits the documents by provider
   and calls each provider's indexing service once. When one fails, the others are still called, and the failed
-  `Result` has one error saying what each provider stored. Its `ids` metadata holds the ids of every stored
-  document, and its reasons have one error for each provider, with the key in `key` and that provider's stored
-  ids in `ids`.
+  `Result` has one error saying how many documents each provider indexed. As for a single provider, its `ids`
+  metadata holds the ids not confirmed as stored, and its reasons have one error for each provider that failed,
+  with the key in `key` and that provider's ids not confirmed as stored in `ids`. A provider whose error has no
+  `ids` metadata, as when a document fails validation, counts as having stored none of its documents.
 - Routing applies to the unkeyed `ISearchServiceAsync` and `IIndexingServiceAsync` only. The unkeyed
   `ISearchProviderAsync` and `IIndexingProviderAsync` still use the default provider, or throw on resolution
   when there is none.

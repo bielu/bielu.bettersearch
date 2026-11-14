@@ -15,7 +15,7 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
     private readonly ObserverList<SearchDocument> _indexingObservers;
     private readonly ObserverList<DeleteDocumentRequest> _deleteDocumentObservers;
     private readonly ObserverList<DeleteAllDocumentsRequest> _deleteAllDocumentsObservers;
-    private readonly RoutedServices<IIndexingServiceAsync, RoutedWrite> _services;
+    private readonly RoutedServices<IIndexingServiceAsync> _services;
 
     public RoutingIndexingServiceAsync(IServiceProvider serviceProvider, IndexRoutes routes, ILogger<RoutingIndexingServiceAsync>? logger = null)
     {
@@ -23,26 +23,25 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
         _indexingObservers = new ObserverList<SearchDocument>(logger);
         _deleteDocumentObservers = new ObserverList<DeleteDocumentRequest>(logger);
         _deleteAllDocumentsObservers = new ObserverList<DeleteAllDocumentsRequest>(logger);
-        _services = new RoutedServices<IIndexingServiceAsync, RoutedWrite>(serviceProvider, (service, current) =>
+        _services = new RoutedServices<IIndexingServiceAsync>(serviceProvider, (service, routed) =>
         [
             service.Subscribe(new ForwardingObserver<SearchDocument>(document =>
             {
-                if (current() is { } write)
+                if (routed())
                 {
-                    write.Indexed(document);
                     _indexingObservers.Notify(document);
                 }
             })),
             service.Subscribe(new ForwardingObserver<DeleteDocumentRequest>(request =>
             {
-                if (current() is not null)
+                if (routed())
                 {
                     _deleteDocumentObservers.Notify(request);
                 }
             })),
             service.Subscribe(new ForwardingObserver<DeleteAllDocumentsRequest>(request =>
             {
-                if (current() is not null)
+                if (routed())
                 {
                     _deleteAllDocumentsObservers.Notify(request);
                 }
@@ -70,15 +69,16 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
             return key.ToResult();
         }
 
-        return await _services.RunAsync(key.Value, new RoutedWrite(), service => service.IndexDocumentAsync(document, cancellationToken)).ConfigureAwait(false);
+        return await _services.RunAsync(key.Value, service => service.IndexDocumentAsync(document, cancellationToken)).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Splits the documents by provider and calls each provider's indexing service once, in the order its first
     /// document appears. Nothing is indexed when a document is null, has a null field, or has an index with no route.
     /// When a provider fails, the others are still called, and the failed <see cref="Result"/> has one error saying
-    /// what each provider stored; its reasons have one error for each provider, whose <c>key</c> metadata is the
-    /// provider key and whose <c>ids</c> metadata holds the ids of the documents that provider stored.
+    /// how many documents each provider indexed. Its <c>ids</c> metadata holds the ids not confirmed as stored, as a
+    /// single provider's error does, and its reasons have one error for each provider that failed, with the provider
+    /// key in <c>key</c> and that provider's ids not confirmed as stored in <c>ids</c>.
     /// </summary>
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document, CancellationToken cancellationToken = default)
     {
@@ -114,12 +114,11 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
             }
         }
 
-        var outcomes = new List<(string Key, int Requested, IReadOnlyList<string> StoredIds, Result<int> Result)>();
+        var outcomes = new List<(string Key, List<SearchDocument> Documents, Result<int> Result)>();
         foreach (var (key, keyDocuments) in groups)
         {
-            var write = new RoutedWrite();
-            var result = await _services.RunAsync(key, write, service => service.IndexMultipleDocumentsAsync(keyDocuments, cancellationToken)).ConfigureAwait(false);
-            outcomes.Add((key, keyDocuments.Count, write.IndexedIds(), result));
+            var result = await _services.RunAsync(key, service => service.IndexMultipleDocumentsAsync(keyDocuments, cancellationToken)).ConfigureAwait(false);
+            outcomes.Add((key, keyDocuments, result));
         }
 
         if (outcomes.All(outcome => outcome.Result.IsSuccess))
@@ -127,18 +126,43 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
             return Result.Ok(outcomes.Sum(outcome => outcome.Result.Value));
         }
 
-        var reasons = outcomes.Select(outcome =>
+        var notStoredIds = new List<string>();
+        var summaries = new List<string>();
+        var reasons = new List<IError>();
+        foreach (var (key, keyDocuments, result) in outcomes)
         {
-            var stored = $"'{outcome.Key}' stored {outcome.StoredIds.Count} of {outcome.Requested} documents";
-            var error = outcome.Result.IsSuccess
-                ? new Error(stored)
-                : new Error($"{stored} and failed: {string.Join("; ", outcome.Result.Errors.Select(e => e.Message))}").CausedBy(outcome.Result.Errors);
-            return error.WithMetadata("key", outcome.Key).WithMetadata("ids", outcome.StoredIds.ToList());
-        }).ToList();
-        var failed = outcomes.Count(outcome => outcome.Result.IsFailed);
-        return Result.Fail<int>(new Error($"Indexing the documents failed on {failed} of {outcomes.Count} providers: {string.Join("; ", reasons.Select(r => r.Message))}.")
-            .WithMetadata("ids", outcomes.SelectMany(outcome => outcome.StoredIds).ToList())
+            if (result.IsSuccess)
+            {
+                summaries.Add($"'{key}' indexed {keyDocuments.Count} of {keyDocuments.Count} documents");
+                continue;
+            }
+
+            var ids = NotStoredIds(keyDocuments, result.Errors);
+            notStoredIds.AddRange(ids);
+            var summary = $"'{key}' indexed {keyDocuments.Count - ids.Count} of {keyDocuments.Count} documents and failed: {string.Join("; ", result.Errors.Select(e => e.Message.TrimEnd('.')))}";
+            summaries.Add(summary);
+            reasons.Add(new Error(summary).WithMetadata("key", key).WithMetadata("ids", ids).CausedBy(result.Errors));
+        }
+
+        return Result.Fail<int>(new Error($"Indexing the documents failed on {reasons.Count} of {outcomes.Count} providers: {string.Join("; ", summaries)}.")
+            .WithMetadata("ids", notStoredIds)
             .CausedBy(reasons));
+    }
+
+    /// <summary>
+    /// The ids of <paramref name="documents"/> that a failed batch did not confirm as stored: the <c>ids</c> metadata of
+    /// its errors, or every id when an error has none, as when the batch failed validation or before anything was sent.
+    /// </summary>
+    private static List<string> NotStoredIds(List<SearchDocument> documents, IReadOnlyList<IError> errors)
+    {
+        var all = documents.Select(document => document.Id).Distinct(StringComparer.Ordinal).ToList();
+        if (errors.Count == 0 || errors.Any(error => !error.Metadata.TryGetValue("ids", out var ids) || ids is not IEnumerable<string>))
+        {
+            return all;
+        }
+
+        var failed = errors.SelectMany(error => (IEnumerable<string>)error.Metadata["ids"]).ToHashSet(StringComparer.Ordinal);
+        return all.Where(failed.Contains).ToList();
     }
 
     /// <summary>Routes by <see cref="DeleteDocumentRequest.Type"/>, which holds the index name.</summary>
@@ -150,7 +174,7 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
             return key.ToResult();
         }
 
-        return await _services.RunAsync(key.Value, new RoutedWrite(), service => service.RemoveDocumentAsync(document!, cancellationToken)).ConfigureAwait(false);
+        return await _services.RunAsync(key.Value, service => service.RemoveDocumentAsync(document!, cancellationToken)).ConfigureAwait(false);
     }
 
     public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids, CancellationToken cancellationToken = default)
@@ -161,7 +185,7 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
             return key.ToResult<int>();
         }
 
-        return await _services.RunAsync(key.Value, new RoutedWrite(), service => service.RemoveDocumentsAsync(index, ids, cancellationToken)).ConfigureAwait(false);
+        return await _services.RunAsync(key.Value, service => service.RemoveDocumentsAsync(index, ids, cancellationToken)).ConfigureAwait(false);
     }
 
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
@@ -172,7 +196,7 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
             return key.ToResult<long?>();
         }
 
-        return await _services.RunAsync(key.Value, new RoutedWrite(), service => service.RemoveAllDocumentsAsync(request!, cancellationToken)).ConfigureAwait(false);
+        return await _services.RunAsync(key.Value, service => service.RemoveAllDocumentsAsync(request!, cancellationToken)).ConfigureAwait(false);
     }
 
     public void Dispose()
@@ -181,27 +205,5 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
         _indexingObservers.Complete();
         _deleteDocumentObservers.Complete();
         _deleteAllDocumentsObservers.Complete();
-    }
-
-    /// <summary>One routed write, recording the documents its keyed service reported as indexed.</summary>
-    private sealed class RoutedWrite
-    {
-        private readonly List<string> _indexedIds = new();
-
-        public void Indexed(SearchDocument document)
-        {
-            lock (_indexedIds)
-            {
-                _indexedIds.Add(document.Id);
-            }
-        }
-
-        public IReadOnlyList<string> IndexedIds()
-        {
-            lock (_indexedIds)
-            {
-                return _indexedIds.ToList();
-            }
-        }
     }
 }

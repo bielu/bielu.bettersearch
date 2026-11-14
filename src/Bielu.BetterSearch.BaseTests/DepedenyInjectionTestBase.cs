@@ -410,12 +410,9 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
     }
 
     [Fact]
-    public async Task RouteIndex_MixedBatchOneProviderFails_ErrorSaysWhatEachProviderStored()
+    public async Task RouteIndex_MixedBatchOneProviderRejectsADocument_ErrorSaysWhatEachProviderIndexed()
     {
-        var services = new ServiceCollection();
-        services.AddKeyedScoped<IDocumentValidatorAsync, RejectIdValidator>(SecondKey);
-        TwoFakeProviders(RouteTwoIndexes, services);
-        using var provider = services.BuildServiceProvider();
+        using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
         using var scope = provider.CreateScope();
         var token = TestContext.Current.CancellationToken;
 
@@ -423,18 +420,45 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
         [
             new SearchDocument { Id = "1", Type = "TestDocument", Index = "people" },
             new SearchDocument { Id = "2", Type = "TestDocument", Index = "products" },
-            new SearchDocument { Id = "reject", Type = "TestDocument", Index = "products" },
+            new SearchDocument { Id = "fail-4", Type = "TestDocument", Index = "products" },
             new SearchDocument { Id = "3", Type = "TestDocument", Index = "people" },
         ], token);
 
         var error = result.Errors.ShouldHaveSingleItem();
-        error.Message.ShouldBe("Indexing the documents failed on 1 of 2 providers: 'first' stored 2 of 2 documents; 'second' stored 1 of 2 documents and failed: Document is not valid.");
-        error.Metadata["ids"].ShouldBe(new List<string> { "1", "3", "2" });
-        error.Reasons.Count.ShouldBe(2);
-        error.Reasons[0].Metadata["key"].ShouldBe(FirstKey);
-        error.Reasons[0].Metadata["ids"].ShouldBe(new List<string> { "1", "3" });
-        error.Reasons[1].Metadata["key"].ShouldBe(SecondKey);
-        error.Reasons[1].Metadata["ids"].ShouldBe(new List<string> { "2" });
+        error.Message.ShouldBe("Indexing the documents failed on 1 of 2 providers: 'first' indexed 2 of 2 documents; 'second' indexed 1 of 2 documents and failed: second provider rejected fail-4.");
+        error.Metadata["ids"].ShouldBe(new List<string> { "fail-4" });
+        var reason = error.Reasons.ShouldHaveSingleItem();
+        reason.Metadata["key"].ShouldBe(SecondKey);
+        reason.Metadata["ids"].ShouldBe(new List<string> { "fail-4" });
+        reason.Reasons.ShouldHaveSingleItem().Message.ShouldBe("second provider rejected fail-4");
+    }
+
+    [Fact]
+    public async Task RouteIndex_MixedBatchOneProviderRejectsInValidation_ThatProviderStoresNothingAndTheOtherIndexes()
+    {
+        var services = new ServiceCollection();
+        services.AddKeyedScoped<IDocumentValidatorAsync, RejectIdValidator>(SecondKey);
+        TwoFakeProviders(RouteTwoIndexes, services);
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var token = TestContext.Current.CancellationToken;
+        var unkeyed = new RecordingObserver<SearchDocument>();
+        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
+        using var subscription = indexing.Subscribe(unkeyed);
+
+        var result = await indexing.IndexMultipleDocumentsAsync(
+        [
+            new SearchDocument { Id = "2", Type = "TestDocument", Index = "products" },
+            new SearchDocument { Id = "1", Type = "TestDocument", Index = "people" },
+            new SearchDocument { Id = "reject", Type = "TestDocument", Index = "products" },
+        ], token);
+
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Message.ShouldBe("Indexing the documents failed on 1 of 2 providers: 'second' indexed 0 of 2 documents and failed: Document reject is not valid; 'first' indexed 1 of 1 documents.");
+        // A validation error has no ids metadata, and the keyed service sends nothing after one, so none of that provider's documents is stored.
+        error.Metadata["ids"].ShouldBe(new List<string> { "2", "reject" });
+        error.Reasons.ShouldHaveSingleItem().Metadata["key"].ShouldBe(SecondKey);
+        unkeyed.Values.ShouldHaveSingleItem().Id.ShouldBe("1");
     }
 
     [Fact]
@@ -550,7 +574,7 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
 
     private sealed class SecondFakeProvider() : FakeProvider("second");
 
-    /// <summary>Indexes every document; every other call fails with a message naming the provider and the call.</summary>
+    /// <summary>Indexes documents; every other call fails with a message naming the provider and the call.</summary>
     private abstract class FakeProvider(string name) : ISearchProviderAsync, IIndexingProviderAsync
     {
         public Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
@@ -559,8 +583,18 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
         public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
             Task.FromResult(Result.Ok());
 
-        public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents, CancellationToken cancellationToken = default) =>
-            Task.FromResult(Result.Fail<int>($"{name} provider indexed many"));
+        /// <summary>
+        /// Indexes the batch, except the documents whose id starts with <c>fail</c>: as an engine that applies each item
+        /// on its own, it then fails naming them in the <c>ids</c> metadata.
+        /// </summary>
+        public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents, CancellationToken cancellationToken = default)
+        {
+            var batch = documents.ToList();
+            var failed = batch.Select(document => document.Id).Where(id => id.StartsWith("fail", StringComparison.Ordinal)).ToList();
+            return Task.FromResult(failed.Count == 0
+                ? Result.Ok(batch.Count)
+                : Result.Fail<int>(new Error($"{name} provider rejected {string.Join(", ", failed)}").WithMetadata("ids", failed)));
+        }
 
         public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) =>
             Task.FromResult(Result.Fail($"{name} provider removed {id}"));

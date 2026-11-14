@@ -15,16 +15,16 @@ internal sealed class RoutingSearchServiceAsync : ISearchServiceAsync
 {
     private readonly IndexRoutes _routes;
     private readonly ObserverList<ISearchModel> _searchObservers;
-    private readonly RoutedServices<ISearchServiceAsync, object> _services;
+    private readonly RoutedServices<ISearchServiceAsync> _services;
 
     public RoutingSearchServiceAsync(IServiceProvider serviceProvider, IndexRoutes routes, ILogger<RoutingSearchServiceAsync>? logger = null)
     {
         _routes = routes;
         _searchObservers = new ObserverList<ISearchModel>(logger);
-        _services = new RoutedServices<ISearchServiceAsync, object>(serviceProvider, (service, current) =>
+        _services = new RoutedServices<ISearchServiceAsync>(serviceProvider, (service, routed) =>
             [service.Subscribe(new ForwardingObserver<ISearchModel>(hit =>
             {
-                if (current() is not null)
+                if (routed())
                 {
                     _searchObservers.Notify(hit);
                 }
@@ -42,7 +42,7 @@ internal sealed class RoutingSearchServiceAsync : ISearchServiceAsync
             return key.ToResult<ISearchResult>();
         }
 
-        return await _services.RunAsync(key.Value, new object(), service => service.SearchAsync(query!, cancellationToken)).ConfigureAwait(false);
+        return await _services.RunAsync(key.Value, service => service.SearchAsync(query!, cancellationToken)).ConfigureAwait(false);
     }
 
     public void Dispose()
