@@ -105,8 +105,8 @@ public class ElasticSearchSearchProviderAsync(
     }
 
     /// <summary>
-    /// Gets the document with <c>GET index/_doc/id</c>. <c>null</c> when Elasticsearch answers 404, for a missing
-    /// document or a missing index.
+    /// Gets the document with <c>GET index/_doc/id</c>. <c>null</c> when Elasticsearch answers that the document or
+    /// the index is missing. A 404 without that answer is a failure.
     /// </summary>
     public async Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default)
     {
@@ -121,13 +121,17 @@ public class ElasticSearchSearchProviderAsync(
         {
             var response = await client.GetAsync<SearchDocument>(new GetRequest(index, id), cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            if (response.ApiCallDetails?.HttpStatusCode == 404
-                && response.ElasticsearchServerError?.Error?.Type is null or "index_not_found_exception")
+            // A 404 is an answer only when Elasticsearch gave it: index_not_found_exception, or a get response that
+            // names the index and says found false. Any other 404, such as one from a proxy, is a failure.
+            var notFound = response.ApiCallDetails?.HttpStatusCode == 404;
+            if (notFound
+                && (response.ElasticsearchServerError?.Error?.Type == "index_not_found_exception"
+                    || (response.ElasticsearchServerError is null && !response.Found && !string.IsNullOrEmpty(response.Index))))
             {
                 return Result.Ok<SearchDocument?>(null);
             }
 
-            if (!response.IsValidResponse)
+            if (notFound || !response.IsValidResponse)
             {
                 return Result.Fail<SearchDocument?>(ElasticSearchFailures.Describe($"get of document {id}", response));
             }

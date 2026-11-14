@@ -106,8 +106,8 @@ internal sealed class OpenSearchSearchProviderAsync(
     }
 
     /// <summary>
-    /// Gets the document with <c>GET index/_doc/id</c>. <c>null</c> when OpenSearch answers 404, for a missing
-    /// document or a missing index.
+    /// Gets the document with <c>GET index/_doc/id</c>. <c>null</c> when OpenSearch answers that the document or
+    /// the index is missing. A 404 without that answer is a failure.
     /// </summary>
     public async Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default)
     {
@@ -122,13 +122,17 @@ internal sealed class OpenSearchSearchProviderAsync(
         {
             var response = await client.GetAsync<SearchDocument>(new GetRequest(index, id), cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            if (response.ApiCall?.HttpStatusCode == 404
-                && response.ServerError?.Error?.Type is null or "index_not_found_exception")
+            // A 404 is an answer only when OpenSearch gave it: index_not_found_exception, or a get response that
+            // names the index and says found false. Any other 404, such as one from a proxy, is a failure.
+            var notFound = response.ApiCall?.HttpStatusCode == 404;
+            if (notFound
+                && (response.ServerError?.Error?.Type == "index_not_found_exception"
+                    || (response.ServerError is null && !response.Found && !string.IsNullOrEmpty(response.Index))))
             {
                 return Result.Ok<SearchDocument?>(null);
             }
 
-            if (!response.IsValid || response.ServerError is not null)
+            if (notFound || !response.IsValid || response.ServerError is not null)
             {
                 return Result.Fail<SearchDocument?>(OpenSearchFailures.Describe($"get of document {id}", response));
             }

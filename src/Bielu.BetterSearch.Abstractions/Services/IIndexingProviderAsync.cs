@@ -28,8 +28,12 @@ public interface IIndexingProviderAsync
     /// <summary>
     /// Replaces the values of each field in <paramref name="fields"/> on the document with <paramref name="id"/> in
     /// <paramref name="index"/>, and keeps its other fields. <c>true</c> when the document was updated; <c>false</c>
-    /// when the document, or the whole index, is not there, in which case nothing is created. A provider that does
-    /// not support it returns a failed <see cref="Result"/>, which is also what this default implementation does.
+    /// when the document, or the whole index, is not there, in which case nothing is created. The update need not be
+    /// atomic: a provider that reads and rewrites the whole document (Meilisearch) can overwrite a change another
+    /// caller made in between, or store again a document removed in between, and a provider that checks the index
+    /// first (Elasticsearch, OpenSearch) lets the engine create again an index deleted between the check and the
+    /// update. A provider that does not support it returns a failed <see cref="Result"/>, which is also what this
+    /// default implementation does.
     /// </summary>
     Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
         CancellationToken cancellationToken = default) =>
