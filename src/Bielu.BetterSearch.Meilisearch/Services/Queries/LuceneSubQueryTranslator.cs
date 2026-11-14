@@ -219,7 +219,7 @@ internal sealed class LuceneSubQueryTranslator(IOptionsMonitor<MeilisearchOption
             return Fail($"phrase '{query}' has {words.Count} words; Meilisearch matches phrases of at most {MeilisearchDocument.MaxPhraseTokens}.");
         }
 
-        var options = optionsMonitor.Current();
+        var options = optionsMonitor.TryCurrentValue();
         if (options.IsFailed)
         {
             return options.ToResult<MeilisearchFilter>();

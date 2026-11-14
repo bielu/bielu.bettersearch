@@ -3,9 +3,8 @@ using Bielu.BetterSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
 using Bielu.BetterSearch.OpenSearch.Services.Queries;
+using Bielu.BetterSearch.Services;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using OpenSearch.Client;
 
 namespace Bielu.BetterSearch.OpenSearch.DepedencyInjection;
@@ -44,11 +43,8 @@ public static class RegisterSearchExtension
         configurator.Services.AddScoped<ISubQueryTranslator<QueryContainer>, DateRangeSubQueryTranslator>();
         configurator.Services.AddScoped<ISubQueryTranslator<QueryContainer>, StringRangeSubQueryTranslator>();
         configurator.Services.AddScoped<ISubQueryTranslator<QueryContainer>, SpatialSearchSubQueryTranslator>();
-        configurator.Services.AddOptions<OpenSearchOptions>()
-            .Bind(configurator.AppConfiguration.GetSection(OpenSearchOptions.OpenSearchOptionsKey))
-            .ValidateOnStart();
-        configurator.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IValidateOptions<OpenSearchOptions>, OpenSearchOptionsValidator>());
+        OptionsRegistration.BindAndValidateOnStart<OpenSearchOptions, OpenSearchOptionsValidator>(
+            configurator.Services, configurator.AppConfiguration, OpenSearchOptions.OpenSearchOptionsKey);
         return configurator;
     }
 }

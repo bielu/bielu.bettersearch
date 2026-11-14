@@ -24,13 +24,13 @@ public sealed class MeilisearchResource : IHostedService
     public string? MasterKey { get; private set; }
 
     /// <summary>
-    /// Starts the server when the host has not yet. Startup validation reads the options before the host starts its
-    /// hosted services, so the options start the server through this.
+    /// The endpoint, starting the server first when the host has not yet. Startup validation reads the options
+    /// before the host starts its hosted services, so the options ask for the endpoint through this.
     /// </summary>
-    public MeilisearchResource EnsureStarted()
+    public Uri EnsureStarted()
     {
         StartAsync(CancellationToken.None).GetAwaiter().GetResult();
-        return this;
+        return Endpoint!;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
