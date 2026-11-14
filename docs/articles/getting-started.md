@@ -92,7 +92,7 @@ public class ProductSearch([FromKeyedServices("products")] ISearchServiceAsync s
 - Observers are per key: each keyed service is its own instance, so an observer subscribed to the `products`
   indexing service hears nothing indexed through `site`. The unkeyed service is a separate instance too, even
   when it uses the same provider, so it doesn't hear operations run through the keyed one.
-- Routing an index to an engine by its name is not supported yet; resolve the service for the engine you want.
+- Routing an index to an engine by its name is not supported yet ([#122](https://github.com/bielu/bielu.bettersearch/issues/122)); resolve the service for the engine you want.
 
 ## Index and search
 
