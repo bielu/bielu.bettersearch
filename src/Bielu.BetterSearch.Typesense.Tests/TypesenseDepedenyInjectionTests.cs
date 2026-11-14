@@ -7,7 +7,7 @@ using Bielu.BetterSearch.Typesense.Services;
 namespace Bielu.BetterSearch.Typesense.Tests;
 
 public class TypesenseDepedenyInjectionTests(IServiceProvider collection)
-    : DepedenyInjectionTestBase<TypesenseIndexingProviderAsync, TypesenseHttpClientWrapper, TypesenseSearchRequest>(collection)
+    : DepedenyInjectionTestBase(collection, typeof(TypesenseHttpClientWrapper), typeof(TypesenseSearchRequest))
 {
     protected override void AddProvider(Configurator search) => search.AddTypesense();
 

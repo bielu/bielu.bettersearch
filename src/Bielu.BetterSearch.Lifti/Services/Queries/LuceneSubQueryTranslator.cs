@@ -6,7 +6,7 @@ using Lifti.Querying;
 
 namespace Bielu.BetterSearch.Lifti.Services.Queries;
 
-public class LuceneSubQueryTranslator : ISubQueryTranslator<IQuery>
+internal sealed class LuceneSubQueryTranslator : ISubQueryTranslator<IQuery>
 {
     public bool CanTranslate(ISearchSubQuery query) => query is LuceneSubQuery;
 

@@ -9,7 +9,7 @@ using MeilisearchQuery = Meilisearch.SearchQuery;
 namespace Bielu.BetterSearch.Meilisearch.Tests;
 
 public class MeilisearchDepedenyInjectionTests(IServiceProvider collection)
-    : DepedenyInjectionTestBase<MeilisearchIndexingProviderAsync, MeilisearchClient, MeilisearchQuery>(collection)
+    : DepedenyInjectionTestBase(collection, typeof(MeilisearchClient), typeof(MeilisearchQuery))
 {
     protected override void AddProvider(Configurator search) => search.AddMeilisearch();
 

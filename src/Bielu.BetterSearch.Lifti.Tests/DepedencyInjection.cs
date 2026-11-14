@@ -9,7 +9,7 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.Lifti.Tests;
 
-public class DepedencyInjection(IServiceProvider collection) : DepedenyInjectionTestBase<LiftiIndexingProviderAsync, IFullTextIndex<string>, IQuery>(collection)
+public class DepedencyInjection(IServiceProvider collection) : DepedenyInjectionTestBase(collection, typeof(IFullTextIndex<string>), typeof(IQuery))
 {
     protected override void AddProvider(Configurator search) => search.AddLiftiSearch();
 

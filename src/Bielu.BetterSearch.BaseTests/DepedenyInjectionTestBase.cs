@@ -12,7 +12,10 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.Tests;
 
-public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClient, TQueryType>(IServiceProvider collection)
+/// <param name="collection">The service provider with the provider registered.</param>
+/// <param name="clientType">The client type the provider's <see cref="IClientFactoryAsync{TClient}"/> creates.</param>
+/// <param name="queryType">The query type the provider's <see cref="IQueryTranslateServiceAsync{T}"/> translates to.</param>
+public abstract class DepedenyInjectionTestBase(IServiceProvider collection, Type clientType, Type queryType)
 {
     public void ServiceShouldBeRegistered(Type serviceType)
     {
@@ -28,7 +31,7 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
     public void IndexingProviderShouldBeRegistered() => ServiceShouldBeRegistered(typeof(IIndexingProviderAsync));
 
     [Fact]
-    public void ClientFactoryShouldBeRegistered() => ServiceShouldBeRegistered(typeof(IClientFactoryAsync<TSearchClient>));
+    public void ClientFactoryShouldBeRegistered() => ServiceShouldBeRegistered(typeof(IClientFactoryAsync<>).MakeGenericType(clientType));
 
     [Fact]
     public void DocumentValidatorShouldBeRegistered() => ServiceShouldBeRegistered(typeof(IDocumentValidatorAsync));
@@ -37,7 +40,7 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
     public void IndexingServiceShouldBeRegistered() => ServiceShouldBeRegistered(typeof(IIndexingServiceAsync));
 
     [Fact]
-    public void QueryTranslateServiceShouldBeRegistered() => ServiceShouldBeRegistered(typeof(IQueryTranslateServiceAsync<TQueryType>));
+    public void QueryTranslateServiceShouldBeRegistered() => ServiceShouldBeRegistered(typeof(IQueryTranslateServiceAsync<>).MakeGenericType(queryType));
 
     [Fact]
     public void SearchServiceShouldBeRegistered() => ServiceShouldBeRegistered(typeof(ISearchServiceAsync));

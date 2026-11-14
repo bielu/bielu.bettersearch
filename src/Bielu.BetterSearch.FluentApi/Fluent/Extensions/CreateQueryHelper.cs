@@ -10,7 +10,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         /// <summary>
         /// Adds <paramref name="subQuery"/> with its own occurrence when one was chosen, else with the parent's.
         /// </summary>
-        private static void Add(this ICreatableSearchQuery<Occurance, ISearchSubQuery> target, Occurance parent,
+        private static void Add(this ICreatableSearchQuery target, Occurance parent,
             Occurance? own, ISearchSubQuery subQuery)
         {
             var occurance = own ?? parent;
@@ -23,7 +23,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         /// implementation behind the top-level and the nested <c>Create…Query</c> methods.
         /// </summary>
         private static TConfigurator Create<TConfigurator, TSubQuery>(this TConfigurator configurator,
-            ICreatableSearchQuery<Occurance, ISearchSubQuery> target, Occurance parent, Action<TSubQuery> query)
+            ICreatableSearchQuery target, Occurance parent, Action<TSubQuery> query)
             where TSubQuery : SubQueryConfigurator<TSubQuery>, new()
         {
             var subQuery = new TSubQuery();

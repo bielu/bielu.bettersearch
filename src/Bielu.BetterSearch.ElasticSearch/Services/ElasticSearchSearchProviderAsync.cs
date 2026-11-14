@@ -13,7 +13,7 @@ using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.ElasticSearch.Services;
 
-public class ElasticSearchSearchProviderAsync(
+internal sealed class ElasticSearchSearchProviderAsync(
     IQueryTranslateServiceAsync<EsQuery> queryTranslateServiceAsync,
     IPostFilterTranslateServiceAsync<EsQuery> postFilterTranslateService,
     IClientFactoryAsync<ElasticsearchClient> clientFactoryAsync,

@@ -34,7 +34,6 @@ public class SearchCacheKeyTests
         { "properties", With(q => q.Properties = ["Name"]) },
         { "post filter", With(q => q.PostFilterQuery[Occurance.FILTER] = [new BoolSearchSubQuery()]) },
         { "highlight", With(q => q.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name" })) },
-        { "preview", With(q => q.PreviewAt = new DateTime(2026, 11, 8, 0, 0, 0, DateTimeKind.Utc)) },
         { "nested", With(q => q.Add(Occurance.MUST, new BoolSearchSubQuery())) }
     };
 

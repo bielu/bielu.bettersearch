@@ -16,7 +16,7 @@ namespace Bielu.BetterSearch.Typesense.Services;
 /// search reads the fields to leave out the ones no document holds. Public only so the providers can take it from
 /// dependency injection.
 /// </summary>
-public sealed class TypesenseSchema
+internal sealed class TypesenseSchema
 {
     private readonly IOptionsMonitor<TypesenseOptions> optionsMonitor;
 
