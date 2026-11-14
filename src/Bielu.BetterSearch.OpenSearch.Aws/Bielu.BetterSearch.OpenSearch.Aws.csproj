@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <RootNamespace>Bielu.BetterSearch.OpenSearch.Aws</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Bielu.BetterSearch.Core\Bielu.BetterSearch.Core.csproj" />
+      <ProjectReference Include="..\Bielu.BetterSearch.OpenSearch\Bielu.BetterSearch.OpenSearch.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="OpenSearch.Net.Auth.AwsSigV4" />
+      <PackageReference Include="Microsoft.Extensions.Configuration" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+      <PackageReference Include="Microsoft.Extensions.Options" />
+      <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <InternalsVisibleTo Include="Bielu.BetterSearch.OpenSearch.Aws.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Include="..\Shared\OptionsRegistration.cs" Link="OptionsRegistration.cs" />
+    </ItemGroup>
+
+</Project>

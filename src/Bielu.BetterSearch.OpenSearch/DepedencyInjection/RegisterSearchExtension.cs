@@ -6,6 +6,7 @@ using Bielu.BetterSearch.OpenSearch.Services.Queries;
 using Bielu.BetterSearch.Services;
 using Microsoft.Extensions.DependencyInjection;
 using OpenSearch.Client;
+using OpenSearch.Net;
 
 namespace Bielu.BetterSearch.OpenSearch.DepedencyInjection;
 
@@ -30,7 +31,8 @@ public static class RegisterSearchExtension
         ClientConfiguration<ConnectionSettings>.Register(configurator.Services, configureClient);
         configurator.Services.AddSingleton<IClientFactoryAsync<IOpenSearchClient>>(services => new OpenSearchClientFactory(
             services.GetRequiredService<IOpenSearchClientSettingsManager>(),
-            services.GetServices<ClientConfiguration<ConnectionSettings>>()));
+            services.GetServices<ClientConfiguration<ConnectionSettings>>(),
+            services.GetServices<OpenSearchConnectionSource>().LastOrDefault()?.Bind(services)));
         configurator.Services.AddScoped<OpenSearchQueryTranslateService>();
         configurator.Services.AddScoped<IQueryTranslateServiceAsync<QueryContainer>>(sp =>
             sp.GetRequiredService<OpenSearchQueryTranslateService>());
@@ -52,6 +54,21 @@ public static class RegisterSearchExtension
         configurator.Services.AddScoped<ISubQueryTranslator<QueryContainer>, SpatialSearchSubQueryTranslator>();
         OptionsRegistration.BindAndValidateOnStart<OpenSearchOptions, OpenSearchOptionsValidator>(
             configurator.Services, configurator.AppConfiguration, OpenSearchOptions.OpenSearchOptionsKey);
+        return configurator;
+    }
+
+    /// <summary>
+    /// Sends the requests of every OpenSearch client the provider creates through the connection
+    /// <paramref name="createConnection"/> returns, such as one that signs each request, instead of the client's default
+    /// <c>HttpConnection</c>. It runs once for each cached client, when the client is created, not per request. The
+    /// options still apply, so a connection that sets its own <c>Authorization</c> header needs <c>AuthenticationType</c>
+    /// left at <c>NONE</c>. Called more than once, the last call wins. It can be called before or after <c>AddOpenSearch</c>.
+    /// </summary>
+    public static Configurator UseOpenSearchConnection(this Configurator configurator,
+        Func<IServiceProvider, IConnection> createConnection)
+    {
+        ArgumentNullException.ThrowIfNull(createConnection);
+        configurator.Services.AddSingleton(new OpenSearchConnectionSource(createConnection));
         return configurator;
     }
 }
