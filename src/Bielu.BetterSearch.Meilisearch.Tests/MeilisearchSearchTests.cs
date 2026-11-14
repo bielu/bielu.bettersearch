@@ -21,13 +21,6 @@ public sealed class MeilisearchSearchTests(
     IOptionsMonitor<MeilisearchOptions> options,
     IClientFactoryAsync<MeilisearchClient> clientFactory)
 {
-    private sealed class SortField : ISortOrderField
-    {
-        public string FieldName { get; set; } = string.Empty;
-        public bool Desc { get; set; }
-        public int Order { get; set; }
-    }
-
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     private static SearchDocument Person(string index, string id, string name, int age, long views, DateTime born, string city) => new()
@@ -496,7 +489,7 @@ public sealed class MeilisearchSearchTests(
             Index = index,
             Page = 2,
             PageSize = 2,
-            SortOrder = [new SortField { FieldName = "Age" }]
+            SortOrder = [new SortOrderField { FieldName = "Age" }]
         };
 
         var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
@@ -542,8 +535,8 @@ public sealed class MeilisearchSearchTests(
             PageSize = 100,
             SortOrder =
             [
-                new SortField { FieldName = "Age", Desc = true, Order = 2 },
-                new SortField { FieldName = "City", Order = 1 }
+                new SortOrderField { FieldName = "Age", Desc = true, Order = 2 },
+                new SortOrderField { FieldName = "City", Order = 1 }
             ]
         };
 
@@ -558,7 +551,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(new SearchQuery { Index = index, SortOrder = [new SortField { FieldName = "Age desc" }] }, TestContext.Current.CancellationToken);
+        var result = await searchService.SearchAsync(new SearchQuery { Index = index, SortOrder = [new SortOrderField { FieldName = "Age desc" }] }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
     }

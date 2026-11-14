@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Models;
+﻿using Bielu.BetterSearch.Abstractions.Fields;
+using Bielu.BetterSearch.Abstractions.Models;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
@@ -29,7 +30,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
         {
             Query.SortOrder ??= [];
             var order = Query.SortOrder.Count == 0 ? 0 : Query.SortOrder.Max(sort => sort.Order) + 1;
-            Query.SortOrder.Add(new FluentSortOrderField { FieldName = fieldName, Desc = descending, Order = order });
+            Query.SortOrder.Add(new SortOrderField { FieldName = fieldName, Desc = descending, Order = order });
             return this;
         }
 
