@@ -78,6 +78,12 @@ should match the indexes' `index.max_result_window`.
 In every provider, keys under `Indexes` match index names whatever their case, so `Indexes:People` applies
 to the index `people`.
 
+Elasticsearch and OpenSearch also take explicit field mappings under `SharedIndexSettings:Mappings` or an
+`Indexes` entry's `Mappings`, applied when the index is created: a `Keyword` field matches and sorts on its
+whole value under its plain name, a `Text` field sorts on its `keyword` sub-field automatically, and a
+`GeoPoint` field makes geo distance queries work. Fields not listed keep dynamic mapping, and invalid mappings
+fail at startup. See [field mappings](docs/articles/providers/elasticsearch.md#field-mappings).
+
 Meilisearch, configured from `Bielu:BetterSearch:Meilisearch`:
 
 ```csharp
@@ -159,6 +165,8 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
 - ✅ **Fluent query builder** in `Bielu.BetterSearch.FluentApi`
 - ✅ **Paging, sorting, post filters, highlighting and scores** on the Elasticsearch and OpenSearch providers;
   paging, sorting and post filters on Meilisearch
+- ✅ **Field mappings** on Elasticsearch and OpenSearch: `Text`, `Keyword`, `Date`, numeric, `Boolean` and
+  `GeoPoint` fields, with an optional analyzer or format, validated at startup
 - ✅ **Errors as results**: searching and indexing return [FluentResults](https://github.com/altmann/FluentResults)
   `Result`s. Every provider fails a query that asks for facets, except Lifti, which ignores them; Meilisearch and
   Lifti also fail a query that asks for highlighting. Lifti ignores paging, sorting and post filters, so check the [feature matrix](docs/articles/feature-matrix.md) for what

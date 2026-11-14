@@ -17,7 +17,8 @@ public sealed class ElasticsearchSearchProviderTests(
     IOptionsMonitor<ElasticSearchOptions> options,
     IQueryTranslateServiceAsync<EsQuery> queryTranslateService,
     IPostFilterTranslateServiceAsync<EsQuery> postFilterTranslateService,
-    IIndexingProviderAsync indexingProvider)
+    IIndexingProviderAsync indexingProvider,
+    IElasticSearchClientSettingsManager settingsManager)
 {
     private sealed class RejectingTranslateService : IQueryTranslateServiceAsync<EsQuery>
     {
@@ -33,7 +34,8 @@ public sealed class ElasticsearchSearchProviderTests(
             new ElasticSearchQueryTranslateService([]),
             clientFactory,
             new ElasticSearchResultMapper(),
-            options);
+            options,
+            settingsManager);
 
         var result = await provider.SearchAsync(new SearchQuery { Index = "any" }, TestContext.Current.CancellationToken);
 
@@ -65,7 +67,8 @@ public sealed class ElasticsearchSearchProviderTests(
             postFilterTranslateService,
             clientFactory,
             new ElasticSearchResultMapper(),
-            new FixedOptionsMonitor(new ElasticSearchOptions { MaxResultWindow = 3 }));
+            new FixedOptionsMonitor(new ElasticSearchOptions { MaxResultWindow = 3 }),
+            settingsManager);
 
         var result = await provider.SearchAsync(new SearchQuery { Index = index, PageSize = 1 }, TestContext.Current.CancellationToken);
 

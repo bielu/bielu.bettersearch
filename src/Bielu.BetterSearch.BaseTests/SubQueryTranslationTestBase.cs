@@ -201,6 +201,56 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
         await SubQueryShouldBeTranslatableAsync(subQuery);
     }
 
+    public static TheoryData<ISearchSubQuery> DefaultConstructedSubQueries() =>
+    [
+        new BoolSearchSubQuery(),
+        new TermSubQuery(),
+        new TermsSubQuery(),
+        new FuzzyQuery(),
+        new PrefixSubQuery(),
+        new PrefixPhraseSubQuery(),
+        new LuceneSubQuery(),
+        new SpatialSearchQuery(),
+        new NumericRange(),
+        new LongRange(),
+        new DateRangeQuery(),
+        new StringRange()
+    ];
+
+    // A sub-query added to NestedQueries directly, or by a collection initializer, keeps these defaults.
+    [Theory]
+    [MemberData(nameof(DefaultConstructedSubQueries))]
+    public void DefaultConstructedSubQuery_IsAMustWithBoostOne(ISearchSubQuery subQuery)
+    {
+        subQuery.Occurance.ShouldBe(Occurance.MUST);
+        subQuery.BoostValue.ShouldBe(1);
+        if (subQuery is BaseRangeQuery range)
+        {
+            range.IncludeMinEdge.ShouldBeTrue();
+            range.IncludeMaxEdge.ShouldBeTrue();
+        }
+    }
+
+    public static TheoryData<ISearchSubQuery> RangesWithoutBounds() =>
+    [
+        new NumericRange { Field = "Age" },
+        new LongRange { Field = "Age" },
+        new DateRangeQuery { Field = "Born" },
+        new StringRange { Field = "Name" }
+    ];
+
+    // A range with no bounds would match every document that has the field, so every provider fails it the same way.
+    [Theory]
+    [MemberData(nameof(RangesWithoutBounds))]
+    public async Task RangeWithoutBounds_ReturnsFailedResult(ISearchSubQuery subQuery)
+    {
+        var result = await TranslateAsync(subQuery);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message
+            .ShouldBe($"{subQuery.GetType().Name} has neither MinValue nor MaxValue; set at least one bound.");
+    }
+
     [Fact]
     public virtual async Task LuceneSubQueryShouldBeTranslatable()
     {
