@@ -39,7 +39,13 @@ internal sealed class SpatialSearchSubQueryTranslator(IOptionsMonitor<Meilisearc
             return field.ToResult<MeilisearchFilter>();
         }
 
-        var geoField = optionsMonitor.CurrentValue.GeoField;
+        var options = optionsMonitor.Current();
+        if (options.IsFailed)
+        {
+            return options.ToResult<MeilisearchFilter>();
+        }
+
+        var geoField = options.Value.GeoField;
         if (string.IsNullOrWhiteSpace(geoField))
         {
             return Result.Fail<MeilisearchFilter>(

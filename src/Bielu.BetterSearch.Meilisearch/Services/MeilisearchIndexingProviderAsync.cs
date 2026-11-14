@@ -54,12 +54,18 @@ public sealed class MeilisearchIndexingProviderAsync(
     /// <summary>
     /// Adds one index's documents in tasks of at most <c>BulkBatchSize</c> documents, one after another, waiting for
     /// each. Every document is converted, and the index configured, before the first task, so an invalid document
-    /// stores none of them. The first task that fails stops the import, and the tasks before it stay stored.
+    /// stores none of them. The first task that fails stops this index's import, and the tasks before it stay stored.
     /// </summary>
     private async Task<Result> AddDocumentBatchesAsync(string index, IReadOnlyList<SearchDocument> documents,
         CancellationToken cancellationToken)
     {
-        var batchSize = BulkBatches.Size(index, optionsMonitor.CurrentValue.BulkBatchSizeFor(index), MeilisearchOptions.MeilisearchOptionsKey);
+        var options = optionsMonitor.Current();
+        if (options.IsFailed)
+        {
+            return options.ToResult();
+        }
+
+        var batchSize = BulkBatches.Size(index, options.Value.BulkBatchSizeFor(index), MeilisearchOptions.MeilisearchOptionsKey);
         if (batchSize.IsFailed)
         {
             return batchSize.ToResult();
@@ -248,7 +254,13 @@ public sealed class MeilisearchIndexingProviderAsync(
     private async Task<Result<List<MeilisearchDocument>>> PrepareDocumentsAsync(string index, IReadOnlyCollection<SearchDocument> documents,
         CancellationToken cancellationToken)
     {
-        var options = optionsMonitor.CurrentValue;
+        var current = optionsMonitor.Current();
+        if (current.IsFailed)
+        {
+            return Result.Fail<List<MeilisearchDocument>>(current.Errors);
+        }
+
+        var options = current.Value;
         var phraseFields = options.PhraseFields?.ToHashSet(StringComparer.Ordinal);
         var converted = documents.Select(document => MeilisearchDocument.From(document, options.GeoField, phraseFields)).ToList();
         var invalid = converted.Where(document => document.IsFailed).SelectMany(document => document.Errors).ToList();
@@ -297,7 +309,13 @@ public sealed class MeilisearchIndexingProviderAsync(
     /// </summary>
     private async Task<Result> ConfigureIndexAsync(string index, CancellationToken cancellationToken)
     {
-        var options = optionsMonitor.CurrentValue;
+        var currentOptions = optionsMonitor.Current();
+        if (currentOptions.IsFailed)
+        {
+            return currentOptions.ToResult();
+        }
+
+        var options = currentOptions.Value;
         var maxTotalHits = options.MaxTotalHits;
         MeilisearchClient client;
         try

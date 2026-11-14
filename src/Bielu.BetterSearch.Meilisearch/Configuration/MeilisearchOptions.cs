@@ -87,10 +87,11 @@ public class MeilisearchIndexSettings : IndexSettings
 
     /// <summary>
     /// How many documents <c>IndexMultipleDocumentsAsync</c> adds in one Meilisearch task; a larger batch is split into
-    /// several tasks, sent one after another, so each request stays under the server's payload size limit (about
-    /// 100 MB unless changed). Each task is applied or failed as a whole, but a batch split into several tasks is not:
-    /// when one fails, the tasks before it stay stored. Unset on an <c>Indexes</c> entry, the index takes the shared
-    /// value, and unset there means 1000. It must be greater than 0.
+    /// several tasks, sent one after another. It counts documents, not bytes: each request must still fit the server's
+    /// payload size limit (about 100 MB unless changed), so lower it when documents are large. Each task is applied or
+    /// failed as a whole, but an index's documents split into several tasks are not: when one fails, the tasks before
+    /// it stay stored. Unset on an <c>Indexes</c> entry, the index takes the shared value, and unset there means 1000.
+    /// It must be greater than 0.
     /// </summary>
     public int? BulkBatchSize { get; set; }
 }
