@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Typesense.Configuration;
+﻿using Bielu.BetterSearch.Tests;
+using Bielu.BetterSearch.Typesense.Configuration;
 using Bielu.BetterSearch.Typesense.Services;
 using Shouldly;
 
@@ -15,7 +16,7 @@ public sealed class TypesenseClientTests(TypesenseResource typesense)
             Indexes = new Dictionary<string, TypesenseIndexSettings> { ["People"] = new() { ApiKey = "people-key" } }
         };
 
-        var settings = new TypesenseClientSettingsManager(new StaticOptionsMonitor(options)).GetOrCreateClientSettings("people");
+        var settings = new TypesenseClientSettingsManager(new TestOptionsMonitor<TypesenseOptions>(options)).GetOrCreateClientSettings("people");
 
         settings.ConnectionString.ShouldBe("http://shared:8108");
         settings.AdditionalNodes.ShouldBe(["http://other:8108"]);
@@ -32,7 +33,7 @@ public sealed class TypesenseClientTests(TypesenseResource typesense)
             Indexes = new Dictionary<string, TypesenseIndexSettings> { ["people"] = new() { ConnectionString = "http://people:8108" } }
         };
 
-        var settings = new TypesenseClientSettingsManager(new StaticOptionsMonitor(options)).GetOrCreateClientSettings("PEOPLE");
+        var settings = new TypesenseClientSettingsManager(new TestOptionsMonitor<TypesenseOptions>(options)).GetOrCreateClientSettings("PEOPLE");
 
         settings.ConnectionString.ShouldBe("http://people:8108");
         settings.ApiKey.ShouldBeNull();
@@ -45,7 +46,7 @@ public sealed class TypesenseClientTests(TypesenseResource typesense)
         {
             SharedIndexSettings = new TypesenseIndexSettings { ConnectionString = "http://shared:8108", AdditionalNodes = ["shared:8108"] }
         };
-        using var factory = new TypesenseClientFactory(new TypesenseClientSettingsManager(new StaticOptionsMonitor(options)), new StaticOptionsMonitor(options));
+        using var factory = new TypesenseClientFactory(new TypesenseClientSettingsManager(new TestOptionsMonitor<TypesenseOptions>(options)), new TestOptionsMonitor<TypesenseOptions>(options));
 
         var error = await Should.ThrowAsync<ArgumentException>(() => factory.GetOrCreateClientAsync("people"));
 
@@ -65,7 +66,7 @@ public sealed class TypesenseClientTests(TypesenseResource typesense)
                 ApiKey = typesense.ApiKey
             }
         };
-        using var factory = new TypesenseClientFactory(new TypesenseClientSettingsManager(new StaticOptionsMonitor(options)), new StaticOptionsMonitor(options));
+        using var factory = new TypesenseClientFactory(new TypesenseClientSettingsManager(new TestOptionsMonitor<TypesenseOptions>(options)), new TestOptionsMonitor<TypesenseOptions>(options));
         var client = await factory.GetOrCreateClientAsync("people");
 
         var response = await client.SendAsync(HttpMethod.Get, "collections", null, TestContext.Current.CancellationToken);
@@ -77,7 +78,7 @@ public sealed class TypesenseClientTests(TypesenseResource typesense)
     public async Task SendAsync_OnlyNodeUnreachable_Throws()
     {
         var options = new TypesenseOptions { SharedIndexSettings = new TypesenseIndexSettings { ConnectionString = "http://127.0.0.1:1" } };
-        using var factory = new TypesenseClientFactory(new TypesenseClientSettingsManager(new StaticOptionsMonitor(options)), new StaticOptionsMonitor(options));
+        using var factory = new TypesenseClientFactory(new TypesenseClientSettingsManager(new TestOptionsMonitor<TypesenseOptions>(options)), new TestOptionsMonitor<TypesenseOptions>(options));
         var client = await factory.GetOrCreateClientAsync("people");
 
         await Should.ThrowAsync<HttpRequestException>(() => client.SendAsync(HttpMethod.Get, "collections", null, TestContext.Current.CancellationToken));

@@ -149,7 +149,7 @@ Releases are driven by [changesets](https://github.com/changesets/changesets) in
 
 1. `dotnet build` succeeds with no new warnings.
 2. `dotnet test` passes.
-3. `dotnet format --verify-no-changes src/Bielu.BetterSearch.slnx` reports nothing new.
+3. `dotnet format --verify-no-changes src/Bielu.BetterSearch.slnx` reports nothing; CI checks this on every pull request.
 4. A changeset is included.
 5. `README.md`, `docs/articles/feature-matrix.md` and the provider pages in `docs/articles/providers/` are updated when behavior or public APIs change, and every claim in them has been checked against the code.
 6. You have gone through [Common review findings](#common-review-findings). You have worked through each logic scenario that applies, every provider has been checked and either has the change or the PR explains why not (an engine that can't support it returns a failed `Result` that the feature matrix records), each new test fails when the code it covers is broken, and the integration tests of every engine you touched pass.

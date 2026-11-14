@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Tests;
 using Bielu.BetterSearch.Typesense.Configuration;
 using Bielu.BetterSearch.Typesense.Services;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -193,7 +194,7 @@ public sealed class TypesenseFakeServerTests
     {
         var server = new FakeServer(_ => (HttpStatusCode.OK, """{"fields":[{"name":"i_Age"}]}"""));
         var client = Client(server);
-        var schema = new TypesenseSchema(new StaticOptionsMonitor(new TypesenseOptions()));
+        var schema = new TypesenseSchema(new TestOptionsMonitor<TypesenseOptions>(new TypesenseOptions()));
 
         await schema.FieldsAsync(client, "people", refresh: false, TestContext.Current.CancellationToken);
         var fields = await schema.FieldsAsync(client, "people", refresh: true, TestContext.Current.CancellationToken);
@@ -207,7 +208,7 @@ public sealed class TypesenseFakeServerTests
     {
         var server = new FakeServer(_ => (HttpStatusCode.OK, """{"fields":[{"name":"i_Age"}]}"""));
         var client = Client(server);
-        var schema = new TypesenseSchema(new StaticOptionsMonitor(new TypesenseOptions()));
+        var schema = new TypesenseSchema(new TestOptionsMonitor<TypesenseOptions>(new TypesenseOptions()));
 
         await schema.FieldsAsync(client, "people", refresh: false, TestContext.Current.CancellationToken);
         schema.Forget(client, "people");
@@ -237,7 +238,7 @@ public sealed class TypesenseFakeServerTests
 
     private static TypesenseIndexingProviderAsync Indexing(FakeServer server)
     {
-        var options = new StaticOptionsMonitor(new TypesenseOptions());
+        var options = new TestOptionsMonitor<TypesenseOptions>(new TypesenseOptions());
         return new TypesenseIndexingProviderAsync(new FixedClientFactory(Client(server)), options, new TypesenseSchema(options),
             NullLogger<TypesenseIndexingProviderAsync>.Instance);
     }

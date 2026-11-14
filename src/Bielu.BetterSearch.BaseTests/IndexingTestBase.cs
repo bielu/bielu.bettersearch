@@ -308,8 +308,7 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
 
     /// <summary>
     /// A document the service passes but the engine rejects, in an index that already holds a document with
-    /// <c>Count = [5]</c>, or <c>null</c> when the provider stores every document the service passes, so the test is
-    /// skipped.
+    /// <c>Count = [5]</c>, or <c>null</c> when the engine rejects only documents the service already rejects.
     /// </summary>
     protected abstract SearchDocument? CreateDocumentRejectedByEngine(string index);
 
@@ -395,7 +394,7 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         var rejected = CreateDocumentRejectedByEngine(index);
         if (rejected is null)
         {
-            Assert.Skip("The provider stores every document the service passes, so no document is rejected by the engine.");
+            Assert.Skip("The engine rejects no document that the service passes.");
         }
 
         var observer = new RecordingObserver<SearchDocument>();
@@ -431,6 +430,187 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         {
             await DeleteIndexQuietlyAsync(index);
         }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task IndexDocumentAsync_RejectedByValidator_ReturnsTheValidatorErrorsWithTheId(bool validatorFails)
+    {
+        //Arrange
+        using var service = new IndexingServiceAsync(indexingProviderAsync, new RejectingValidator("7", validatorFails));
+
+        //Act
+        var result = await service.IndexDocumentAsync(new SearchDocument { Id = "7", Type = "TestDocument", Index = "test-index-1" }, Token);
+
+        //Assert
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Message.ShouldBe(validatorFails ? "Validation of document 7 failed." : "Document 7 is not valid.");
+        error.Metadata["id"].ShouldBe("7");
+        if (validatorFails)
+        {
+            error.Reasons.ShouldHaveSingleItem().Message.ShouldBe("validator unavailable");
+        }
+    }
+
+    [Fact]
+    public async Task IndexDocumentAsync_ValidatorThrows_FailsKeepingTheException()
+    {
+        //Arrange
+        var thrown = new InvalidOperationException("validator database is down");
+        using var service = new IndexingServiceAsync(indexingProviderAsync, new ThrowingValidator(thrown));
+        var observer = new RecordingObserver<SearchDocument>();
+        using var subscription = service.Subscribe(observer);
+
+        //Act
+        var result = await service.IndexDocumentAsync(new SearchDocument { Id = "7", Type = "TestDocument", Index = "test-index-1" }, Token);
+
+        //Assert
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Message.ShouldBe("Validation of document 7 failed: the validator threw InvalidOperationException.");
+        error.Metadata["id"].ShouldBe("7");
+        error.Reasons.OfType<ExceptionalError>().ShouldHaveSingleItem().Exception.ShouldBeSameAs(thrown);
+        observer.Values.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_ValidatorThrows_FailsNamingTheDocument()
+    {
+        //Arrange
+        var thrown = new InvalidOperationException("validator database is down");
+        using var service = new IndexingServiceAsync(indexingProviderAsync, new ThrowingValidator(thrown, "2"));
+
+        //Act
+        var result = await service.IndexMultipleDocumentsAsync(
+            [new SearchDocument { Id = "1", Type = "TestDocument", Index = "test-index-1" }, new SearchDocument { Id = "2", Type = "TestDocument", Index = "test-index-1" }],
+            Token);
+
+        //Assert
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Message.ShouldBe("Validation of document 2 failed: the validator threw InvalidOperationException.");
+        error.Metadata["id"].ShouldBe("2");
+        error.Reasons.OfType<ExceptionalError>().ShouldHaveSingleItem().Exception.ShouldBeSameAs(thrown);
+    }
+
+    [Fact]
+    public async Task IndexDocumentAsync_ValidatorCanceled_PropagatesTheCancellation()
+    {
+        //Arrange
+        using var service = new IndexingServiceAsync(indexingProviderAsync, new ThrowingValidator(new OperationCanceledException()));
+
+        //Act and Assert
+        await Should.ThrowAsync<OperationCanceledException>(() =>
+            service.IndexDocumentAsync(new SearchDocument { Id = "7", Type = "TestDocument", Index = "test-index-1" }, Token));
+    }
+
+    [Theory]
+    [InlineData(null, "A document for index 'test-index-1' has a null or empty Id.")]
+    [InlineData("", "A document for index 'test-index-1' has a null or empty Id.")]
+    public async Task IndexDocumentAsync_MissingId_FailsNamingTheId(string? id, string expected)
+    {
+        var result = await serviceAsync.IndexDocumentAsync(new SearchDocument { Id = id!, Type = "TestDocument", Index = "test-index-1" }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task IndexDocumentAsync_MissingIndex_FailsNamingTheIndex(string? index)
+    {
+        var result = await serviceAsync.IndexDocumentAsync(new SearchDocument { Id = "7", Type = "TestDocument", Index = index! }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("Document 7 has a null or empty Index.");
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_MissingIdOrIndex_FailsForEachAndSendsNothing()
+    {
+        //Arrange
+        var index = $"bulk-{Guid.NewGuid():N}";
+        (await indexingProviderAsync.CreateIndexAsync(index, Token)).IsSuccess.ShouldBeTrue();
+        var observer = new RecordingObserver<SearchDocument>();
+        using var subscription = serviceAsync.Subscribe(observer);
+        try
+        {
+            //Act
+            var result = await serviceAsync.IndexMultipleDocumentsAsync(
+            [
+                CountDocument(index, "1"),
+                CountDocument(index, ""),
+                new SearchDocument { Id = "3", Type = "TestDocument", Index = null! },
+            ], Token);
+
+            //Assert
+            result.Errors.Select(error => error.Message).ShouldBe([$"A document for index '{index}' has a null or empty Id.", "Document 3 has a null or empty Index."]);
+            // Document 1 is well formed, but must not have reached the engine.
+            (await CountDocumentsAsync(index)).ShouldBe(0);
+            observer.Values.ShouldBeEmpty();
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_NullList_Fails()
+    {
+        var result = await serviceAsync.IndexMultipleDocumentsAsync(null!, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("The documents to index are null; pass an empty list to index nothing.");
+    }
+
+    [Fact]
+    public async Task RemoveDocumentAsync_NullRequest_Fails()
+    {
+        var result = await serviceAsync.RemoveDocumentAsync(null!, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("The request to remove a document is null.");
+    }
+
+    [Theory]
+    [InlineData(null, "test-index-1", "The request to remove a document from 'test-index-1' has a null or empty Id.")]
+    [InlineData("", "test-index-1", "The request to remove a document from 'test-index-1' has a null or empty Id.")]
+    [InlineData("7", null, "The request to remove document 7 has a null or empty Type, the name of the index.")]
+    [InlineData("7", "", "The request to remove document 7 has a null or empty Type, the name of the index.")]
+    public async Task RemoveDocumentAsync_MissingIdOrType_FailsNamingIt(string? id, string? type, string expected)
+    {
+        var observer = new RecordingObserver<DeleteDocumentRequest>();
+        using var subscription = serviceAsync.Subscribe(observer);
+
+        var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest { Id = id!, Type = type! }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe(expected);
+        observer.Values.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_NullRequest_Fails()
+    {
+        var result = await serviceAsync.RemoveAllDocumentsAsync(null!, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("The request to remove all documents is null.");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task RemoveAllDocumentsAsync_MissingIndexName_FailsNamingIt(string? indexName)
+    {
+        var observer = new RecordingObserver<DeleteAllDocumentsRequest>();
+        using var subscription = serviceAsync.Subscribe(observer);
+
+        var result = await serviceAsync.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = indexName! }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("The request to remove all documents has a null or empty IndexName.");
+        observer.Values.ShouldBeEmpty();
+    }
+
+    private sealed class ThrowingValidator(Exception exception, string? throwForId = null) : IDocumentValidatorAsync
+    {
+        public Task<Result<bool>> ValidateDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
+            throwForId is null || document.Id == throwForId ? throw exception : Task.FromResult(Result.Ok(true));
     }
 
     private sealed class RejectingValidator(string rejectedId, bool fail) : IDocumentValidatorAsync

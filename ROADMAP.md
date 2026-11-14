@@ -6,12 +6,12 @@ Where `Bielu.BetterSearch` stands and how it gets to `1.0.0`. The repository sta
 
 The repository tooling now matches the bielu ecosystem: .NET 10, current packages, shared CI and releases, analyzers, Aspire. The code itself is an early beta:
 
-- **The Elasticsearch provider searches** with every query type, paging, sorting, post filters and highlighting, but has no facets, and its index operations have the defects listed below.
-- **The OpenSearch provider searches** the same way as Elasticsearch, with every index operation and highlighting, but likewise has no facets.
-- **The Meilisearch provider searches** with every query type its filters can express, paging, sorting and post filters; spatial queries need `MeilisearchOptions.GeoField`; fuzzy queries return a failed `Result`, raw Lucene queries are parsed with Lucene.NET's `QueryParser` and translated into filters where they can be, and it has no facets; highlighting returns a failed `Result`, as Meilisearch marks only search text matches and the provider runs filters.
+- **The Elasticsearch provider searches** with every query type, paging, sorting, post filters, facets and highlighting, and its index operations have the defects listed below.
+- **The OpenSearch provider searches** the same way as Elasticsearch, with every index operation, facets and highlighting.
+- **The Meilisearch provider searches** with every query type its filters can express, paging, sorting and post filters; spatial queries need `MeilisearchOptions.GeoField`; fuzzy queries return a failed `Result`, raw Lucene queries are parsed with Lucene.NET's `QueryParser` and translated into filters where they can be, and it runs only top-level term facets; highlighting returns a failed `Result`, as Meilisearch marks only search text matches and the provider runs filters.
 - **The Typesense provider searches** with every query type its filters can express, paging (at most 250 hits a page), sorting (at most 3 single-valued fields) and post filters; spatial queries need `TypesenseOptions.GeoField`; fuzzy, raw Lucene and string range queries, a `MUSTNOT` range, prefix or spatial query, facets and highlighting return a failed `Result`.
 - **The in-memory provider gives wrong answers** for some queries (see below), and it is built on Lifti, which should be replaced.
-- **Half the query model does little.** Pagination, sorting, facets, highlighting and post filters can be expressed; only Elasticsearch, OpenSearch, Meilisearch and Typesense read pagination, sorting and post filters, and only Elasticsearch and OpenSearch highlight.
+- **Half the query model does little.** Pagination, sorting, facets, highlighting and post filters can be expressed; only Elasticsearch, OpenSearch, Meilisearch and Typesense read pagination, sorting and post filters, only Elasticsearch, OpenSearch and Meilisearch read facets (Meilisearch only top-level term facets), and only Elasticsearch and OpenSearch highlight.
 - **The tests pass while all of this is true.** They mostly assert `IsSuccess`, and `Result<bool>` can succeed with `false`.
 
 Nothing has shipped as stable, so breaking changes are still free. That window should be used, because it closes at 1.0.
@@ -73,7 +73,7 @@ Breaking, and cheapest now.
 
 ### Phase 3: Elasticsearch search
 
-- ~~Implement sub-query translators, `SearchAsync`, result mapping, pagination and sorting.~~ Done; highlighting is done on Elasticsearch and OpenSearch; facets are still to come.
+- ~~Implement sub-query translators, `SearchAsync`, result mapping, pagination and sorting.~~ Done; highlighting is done on Elasticsearch and OpenSearch; facets are done on Elasticsearch, OpenSearch and Meilisearch (term facets only).
 - Run the same conformance suite as Lucene.
 - Fix the provider defects above: real return values, non-mutating settings, options validation at startup.
 - Add a sample API to the AppHost, with `ServiceDefaults`.
@@ -82,7 +82,7 @@ Breaking, and cheapest now.
 
 - One conformance suite covering every query type and boolean combination, run against both providers. the feature matrix (`docs/articles/feature-matrix.md`) becomes a record of its results.
 - OpenTelemetry traces and metrics, as in `Bielu.PersistentQueues`.
-- Facets, or remove them from the query model for 1.0.
+- ~~Facets, or remove them from the query model for 1.0.~~ Done (#20).
 - Turn on `Microsoft.CodeAnalysis.PublicApiAnalyzers`, enable CS1591 and document the public API.
 - Add `ship-public-api.mjs` to the release flow, a package icon, and an entry on packages.bielu.pl.
 - `npx changeset pre exit` for a release candidate.

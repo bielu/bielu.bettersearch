@@ -14,6 +14,8 @@
       href: providers/typesense.md
     - name: Lifti (in memory)
       href: providers/lifti.md
+- name: Caching
+  href: caching.md
 - name: Feature Matrix
   href: feature-matrix.md
 - name: Roadmap

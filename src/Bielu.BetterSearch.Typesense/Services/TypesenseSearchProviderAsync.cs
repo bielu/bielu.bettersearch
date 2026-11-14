@@ -32,6 +32,9 @@ public sealed class TypesenseSearchProviderAsync(
     /// <summary>The score of every hit: each one matches the filter exactly, so none ranks above another.</summary>
     internal const double FilterScore = 1.0;
 
+    internal const string UnsupportedFacets =
+        "The Typesense provider does not support facets yet.";
+
     internal const string UnsupportedHighlighting =
         "The Typesense provider does not support highlighting yet: it runs every query as a filter with no search text, " +
         "and Typesense highlights only matches of the search text, so there is nothing for it to highlight.";
@@ -46,7 +49,7 @@ public sealed class TypesenseSearchProviderAsync(
 
         if (query.FacetQueries is { Count: > 0 })
         {
-            return Result.Fail<ISearchResult>("The Typesense provider does not support facets yet.");
+            return Result.Fail<ISearchResult>(UnsupportedFacets);
         }
 
         if (query.HighlightQueries is { Count: > 0 })

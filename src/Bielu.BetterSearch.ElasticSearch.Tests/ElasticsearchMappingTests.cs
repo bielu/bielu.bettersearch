@@ -5,6 +5,7 @@ using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
+using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -27,7 +28,7 @@ public sealed class ElasticsearchMappingTests(
 
     private Providers ForIndex(string index, params ElasticSearchFieldMapping[] mappings)
     {
-        var monitor = new FixedOptionsMonitor(new ElasticSearchOptions
+        var monitor = new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions
         {
             SharedIndexSettings = new ElasticSearchIndexSettings
             {
