@@ -13,9 +13,9 @@ public class IndexingTests(IIndexingServiceAsync serviceAsync, IIndexingProvider
 
     protected override bool BulkIndexingIsAllOrNothing => true;
 
-    // Lifti keys documents by id, and throws on a document without one.
-    protected override SearchDocument CreateDocumentRejectedByEngine(string index) =>
-        new() { Id = null!, Type = "TestDocument", Index = index };
+    // Lifti keys documents by id and rejects only a document without one, which the service rejects before Lifti
+    // sees it. LiftiIndexingProviderTests covers Lifti rejecting it.
+    protected override SearchDocument? CreateDocumentRejectedByEngine(string index) => null;
 
     protected override async Task<long> CountDocumentsAsync(string index) =>
         (await indexManager.GetIndexAsync(index)).Value?.Count ?? 0;
