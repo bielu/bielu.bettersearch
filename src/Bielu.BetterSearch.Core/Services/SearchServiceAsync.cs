@@ -31,6 +31,24 @@ public class SearchServiceAsync(ISearchProviderAsync providerAsync, ILogger<Sear
         return result;
     }
 
+    public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var check = DocumentLookups.CheckGet(index, id);
+        return check.IsFailed
+            ? Task.FromResult(check.ToResult<SearchDocument?>())
+            : providerAsync.GetDocumentAsync(index, id, cancellationToken);
+    }
+
+    public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var check = DocumentLookups.CheckCount(query?.Index);
+        return check.IsFailed
+            ? Task.FromResult(check.ToResult<long>())
+            : providerAsync.CountAsync(query!, cancellationToken);
+    }
+
     /// <summary>Ends the stream: each observer gets <see cref="IObserver{T}.OnCompleted"/> once and is unsubscribed.</summary>
     public void Dispose()
     {

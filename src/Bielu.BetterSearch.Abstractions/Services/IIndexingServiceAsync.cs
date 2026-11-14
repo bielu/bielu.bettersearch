@@ -57,4 +57,13 @@ public interface IIndexingServiceAsync : IObservable<SearchDocument>, IObservabl
     /// <see cref="Result"/> fails they get nothing.
     /// </summary>
     Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Replaces some fields of one document; see <see cref="IIndexingProviderAsync.UpdateDocumentAsync"/>. An empty
+    /// update, or one with a <c>null</c> field or value, fails before the provider is called. The document validator
+    /// is not run, as it checks whole documents, and observers are not notified.
+    /// </summary>
+    Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Fail<bool>($"{GetType().Name} does not support UpdateDocumentAsync."));
 }

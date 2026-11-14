@@ -188,6 +188,16 @@ public class IndexingServiceAsync(
         return result;
     }
 
+    public Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var check = DocumentLookups.CheckUpdate(index, id, fields);
+        return check.IsFailed
+            ? Task.FromResult(check.ToResult<bool>())
+            : indexingProvider.UpdateDocumentAsync(index, id, fields, cancellationToken);
+    }
+
     public IDisposable Subscribe(IObserver<DeleteDocumentRequest> observer) => _deleteDocumentObservers.Subscribe(observer);
 
     public IDisposable Subscribe(IObserver<DeleteAllDocumentsRequest> observer) => _deleteAllDocumentsObservers.Subscribe(observer);

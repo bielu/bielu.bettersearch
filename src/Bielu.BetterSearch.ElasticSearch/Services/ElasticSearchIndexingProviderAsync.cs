@@ -233,6 +233,42 @@ public class ElasticSearchIndexingProviderAsync(
             return Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe("create index", result), result.ApiCallDetails?.OriginalException));
         }, cancellationToken);
 
+    /// <summary>
+    /// Sends the fields as a partial <c>_update</c>, which Elasticsearch merges into <c>fields</c>, replacing each
+    /// field named and keeping the others; it retries on a version conflict, so two updates of different fields both
+    /// apply. <c>false</c> when the document or the index is missing, which creates neither.
+    /// </summary>
+    public async Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+        CancellationToken cancellationToken = default)
+    {
+        var check = DocumentLookups.CheckUpdate(index, id, fields);
+        if (check.IsFailed)
+        {
+            return check.ToResult<bool>();
+        }
+
+        return await clientFactory.TryWithClientAsync(index, async client =>
+        {
+            var request = new UpdateRequest<SearchDocument, Dictionary<string, object>>(index, id)
+            {
+                Doc = new Dictionary<string, object> { ["fields"] = StoredFields.WithDatesAsText(fields) },
+                RetryOnConflict = 3,
+                Refresh = WaitFor(index),
+            };
+            var response = await client.UpdateAsync(request, cancellationToken).ConfigureAwait(false);
+            if (response.IsSuccess())
+            {
+                return Result.Ok(true);
+            }
+
+            // A missing document or index is an answer: there is nothing to update.
+            return response.ApiCallDetails?.HttpStatusCode == 404
+                   && response.ElasticsearchServerError?.Error?.Type is "document_missing_exception" or "index_not_found_exception"
+                ? Result.Ok(false)
+                : Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe($"update of document {id}", response), response.ApiCallDetails?.OriginalException));
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
     private bool WaitsUntilSearchable(string index) =>
         settingsManager.GetConnectionSettings(index).WriteVisibility == WriteVisibility.WaitUntilSearchable;
 

@@ -213,4 +213,11 @@ public class LiftiIndexingProviderAsync(
             return Result.Fail(new Error(e.Message).CausedBy(e));
         }
     }
+
+    internal const string UnsupportedUpdateDocument =
+        "The Lifti provider does not support UpdateDocumentAsync: the index keeps only the words of each document, not its fields, so it cannot merge new values into them. Index the whole document again instead.";
+
+    public Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Fail<bool>(UnsupportedUpdateDocument));
 }
