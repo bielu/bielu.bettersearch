@@ -16,6 +16,10 @@
     </ItemGroup>
 
     <ItemGroup>
+      <InternalsVisibleTo Include="Bielu.BetterSearch.Core.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
       <!-- Compiled into each package rather than shared, so a package never calls into another package's internals. -->
       <Compile Include="..\Shared\DocumentIds.cs" Link="Services\DocumentIds.cs" />
     </ItemGroup>

@@ -14,4 +14,6 @@ public class DummySearchProviderAsync : ISearchProviderAsync
         "No search provider is registered. Call a provider extension such as AddElasticSearch, AddOpenSearch, AddMeilisearch or AddLiftiSearch inside AddBetterSearch.";
 
     public Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<ISearchResult>(NoProviderMessage));
+
+    public Task<Result> PingAsync(string? index = null, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail(NoProviderMessage));
 }

@@ -216,6 +216,13 @@ refresh, about a second later unless `index.refresh_interval` is changed. Set `W
   A request cancelled through the `CancellationToken`, before or during the request, throws
   `OperationCanceledException`.
 
+## Health check
+
+As on Elasticsearch, `PingAsync` sends `HEAD /` with the client of the index it is given, or of
+`SharedIndexSettings` when it is given none, and any answer other than 200, an unreachable server or invalid
+settings is a failed `Result`. `AddBetterSearchHealthCheck()` from `Bielu.BetterSearch.HealthChecks` reports it
+through `/health`; see [observability](../feature-matrix.md#observability).
+
 ## Checking an index exists
 
 `IndexExistsAsync` is success with `true` on a 200 and `false` on a 404. Any other answer, such as a 401, 403

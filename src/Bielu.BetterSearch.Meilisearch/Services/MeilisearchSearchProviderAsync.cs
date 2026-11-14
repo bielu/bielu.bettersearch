@@ -116,6 +116,31 @@ public sealed class MeilisearchSearchProviderAsync(
         }
     }
 
+    /// <summary>Calls <c>GET /health</c> on the server of <paramref name="index"/>, or of the shared settings when it is <c>null</c>.</summary>
+    public async Task<Result> PingAsync(string? index = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var client = await clientFactory.GetOrCreateClientAsync(index ?? string.Empty).ConfigureAwait(false);
+            var health = await client.HealthAsync(cancellationToken).ConfigureAwait(false);
+            return string.Equals(health.Status, "available", StringComparison.OrdinalIgnoreCase)
+                ? Result.Ok()
+                : Result.Fail($"Meilisearch reported its health as '{health.Status}', not 'available'.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (MeilisearchApiError e)
+        {
+            return Result.Fail(new Error($"Meilisearch ping failed ({e.Code}): {e.Message}").WithMetadata("code", e.Code).CausedBy(e));
+        }
+        catch (Exception e)
+        {
+            return Result.Fail(new Error($"Meilisearch ping failed: {e.Message}").CausedBy(e));
+        }
+    }
+
     private static Result<IEnumerable<string>?> Sort(ISearchQuery query)
     {
         var sortOrder = SortOrders.Ordered(query);

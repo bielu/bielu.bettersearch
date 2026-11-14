@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Diagnostics;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 
@@ -18,6 +19,18 @@ public class IndexingServiceAsync(
     public IDisposable Subscribe(IObserver<SearchDocument> observer) => _indexingObservers.Subscribe(observer);
 
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
+    {
+        var result = await BetterSearchTelemetry.RunAsync("index", document?.Index, indexingProvider, logger, null,
+            () => IndexDocumentCoreAsync(document!, cancellationToken)).ConfigureAwait(false);
+        if (result.IsSuccess)
+        {
+            BetterSearchTelemetry.RecordIndexed(1, document?.Index, indexingProvider);
+        }
+
+        return result;
+    }
+
+    private async Task<Result> IndexDocumentCoreAsync(SearchDocument document, CancellationToken cancellationToken)
     {
         var nullFieldsResult = CheckNullFields(document);
         if (nullFieldsResult.IsFailed)
@@ -44,6 +57,28 @@ public class IndexingServiceAsync(
         CancellationToken cancellationToken = default)
     {
         var documents = document.ToList();
+        var index = SingleIndex(documents.Select(doc => doc?.Index));
+        var result = await BetterSearchTelemetry.RunAsync("bulk index", index, indexingProvider, logger,
+            activity => activity.SetTag(BetterSearchTelemetry.DocumentCountTag, documents.Count),
+            () => IndexMultipleDocumentsCoreAsync(documents, cancellationToken)).ConfigureAwait(false);
+        if (result.IsSuccess && result.Value > 0)
+        {
+            BetterSearchTelemetry.RecordIndexed(result.Value, index, indexingProvider);
+        }
+
+        return result;
+    }
+
+    /// <summary>The index every value names, or <c>null</c> when they name none or more than one.</summary>
+    private static string? SingleIndex(IEnumerable<string?> indexes)
+    {
+        var distinct = indexes.Distinct(StringComparer.OrdinalIgnoreCase).Take(2).ToList();
+        return distinct.Count == 1 ? distinct[0] : null;
+    }
+
+    private async Task<Result<int>> IndexMultipleDocumentsCoreAsync(List<SearchDocument> documents,
+        CancellationToken cancellationToken)
+    {
         // Reject the whole batch before indexing any of it, so a null field can't leave it partly stored.
         var nullFieldsResult = Result.Merge(documents.Select(CheckNullFields).ToArray());
         if (nullFieldsResult.IsFailed)
@@ -142,6 +177,20 @@ public class IndexingServiceAsync(
     public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
         CancellationToken cancellationToken = default)
     {
+        var result = await BetterSearchTelemetry.RunAsync("remove", document?.Type, indexingProvider, logger, null,
+            () => RemoveDocumentCoreAsync(document!, cancellationToken)).ConfigureAwait(false);
+        if (result.IsSuccess)
+        {
+            // The provider does not say whether the document was there, so a removal is counted when it succeeds.
+            BetterSearchTelemetry.RecordRemoved(1, document?.Type, indexingProvider);
+        }
+
+        return result;
+    }
+
+    private async Task<Result> RemoveDocumentCoreAsync(DeleteDocumentRequest document,
+        CancellationToken cancellationToken)
+    {
         var result = await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)
         {
@@ -153,6 +202,20 @@ public class IndexingServiceAsync(
 
     public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,
         CancellationToken cancellationToken = default)
+    {
+        var result = await BetterSearchTelemetry.RunAsync("bulk remove", index, indexingProvider, logger, null,
+            () => RemoveDocumentsCoreAsync(index, ids, cancellationToken),
+            (activity, removed) => activity.SetTag(BetterSearchTelemetry.DocumentCountTag, removed.Value)).ConfigureAwait(false);
+        if (result.IsSuccess && result.Value > 0)
+        {
+            BetterSearchTelemetry.RecordRemoved(result.Value, index, indexingProvider);
+        }
+
+        return result;
+    }
+
+    private async Task<Result<int>> RemoveDocumentsCoreAsync(string index, IEnumerable<string> ids,
+        CancellationToken cancellationToken)
     {
         var distinctIds = DocumentIds.Distinct(ids);
         if (distinctIds.IsFailed)
@@ -178,6 +241,19 @@ public class IndexingServiceAsync(
     }
 
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
+    {
+        var result = await BetterSearchTelemetry.RunAsync("remove all", request?.IndexName, indexingProvider, logger, null,
+            () => RemoveAllDocumentsCoreAsync(request!, cancellationToken),
+            (activity, removed) => activity.SetTag(BetterSearchTelemetry.DocumentCountTag, removed.Value)).ConfigureAwait(false);
+        if (result.IsSuccess && result.Value > 0)
+        {
+            BetterSearchTelemetry.RecordRemoved(result.Value.Value, request?.IndexName, indexingProvider);
+        }
+
+        return result;
+    }
+
+    private async Task<Result<long?>> RemoveAllDocumentsCoreAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken)
     {
         var result = await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)

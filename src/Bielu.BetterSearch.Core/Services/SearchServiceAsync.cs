@@ -1,6 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Diagnostics;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 
@@ -14,7 +15,26 @@ public class SearchServiceAsync(ISearchProviderAsync providerAsync, ILogger<Sear
 
     public IDisposable Subscribe(IObserver<ISearchModel> observer) => _searchObservers.Subscribe(observer);
 
-    public async Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
+    /// <summary>Runs the search inside a <c>search</c> span; see <see cref="BetterSearchInstrumentation"/>.</summary>
+    public Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
+        BetterSearchTelemetry.RunAsync(
+            "search",
+            query?.Index,
+            providerAsync,
+            logger,
+            activity =>
+            {
+                activity.SetTag(BetterSearchTelemetry.PageTag, query?.Page);
+                activity.SetTag(BetterSearchTelemetry.PageSizeTag, query?.PageSize);
+            },
+            () => SearchCoreAsync(query!, cancellationToken),
+            (activity, result) =>
+            {
+                activity.SetTag(BetterSearchTelemetry.HitCountTag, result.Value.Items?.Count());
+                activity.SetTag(BetterSearchTelemetry.TotalCountTag, result.Value.Pagination?.TotalCount);
+            });
+
+    private async Task<Result<ISearchResult>> SearchCoreAsync(ISearchQuery query, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var result = await providerAsync.SearchAsync(query, cancellationToken).ConfigureAwait(false);

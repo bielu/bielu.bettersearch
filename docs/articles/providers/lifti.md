@@ -116,4 +116,10 @@ returns a failed `Result` with the exception as its cause. An `OperationCanceled
 propagates. A failed `Result` from `ILiftiIndexManager.CreateIndexAsync` is returned by `CreateIndexAsync` with
 all of its errors.
 
+## Health check
+
+`PingAsync` always succeeds, as the indexes live in the application's own memory and there is no engine to reach,
+so `AddBetterSearchHealthCheck()` reports Lifti as healthy whenever the application runs. It throws
+`OperationCanceledException` when the token is already cancelled.
+
 The [feature matrix](../feature-matrix.md) has the full detail.

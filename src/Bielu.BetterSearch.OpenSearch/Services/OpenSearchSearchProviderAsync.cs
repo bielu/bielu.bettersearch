@@ -110,6 +110,14 @@ internal sealed class OpenSearchSearchProviderAsync(
     /// field is highlighted where the main query matched it, or where its own highlight query does when it has one;
     /// all fields is <c>fields.*</c>. Fragments use OpenSearch's default size and count.
     /// </summary>
+    /// <summary>Sends <c>HEAD /</c> with the client of <paramref name="index"/>, or of the shared settings when it is <c>null</c>.</summary>
+    public Task<Result> PingAsync(string? index = null, CancellationToken cancellationToken = default) =>
+        clientFactoryAsync.TryWithClientAsync(index ?? string.Empty, async client =>
+        {
+            var response = await client.PingAsync(ct: cancellationToken).ConfigureAwait(false);
+            return response.IsValid ? Result.Ok() : Result.Fail(OpenSearchFailures.Describe("ping", response));
+        }, cancellationToken);
+
     private async Task<Result<IHighlight?>> TranslateHighlightAsync(ISearchQuery query)
     {
         var requested = Highlights.Requested(query, OpenSearchFieldNames.Resolve);

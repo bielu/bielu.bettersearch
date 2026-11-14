@@ -176,6 +176,9 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
   `Result`s. Every provider fails a query that asks for facets, except Lifti, which ignores them; Meilisearch and
   Lifti also fail a query that asks for highlighting. Lifti ignores paging, sorting and post filters, so check the [feature matrix](docs/articles/feature-matrix.md) for what
   your provider applies
+- ✅ **Observability**: OpenTelemetry spans and metrics and `LoggerMessage` logs from the Core services, so every
+  provider has them, wired with `AddBetterSearchInstrumentation()`, and a health check that pings the engine
+  (`AddBetterSearchHealthCheck()`); see the [feature matrix](docs/articles/feature-matrix.md#observability)
 - ✅ **Shared provider tests**: provider-agnostic behavior tests in `BaseTests` run against every provider
 - ✅ **.NET Aspire AppHost** that starts Elasticsearch, OpenSearch and Meilisearch for local development and the
   integration tests, with [meilisearch-ui](https://github.com/riccox/meilisearch-ui) for browsing Meilisearch
@@ -192,6 +195,8 @@ Facets can be expressed but no provider runs them yet, and only Elasticsearch an
 | [`Bielu.BetterSearch.Models`](https://www.nuget.org/packages/Bielu.BetterSearch.Models/) | `SearchDocument` and the request models |
 | [`Bielu.BetterSearch.Core`](https://www.nuget.org/packages/Bielu.BetterSearch.Core/) | `AddBetterSearch` and the indexing and search services |
 | [`Bielu.BetterSearch.FluentApi`](https://www.nuget.org/packages/Bielu.BetterSearch.FluentApi/) | Fluent query builder |
+| [`Bielu.BetterSearch.OpenTelemetry`](https://www.nuget.org/packages/Bielu.BetterSearch.OpenTelemetry/) | `AddBetterSearchInstrumentation()` for OpenTelemetry tracing and metrics |
+| [`Bielu.BetterSearch.HealthChecks`](https://www.nuget.org/packages/Bielu.BetterSearch.HealthChecks/) | `AddBetterSearchHealthCheck()`, which pings the configured engine |
 
 ### Providers
 
