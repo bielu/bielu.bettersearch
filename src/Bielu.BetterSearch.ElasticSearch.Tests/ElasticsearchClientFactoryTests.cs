@@ -212,7 +212,7 @@ public class ElasticsearchClientFactoryTests
 
         var failed = await factory.TryGetClientAsync("people", TestContext.Current.CancellationToken);
         failed.IsFailed.ShouldBeTrue();
-        failed.Errors.Single().Message.ShouldBe("Authentication details are missing");
+        failed.Errors.Single().Message.ShouldStartWith("PASSWORD authentication needs AuthenticationDetails.");
 
         invalid.SharedIndexSettings.AuthenticationDetails = new AuthenticationDetails { Username = "elastic", Password = "secret" };
         var fixedResult = await factory.TryGetClientAsync("people", TestContext.Current.CancellationToken);

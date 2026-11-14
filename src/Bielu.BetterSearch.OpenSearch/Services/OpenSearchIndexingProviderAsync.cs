@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.Services;
 using FluentResults;
 using Microsoft.Extensions.Logging;
@@ -29,18 +30,30 @@ internal sealed class OpenSearchIndexingProviderAsync(
         CancellationToken cancellationToken = default)
     {
         var searchDocuments = documents.ToList();
-        var results = new List<Result>();
+        var results = new List<Result<int>>();
         foreach (var indexGroup in searchDocuments.GroupBy(x => x.Index))
         {
-            results.Add(await clientFactory.TryWithClientAsync(indexGroup.Key, async client =>
-            {
-                var response = await client.BulkAsync(b => b.Index(indexGroup.Key).IndexMany(indexGroup.Select(StoredFields.WithDatesAsText), (descriptor, document) => descriptor.Id(document.Id)).Refresh(WaitFor(indexGroup.Key)), cancellationToken).ConfigureAwait(false);
-                return IsSuccess(response) ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
-            }, cancellationToken).ConfigureAwait(false));
+            var group = indexGroup.ToList();
+            results.Add(await clientFactory.TryWithClientAsync(indexGroup.Key, client =>
+                BulkBatches.IndexAsync(indexGroup.Key, group, settingsManager.GetConnectionSettings(indexGroup.Key).BulkBatchSize,
+                    OpenSearchOptions.OpenSearchOptionsKey, async batch =>
+                    {
+                        var response = await client.BulkAsync(b => b.Index(indexGroup.Key).IndexMany(batch.Select(StoredFields.WithDatesAsText), (descriptor, document) => descriptor.Id(document.Id)).Refresh(WaitFor(indexGroup.Key)), cancellationToken).ConfigureAwait(false);
+                        // A request rejected as a whole, such as a 403, has no items.
+                        if (response.Items is null || response.Items.Count != batch.Length)
+                        {
+                            return BulkBatches.Outcome.Failed(RequestFailed(OpenSearchFailures.Describe("bulk index", response), response.OriginalException));
+                        }
+
+                        // OpenSearch applies each item on its own, so the documents it accepted stay stored.
+                        var failed = response.Items.Where(item => item.Error is not null || item.Status is < 200 or >= 300).ToList();
+                        return BulkBatches.Outcome.Items(failed.Select(item => item.Id ?? "(unknown)").ToList(),
+                            failed.Count == 0 ? null : failed[0].Error?.Reason ?? $"status {failed[0].Status}");
+                    }), cancellationToken).ConfigureAwait(false));
         }
 
         var merged = results.Merge();
-        return merged.IsSuccess ? Result.Ok(searchDocuments.Count) : Result.Fail<int>(merged.Errors);
+        return merged.IsSuccess ? Result.Ok(merged.Value.Sum()) : Result.Fail<int>(merged.Errors);
     }
 
     public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) =>

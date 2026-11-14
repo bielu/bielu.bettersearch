@@ -12,6 +12,15 @@ public sealed class ElasticsearchIndexingTest(
     IClientFactoryAsync<ElasticsearchClient> clientFactory)
     : IndexingTestBase(serviceAsync, indexingProviderAsync)
 {
+    // Document 0 maps Count as a number, so a text value can't be stored.
+    protected override SearchDocument CreateDocumentRejectedByEngine(string index) => new()
+    {
+        Id = "2",
+        Type = "TestDocument",
+        Index = index,
+        Fields = new Dictionary<string, IList<object>> { ["Count"] = ["not a number"] },
+    };
+
     protected override async Task<long> CountDocumentsAsync(string index)
     {
         var client = await clientFactory.GetOrCreateClientAsync(index);
