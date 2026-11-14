@@ -150,6 +150,107 @@ public sealed class ElasticsearchIndexingResponseTests
         error.Metadata["ids"].ShouldBe(new List<string> { "3" });
     }
 
+    private static IElasticSearchClientSettingsManager WithBulkBatchSize(int? bulkBatchSize) =>
+        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions { SharedIndexSettings = new() { BulkBatchSize = bulkBatchSize } }));
+
+    private static List<SearchDocument> PeopleDocuments(int count) =>
+        Enumerable.Range(1, count).Select(i => new SearchDocument
+        {
+            Id = i.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            Type = "TestDocument",
+            Index = "people",
+        }).ToList();
+
+    /// <summary>A bulk index response with one created item for each id, except the rejected ones.</summary>
+    private static InMemoryRequestInvoker BulkIndexed(IEnumerable<int> ids, params int[] rejected) =>
+        Invoker("{\"took\":1,\"errors\":" + (rejected.Length > 0 ? "true" : "false") + ",\"items\":[" + string.Join(",", ids.Select(id => rejected.Contains(id)
+            ? $$$$"""{"index":{"_index":"people","_id":"{{{{id}}}}","status":400,"error":{"type":"document_parsing_exception","reason":"failed to parse field [Count]"}}}"""
+            : $$$"""{"index":{"_index":"people","_id":"{{{id}}}","_version":1,"result":"created","status":201}}"""))
+            + "]}", 200);
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_MoreDocumentsThanBulkBatchSize_SendsOneRequestPerBatchAndCountsThemAll()
+    {
+        var invoker = new SequenceRequestInvoker(BulkIndexed([1, 2]), BulkIndexed([3, 4]), BulkIndexed([5]));
+        var provider = Provider(invoker, settingsManager: WithBulkBatchSize(2));
+
+        var result = await provider.IndexMultipleDocumentsAsync(PeopleDocuments(5), Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(5);
+        invoker.Requests.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_BulkBatchSizeUnset_SendsAThousandDocumentsPerRequest()
+    {
+        var invoker = new SequenceRequestInvoker(BulkIndexed(Enumerable.Range(1, 1000)), BulkIndexed([1001]));
+        var provider = Provider(invoker);
+
+        var result = await provider.IndexMultipleDocumentsAsync(PeopleDocuments(1001), Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(1001);
+        invoker.Requests.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_ItemRejectedInALaterBatch_SendsEveryBatchAndNamesTheRejectedIds()
+    {
+        var invoker = new SequenceRequestInvoker(BulkIndexed([1, 2]), BulkIndexed([3, 4], rejected: 4), BulkIndexed([5]));
+        var provider = Provider(invoker, settingsManager: WithBulkBatchSize(2));
+
+        var result = await provider.IndexMultipleDocumentsAsync(PeopleDocuments(5), Token);
+
+        invoker.Requests.ShouldBe(3);
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Message.ShouldBe("Indexing documents into people failed for ids 4: failed to parse field [Count]. 4 of 5 documents were indexed.");
+        error.Metadata["ids"].ShouldBe(new List<string> { "4" });
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_LaterBatchRejectedAsAWhole_StopsAndNamesEveryUnconfirmedId()
+    {
+        var invoker = new SequenceRequestInvoker(BulkIndexed([1, 2], rejected: 1),
+            Invoker("""{"error":{"type":"security_exception","reason":"no permissions"},"status":403}""", 403));
+        var provider = Provider(invoker, settingsManager: WithBulkBatchSize(2));
+
+        var result = await provider.IndexMultipleDocumentsAsync(PeopleDocuments(5), Token);
+
+        invoker.Requests.ShouldBe(2);
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Message.ShouldBe("Indexing documents into people failed for ids 1, 3, 4, 5: Elasticsearch bulk index failed with HTTP 403 (security_exception): no permissions. "
+            + "That was the bulk request for documents 3 to 4, which may or may not be stored, and the 1 documents after them were not sent. 1 of 5 documents were indexed.");
+        error.Metadata["ids"].ShouldBe(new List<string> { "1", "3", "4", "5" });
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_FirstBatchRejectedAsAWhole_ReturnsTheRequestError()
+    {
+        var invoker = new SequenceRequestInvoker(Invoker("""{"error":{"type":"security_exception","reason":"no permissions"},"status":403}""", 403));
+        var provider = Provider(invoker, settingsManager: WithBulkBatchSize(2));
+
+        var result = await provider.IndexMultipleDocumentsAsync(PeopleDocuments(5), Token);
+
+        invoker.Requests.ShouldBe(1);
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("Elasticsearch bulk index failed with HTTP 403 (security_exception): no permissions");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task IndexMultipleDocumentsAsync_BulkBatchSizeNotPositive_ReturnsFailureNamingTheSetting(int bulkBatchSize)
+    {
+        var invoker = new SequenceRequestInvoker(BulkIndexed([1]));
+        var provider = Provider(invoker, settingsManager: WithBulkBatchSize(bulkBatchSize));
+
+        var result = await provider.IndexMultipleDocumentsAsync(PeopleDocuments(1), Token);
+
+        invoker.Requests.ShouldBe(0);
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe(
+            $"BulkBatchSize is {bulkBatchSize} for index people, but it must be greater than 0. Set Bielu:BetterSearch:ElasticSearch:SharedIndexSettings:BulkBatchSize, or BulkBatchSize on the index's Indexes entry.");
+    }
+
     [Fact]
     public async Task RemoveDocumentsAsync_DeletedAndNotFound_CountsOnlyTheDeleted()
     {

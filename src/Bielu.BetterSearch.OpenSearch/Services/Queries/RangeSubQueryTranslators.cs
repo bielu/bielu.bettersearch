@@ -26,6 +26,12 @@ internal sealed class NumericRangeSubQueryTranslator : OpenSearchSubQueryTransla
             return Task.FromResult(bounds.ToResult<QueryContainer>());
         }
 
+        var finite = RangeBounds.RequireFinite(nameof(NumericRange), query.MinValue, query.MaxValue);
+        if (finite.IsFailed)
+        {
+            return Task.FromResult(finite.ToResult<QueryContainer>());
+        }
+
         return Task.FromResult(Result.Ok<QueryContainer>(new NumericRangeQuery
         {
             Field = field.Value,
@@ -85,8 +91,9 @@ internal sealed class DateRangeSubQueryTranslator : OpenSearchSubQueryTranslator
             return Task.FromResult(bounds.ToResult<QueryContainer>());
         }
 
-        var min = query.MinValue is { } minValue ? DateMath.Anchored(minValue) : null;
-        var max = query.MaxValue is { } maxValue ? DateMath.Anchored(maxValue) : null;
+        // Sent in UTC, so an unspecified DateTime is read as UTC and a DateTimeOffset keeps its instant.
+        var min = query.MinValue is { } minValue ? DateMath.Anchored(minValue.UtcDateTime) : null;
+        var max = query.MaxValue is { } maxValue ? DateMath.Anchored(maxValue.UtcDateTime) : null;
         return Task.FromResult(Result.Ok<QueryContainer>(new OsDateRangeQuery
         {
             Field = field.Value,

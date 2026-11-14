@@ -11,6 +11,12 @@ public class IndexingTests(IIndexingServiceAsync serviceAsync, IIndexingProvider
     // from one reports success, as the document is already gone, instead of failing like the other providers.
     protected override bool RemovingFromMissingIndexSucceeds => true;
 
+    protected override bool BulkIndexingIsAllOrNothing => true;
+
+    // Lifti keys documents by id, and throws on a document without one.
+    protected override SearchDocument CreateDocumentRejectedByEngine(string index) =>
+        new() { Id = null!, Type = "TestDocument", Index = index };
+
     protected override async Task<long> CountDocumentsAsync(string index) =>
         (await indexManager.GetIndexAsync(index)).Value?.Count ?? 0;
 }

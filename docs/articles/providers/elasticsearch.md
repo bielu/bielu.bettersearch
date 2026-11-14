@@ -8,8 +8,6 @@ filters, highlighting and scores.
 > **What won't work**
 >
 > - **Facets** can be expressed, but a query that asks for them returns a failed `Result`.
-> - **Bulk indexing**: Core's `IndexingServiceAsync.IndexMultipleDocumentsAsync` indexes one document at a time,
->   so this provider's `BulkAsync` path is never used.
 >
 > Invalid or missing connection settings make searching and every indexing method return a failed `Result`
 > whose message names the setting to fix, such as `Bielu:BetterSearch:ElasticSearch:SharedIndexSettings:ConnectionString`.
@@ -67,6 +65,8 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddElas
 | `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`), `CLOUD` (Elastic Cloud: the cloud id in `Id`, with `Username` and `Password`) or `CLOUDAPI` (the cloud id in `Id`, with an `ApiKey`) |
 | `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people` |
 | `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
+| `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` sends in one bulk request, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails |
+| `WriteVisibility` | `Default` or `WaitUntilSearchable`, in `SharedIndexSettings` or an `Indexes` entry; see [When writes are searchable](#when-writes-are-searchable). An entry that leaves it out takes the shared value, and `"WriteVisibility": "Default"` there turns the shared one off |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. A page past it returns a failed `Result`. It must be greater than 0, or every search fails with a configuration error |
 
 You can also set the options in code with `services.Configure<ElasticSearchOptions>(...)`.
@@ -170,6 +170,38 @@ the field name without the `fields.` prefix (`Name`, also when the request names
 - **Invalid requests** return a failed `Result`: a `null` entry, an entry with neither `Field` nor
   `IsAllField`, two entries for the same field, also under different names for it (`Name` and `fields.Name`),
   and a `null` clause in a request's own `Queries`.
+
+## Indexing several documents
+
+`IndexMultipleDocumentsAsync` sends each index's documents in bulk requests of at most `BulkBatchSize`
+documents (1000 unless set), one after another, so a large import stays under the cluster's
+`http.max_content_length` (100 MB unless changed), and returns how many documents it indexed. Elasticsearch
+applies each document of a bulk request on its own, so when it rejects some (a value that doesn't fit the field's
+mapping, say), the remaining requests are still sent, and the `Result` fails naming their ids, with every id in the
+error's `ids` metadata, and the other documents are already stored. When the first request is rejected as a
+whole, such as a 403, the `Result` fails with Elasticsearch's error and nothing after it is sent. When a later request
+fails as a whole, the requests after it are not sent, and the `Result` fails naming every document not confirmed
+as stored: the ones rejected so far, the ones in that request, which may or may not be stored, and the ones not
+sent.
+
+## When writes are searchable
+
+By default a successful write is stored but not yet searchable: Elasticsearch makes it visible at the next index
+refresh, about a second later unless `index.refresh_interval` is changed. Set `WriteVisibility` to
+`WaitUntilSearchable` to have every index and remove call return only once a search can see the write:
+
+```json
+"SharedIndexSettings": { "ConnectionString": "http://localhost:9200", "WriteVisibility": "WaitUntilSearchable" }
+```
+
+- `IndexDocumentAsync`, `IndexMultipleDocumentsAsync`, `RemoveDocumentAsync` and `RemoveDocumentsAsync` send
+  `refresh=wait_for`, so the call waits for the next scheduled refresh rather than forcing one.
+- `RemoveAllDocumentsAsync` sends `refresh=true`, because delete by query can't wait for a refresh; it refreshes
+  the index once the documents are removed.
+- **Cost**: each call can take up to the refresh interval, and `IndexMultipleDocumentsAsync` waits once for each
+  bulk request of `BulkBatchSize` documents, so a large import waits many times. Leave it at `Default`
+  for bulk loads and turn it on where a write must be visible straight away, such as tests and small sites.
+- Waiting doesn't change what a failure means: a failed or cancelled call may still have stored the write.
 
 ## Removing documents
 

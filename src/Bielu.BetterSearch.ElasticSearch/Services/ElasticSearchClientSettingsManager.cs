@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.ElasticSearch.Configuration;
+﻿using Bielu.BetterSearch.Abstractions.Configuration;
+using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
@@ -27,7 +28,7 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     /// <summary>
     /// Builds a new settings object, leaving the live options untouched: the index's connection string and
     /// authentication win, and an index without its own takes the shared one. Mappings are the shared ones with the
-    /// index's own on top.
+    /// index's own on top, the bulk batch size is the index's own or else the shared one, and the index's write visibility wins over the shared one.
     /// </summary>
     private static ElasticSearchIndexSettings MergeSettings(ElasticSearchIndexSettings indexSpecific,
         ElasticSearchIndexSettings shared)
@@ -42,6 +43,8 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
                                  ?? AuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
             Mappings = FieldMappings.Merge(shared.Mappings, indexSpecific.Mappings),
+            BulkBatchSize = indexSpecific.BulkBatchSize ?? shared.BulkBatchSize,
+            WriteVisibility = indexSpecific.WriteVisibility ?? shared.WriteVisibility ?? WriteVisibility.Default,
         };
     }
 
