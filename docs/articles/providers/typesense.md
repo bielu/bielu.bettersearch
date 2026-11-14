@@ -5,7 +5,7 @@ query runs as a Typesense filter (`filter_by`) with the search text `*`, which m
 aren't ranked. Paging, sorting and post filters work.
 
 The provider talks to Typesense's HTTP API itself: there is no official .NET client, and the API it uses
-(collections, import, delete by filter, `truncate` and `multi_search`) is small. It needs Typesense 28 or later
+(collections, documents, import, export, delete by filter, `truncate` and `multi_search`) is small. It needs Typesense 28 or later
 for `truncate`; the AppHost and the integration tests run 29.0.
 
 > [!WARNING]
@@ -22,7 +22,9 @@ for `truncate`; the AppHost and the integration tests run 29.0.
 > - **`PrefixQuery` and `PrefixPhraseQuery`** with a value that isn't a string return a failed `Result`.
 > - **Relevance scores**: every hit has the `Score` 1.
 > - **Facets** and **highlighting** return a failed `Result`.
-> - **`GetDocumentAsync`, `CountAsync` and `UpdateDocumentAsync`** are not implemented yet and return a failed `Result`.
+> - **`UpdateDocumentAsync`** reads the document, then sends a partial update. The JSON copy results come from,
+>   `source`, is written whole, so a change another caller makes to other fields of the document in between is
+>   lost from results, while it stays searchable.
 > - **`IndexPrefix`** has no Typesense setting yet, and **index rebuilds** (`IIndexLifecycleServiceAsync`) return a failed `Result`:
 >   the provider does not implement `IIndexLifecycleProviderAsync`.
 > - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
@@ -145,6 +147,23 @@ id longer than that is sent alone), and returns how many were removed; if a
 request fails, the error names the ids not yet sent or not confirmed, and the earlier requests' documents are
 already removed. A missing index is a failed `Result`. `RemoveAllDocumentsAsync` truncates the collection and
 returns the removed count.
+
+## Getting, counting and updating documents
+
+`GetDocumentAsync` reads the document and returns its fields from `source`, as hits return them; a missing
+document or collection is success with `null`, and any other error, such as a 401, a failed `Result`.
+`CountAsync` sends the filter `SearchAsync` would, post filter included, in a search for no hits (`per_page` 0)
+and returns Typesense's `found`, which is exact. A missing collection is a failed `Result`, as a search there.
+
+`UpdateDocumentAsync` reads the document, then sends a partial update, an import with `action=update`, holding
+the named fields' new typed copies, `null` for each copy a named field held before and no longer has, and
+`source` with the named fields replaced. So a field that changes kind, from an integer to a string say, no longer
+matches its old value, and the fields left out keep their stored values. Typesense fails the update of a missing
+document or collection without creating either, which gives `false`, also when the document is removed between the
+read and the update. `source` is written whole, so a change another caller makes to other fields in between is
+lost from results, while its typed copies stay searchable. The collection's schema keeps every field a document
+ever held, so after a field changes from an integer to a `double` in its only document, a sort on it still fails
+as one on a field holding both.
 
 ## Local development
 
