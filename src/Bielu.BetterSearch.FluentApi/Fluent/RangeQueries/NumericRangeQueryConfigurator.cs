@@ -20,7 +20,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.RangeQueries
         }
         public NumericRangeQueryConfigurator WithMaxValue(int value, bool includeEdge = false)
         {
-            Query.MinValue = value;
+            Query.MaxValue = value;
             Query.IncludeMaxEdge = includeEdge;
             return this;
         }
