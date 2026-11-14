@@ -8,10 +8,11 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 > [!WARNING]
 > **What won't work**
 >
-> - **Silently ignored**: paging (`Page`, `PageSize`), sorting, post filters and facets. The query still
+> - **Silently ignored**: paging (`Page`, `PageSize`), sorting and post filters. The query still
 >   succeeds and returns every hit, so don't rely on them.
 >   A `SortOrder` with a `null` entry or an entry with no `FieldName` still returns a failed `Result`, as on
 >   the other providers.
+> - **Facets** return a failed `Result`: the index keeps the words of each field, not the values to count.
 > - **Highlighting** returns a failed `Result`: the index keeps only the words of each document, not its text,
 >   so there is no text to mark the matched terms in.
 > - **Range and spatial queries**: `DateRangeQuery`, `NumericRange`, `LongRange`, `StringRange` and

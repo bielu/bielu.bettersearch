@@ -2,7 +2,7 @@
 
 [Bielu.BetterSearch.Meilisearch](https://www.nuget.org/packages/Bielu.BetterSearch.Meilisearch/) runs
 queries on a [Meilisearch](https://www.meilisearch.com/) server. Every query runs as a Meilisearch filter,
-which matches or doesn't, so hits aren't ranked. Paging, sorting and post filters work.
+which matches or doesn't, so hits aren't ranked. Paging, sorting, post filters and term facets work.
 
 > [!WARNING]
 > **What won't work**
@@ -17,7 +17,8 @@ which matches or doesn't, so hits aren't ranked. Paging, sorting and post filter
 >   several words translate only approximately, and the result carries a `TranslationWarning`; a quoted single word
 >   is an exact term. See [Lucene queries](#lucene-queries).
 > - **Relevance scores**: every hit has the same `Score`.
-> - **Facets** can be expressed, but a query that asks for them returns a failed `Result`.
+> - **Facets**: only top-level term facets (`TermAggregation` without `NestedAggregations`). A multi-term, filter
+>   or nested facet returns a failed `Result`. See [Facets](#facets).
 > - **Highlighting** returns a failed `Result`. Meilisearch marks only matches of the search text, and this
 >   provider runs every query as a filter with no search text, so there is nothing to mark.
 > - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
@@ -124,6 +125,20 @@ filterable and sortable attributes the provider needs to the index settings, kee
 - **Field names** can only contain letters, digits, `_`, `-` and `.`, and **document ids** letters, digits, `-`
   and `_`; anything else returns a failed `Result`.
 - **Total hit count** is exact up to `MaxTotalHits` matches, then that number.
+
+## Facets
+
+A `TermAggregation` asks Meilisearch for the `facetDistribution` of its field, which is filterable already, and
+comes back in `ISearchResult.Aggregations` as a `BucketAggregation`: one `KeyBucket` per value, the values with
+the most documents first, ties in ordinal order of the value, `Size` of them (10 when it is 0).
+
+- **Counts cover the main query's matches.** Meilisearch has no post filter, so when the query has one, the
+  provider runs a second search, without it and with no hits, for the counts.
+- **`maxValuesPerFacet` values or more**: Meilisearch returns at most the index's `maxValuesPerFacet` values of a
+  facet (100 by default), in alphabetical order, so it can leave out the values with the most documents. The provider
+  reads the index's faceting settings before each search with facets, and a facet whose field has that many values
+  or more among the matches returns a failed `Result` rather than counts that may be wrong.
+- **Multi-term, filter and nested facets** return a failed `Result`: Meilisearch counts single values only.
 
 ## Lucene queries
 

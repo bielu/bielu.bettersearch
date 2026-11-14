@@ -757,13 +757,6 @@ public sealed class MeilisearchSearchTests(
         result.IsFailed.ShouldBeTrue();
     }
 
-    [Fact]
-    public async Task SearchAsync_Facets_ReturnsUnsupportedFailure()
-    {
-        var result = await searchService.SearchAsync(new SearchQuery { Index = "any", FacetQueries = [new TermAggregation()] }, TestContext.Current.CancellationToken);
-
-        result.IsFailed.ShouldBeTrue();
-    }
 
     [Fact]
     public async Task SearchAsync_UnreachableServer_ReturnsFailedResult()

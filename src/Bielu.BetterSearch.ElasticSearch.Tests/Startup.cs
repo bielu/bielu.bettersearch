@@ -1,6 +1,7 @@
 ﻿using Bielu.BetterSearch.DepedencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
+using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.DependencyInjection.Logging;
 
@@ -23,6 +24,12 @@ public class Startup
                 {
                     ConnectionString = elasticsearch.EnsureStarted().ToString(),
                     AuthenticationType = AuthenticationType.NONE,
+                    // Facet fields are text, so the facet tests show that facets count the keyword sub-field.
+                    Mappings =
+                    [
+                        new ElasticSearchFieldMapping { Field = FacetsTestBase.Color, Type = ElasticSearchFieldType.Text },
+                        new ElasticSearchFieldMapping { Field = FacetsTestBase.Brand, Type = ElasticSearchFieldType.Text }
+                    ]
                 });
     }
 }

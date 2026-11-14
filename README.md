@@ -173,15 +173,19 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
 - ✅ **Field mappings** on Elasticsearch and OpenSearch: `Text`, `Keyword`, `Date`, numeric, `Boolean` and
   `GeoPoint` fields, with an optional analyzer or format, validated at startup
 - ✅ **Errors as results**: searching and indexing return [FluentResults](https://github.com/altmann/FluentResults)
-  `Result`s. Every provider fails a query that asks for facets, except Lifti, which ignores them; Meilisearch and
-  Lifti also fail a query that asks for highlighting. Lifti ignores paging, sorting and post filters, so check the [feature matrix](docs/articles/feature-matrix.md) for what
+  `Result`s. Lifti fails a query that asks for facets, and Meilisearch one that asks for any facet other than a
+  top-level term facet; Meilisearch and Lifti also fail a query that asks for highlighting. Lifti ignores paging, sorting and post filters, so check the [feature matrix](docs/articles/feature-matrix.md) for what
   your provider applies
+- ✅ **Opt-in search result cache**: the built-in memory cache for one instance, FusionCache with a backplane for
+  several, or your own `ISearchResultCache`, as decorators over the search and indexing services; every write
+  through the indexing service evicts the index's cached searches. See [caching](docs/articles/caching.md)
 - ✅ **Shared provider tests**: provider-agnostic behavior tests in `BaseTests` run against every provider
 - ✅ **.NET Aspire AppHost** that starts Elasticsearch, OpenSearch and Meilisearch for local development and the
   integration tests, with [meilisearch-ui](https://github.com/riccox/meilisearch-ui) for browsing Meilisearch
   indexes and trying queries
 
-Facets can be expressed but no provider runs them yet, and only Elasticsearch and OpenSearch highlight. See the
+Elasticsearch and OpenSearch run term, multi-term and filter facets, nested inside each other; Meilisearch runs
+top-level term facets, and Lifti none. Only Elasticsearch and OpenSearch highlight. See the
 [feature matrix](docs/articles/feature-matrix.md) for the full picture.
 
 ## Packages
@@ -192,6 +196,7 @@ Facets can be expressed but no provider runs them yet, and only Elasticsearch an
 | [`Bielu.BetterSearch.Models`](https://www.nuget.org/packages/Bielu.BetterSearch.Models/) | `SearchDocument` and the request models |
 | [`Bielu.BetterSearch.Core`](https://www.nuget.org/packages/Bielu.BetterSearch.Core/) | `AddBetterSearch` and the indexing and search services |
 | [`Bielu.BetterSearch.FluentApi`](https://www.nuget.org/packages/Bielu.BetterSearch.FluentApi/) | Fluent query builder |
+| [`Bielu.BetterSearch.Caching.FusionCache`](https://www.nuget.org/packages/Bielu.BetterSearch.Caching.FusionCache/) | Search result cache over [FusionCache](https://github.com/ZiggyCreatures/FusionCache) |
 
 ### Providers
 

@@ -3,13 +3,9 @@
 [Bielu.BetterSearch.OpenSearch](https://www.nuget.org/packages/Bielu.BetterSearch.OpenSearch/) runs queries
 on an [OpenSearch](https://opensearch.org/) cluster. It translates queries the same way as the
 [Elasticsearch provider](elasticsearch.md), so the same queries give the same results, with paging, sorting,
-post filters, highlighting and scores.
+post filters, facets, highlighting and scores.
 
 > [!WARNING]
-> **What won't work**
->
-> - **Facets** can be expressed, but a query that asks for them returns a failed `Result`.
->
 > Invalid or missing connection settings make searching and every indexing method return a failed `Result`
 > whose message names the setting to fix, such as `Bielu:BetterSearch:OpenSearch:SharedIndexSettings:ConnectionString`.
 > A request that throws, as it does when `ThrowExceptions()` is on in the connection settings, is a failed
@@ -182,6 +178,24 @@ the field name without the `fields.` prefix (`Name`, also when the request names
 - **Invalid requests** return a failed `Result`: a `null` entry, an entry with neither `Field` nor
   `IsAllField`, two entries for the same field, also under different names for it (`Name` and `fields.Name`),
   and a `null` clause in a request's own `Queries`.
+
+## Facets
+
+`FacetQueries` become OpenSearch aggregations, and their results come back in `ISearchResult.Aggregations`, read with
+`RetrieveBucketAggregation(name)` and `RetrieveSingleAggregation(name)`:
+
+- **`TermAggregation`** is a `terms` aggregation: one `KeyBucket` per value, the values with the most documents
+  first, `Size` of them (10 when it is 0).
+- **`MultiTermAggreation`** is a `multi_terms` aggregation: one `KeyBucket` per combination of values, each value
+  in `Keys` and the joined key, such as `Red|acme`, in `Key`.
+- **`FilterAggregationQuery`** is a `filter` aggregation: a `SingleAggregation` whose one bucket holds the number of
+  documents its `Queries` match.
+- **`NestedAggregations`** are sub-aggregations, counted per bucket and returned in the bucket's `Aggregations`.
+- **Counts cover the main query's matches.** A post filter narrows the hits, not the counts.
+- **A field mapped as `Text`** in `Mappings` is counted on its `keyword` sub-field, so facet on the plain name.
+- **An unmapped text field**, such as a string field dynamic mapping created, can't be counted: the search returns
+  a failed `Result` saying to map the field or to facet on `Field.keyword`, the sub-field dynamic mapping adds.
+- **Keys are text**: a whole number comes back in the invariant culture, such as `5`.
 
 ## Indexing several documents
 
