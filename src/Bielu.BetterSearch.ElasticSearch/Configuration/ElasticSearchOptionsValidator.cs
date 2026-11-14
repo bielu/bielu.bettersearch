@@ -45,12 +45,15 @@ internal sealed class ElasticSearchOptionsValidator : IValidateOptions<ElasticSe
         }
 
         var sharedFailures = sharedConnection || indexes.Count == 0 || indexes.Values.Any(index => index is null || !HasConnection(index))
-            ? ElasticSearchClientSettingsManager.ConnectionFailures(ElasticSearchClientSettingsManager.MergeSettings(new ElasticSearchIndexSettings(), shared), null)
+            ? ElasticSearchClientSettingsManager.ConnectionFailures(ElasticSearchClientSettingsManager.MergeSettings(new ElasticSearchIndexSettings(), shared),
+                SettingSource.Unknown, SettingSource.Unknown)
             : [];
         return sharedFailures.Concat(indexes
             .Where(index => index.Value is not null && HasConnection(index.Value))
             .SelectMany(index => ElasticSearchClientSettingsManager.ConnectionFailures(
-                ElasticSearchClientSettingsManager.MergeSettings(index.Value, shared), index.Key)));
+                ElasticSearchClientSettingsManager.MergeSettings(index.Value, shared),
+                new SettingSource(index.Key, Inherited: string.IsNullOrWhiteSpace(index.Value.ConnectionString)),
+                new SettingSource(index.Key, Inherited: index.Value.AuthenticationType is null))));
     }
 
     private static bool HasConnection(ElasticSearchIndexSettings settings) =>

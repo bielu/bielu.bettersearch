@@ -45,12 +45,15 @@ internal sealed class OpenSearchOptionsValidator : IValidateOptions<OpenSearchOp
         }
 
         var sharedFailures = sharedConnection || indexes.Count == 0 || indexes.Values.Any(index => index is null || !HasConnection(index))
-            ? OpenSearchClientSettingsManager.ConnectionFailures(OpenSearchClientSettingsManager.MergeSettings(new OpenSearchIndexSettings(), shared), null)
+            ? OpenSearchClientSettingsManager.ConnectionFailures(OpenSearchClientSettingsManager.MergeSettings(new OpenSearchIndexSettings(), shared),
+                SettingSource.Unknown, SettingSource.Unknown)
             : [];
         return sharedFailures.Concat(indexes
             .Where(index => index.Value is not null && HasConnection(index.Value))
             .SelectMany(index => OpenSearchClientSettingsManager.ConnectionFailures(
-                OpenSearchClientSettingsManager.MergeSettings(index.Value, shared), index.Key)));
+                OpenSearchClientSettingsManager.MergeSettings(index.Value, shared),
+                new SettingSource(index.Key, Inherited: string.IsNullOrWhiteSpace(index.Value.ConnectionString)),
+                new SettingSource(index.Key, Inherited: index.Value.AuthenticationType is null))));
     }
 
     private static bool HasConnection(OpenSearchIndexSettings settings) =>
