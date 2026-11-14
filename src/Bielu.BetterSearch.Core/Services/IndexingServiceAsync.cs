@@ -25,7 +25,7 @@ public class IndexingServiceAsync(
             return documentResult;
         }
 
-        var validationResult = await ValidateAsync(document, cancellationToken).ConfigureAwait(false);
+        var validationResult = await ValidateAsync(documentValidator, document, cancellationToken).ConfigureAwait(false);
         if (validationResult.IsFailed)
         {
             return validationResult;
@@ -65,7 +65,7 @@ public class IndexingServiceAsync(
         var errors = new List<IError>();
         foreach (var doc in documents)
         {
-            errors.AddRange((await ValidateAsync(doc, cancellationToken).ConfigureAwait(false)).Errors);
+            errors.AddRange((await ValidateAsync(documentValidator, doc, cancellationToken).ConfigureAwait(false)).Errors);
         }
 
         if (errors.Count > 0)
@@ -87,14 +87,10 @@ public class IndexingServiceAsync(
     }
 
     /// <summary>
-    /// Runs the validator on a document that <see cref="CheckDocument"/> has already passed. The error names the
+    /// Runs <paramref name="documentValidator"/> on a document that <see cref="CheckDocument"/> has already passed. The error names the
     /// document and holds its id in the <c>id</c> metadata. A validator that throws fails the same way, with the
     /// exception as the cause; cancellation still propagates.
     /// </summary>
-    private Task<Result> ValidateAsync(SearchDocument document, CancellationToken cancellationToken) =>
-        ValidateAsync(documentValidator, document, cancellationToken);
-
-    /// <inheritdoc cref="ValidateAsync(SearchDocument, CancellationToken)"/>
     internal static async Task<Result> ValidateAsync(IDocumentValidatorAsync documentValidator, SearchDocument document, CancellationToken cancellationToken)
     {
         Result<bool> validationResult;

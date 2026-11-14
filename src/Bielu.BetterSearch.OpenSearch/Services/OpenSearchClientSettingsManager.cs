@@ -30,7 +30,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
     /// authentication win, and an index without its own takes the shared one. Mappings are the shared ones with the
     /// index's own on top, the bulk batch size is the index's own or else the shared one, and the index's write visibility wins over the shared one.
     /// </summary>
-    private static OpenSearchIndexSettings MergeSettings(OpenSearchIndexSettings indexSpecific,
+    internal static OpenSearchIndexSettings MergeSettings(OpenSearchIndexSettings indexSpecific,
         OpenSearchIndexSettings shared)
     {
         var ownAuthentication = indexSpecific.AuthenticationType is not null;
@@ -48,30 +48,47 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
         };
     }
 
-    public ConnectionSettings CreateClientSettings(OpenSearchIndexSettings settings)
+    /// <summary>
+    /// The connection setting failures of <paramref name="settings"/>, already merged, each naming the setting to fix.
+    /// The options validator runs the same checks at startup.
+    /// </summary>
+    /// <remarks><c>index</c> is the <c>Indexes</c> entry the settings come from, or <c>null</c> when that is not known or they are the shared settings.</remarks>
+    internal static IEnumerable<string> ConnectionFailures(OpenSearchIndexSettings settings, string? index)
     {
         var key = OpenSearchOptions.OpenSearchOptionsKey;
-        var connectionSettings = new ConnectionSettings(new SingleNodeConnectionPool(ConnectionSettingsChecks.HttpUrl(key, settings.ConnectionString)));
         var authenticationType = settings.AuthenticationType ?? OpenSearchAuthenticationType.NONE;
-        switch (authenticationType)
+        var details = settings.AuthenticationDetails;
+        string?[] failures =
+        [
+            ConnectionSettingsChecks.HttpUrlFailure(key, index, settings.ConnectionString),
+            authenticationType switch
+            {
+                OpenSearchAuthenticationType.NONE => null,
+                OpenSearchAuthenticationType.PASSWORD => ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                    (nameof(OpenSearchAuthenticationDetails.Username), details?.Username),
+                    (nameof(OpenSearchAuthenticationDetails.Password), details?.Password)),
+                OpenSearchAuthenticationType.APIKEY => ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                    (nameof(OpenSearchAuthenticationDetails.ApiKey), details?.ApiKey)),
+                _ => ConnectionSettingsChecks.UnknownAuthenticationTypeFailure(key, index, settings.AuthenticationType),
+            },
+        ];
+        return failures.OfType<string>();
+    }
+
+    public ConnectionSettings CreateClientSettings(OpenSearchIndexSettings settings)
+    {
+        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, null));
+        var connectionSettings = new ConnectionSettings(new SingleNodeConnectionPool(new Uri(settings.ConnectionString)));
+        var details = settings.AuthenticationDetails!;
+        switch (settings.AuthenticationType ?? OpenSearchAuthenticationType.NONE)
         {
-            case OpenSearchAuthenticationType.NONE:
-                break;
             case OpenSearchAuthenticationType.PASSWORD:
-                var passwordDetails = ConnectionSettingsChecks.Details(key, authenticationType, settings.AuthenticationDetails);
-                ConnectionSettingsChecks.Credentials(key, authenticationType,
-                    (nameof(OpenSearchAuthenticationDetails.Username), passwordDetails.Username),
-                    (nameof(OpenSearchAuthenticationDetails.Password), passwordDetails.Password));
-                connectionSettings.BasicAuthentication(passwordDetails.Username, passwordDetails.Password);
+                connectionSettings.BasicAuthentication(details.Username, details.Password);
                 break;
             case OpenSearchAuthenticationType.APIKEY:
-                var apiKeyDetails = ConnectionSettingsChecks.Details(key, authenticationType, settings.AuthenticationDetails);
-                ConnectionSettingsChecks.Credentials(key, authenticationType, (nameof(OpenSearchAuthenticationDetails.ApiKey), apiKeyDetails.ApiKey));
                 // OpenSearch API keys are sent as they are, "Authorization: ApiKey <token>", not encoded with an id.
-                connectionSettings.ApiKeyAuthentication(new ApiKeyAuthenticationCredentials(apiKeyDetails.ApiKey));
+                connectionSettings.ApiKeyAuthentication(new ApiKeyAuthenticationCredentials(details.ApiKey));
                 break;
-            default:
-                throw ConnectionSettingsChecks.UnknownAuthenticationType(key, settings.AuthenticationType);
         }
 
         return connectionSettings;

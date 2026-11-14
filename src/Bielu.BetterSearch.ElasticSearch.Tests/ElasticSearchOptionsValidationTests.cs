@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.DepedencyInjection;
+﻿using Bielu.BetterSearch.Configuration;
+using Bielu.BetterSearch.DepedencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Services;
@@ -10,9 +11,13 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
 
-public class ElasticSearchOptionsValidationTests
+public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
 {
     private const string Key = "Bielu:BetterSearch:ElasticSearch";
+
+    protected override string OptionsKey => Key;
+
+    protected override void AddProvider(Configurator search, string key) => search.AddElasticSearch(key);
 
     private static ServiceProvider Services(Dictionary<string, string?> settings)
     {
@@ -141,7 +146,11 @@ public class ElasticSearchOptionsValidationTests
     [Fact]
     public void ValidateOnStart_ValidIndexPrefix_Passes()
     {
-        using var services = Services(new() { [$"{Key}:IndexPrefix"] = "app-1." });
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            [$"{Key}:IndexPrefix"] = "app-1.",
+        });
 
         Should.NotThrow(() => ValidateOnStart(services));
     }
@@ -159,5 +168,105 @@ public class ElasticSearchOptionsValidationTests
         var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
 
         exception.Message.ShouldContain($"{Key}:IndexPrefix '{prefix}' {expected}");
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    public void ValidateOnStart_MaxResultWindowNotPositive_FailsNamingTheSetting(string value)
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            ["MaxResultWindow"] = value,
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([$"{Key}:MaxResultWindow is {value}, but it must be greater than 0."]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_IndexPasswordAuthenticationWithoutPassword_FailsNamingTheIndexSetting()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            ["Indexes:people:AuthenticationType"] = "PASSWORD",
+            ["Indexes:people:AuthenticationDetails:Username"] = "elastic",
+            ["Indexes:people:AuthenticationDetails:Password"] = "",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:Indexes:people:AuthenticationDetails:Password, or {Key}:SharedIndexSettings:AuthenticationDetails:Password for every index."
+        ]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_SharedCloudApiWithoutKey_FailsAndListsEveryOtherFailure()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = "CLOUDAPI",
+            ["SharedIndexSettings:AuthenticationDetails:Id"] = "name:abc",
+            ["MaxResultWindow"] = "0",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"CLOUDAPI authentication needs AuthenticationDetails:ApiKey. Set {Key}:SharedIndexSettings:AuthenticationDetails:ApiKey, or {Key}:Indexes:<index>:AuthenticationDetails:ApiKey for one index.",
+            $"{Key}:MaxResultWindow is 0, but it must be greater than 0.",
+        ]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_CloudWithoutConnectionString_Passes()
+    {
+        ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = "CLOUD",
+            ["SharedIndexSettings:AuthenticationDetails:Id"] = "name:abc",
+            ["SharedIndexSettings:AuthenticationDetails:Username"] = "elastic",
+            ["SharedIndexSettings:AuthenticationDetails:Password"] = "secret",
+        }).ShouldBeNull();
+    }
+
+    [Fact]
+    public void ValidateOnStart_UnknownAuthenticationType_FailsListingTheTypes()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            ["SharedIndexSettings:AuthenticationType"] = "7",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"AuthenticationType 7 is not one of NONE, CLOUD, CLOUDAPI, PASSWORD. Set {Key}:SharedIndexSettings:AuthenticationType, or {Key}:Indexes:<index>:AuthenticationType for one index."
+        ]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_SharedPasswordWithoutUrlAndEveryIndexWithItsOwn_Passes()
+    {
+        ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationDetails:Username"] = "elastic",
+            ["SharedIndexSettings:AuthenticationDetails:Password"] = "secret",
+            ["Indexes:people:ConnectionString"] = "http://people:9200",
+            ["Indexes:places:ConnectionString"] = "https://places:9200",
+        }).ShouldBeNull();
+    }
+
+    [Fact]
+    public void ValidateOnStart_SharedPasswordWithoutUrlOrPassword_FailsNamingEachIndexThatInheritsIt()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationDetails:Username"] = "elastic",
+            ["Indexes:people:ConnectionString"] = "http://people:9200",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:Indexes:people:AuthenticationDetails:Password, or {Key}:SharedIndexSettings:AuthenticationDetails:Password for every index."
+        ]);
     }
 }

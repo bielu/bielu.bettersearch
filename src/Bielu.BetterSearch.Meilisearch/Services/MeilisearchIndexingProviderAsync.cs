@@ -59,7 +59,7 @@ public sealed class MeilisearchIndexingProviderAsync(
     private async Task<Result> AddDocumentBatchesAsync(string index, IReadOnlyList<SearchDocument> documents,
         CancellationToken cancellationToken)
     {
-        var options = optionsMonitor.Current();
+        var options = optionsMonitor.TryCurrentValue();
         if (options.IsFailed)
         {
             return options.ToResult();
@@ -254,7 +254,7 @@ public sealed class MeilisearchIndexingProviderAsync(
     private async Task<Result<List<MeilisearchDocument>>> PrepareDocumentsAsync(string index, IReadOnlyCollection<SearchDocument> documents,
         CancellationToken cancellationToken)
     {
-        var current = optionsMonitor.Current();
+        var current = optionsMonitor.TryCurrentValue();
         if (current.IsFailed)
         {
             return Result.Fail<List<MeilisearchDocument>>(current.Errors);
@@ -309,7 +309,7 @@ public sealed class MeilisearchIndexingProviderAsync(
     /// </summary>
     private async Task<Result> ConfigureIndexAsync(string index, CancellationToken cancellationToken)
     {
-        var currentOptions = optionsMonitor.Current();
+        var currentOptions = optionsMonitor.TryCurrentValue();
         if (currentOptions.IsFailed)
         {
             return currentOptions.ToResult();

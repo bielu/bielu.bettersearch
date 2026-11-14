@@ -20,10 +20,9 @@ public class Startup
         services.AddOptions<MeilisearchOptions>()
             .Configure<MeilisearchResource>((options, meilisearch) =>
             {
-                meilisearch.EnsureStarted();
                 options.SharedIndexSettings = new MeilisearchIndexSettings
                 {
-                    ConnectionString = meilisearch.Endpoint!.ToString(),
+                    ConnectionString = meilisearch.EnsureStarted().ToString(),
                     ApiKey = meilisearch.MasterKey,
                 };
                 options.GeoField = "Location";

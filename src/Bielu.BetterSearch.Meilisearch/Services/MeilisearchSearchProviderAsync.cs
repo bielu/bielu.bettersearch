@@ -50,13 +50,19 @@ public sealed class MeilisearchSearchProviderAsync(
 
         var page = Math.Max(query.Page, 1);
         var pageSize = query.PageSize > 0 ? query.PageSize : DefaultPageSize;
-        var options = optionsMonitor.Current();
+        var options = optionsMonitor.TryCurrentValue();
         if (options.IsFailed)
         {
             return options.ToResult<ISearchResult>();
         }
 
+        // Checked here too for a monitor that doesn't validate, with the validator's message.
         var maxTotalHits = options.Value.MaxTotalHits;
+        if (ConnectionSettingsChecks.GreaterThanZeroFailure($"{MeilisearchOptions.MeilisearchOptionsKey}:MaxTotalHits", maxTotalHits) is { } invalidLimit)
+        {
+            return Result.Fail<ISearchResult>(invalidLimit);
+        }
+
         if ((long)page * pageSize > maxTotalHits)
         {
             return Result.Fail<ISearchResult>(

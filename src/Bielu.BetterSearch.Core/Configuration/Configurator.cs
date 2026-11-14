@@ -57,6 +57,21 @@ public class Configurator(IServiceCollection services, IConfiguration configurat
         return this;
     }
 
+    /// <summary>
+    /// Sends the unkeyed services' calls for <paramref name="index"/> to the provider registered under
+    /// <paramref name="key"/>. Index names compare ignoring case, and a later call for the same index replaces the
+    /// route. A route set here replaces one for the same index in the
+    /// <see cref="SearchApplicationConfiguration.RoutesSectionKey"/> section. <c>AddBetterSearch</c> fails when no
+    /// provider has that key.
+    /// </summary>
+    public Configurator RouteIndex(string index, string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(index);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        Configuration.RouteMap[index] = key;
+        return this;
+    }
+
     public Configurator SetDocumentValidatorType<T>() where T : class, IDocumentValidatorAsync
     {
         Configuration.DocumentValidatorType = typeof(T);

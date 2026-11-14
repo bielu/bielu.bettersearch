@@ -33,7 +33,7 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     /// authentication win, and an index without its own takes the shared one. Mappings are the shared ones with the
     /// index's own on top, the bulk batch size is the index's own or else the shared one, and the index's write visibility wins over the shared one.
     /// </summary>
-    private static ElasticSearchIndexSettings MergeSettings(ElasticSearchIndexSettings indexSpecific,
+    internal static ElasticSearchIndexSettings MergeSettings(ElasticSearchIndexSettings indexSpecific,
         ElasticSearchIndexSettings shared)
     {
         var ownAuthentication = indexSpecific.AuthenticationType is not null;
@@ -52,37 +52,56 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     }
 
     /// <summary>
-    /// Checks the settings as OpenSearch does, throwing an <see cref="ArgumentException"/> that names the setting to fix.
-    /// Elastic Cloud connects by its cloud id, so <c>CLOUD</c> and <c>CLOUDAPI</c> don't need a connection string.
+    /// The connection setting failures of <paramref name="settings"/>, already merged, each naming the setting to fix.
+    /// Checked as OpenSearch does, except that Elastic Cloud connects by its cloud id, so <c>CLOUD</c> and
+    /// <c>CLOUDAPI</c> don't need a connection string. The options validator runs the same checks at startup.
     /// </summary>
-    private static ElasticsearchClientSettings ParseMergedSettings(ElasticSearchIndexSettings settings)
+    /// <remarks><c>index</c> is the <c>Indexes</c> entry the settings come from, or <c>null</c> when that is not known or they are the shared settings.</remarks>
+    internal static IEnumerable<string> ConnectionFailures(ElasticSearchIndexSettings settings, string? index)
     {
         var key = ElasticSearchOptions.ElasticSearchOptionsKey;
         var authenticationType = settings.AuthenticationType ?? AuthenticationType.NONE;
-        switch (authenticationType)
+        var details = settings.AuthenticationDetails;
+        string?[] failures = authenticationType switch
         {
-            case AuthenticationType.NONE:
-                return new ElasticsearchClientSettings(new SingleNodePool(ConnectionSettingsChecks.HttpUrl(key, settings.ConnectionString)));
-            case AuthenticationType.PASSWORD:
-                var uri = ConnectionSettingsChecks.HttpUrl(key, settings.ConnectionString);
-                var password = ConnectionSettingsChecks.Details(key, authenticationType, settings.AuthenticationDetails);
-                ConnectionSettingsChecks.Credentials(key, authenticationType,
-                    (nameof(AuthenticationDetails.Username), password.Username), (nameof(AuthenticationDetails.Password), password.Password));
-                return new ElasticsearchClientSettings(new SingleNodePool(uri))
-                    .Authentication(new BasicAuthentication(password.Username, password.Password));
-            case AuthenticationType.CLOUD:
-                var cloud = ConnectionSettingsChecks.Details(key, authenticationType, settings.AuthenticationDetails);
-                ConnectionSettingsChecks.Credentials(key, authenticationType,
-                    (nameof(AuthenticationDetails.Id), cloud.Id), (nameof(AuthenticationDetails.Username), cloud.Username),
-                    (nameof(AuthenticationDetails.Password), cloud.Password));
-                return new ElasticsearchClientSettings(new CloudNodePool(cloud.Id, new BasicAuthentication(cloud.Username, cloud.Password)));
-            case AuthenticationType.CLOUDAPI:
-                var cloudApi = ConnectionSettingsChecks.Details(key, authenticationType, settings.AuthenticationDetails);
-                ConnectionSettingsChecks.Credentials(key, authenticationType,
-                    (nameof(AuthenticationDetails.Id), cloudApi.Id), (nameof(AuthenticationDetails.ApiKey), cloudApi.ApiKey));
-                return new ElasticsearchClientSettings(new CloudNodePool(cloudApi.Id, new ApiKey(cloudApi.ApiKey)));
-            default:
-                throw ConnectionSettingsChecks.UnknownAuthenticationType(key, settings.AuthenticationType);
-        }
+            AuthenticationType.NONE => [ConnectionSettingsChecks.HttpUrlFailure(key, index, settings.ConnectionString)],
+            AuthenticationType.PASSWORD =>
+            [
+                ConnectionSettingsChecks.HttpUrlFailure(key, index, settings.ConnectionString),
+                ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                    (nameof(AuthenticationDetails.Username), details?.Username), (nameof(AuthenticationDetails.Password), details?.Password)),
+            ],
+            AuthenticationType.CLOUD =>
+            [
+                ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                    (nameof(AuthenticationDetails.Id), details?.Id), (nameof(AuthenticationDetails.Username), details?.Username),
+                    (nameof(AuthenticationDetails.Password), details?.Password)),
+            ],
+            AuthenticationType.CLOUDAPI =>
+            [
+                ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                    (nameof(AuthenticationDetails.Id), details?.Id), (nameof(AuthenticationDetails.ApiKey), details?.ApiKey)),
+            ],
+            _ => [ConnectionSettingsChecks.UnknownAuthenticationTypeFailure(key, index, settings.AuthenticationType)],
+        };
+        return failures.OfType<string>();
+    }
+
+    /// <summary>
+    /// Builds the client settings, throwing an <see cref="ArgumentException"/> that names each setting to fix when
+    /// <see cref="ConnectionFailures"/> finds any.
+    /// </summary>
+    private static ElasticsearchClientSettings ParseMergedSettings(ElasticSearchIndexSettings settings)
+    {
+        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, null));
+        var details = settings.AuthenticationDetails!;
+        return (settings.AuthenticationType ?? AuthenticationType.NONE) switch
+        {
+            AuthenticationType.PASSWORD => new ElasticsearchClientSettings(new SingleNodePool(new Uri(settings.ConnectionString)))
+                .Authentication(new BasicAuthentication(details.Username, details.Password)),
+            AuthenticationType.CLOUD => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new BasicAuthentication(details.Username, details.Password))),
+            AuthenticationType.CLOUDAPI => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new ApiKey(details.ApiKey))),
+            _ => new ElasticsearchClientSettings(new SingleNodePool(new Uri(settings.ConnectionString))),
+        };
     }
 }

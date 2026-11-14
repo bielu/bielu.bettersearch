@@ -2,6 +2,7 @@
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 using Microsoft.Extensions.Options;
 
@@ -49,7 +50,7 @@ internal sealed class SpatialSearchSubQueryTranslator(IOptionsMonitor<Meilisearc
             return field.ToResult<MeilisearchFilter>();
         }
 
-        var options = optionsMonitor.Current();
+        var options = optionsMonitor.TryCurrentValue();
         if (options.IsFailed)
         {
             return options.ToResult<MeilisearchFilter>();
