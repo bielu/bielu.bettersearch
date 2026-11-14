@@ -23,7 +23,7 @@ public class DateRangeQueryConfigurator
     }
     public DateRangeQueryConfigurator WithMaxValue(DateTime value, bool includeEdge = false)
     {
-        Query.MinValue = value;
+        Query.MaxValue = value;
         Query.IncludeMaxEdge = includeEdge;
         return this;
     }

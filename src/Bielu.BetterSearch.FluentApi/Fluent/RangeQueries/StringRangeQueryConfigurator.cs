@@ -23,7 +23,7 @@ public class StringRangeQueryConfigurator
     }
     public StringRangeQueryConfigurator WithMaxValue(string value, bool includeEdge = false)
     {
-        Query.MinValue = value;
+        Query.MaxValue = value;
         Query.IncludeMaxEdge = includeEdge;
         return this;
     }

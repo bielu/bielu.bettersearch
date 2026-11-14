@@ -23,7 +23,7 @@ public class LongRangeQueryConfigurator
     }
     public LongRangeQueryConfigurator WithMaxValue(long value, bool includeEdge = false)
     {
-        Query.MinValue = value;
+        Query.MaxValue = value;
         Query.IncludeMaxEdge = includeEdge;
         return this;
     }
