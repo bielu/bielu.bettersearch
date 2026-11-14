@@ -11,13 +11,13 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.RangeQueries
             Query.Field = fieldName;
             return this;
         }
-        public NumericRangeQueryConfigurator WithMinValue(int value, bool includeEdge = false)
+        public NumericRangeQueryConfigurator WithMinValue(int value, bool includeEdge = true)
         {
             Query.MinValue = value;
             Query.IncludeMinEdge = includeEdge;
             return this;
         }
-        public NumericRangeQueryConfigurator WithMaxValue(int value, bool includeEdge = false)
+        public NumericRangeQueryConfigurator WithMaxValue(int value, bool includeEdge = true)
         {
             Query.MinValue = value;
             Query.IncludeMaxEdge = includeEdge;

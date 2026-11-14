@@ -15,13 +15,13 @@ public class DateRangeQueryConfigurator
         Query.Field = fieldName;
         return this;
     }
-    public DateRangeQueryConfigurator WithMinValue(DateTime value, bool includeEdge = false)
+    public DateRangeQueryConfigurator WithMinValue(DateTime value, bool includeEdge = true)
     {
         Query.MinValue = value;
         Query.IncludeMinEdge = includeEdge;
         return this;
     }
-    public DateRangeQueryConfigurator WithMaxValue(DateTime value, bool includeEdge = false)
+    public DateRangeQueryConfigurator WithMaxValue(DateTime value, bool includeEdge = true)
     {
         Query.MinValue = value;
         Query.IncludeMaxEdge = includeEdge;

@@ -28,6 +28,10 @@ public class QueryTranslationResultsUnitTests(
     public override async Task SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ReturnsEveryDocumentExceptTheExclusions() =>
         await SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ShouldFailAsync();
 
+    /// <summary>Lifti does not support ranges, so the range fails rather than matching the wrong documents.</summary>
+    [Fact]
+    public override async Task SearchAsync_RangeWithDefaultEdges_IncludesBothBounds() => await SearchAsync_RangeWithDefaultEdges_ShouldFailAsync();
+
     /// <summary>Known failure: searching a missing index creates it; <c>LiftiSearchTests</c> pins that behavior.</summary>
     [Fact(Skip = "Lifti creates a missing index on search (ROADMAP.md, Confirmed defects: \"Searching a missing index creates it\")")]
     public override async Task SearchAsync_MissingIndex_ReturnsFailedResult() =>

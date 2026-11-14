@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 using OpenSearch.Client;
 using DateRangeQuery = Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeQuery;
@@ -17,6 +18,12 @@ internal sealed class NumericRangeSubQueryTranslator : OpenSearchSubQueryTransla
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<QueryContainer>());
+        }
+
+        var bounds = RangeBounds.Require(nameof(NumericRange), query.MinValue, query.MaxValue);
+        if (bounds.IsFailed)
+        {
+            return Task.FromResult(bounds.ToResult<QueryContainer>());
         }
 
         return Task.FromResult(Result.Ok<QueryContainer>(new NumericRangeQuery
@@ -43,6 +50,12 @@ internal sealed class LongRangeSubQueryTranslator : OpenSearchSubQueryTranslator
             return Task.FromResult(field.ToResult<QueryContainer>());
         }
 
+        var bounds = RangeBounds.Require(nameof(LongRange), query.MinValue, query.MaxValue);
+        if (bounds.IsFailed)
+        {
+            return Task.FromResult(bounds.ToResult<QueryContainer>());
+        }
+
         return Task.FromResult(Result.Ok<QueryContainer>(new LongRangeQuery
         {
             Field = field.Value,
@@ -64,6 +77,12 @@ internal sealed class DateRangeSubQueryTranslator : OpenSearchSubQueryTranslator
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<QueryContainer>());
+        }
+
+        var bounds = RangeBounds.Require(nameof(DateRangeQuery), query.MinValue, query.MaxValue);
+        if (bounds.IsFailed)
+        {
+            return Task.FromResult(bounds.ToResult<QueryContainer>());
         }
 
         var min = query.MinValue is { } minValue ? DateMath.Anchored(minValue) : null;
@@ -90,6 +109,12 @@ internal sealed class StringRangeSubQueryTranslator : OpenSearchSubQueryTranslat
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<QueryContainer>());
+        }
+
+        var bounds = RangeBounds.Require(nameof(StringRange), query.MinValue, query.MaxValue);
+        if (bounds.IsFailed)
+        {
+            return Task.FromResult(bounds.ToResult<QueryContainer>());
         }
 
         return Task.FromResult(Result.Ok<QueryContainer>(new TermRangeQuery

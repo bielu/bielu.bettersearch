@@ -15,13 +15,13 @@ public class StringRangeQueryConfigurator
         Query.Field = fieldName;
         return this;
     }
-    public StringRangeQueryConfigurator WithMinValue(string value, bool includeEdge = false)
+    public StringRangeQueryConfigurator WithMinValue(string value, bool includeEdge = true)
     {
         Query.MinValue = value;
         Query.IncludeMinEdge = includeEdge;
         return this;
     }
-    public StringRangeQueryConfigurator WithMaxValue(string value, bool includeEdge = false)
+    public StringRangeQueryConfigurator WithMaxValue(string value, bool includeEdge = true)
     {
         Query.MinValue = value;
         Query.IncludeMaxEdge = includeEdge;

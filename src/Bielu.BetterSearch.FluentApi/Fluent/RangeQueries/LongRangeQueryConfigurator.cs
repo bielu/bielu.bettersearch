@@ -15,13 +15,13 @@ public class LongRangeQueryConfigurator
         Query.Field = fieldName;
         return this;
     }
-    public LongRangeQueryConfigurator WithMinValue(long value, bool includeEdge = false)
+    public LongRangeQueryConfigurator WithMinValue(long value, bool includeEdge = true)
     {
         Query.MinValue = value;
         Query.IncludeMinEdge = includeEdge;
         return this;
     }
-    public LongRangeQueryConfigurator WithMaxValue(long value, bool includeEdge = false)
+    public LongRangeQueryConfigurator WithMaxValue(long value, bool includeEdge = true)
     {
         Query.MinValue = value;
         Query.IncludeMaxEdge = includeEdge;
