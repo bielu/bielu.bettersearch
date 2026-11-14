@@ -115,6 +115,24 @@ public class ElasticSearchClientSettingsManagerTests
     }
 
     [Fact]
+    public void GetConnectionSettings_BulkBatchSize_IndexValueWinsAndAnUnsetIndexTakesTheSharedOne()
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = new() { BulkBatchSize = 500 },
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings>
+            {
+                ["people"] = new() { BulkBatchSize = 50 },
+                ["places"] = new() { IndexName = "places" },
+            },
+        };
+
+        GetConnectionSettings(options, "people").BulkBatchSize.ShouldBe(50);
+        GetConnectionSettings(options, "places").BulkBatchSize.ShouldBe(500);
+        GetConnectionSettings(options, "other").BulkBatchSize.ShouldBe(500);
+    }
+
+    [Fact]
     public void GetConnectionSettings_IndexWithOwnConnectionStringOnly_InheritsSharedAuthentication()
     {
         var options = new ElasticSearchOptions

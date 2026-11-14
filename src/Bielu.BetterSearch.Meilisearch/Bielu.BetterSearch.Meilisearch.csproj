@@ -27,6 +27,7 @@
       <Compile Include="..\Shared\SortOrders.cs" Link="Services\SortOrders.cs" />
       <Compile Include="..\Shared\Facets.cs" Link="Services\Facets.cs" />
       <Compile Include="..\Shared\LuceneQueryParser.cs" Link="Services\LuceneQueryParser.cs" />
+      <Compile Include="..\Shared\ConnectionSettingsChecks.cs" Link="Services\ConnectionSettingsChecks.cs" />
     </ItemGroup>
 
 </Project>

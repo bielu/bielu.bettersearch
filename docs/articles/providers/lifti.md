@@ -78,6 +78,13 @@ A write is searchable as soon as the call returns, as the index is in memory.
 - **Multi-valued fields**: the words of one value are never next to the words of another, so `3.5` does not
   match a field holding `3` and `5`.
 
+## Indexing several documents
+
+`IndexMultipleDocumentsAsync` adds each index's documents with one `AddRangeAsync`, which Lifti applies as one
+change, and returns how many documents it indexed. When Lifti rejects one document (one without an id, say),
+the `Result` fails naming every id of that index, with all of them in the error's `ids` metadata, and none of
+them is stored.
+
 ## Removing documents
 
 `DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.

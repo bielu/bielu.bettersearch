@@ -33,6 +33,12 @@ public class ElasticSearchSearchProviderAsync(
         }
 
         var maxResultWindow = optionsMonitor.CurrentValue.MaxResultWindow;
+        if (maxResultWindow <= 0)
+        {
+            return Result.Fail<ISearchResult>(
+                $"MaxResultWindow is {maxResultWindow}, but it must be greater than 0. Set {ElasticSearchOptions.ElasticSearchOptionsKey}:MaxResultWindow to the indexes' index.max_result_window.");
+        }
+
         if (LastResultOf(query) > maxResultWindow)
         {
             return Result.Fail<ISearchResult>(
@@ -63,49 +69,53 @@ public class ElasticSearchSearchProviderAsync(
             return highlight.ToResult<ISearchResult>();
         }
 
-        var mappings = settingsManager.GetConnectionSettings(query.Index).Mappings ?? [];
-        var aggregations = await ElasticSearchAggregations.TranslateAsync(query, mappings, queryTranslateServiceAsync).ConfigureAwait(false);
-        if (aggregations.IsFailed)
+        // The settings lookup, the client and the request all run inside TryWithClientAsync, so invalid settings
+        // or a throwing client return a failed Result rather than throwing.
+        return await clientFactoryAsync.TryWithClientAsync(query.Index, async client =>
         {
-            return aggregations.ToResult<ISearchResult>();
-        }
-
-        var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
-        request.Highlight = highlight.Value;
-        request.Aggregations = aggregations.Value;
-        var client = await clientFactoryAsync.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
-        var response = await client.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
-        // The client reports a cancelled request as an invalid response; the caller cancelled, so say that instead.
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!response.IsValidResponse)
-        {
-            var failure = ElasticSearchFailures.Describe("search", response);
-            return Result.Fail<ISearchResult>(aggregations.Value != null ? ElasticSearchAggregations.TextFieldFailure(failure) ?? failure : failure);
-        }
-
-        // Partial results are disallowed in the request; this guards against a cluster that returns them anyway.
-        if (response.TimedOut || response.Shards.Failed > 0)
-        {
-            return Result.Fail<ISearchResult>(
-                $"Elasticsearch returned incomplete results: timed out {response.TimedOut}, {response.Shards.Failed} of {response.Shards.Total} shards failed.");
-        }
-
-        var result = resultMapper.MapResult(response);
-        if (aggregations.Value != null)
-        {
-            var facets = ElasticSearchAggregations.Map(query.FacetQueries, response.Aggregations);
-            if (facets.IsFailed)
+            var mappings = settingsManager.GetConnectionSettings(query.Index).Mappings ?? [];
+            var aggregations = await ElasticSearchAggregations.TranslateAsync(query, mappings, queryTranslateServiceAsync).ConfigureAwait(false);
+            if (aggregations.IsFailed)
             {
-                return facets.ToResult<ISearchResult>();
+                return aggregations.ToResult<ISearchResult>();
             }
 
-            result = new BaseSearchResults { Items = result.Items, Pagination = result.Pagination, Aggregations = facets.Value };
-        }
+            var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
+            request.Highlight = highlight.Value;
+            request.Aggregations = aggregations.Value;
+            var response = await client.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
+            // The client reports a cancelled request as an invalid response; the caller cancelled, so say that instead.
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!response.IsValidResponse)
+            {
+                var failure = ElasticSearchFailures.Describe("search", response);
+                return Result.Fail<ISearchResult>(aggregations.Value != null ? ElasticSearchAggregations.TextFieldFailure(failure) ?? failure : failure);
+            }
 
-        result.Pagination.Page = PageOf(query);
-        result.Pagination.PageSize = PageSizeOf(query);
-        result.Pagination.TotalPages = (int)Math.Ceiling(result.Pagination.TotalCount / (double)result.Pagination.PageSize);
-        return Result.Ok(result);
+            // Partial results are disallowed in the request; this guards against a cluster that returns them anyway.
+            if (response.TimedOut || response.Shards.Failed > 0)
+            {
+                return Result.Fail<ISearchResult>(
+                    $"Elasticsearch returned incomplete results: timed out {response.TimedOut}, {response.Shards.Failed} of {response.Shards.Total} shards failed.");
+            }
+
+            var result = resultMapper.MapResult(response);
+            if (aggregations.Value != null)
+            {
+                var facets = ElasticSearchAggregations.Map(query.FacetQueries, response.Aggregations);
+                if (facets.IsFailed)
+                {
+                    return facets.ToResult<ISearchResult>();
+                }
+
+                result = new BaseSearchResults { Items = result.Items, Pagination = result.Pagination, Aggregations = facets.Value };
+            }
+
+            result.Pagination.Page = PageOf(query);
+            result.Pagination.PageSize = PageSizeOf(query);
+            result.Pagination.TotalPages = (int)Math.Ceiling(result.Pagination.TotalCount / (double)result.Pagination.PageSize);
+            return Result.Ok(result);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

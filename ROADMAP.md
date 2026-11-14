@@ -6,11 +6,11 @@ Where `Bielu.BetterSearch` stands and how it gets to `1.0.0`. The repository sta
 
 The repository tooling now matches the bielu ecosystem: .NET 10, current packages, shared CI and releases, analyzers, Aspire. The code itself is an early beta:
 
-- **The Elasticsearch provider searches** with every query type, paging, sorting, post filters and highlighting, but has no facets, and its index operations have the defects listed below.
-- **The OpenSearch provider searches** the same way as Elasticsearch, with every index operation and highlighting, but likewise has no facets.
-- **The Meilisearch provider searches** with every query type its filters can express, paging, sorting and post filters; spatial queries need `MeilisearchOptions.GeoField`; fuzzy queries return a failed `Result`, raw Lucene queries are parsed with Lucene.NET's `QueryParser` and translated into filters where they can be, and it has no facets; highlighting returns a failed `Result`, as Meilisearch marks only search text matches and the provider runs filters.
+- **The Elasticsearch provider searches** with every query type, paging, sorting, post filters, facets and highlighting, and its index operations have the defects listed below.
+- **The OpenSearch provider searches** the same way as Elasticsearch, with every index operation, facets and highlighting.
+- **The Meilisearch provider searches** with every query type its filters can express, paging, sorting and post filters; spatial queries need `MeilisearchOptions.GeoField`; fuzzy queries return a failed `Result`, raw Lucene queries are parsed with Lucene.NET's `QueryParser` and translated into filters where they can be, and it runs only top-level term facets; highlighting returns a failed `Result`, as Meilisearch marks only search text matches and the provider runs filters.
 - **The in-memory provider gives wrong answers** for some queries (see below), and it is built on Lifti, which should be replaced.
-- **Half the query model does little.** Pagination, sorting, facets, highlighting and post filters can be expressed; only Elasticsearch, OpenSearch and Meilisearch read pagination, sorting and post filters, and only Elasticsearch and OpenSearch highlight.
+- **Half the query model does little.** Pagination, sorting, facets, highlighting and post filters can be expressed; only Elasticsearch, OpenSearch and Meilisearch read pagination, sorting, post filters and facets (Meilisearch only top-level term facets), and only Elasticsearch and OpenSearch highlight.
 - **The tests pass while all of this is true.** They mostly assert `IsSuccess`, and `Result<bool>` can succeed with `false`.
 
 Nothing has shipped as stable, so breaking changes are still free. That window should be used, because it closes at 1.0.
@@ -24,11 +24,8 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Lifti query | `Field` is ignored: `Name=jane` also matches `City=Jane` | Only that field |
 | Lifti index | `CreateIndexAsync` on an existing index silently wipes its documents | An error or a no-op |
 | Lifti search | Searching a missing index creates it and returns no hits | A failed `Result`, as on the other providers, without creating the index |
-| Core | `IndexMultipleDocumentsAsync` indexes one at a time, so the provider bulk path is never used (*by inspection*) | Bulk indexing |
 | Core | Indexing observers live on a scoped service, so a subscription only sees the operations of its own scope (*by inspection*) | See phase 1 |
 | Lifti search | `Page` and `PageSize` are ignored; hits contain only an id | Paged hits with fields |
-| Elasticsearch | `IndexMultipleDocumentsAsync` returns `Result.Ok()` where a `Result<int>` is due, so `Value` is `0` even on success (*by inspection*) | The real count |
-| Elasticsearch | Bulk indexing ignores per-item failures (*by inspection*) | A failed `Result` naming them |
 
 ## Replacing Lifti: use Lucene.NET
 
@@ -63,7 +60,7 @@ Breaking, and cheapest now.
 - Stop catching `OperationCanceledException` in the indexing providers, and keep exceptions through `ExceptionalError`. (Done in #17: `SearchAsync` and the validator take a `CancellationToken`, and a cancelled search throws.)
 - Remove the global configuration singleton and the duplicate registrations. Add the missing `SetDocumentValidatorType`. (Done in #89: each `AddBetterSearch` call has its own configuration, the shared services are registered once, and without a provider every call that reaches the provider returns a failed `Result`.)
 - Replace the `IObservable` surface with something that fits its use, such as an indexing pipeline or events, or remove it. (The `IObserver` contract is fixed in #56: `OnNext` after each successful operation, nothing for a rejection or failure, `OnCompleted` only when the service is disposed.)
-- Pass bulk through to the provider from `IndexMultipleDocumentsAsync`.
+- Pass bulk through to the provider from `IndexMultipleDocumentsAsync`. (Done in #57: the service validates the whole batch first and makes one provider call, and every provider names the documents an engine rejects.)
 - Deduplicate the fluent API and fix the lost occurrence, with its first tests. (The occurrence is fixed in #85: a sub-query's own `Must()`, `Should()`, `MustNot()` or `Filter()` wins over its parent's, and `Bielu.BetterSearch.FluentApi.Tests` checks it for every query type. #86 shares one implementation between the top-level and nested `Create…Query` methods and covers the rest of the query model: spatial centre, fuzzy options, raw Lucene, boost, sorting, properties, post filters and highlighting.)
 - Decide the `SHOULD` semantics: follow Lucene, and write them down.
 
@@ -75,16 +72,16 @@ Breaking, and cheapest now.
 
 ### Phase 3: Elasticsearch search
 
-- ~~Implement sub-query translators, `SearchAsync`, result mapping, pagination and sorting.~~ Done; highlighting is done on Elasticsearch and OpenSearch; facets are still to come.
+- ~~Implement sub-query translators, `SearchAsync`, result mapping, pagination and sorting.~~ Done; highlighting is done on Elasticsearch and OpenSearch; facets are done on Elasticsearch, OpenSearch and Meilisearch (term facets only).
 - Run the same conformance suite as Lucene.
-- Fix the provider defects above: real return values, per-item bulk errors, non-mutating settings, options validation at startup.
+- Fix the provider defects above: real return values, non-mutating settings, options validation at startup.
 - Add a sample API to the AppHost, with `ServiceDefaults`.
 
 ### Phase 4: stabilize
 
 - One conformance suite covering every query type and boolean combination, run against both providers. the feature matrix (`docs/articles/feature-matrix.md`) becomes a record of its results.
 - OpenTelemetry traces and metrics, as in `Bielu.PersistentQueues`.
-- Facets, or remove them from the query model for 1.0.
+- ~~Facets, or remove them from the query model for 1.0.~~ Done (#20).
 - Turn on `Microsoft.CodeAnalysis.PublicApiAnalyzers`, enable CS1591 and document the public API.
 - Add `ship-public-api.mjs` to the release flow, a package icon, and an entry on packages.bielu.pl.
 - `npx changeset pre exit` for a release candidate.
