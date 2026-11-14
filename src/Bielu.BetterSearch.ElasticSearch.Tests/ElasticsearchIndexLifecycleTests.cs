@@ -67,7 +67,7 @@ public sealed class ElasticsearchIndexLifecycleTests(ElasticsearchResource elast
 
     protected override Task<IReadOnlyList<string>> AliasTargetsAsync(string alias) => IndexNamesAsync($"/_alias/{alias}");
 
-    protected override async Task RemovePendingAliasAsync(IndexRebuild rebuild)
+    protected override async Task BeginAbortAsync(IndexRebuild rebuild)
     {
         var client = await Services.GetRequiredService<IClientFactoryAsync<ElasticsearchClient>>().GetOrCreateClientAsync("any");
         var response = await client.Transport.RequestAsync<StringResponse>(Elastic.Transport.HttpMethod.DELETE, $"/{rebuild.TargetIndex}/_alias/{IndexNames.RebuildPendingAlias(rebuild.TargetIndex)}", cancellationToken: TestContext.Current.CancellationToken);

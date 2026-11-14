@@ -104,7 +104,7 @@ public sealed class TypesenseSearchProviderAsync(
         }
 
         var properties = query.Properties?.Where(property => !string.IsNullOrWhiteSpace(property)).Select(N.Name).ToHashSet(StringComparer.Ordinal);
-        var results = await RunAsync("search", query.Index, request.Value.Filter, sortFields, search =>
+        var results = await RunAsync("search", query.Index, IndexNames.WithPrefix(options.Value.IndexPrefix, query.Index), request.Value.Filter, sortFields, search =>
             {
                 search["page"] = page;
                 search["per_page"] = pageSize;
@@ -141,7 +141,7 @@ public sealed class TypesenseSearchProviderAsync(
             return request.ToResult<long>();
         }
 
-        var count = await RunAsync("count", query.Index, request.Value.Filter, [], search => search["per_page"] = 0,
+        var count = await RunAsync("count", query.Index, IndexNames.WithPrefix(options.Value.IndexPrefix, query.Index), request.Value.Filter, [], search => search["per_page"] = 0,
             result => result.GetProperty("found").GetInt64(), 0L, cancellationToken).ConfigureAwait(false);
         return count.IsSuccess ? count.WithSuccesses(request.Successes) : count;
     }
@@ -162,7 +162,8 @@ public sealed class TypesenseSearchProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-            var stored = await TypesenseDocument.GetAsync(client, index, id, cancellationToken).ConfigureAwait(false);
+            var collection = IndexNames.WithPrefix(optionsMonitor.CurrentValue.IndexPrefix, index);
+            var stored = await TypesenseDocument.GetAsync(client, collection, id, cancellationToken).ConfigureAwait(false);
             if (stored.IsFailed)
             {
                 return Result.Fail<SearchDocument?>($"Typesense get of document {id} failed: {stored.Errors[0].Message}");
@@ -192,11 +193,11 @@ public sealed class TypesenseSearchProviderAsync(
     }
 
     /// <summary>
-    /// Sends one search of <paramref name="index"/> with <paramref name="filter"/> and <paramref name="sortFields"/>,
+    /// Sends one search of <paramref name="collection"/>, the engine's name of <paramref name="index"/>, with <paramref name="filter"/> and <paramref name="sortFields"/>,
     /// <paramref name="configure"/> setting the rest, and reads the answer with <paramref name="read"/>; a filter no
     /// document can match gives <paramref name="none"/> without a request.
     /// </summary>
-    private async Task<Result<T>> RunAsync<T>(string operation, string index, TypesenseFilter filter,
+    private async Task<Result<T>> RunAsync<T>(string operation, string index, string collection, TypesenseFilter filter,
         List<(string Name, bool Desc)> sortFields, Action<JsonObject> configure, Func<JsonElement, T> read, T none,
         CancellationToken cancellationToken)
     {
@@ -207,7 +208,7 @@ public sealed class TypesenseSearchProviderAsync(
             var refresh = false;
             for (var attempt = 0; ; attempt++)
             {
-                var fields = await schema.FieldsAsync(client, index, refresh, cancellationToken).ConfigureAwait(false);
+                var fields = await schema.FieldsAsync(client, collection, refresh, cancellationToken).ConfigureAwait(false);
                 if (fields.IsFailed)
                 {
                     return Result.Fail<T>(new Error($"Typesense {operation} failed: {fields.Errors[0].Message}"));
@@ -239,7 +240,7 @@ public sealed class TypesenseSearchProviderAsync(
 
                 var search = new JsonObject
                 {
-                    ["collection"] = index,
+                    ["collection"] = collection,
                     ["q"] = "*",
                 };
                 configure(search);
@@ -274,7 +275,7 @@ public sealed class TypesenseSearchProviderAsync(
                     // The collection was recreated without a field the cached schema still held: read it again once.
                     if (attempt == 0 && message.StartsWith("Could not find a ", StringComparison.Ordinal))
                     {
-                        schema.Forget(client, index);
+                        schema.Forget(client, collection);
                         refresh = true;
                         continue;
                     }

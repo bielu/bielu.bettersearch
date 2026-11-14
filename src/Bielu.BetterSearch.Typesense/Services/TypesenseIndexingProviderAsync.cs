@@ -14,13 +14,14 @@ namespace Bielu.BetterSearch.Typesense.Services;
 
 /// <summary>
 /// Writes to Typesense collections. Typesense applies each write before it answers, so a document is searchable once a
-/// write succeeds. A missing collection is created, with the provider's schema, by the first write to it.
+/// write succeeds. A missing collection is created, with the provider's schema, by the first write to it. Every
+/// collection name has <see cref="TypesenseOptions.IndexPrefix"/> before it.
 /// </summary>
-public sealed class TypesenseIndexingProviderAsync(
+public sealed partial class TypesenseIndexingProviderAsync(
     IClientFactoryAsync<TypesenseHttpClientWrapper> clientFactory,
     IOptionsMonitor<TypesenseOptions> optionsMonitor,
     TypesenseSchema schema,
-    ILogger<TypesenseIndexingProviderAsync> logger) : IIndexingProviderAsync
+    ILogger<TypesenseIndexingProviderAsync> logger) : IIndexingProviderAsync, IIndexLifecycleProviderAsync
 {
     /// <summary>The most ids one delete by filter names.</summary>
     internal const int RemoveBatchSize = 100;
@@ -51,7 +52,7 @@ public sealed class TypesenseIndexingProviderAsync(
         var errors = new List<IError>();
         foreach (var indexGroup in searchDocuments.GroupBy(x => x.Index))
         {
-            var indexed = await ImportAsync(indexGroup.Key, indexGroup.ToList(), cancellationToken).ConfigureAwait(false);
+            var indexed = await ImportAsync(indexGroup.Key, null, indexGroup.Key, true, indexGroup.ToList(), cancellationToken).ConfigureAwait(false);
             errors.AddRange(indexed.Errors);
         }
 
@@ -64,7 +65,14 @@ public sealed class TypesenseIndexingProviderAsync(
     /// sent, so an invalid one stores none of them. Typesense applies each document on its own, so a rejected one
     /// leaves the others stored, and the error names the rejected ones.
     /// </summary>
-    private async Task<Result> ImportAsync(string index, IReadOnlyList<SearchDocument> documents, CancellationToken cancellationToken)
+    /// <param name="index">The index name the client settings are looked up by.</param>
+    /// <param name="collection">The collection the documents are sent to; <c>null</c> for the one <paramref name="index"/> names.</param>
+    /// <param name="label">How errors name the collection.</param>
+    /// <param name="createMissing">Whether a missing collection is created; otherwise a missing collection fails the import.</param>
+    /// <param name="documents">The documents to upsert.</param>
+    /// <param name="cancellationToken">Cancels the import between and during requests.</param>
+    private async Task<Result> ImportAsync(string index, string? collection, string label, bool createMissing, IReadOnlyList<SearchDocument> documents,
+        CancellationToken cancellationToken)
     {
         var options = optionsMonitor.TryCurrentValue();
         if (options.IsFailed)
@@ -72,6 +80,7 @@ public sealed class TypesenseIndexingProviderAsync(
             return options.ToResult();
         }
 
+        collection ??= IndexNames.WithPrefix(options.Value.IndexPrefix, index);
         var geoField = options.Value.GeoField;
         // Each document is converted again when its request is built, so only one request's documents are held at once.
         var invalid = documents.Select(document => TypesenseDocument.From(document, geoField))
@@ -103,10 +112,10 @@ public sealed class TypesenseIndexingProviderAsync(
             var notSent = documents.Skip(i + 1).Select(document => document.Id).ToList();
             try
             {
-                var imported = await ImportBatchAsync(index, lines.ToString(), batch, cancellationToken).ConfigureAwait(false);
+                var imported = await ImportBatchAsync(index, collection, createMissing, lines.ToString(), batch, cancellationToken).ConfigureAwait(false);
                 if (imported.IsFailed)
                 {
-                    return Result.Fail(DocumentIds.IndexFailedError(index, stored, documents.Count, [.. failed, .. batch, .. notSent],
+                    return Result.Fail(DocumentIds.IndexFailedError(label, stored, documents.Count, [.. failed, .. batch, .. notSent],
                         imported.Errors[0].Message));
                 }
 
@@ -118,7 +127,7 @@ public sealed class TypesenseIndexingProviderAsync(
             {
                 // The request may have reached Typesense before it failed, so any of its documents may be stored.
                 List<string> ids = [.. failed, .. batch, .. notSent];
-                return Result.Fail(new Error($"Indexing documents into {index} did not finish: {e.Message}. {stored} of {documents.Count} documents were indexed before the failed request, " +
+                return Result.Fail(new Error($"Indexing documents into {label} did not finish: {e.Message}. {stored} of {documents.Count} documents were indexed before the failed request, " +
                                              $"Typesense may have stored any or all of the {batch.Count} documents in it, and {notSent.Count} were not sent.")
                     .WithMetadata("ids", ids).CausedBy(e));
             }
@@ -129,22 +138,22 @@ public sealed class TypesenseIndexingProviderAsync(
 
         return failed.Count == 0
             ? Result.Ok()
-            : Result.Fail(DocumentIds.IndexFailedError(index, stored, documents.Count, failed, reason ?? string.Empty));
+            : Result.Fail(DocumentIds.IndexFailedError(label, stored, documents.Count, failed, reason ?? string.Empty));
     }
 
     /// <summary>
     /// Sends one import request: the ids Typesense rejected, and its first reason, or a failure when the request as a
     /// whole failed, which stored none of them.
     /// </summary>
-    private async Task<Result<(List<string> Failed, string? Reason)>> ImportBatchAsync(string index, string lines, List<string> ids,
-        CancellationToken cancellationToken)
+    private async Task<Result<(List<string> Failed, string? Reason)>> ImportBatchAsync(string index, string collection, bool createMissing, string lines,
+        List<string> ids, CancellationToken cancellationToken)
     {
         var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-        var path = $"collections/{TypesenseHttpClientWrapper.Escape(index)}/documents/import?action=upsert";
+        var path = $"collections/{TypesenseHttpClientWrapper.Escape(collection)}/documents/import?action=upsert";
         var response = await client.SendAsync(HttpMethod.Post, path, () => new StringContent(lines, Encoding.UTF8, "text/plain"), cancellationToken).ConfigureAwait(false);
-        if (response.StatusCode == HttpStatusCode.NotFound)
+        if (response.StatusCode == HttpStatusCode.NotFound && createMissing)
         {
-            var created = await CreateCollectionAsync(client, index, cancellationToken).ConfigureAwait(false);
+            var created = await CreateCollectionAsync(client, collection, cancellationToken).ConfigureAwait(false);
             if (created.IsFailed)
             {
                 return created.ToResult<(List<string>, string?)>();
@@ -159,7 +168,7 @@ public sealed class TypesenseIndexingProviderAsync(
         }
 
         // The documents may have added fields, which a search should see at once.
-        schema.Forget(client, index);
+        schema.Forget(client, collection);
 
         var failed = new List<string>();
         string? reason = null;
@@ -184,10 +193,11 @@ public sealed class TypesenseIndexingProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(type).ConfigureAwait(false);
+            var collection = TypesenseHttpClientWrapper.Escape(Name(type));
             // A '.' or '..' path segment would be resolved away, so such an id is deleted by filter instead.
             var path = id is "." or ".."
-                ? $"collections/{TypesenseHttpClientWrapper.Escape(type)}/documents?filter_by={Uri.EscapeDataString($"id:[`{id}`]")}"
-                : $"collections/{TypesenseHttpClientWrapper.Escape(type)}/documents/{TypesenseHttpClientWrapper.Escape(id)}";
+                ? $"collections/{collection}/documents?filter_by={Uri.EscapeDataString($"id:[`{id}`]")}"
+                : $"collections/{collection}/documents/{TypesenseHttpClientWrapper.Escape(id)}";
             var response = await client.SendAsync(HttpMethod.Delete, path, null, cancellationToken).ConfigureAwait(false);
             if (response.IsSuccess)
             {
@@ -233,7 +243,7 @@ public sealed class TypesenseIndexingProviderAsync(
                 var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
                 var filter = RemoveFilter(batches[i]);
                 var response = await client.SendAsync(HttpMethod.Delete,
-                    $"collections/{TypesenseHttpClientWrapper.Escape(index)}/documents?filter_by={filter}", null, cancellationToken).ConfigureAwait(false);
+                    $"collections/{TypesenseHttpClientWrapper.Escape(Name(index))}/documents?filter_by={filter}", null, cancellationToken).ConfigureAwait(false);
                 if (!response.IsSuccess)
                 {
                     return Result.Fail<int>(DocumentIds.FailedError(index, removed, distinctIds.Value.Count, remaining, response.Describe()));
@@ -257,7 +267,7 @@ public sealed class TypesenseIndexingProviderAsync(
         {
             var client = await clientFactory.GetOrCreateClientAsync(index.IndexName).ConfigureAwait(false);
             var response = await client.SendAsync(HttpMethod.Delete,
-                $"collections/{TypesenseHttpClientWrapper.Escape(index.IndexName)}/documents?truncate=true", null, cancellationToken).ConfigureAwait(false);
+                $"collections/{TypesenseHttpClientWrapper.Escape(Name(index.IndexName))}/documents?truncate=true", null, cancellationToken).ConfigureAwait(false);
             return response.IsSuccess
                 ? Result.Ok<long?>(DeletedCount(response))
                 : Result.Fail<long?>($"Removing every document from {index.IndexName} failed: {response.Describe()}");
@@ -299,7 +309,8 @@ public sealed class TypesenseIndexingProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-            var stored = await TypesenseDocument.GetAsync(client, index, id, cancellationToken).ConfigureAwait(false);
+            var collection = Name(index);
+            var stored = await TypesenseDocument.GetAsync(client, collection, id, cancellationToken).ConfigureAwait(false);
             if (stored.IsFailed || stored.Value is not { } current)
             {
                 return stored.IsFailed
@@ -331,7 +342,7 @@ public sealed class TypesenseIndexingProviderAsync(
             }
 
             var line = body.ToJsonString();
-            var response = await client.SendAsync(HttpMethod.Post, $"collections/{TypesenseHttpClientWrapper.Escape(index)}/documents/import?action=update",
+            var response = await client.SendAsync(HttpMethod.Post, $"collections/{TypesenseHttpClientWrapper.Escape(collection)}/documents/import?action=update",
                 () => new StringContent(line, Encoding.UTF8, "text/plain"), cancellationToken).ConfigureAwait(false);
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
@@ -345,7 +356,7 @@ public sealed class TypesenseIndexingProviderAsync(
             }
 
             // The update may have added fields, which a search should see at once.
-            schema.Forget(client, index);
+            schema.Forget(client, collection);
             using var result = JsonDocument.Parse(response.Body.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "{}");
             if (result.RootElement.TryGetProperty("success", out var success) && success.GetBoolean())
             {
@@ -386,8 +397,20 @@ public sealed class TypesenseIndexingProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-            schema.Forget(client, index);
-            var response = await client.SendAsync(HttpMethod.Delete, $"collections/{TypesenseHttpClientWrapper.Escape(index)}", null, cancellationToken).ConfigureAwait(false);
+            var name = Name(index);
+            schema.Forget(client, name);
+            var aliased = await AliasTargetAsync(client, name, cancellationToken).ConfigureAwait(false);
+            if (aliased.IsFailed)
+            {
+                return aliased.ToResult<bool>();
+            }
+
+            if (aliased.Value is { } live)
+            {
+                return await DeleteAliasedAsync(client, index, name, live, cancellationToken).ConfigureAwait(false);
+            }
+
+            var response = await client.SendAsync(HttpMethod.Delete, $"collections/{TypesenseHttpClientWrapper.Escape(name)}", null, cancellationToken).ConfigureAwait(false);
             return response.IsSuccess
                 ? Result.Ok(true)
                 : Result.Fail<bool>($"Deleting index {index} failed: {response.Describe()}");
@@ -403,7 +426,7 @@ public sealed class TypesenseIndexingProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-            var response = await client.SendAsync(HttpMethod.Get, $"collections/{TypesenseHttpClientWrapper.Escape(index)}", null, cancellationToken).ConfigureAwait(false);
+            var response = await client.SendAsync(HttpMethod.Get, $"collections/{TypesenseHttpClientWrapper.Escape(Name(index))}", null, cancellationToken).ConfigureAwait(false);
             if (response.IsSuccess)
             {
                 return Result.Ok(true);
@@ -424,7 +447,7 @@ public sealed class TypesenseIndexingProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-            return await CreateCollectionAsync(client, index, cancellationToken).ConfigureAwait(false);
+            return await CreateCollectionAsync(client, Name(index), cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -452,6 +475,9 @@ public sealed class TypesenseIndexingProviderAsync(
         logger.LogError("Creating index {Index} failed: {Error}", index, response.Describe());
         return Result.Fail<bool>($"Creating index {index} failed: {response.Describe()}");
     }
+
+    /// <summary>The collection Typesense knows <paramref name="index"/> by, with the configured prefix.</summary>
+    private string Name(string index) => IndexNames.WithPrefix(optionsMonitor.CurrentValue.IndexPrefix, index);
 
     private static bool IsMissingCollection(TypesenseResponse response) =>
         response.Message.Contains("Collection not found", StringComparison.OrdinalIgnoreCase);
