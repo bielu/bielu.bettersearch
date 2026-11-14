@@ -86,7 +86,14 @@ Documents are stored with their values under `fields`, as with Elasticsearch, so
 - **Sorting on a text field** is rejected by OpenSearch; sort on `Field.keyword`.
 - **`SpatialSearchQuery`** needs the field mapped as `geo_point`; dynamic mapping doesn't create one.
 - **`LuceneQuery`** field names need the `fields.` prefix.
-- **`FuzzyQuery`** allows at most 2 edits, and uses `AUTO` when `Fuziness` is unset.
+- **`FuzzyQuery`** allows at most 2 edits, and uses `AUTO` when `Fuziness` is unset. A value that is not a string or
+  a number, such as a date or a boolean, returns a failed `Result`.
+- **Dates are stored and queried as ISO 8601 text in UTC**, with fractional seconds only when they are not zero
+  (`2026-11-08T13:05:00Z`, `2026-11-08T13:05:00.123Z`). A local `DateTime` and a `DateTimeOffset` are converted to
+  UTC, and a `DateTime` with `Kind.Unspecified` is taken as UTC, so a date comes back from a search in UTC. A
+  `TermQuery`, `TermsQuery` or `PrefixQuery` with a date value matches that text on a keyword field. Dynamic mapping maps these strings as
+  dates, which OpenSearch rejects a prefix query on. Re-index documents indexed before this version, which keep the text
+  the client wrote then.
 - **Total hit count** is exact up to `MaxResultWindow` matches, then a lower bound.
 
 ## Highlighting

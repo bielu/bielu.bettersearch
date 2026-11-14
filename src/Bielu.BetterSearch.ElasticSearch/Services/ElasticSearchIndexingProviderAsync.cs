@@ -16,7 +16,7 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
     public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(document.Index, async client =>
         {
-            var indexResult = await client.IndexAsync(document, document.Index, document.Id, cancellationToken).ConfigureAwait(false);
+            var indexResult = await client.IndexAsync(StoredFields.WithDatesAsText(document), document.Index, document.Id, cancellationToken).ConfigureAwait(false);
             return indexResult.IsSuccess() ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
         }, cancellationToken);
 
@@ -30,7 +30,7 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
         {
             results.Add(await clientFactory.TryWithClientAsync(indexGroup.Key, async client =>
             {
-                var bulkResponse = await client.BulkAsync(b => b.IndexMany(indexGroup.Select(x => x), (descriptor, _) => descriptor.Index(indexGroup.Key)), cancellationToken).ConfigureAwait(false);
+                var bulkResponse = await client.BulkAsync(b => b.IndexMany(indexGroup.Select(StoredFields.WithDatesAsText), (descriptor, _) => descriptor.Index(indexGroup.Key)), cancellationToken).ConfigureAwait(false);
                 return bulkResponse.IsSuccess() ? Result.Ok() : Result.Fail(new Error(bulkResponse.DebugInformation));
             }, cancellationToken).ConfigureAwait(false));
         }

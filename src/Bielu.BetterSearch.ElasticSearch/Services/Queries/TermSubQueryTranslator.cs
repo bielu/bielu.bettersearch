@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using FluentResults;
@@ -28,12 +29,12 @@ internal sealed class TermSubQueryTranslator : ElasticSearchSubQueryTranslator<T
 
     /// <summary>
     /// Text is indexed lower-cased by the default analyzer, so string terms match case-insensitively,
-    /// as they do in the other providers.
+    /// as they do in the other providers. A date is sent as the text it is stored as.
     /// </summary>
     internal static EsQuery Create(string field, object value, float? boost) => new TermQuery
     {
         Field = field,
-        Value = FieldValue.FromValue(value),
+        Value = FieldValue.FromValue(QueryValueText.IsDate(value) ? QueryValueText.From(value) : value),
         CaseInsensitive = value is string ? true : null,
         Boost = boost
     };
