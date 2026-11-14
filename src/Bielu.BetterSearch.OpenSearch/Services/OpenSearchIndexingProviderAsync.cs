@@ -24,18 +24,33 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
         CancellationToken cancellationToken = default)
     {
         var searchDocuments = documents.ToList();
-        var results = new List<Result>();
+        var results = new List<Result<int>>();
         foreach (var indexGroup in searchDocuments.GroupBy(x => x.Index))
         {
+            var group = indexGroup.ToList();
             results.Add(await clientFactory.TryWithClientAsync(indexGroup.Key, async client =>
             {
-                var response = await client.BulkAsync(b => b.Index(indexGroup.Key).IndexMany(indexGroup.Select(StoredFields.WithDatesAsText), (descriptor, document) => descriptor.Id(document.Id)), cancellationToken).ConfigureAwait(false);
-                return IsSuccess(response) ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
+                var response = await client.BulkAsync(b => b.Index(indexGroup.Key).IndexMany(group.Select(StoredFields.WithDatesAsText), (descriptor, document) => descriptor.Id(document.Id)), cancellationToken).ConfigureAwait(false);
+                // A request rejected as a whole, such as a 403, has no items.
+                if (response.Items is null || response.Items.Count != group.Count)
+                {
+                    return Result.Fail<int>(RequestFailed(OpenSearchFailures.Describe("bulk index", response), response.OriginalException));
+                }
+
+                // OpenSearch applies each item on its own, so the documents it accepted stay stored.
+                var failed = response.Items.Where(item => item.Error is not null || item.Status is < 200 or >= 300).ToList();
+                if (failed.Count > 0)
+                {
+                    return Result.Fail<int>(DocumentIds.IndexFailedError(indexGroup.Key, group.Count - failed.Count, group.Count,
+                        failed.Select(item => item.Id ?? "(unknown)").ToList(), failed[0].Error?.Reason ?? $"status {failed[0].Status}"));
+                }
+
+                return Result.Ok(group.Count);
             }, cancellationToken).ConfigureAwait(false));
         }
 
         var merged = results.Merge();
-        return merged.IsSuccess ? Result.Ok(searchDocuments.Count) : Result.Fail<int>(merged.Errors);
+        return merged.IsSuccess ? Result.Ok(merged.Value.Sum()) : Result.Fail<int>(merged.Errors);
     }
 
     public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) =>

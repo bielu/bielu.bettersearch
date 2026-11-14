@@ -131,6 +131,15 @@ accepts, and translated into one filter. `OR` is the default operator, as on Ela
 A warning is a FluentResults success reason, so a caller finds it with
 `result.Successes.OfType<TranslationWarning>()`. `SearchServiceAsync` returns it with the hits.
 
+## Indexing several documents
+
+`IndexMultipleDocumentsAsync` adds each index's documents in one task and returns how many documents it
+indexed. Meilisearch applies the task or fails it as a whole, so when it rejects one document (an invalid id,
+say), the `Result` fails naming every id of that index, with all of them in the error's `ids` metadata, and
+none of them is stored. When the wait for the task times out (`TaskTimeout`), the `Result` fails saying the
+task was queued and may still index any or all of the documents, with the task's uid in the error's `taskUid`
+metadata.
+
 ## Removing documents
 
 `DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.

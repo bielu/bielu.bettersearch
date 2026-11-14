@@ -8,8 +8,6 @@ filters, highlighting and scores.
 > **What won't work**
 >
 > - **Facets** can be expressed, but a query that asks for them returns a failed `Result`.
-> - **Bulk indexing**: Core's `IndexingServiceAsync.IndexMultipleDocumentsAsync` indexes one document at a time,
->   so this provider's `BulkAsync` path is never used.
 >
 > Invalid or missing connection settings throw from searching; every indexing method turns them into a
 > failed `Result`. A request that throws, as it does when `ThrowExceptions()` is on in the client settings, is
@@ -113,6 +111,14 @@ the field name without the `fields.` prefix (`Name`, also when the request names
 - **Invalid requests** return a failed `Result`: a `null` entry, an entry with neither `Field` nor
   `IsAllField`, two entries for the same field, also under different names for it (`Name` and `fields.Name`),
   and a `null` clause in a request's own `Queries`.
+
+## Indexing several documents
+
+`IndexMultipleDocumentsAsync` sends one bulk request per index and returns how many documents it indexed.
+Elasticsearch applies each document of a bulk request on its own, so when it rejects some (a value that doesn't fit
+the field's mapping, say), the `Result` fails naming their ids, with every id in the error's `ids` metadata,
+and the other documents are already stored. A request rejected as a whole, such as a 403, is a failed `Result`
+with Elasticsearch's error.
 
 ## Removing documents
 

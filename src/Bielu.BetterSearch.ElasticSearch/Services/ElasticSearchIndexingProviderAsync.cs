@@ -23,19 +23,39 @@ public class ElasticSearchIndexingProviderAsync(IClientFactoryAsync<Elasticsearc
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents,
         CancellationToken cancellationToken = default)
     {
-        //implement bulk indexing
         var searchDocuments = documents.ToList();
-        var results = new List<Result>();
+        var results = new List<Result<int>>();
         foreach (var indexGroup in searchDocuments.GroupBy(x => x.Index))
         {
+            var group = indexGroup.ToList();
             results.Add(await clientFactory.TryWithClientAsync(indexGroup.Key, async client =>
             {
-                var bulkResponse = await client.BulkAsync(b => b.IndexMany(indexGroup.Select(StoredFields.WithDatesAsText), (descriptor, _) => descriptor.Index(indexGroup.Key)), cancellationToken).ConfigureAwait(false);
-                return bulkResponse.IsSuccess() ? Result.Ok() : Result.Fail(new Error(bulkResponse.DebugInformation));
+                var request = new BulkRequest(indexGroup.Key)
+                {
+                    Operations = new BulkOperationsCollection(group.Select(document =>
+                        new BulkIndexOperation<SearchDocument>(StoredFields.WithDatesAsText(document)) { Id = document.Id })),
+                };
+                var response = await client.BulkAsync(request, cancellationToken).ConfigureAwait(false);
+                // A request rejected as a whole, such as a 403, has no items.
+                if (response.Items is null || response.Items.Count != group.Count)
+                {
+                    return Result.Fail<int>(RequestFailed(ElasticSearchFailures.Describe("bulk index", response), response.ApiCallDetails?.OriginalException));
+                }
+
+                // Elasticsearch applies each item on its own, so the documents it accepted stay stored.
+                var failed = response.Items.Where(item => item.Error is not null || item.Status is < 200 or >= 300).ToList();
+                if (failed.Count > 0)
+                {
+                    return Result.Fail<int>(DocumentIds.IndexFailedError(indexGroup.Key, group.Count - failed.Count, group.Count,
+                        failed.Select(item => item.Id ?? "(unknown)").ToList(), failed[0].Error?.Reason ?? $"status {failed[0].Status}"));
+                }
+
+                return Result.Ok(group.Count);
             }, cancellationToken).ConfigureAwait(false));
         }
 
-        return results.Merge();
+        var merged = results.Merge();
+        return merged.IsSuccess ? Result.Ok(merged.Value.Sum()) : Result.Fail<int>(merged.Errors);
     }
 
     public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) =>

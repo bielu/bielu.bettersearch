@@ -44,11 +44,29 @@ public sealed class MeilisearchIndexingProviderAsync(
         var results = new List<Result>();
         foreach (var indexGroup in searchDocuments.GroupBy(x => x.Index))
         {
-            results.Add(await IndexDocumentsAsync(indexGroup.Key, indexGroup.ToList(), cancellationToken).ConfigureAwait(false));
+            var group = indexGroup.ToList();
+            var indexed = await IndexDocumentsAsync(indexGroup.Key, group, cancellationToken).ConfigureAwait(false);
+            results.Add(indexed.IsSuccess ? indexed : Result.Fail(IndexFailedError(indexGroup.Key, group, indexed.Errors)));
         }
 
         var merged = results.Merge();
         return merged.IsSuccess ? Result.Ok(searchDocuments.Count) : Result.Fail<int>(merged.Errors);
+    }
+
+    /// <summary>
+    /// The error for one index of a bulk write. Meilisearch adds an index's documents in one task, which succeeds or
+    /// fails whole, so none of <paramref name="documents"/> is stored, unless the task was queued but not seen to finish.
+    /// </summary>
+    private static Error IndexFailedError(string index, IReadOnlyCollection<SearchDocument> documents, IReadOnlyList<IError> errors)
+    {
+        var ids = documents.Select(document => document.Id).ToList();
+        var error = errors[0].Metadata.TryGetValue(QueuedTaskUid, out var taskUid)
+            ? new Error($"Indexing documents into {index} did not finish: {errors[0].Message}. Meilisearch task {taskUid} was queued and may still index any or all of the {ids.Count} documents.")
+                .WithMetadata("ids", ids)
+            : DocumentIds.IndexFailedError(index, 0, ids.Count, ids, string.Join("; ", errors.Select(e => e.Message)));
+        // Keeps Meilisearch's code in the code metadata, as the other writes do.
+        return error.WithMetadata(errors[0].Metadata.Where(entry => entry.Key != "ids").ToDictionary())
+            .CausedBy(errors);
     }
 
     public async Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default)
