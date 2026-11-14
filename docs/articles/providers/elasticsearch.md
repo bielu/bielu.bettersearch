@@ -67,9 +67,20 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddElas
 | `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
 | `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` sends in one bulk request, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails |
 | `WriteVisibility` | `Default` or `WaitUntilSearchable`, in `SharedIndexSettings` or an `Indexes` entry; see [When writes are searchable](#when-writes-are-searchable). An entry that leaves it out takes the shared value, and `"WriteVisibility": "Default"` there turns the shared one off |
-| `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. A page past it returns a failed `Result`. It must be greater than 0, or every search fails with a configuration error |
+| `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. A page past it returns a failed `Result`. It must be greater than 0, or startup validation fails |
 
 You can also set the options in code with `services.Configure<ElasticSearchOptions>(...)`.
+
+The options are validated at startup (`ValidateOnStart`), so a host with invalid settings fails to start with
+`OptionsValidationException`, listing every setting that is wrong, each by its configuration path. The connection
+string and authentication are checked as each call checks them, after merging each `Indexes` entry with
+`SharedIndexSettings`. For example `ConnectionString is not an http or https URL. Set
+Bielu:BetterSearch:ElasticSearch:Indexes:people:ConnectionString, or Bielu:BetterSearch:ElasticSearch:SharedIndexSettings:ConnectionString for every index.`
+The messages never include a setting's value. A missing section, or one whose name is misspelled, gives the single
+failure `No Bielu:BetterSearch:ElasticSearch settings were found.`, naming the section. The shared settings are not checked when they set
+no connection and every `Indexes` entry sets its own; an index not listed then fails when it is used. `MaxResultWindow` must be greater than 0. The same
+checks run whenever the options are read, so after a configuration reload to invalid settings, every call returns a
+failed `Result` with the same messages.
 
 ## How queries behave
 

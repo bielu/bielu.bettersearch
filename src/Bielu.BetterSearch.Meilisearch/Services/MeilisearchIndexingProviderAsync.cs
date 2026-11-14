@@ -199,7 +199,13 @@ public sealed class MeilisearchIndexingProviderAsync(
     private async Task<(Result Result, bool MayBeStored)> AddDocumentsAsync(string index, IReadOnlyCollection<SearchDocument> documents,
         CancellationToken cancellationToken)
     {
-        var options = optionsMonitor.CurrentValue;
+        var currentOptions = optionsMonitor.TryCurrentValue();
+        if (currentOptions.IsFailed)
+        {
+            return (currentOptions.ToResult(), false);
+        }
+
+        var options = currentOptions.Value;
         var phraseFields = options.PhraseFields?.ToHashSet(StringComparer.Ordinal);
         var converted = documents.Select(document => MeilisearchDocument.From(document, options.GeoField, phraseFields)).ToList();
         var invalid = converted.Where(document => document.IsFailed).SelectMany(document => document.Errors).ToList();
@@ -240,7 +246,13 @@ public sealed class MeilisearchIndexingProviderAsync(
     /// </summary>
     private async Task<Result> ConfigureIndexAsync(string index, CancellationToken cancellationToken)
     {
-        var options = optionsMonitor.CurrentValue;
+        var currentOptions = optionsMonitor.TryCurrentValue();
+        if (currentOptions.IsFailed)
+        {
+            return currentOptions.ToResult();
+        }
+
+        var options = currentOptions.Value;
         var maxTotalHits = options.MaxTotalHits;
         MeilisearchClient client;
         try

@@ -37,11 +37,17 @@ public class ElasticSearchSearchProviderAsync(
             return Result.Fail<ISearchResult>("The Elasticsearch provider does not support facets yet.");
         }
 
-        var maxResultWindow = optionsMonitor.CurrentValue.MaxResultWindow;
-        if (maxResultWindow <= 0)
+        var options = optionsMonitor.TryCurrentValue();
+        if (options.IsFailed)
         {
-            return Result.Fail<ISearchResult>(
-                $"MaxResultWindow is {maxResultWindow}, but it must be greater than 0. Set {ElasticSearchOptions.ElasticSearchOptionsKey}:MaxResultWindow to the indexes' index.max_result_window.");
+            return options.ToResult<ISearchResult>();
+        }
+
+        // Checked here too for a monitor that doesn't validate, with the validator's message.
+        var maxResultWindow = options.Value.MaxResultWindow;
+        if (ConnectionSettingsChecks.GreaterThanZeroFailure($"{ElasticSearchOptions.ElasticSearchOptionsKey}:MaxResultWindow", maxResultWindow) is { } invalidWindow)
+        {
+            return Result.Fail<ISearchResult>(invalidWindow);
         }
 
         if (LastResultOf(query) > maxResultWindow)

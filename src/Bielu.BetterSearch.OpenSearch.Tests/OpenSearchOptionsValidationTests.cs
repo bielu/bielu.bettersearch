@@ -1,7 +1,9 @@
-﻿using Bielu.BetterSearch.DepedencyInjection;
+﻿using Bielu.BetterSearch.Configuration;
+using Bielu.BetterSearch.DepedencyInjection;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
 using Bielu.BetterSearch.OpenSearch.Services;
+using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -9,9 +11,13 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.OpenSearch.Tests;
 
-public class OpenSearchOptionsValidationTests
+public class OpenSearchOptionsValidationTests : OptionsValidationTestBase
 {
     private const string Key = "Bielu:BetterSearch:OpenSearch";
+
+    protected override string OptionsKey => Key;
+
+    protected override void AddProvider(Configurator search, string key) => search.AddOpenSearch(key);
 
     private static ServiceProvider Services(Dictionary<string, string?> settings)
     {
@@ -142,5 +148,49 @@ public class OpenSearchOptionsValidationTests
         public OpenSearchOptions CurrentValue => value;
         public OpenSearchOptions Get(string? name) => value;
         public IDisposable? OnChange(Action<OpenSearchOptions, string?> listener) => null;
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    public void ValidateOnStart_MaxResultWindowNotPositive_FailsNamingTheSetting(string value)
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            ["MaxResultWindow"] = value,
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([$"{Key}:MaxResultWindow is {value}, but it must be greater than 0."]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_IndexApiKeyAuthenticationWithoutKey_FailsNamingTheIndexSetting()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            ["Indexes:people:AuthenticationType"] = "APIKEY",
+            ["Indexes:people:AuthenticationDetails:ApiKey"] = " ",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"APIKEY authentication needs AuthenticationDetails:ApiKey. Set {Key}:Indexes:people:AuthenticationDetails:ApiKey, or {Key}:SharedIndexSettings:AuthenticationDetails:ApiKey for every index."
+        ]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_SharedPasswordWithoutDetailsAndBadUrl_ListsBothFailures()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "localhost:9200",
+            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"ConnectionString is not an http or https URL. Set {Key}:SharedIndexSettings:ConnectionString, or {Key}:Indexes:<index>:ConnectionString for one index.",
+            $"PASSWORD authentication needs AuthenticationDetails. Set {Key}:SharedIndexSettings:AuthenticationDetails, or {Key}:Indexes:<index>:AuthenticationDetails for one index.",
+        ]);
     }
 }
