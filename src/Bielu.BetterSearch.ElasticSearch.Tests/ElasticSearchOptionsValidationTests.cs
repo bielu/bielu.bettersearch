@@ -269,4 +269,36 @@ public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
             $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:Indexes:people:AuthenticationDetails:Password, or {Key}:SharedIndexSettings:AuthenticationDetails:Password for every index."
         ]);
     }
+
+    [Theory]
+    [InlineData("SharedIndexSettings", "RequestTimeout", "00:00:00", "must be greater than 0.")]
+    [InlineData("Indexes:people", "RequestTimeout", "-00:00:01", "must be greater than 0.")]
+    [InlineData("SharedIndexSettings", "MaxRetries", "-1", "must not be negative.")]
+    [InlineData("Indexes:people", "MaxRetries", "-2", "must not be negative.")]
+    public void ValidateOnStart_InvalidClientSetting_ThrowsNamingTheSetting(string path, string setting, string value, string rule)
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            [$"{Key}:{path}:{setting}"] = value,
+        });
+
+        var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
+
+        exception.Failures.ShouldBe([$"{Key}:{path}:{setting} is {value}, but it {rule}"]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_ValidClientSettings_Passes()
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            [$"{Key}:SharedIndexSettings:RequestTimeout"] = "00:00:05",
+            [$"{Key}:SharedIndexSettings:MaxRetries"] = "0",
+            [$"{Key}:Indexes:people:RequestTimeout"] = "00:01:00",
+        });
+
+        Should.NotThrow(() => ValidateOnStart(services));
+    }
 }

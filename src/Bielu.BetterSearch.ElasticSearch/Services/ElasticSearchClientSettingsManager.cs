@@ -31,7 +31,7 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     /// <summary>
     /// Builds a new settings object, leaving the live options untouched: the index's connection string and
     /// authentication win, and an index without its own takes the shared one. Mappings are the shared ones with the
-    /// index's own on top, the bulk batch size is the index's own or else the shared one, and the index's write visibility wins over the shared one.
+    /// index's own on top, the bulk batch size is the index's own or else the shared one, the index's write visibility wins over the shared one, and so do its request timeout and retry count.
     /// </summary>
     internal static ElasticSearchIndexSettings MergeSettings(ElasticSearchIndexSettings indexSpecific,
         ElasticSearchIndexSettings shared)
@@ -48,6 +48,8 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
             Mappings = FieldMappings.Merge(shared.Mappings, indexSpecific.Mappings),
             BulkBatchSize = indexSpecific.BulkBatchSize ?? shared.BulkBatchSize,
             WriteVisibility = indexSpecific.WriteVisibility ?? shared.WriteVisibility ?? WriteVisibility.Default,
+            RequestTimeout = indexSpecific.RequestTimeout ?? shared.RequestTimeout,
+            MaxRetries = indexSpecific.MaxRetries ?? shared.MaxRetries,
         };
     }
 
@@ -88,12 +90,28 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     }
 
     /// <summary>
-    /// Builds the client settings, throwing an <see cref="ArgumentException"/> that names each setting to fix when
-    /// <see cref="ConnectionFailures"/> finds any.
+    /// Builds the client settings, with the request timeout and retry count when they are set, throwing an
+    /// <see cref="ArgumentException"/> that names each setting to fix when <see cref="ConnectionFailures"/> finds any.
     /// </summary>
     private static ElasticsearchClientSettings ParseMergedSettings(ElasticSearchIndexSettings settings)
     {
         ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, null));
+        var clientSettings = ConnectedSettings(settings);
+        if (settings.RequestTimeout is { } requestTimeout)
+        {
+            clientSettings.RequestTimeout(requestTimeout);
+        }
+
+        if (settings.MaxRetries is { } maxRetries)
+        {
+            clientSettings.MaximumRetries(maxRetries);
+        }
+
+        return clientSettings;
+    }
+
+    private static ElasticsearchClientSettings ConnectedSettings(ElasticSearchIndexSettings settings)
+    {
         var details = settings.AuthenticationDetails!;
         return (settings.AuthenticationType ?? AuthenticationType.NONE) switch
         {

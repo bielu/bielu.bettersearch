@@ -17,13 +17,21 @@ public static class RegisterSearchExtension
     /// <summary>
     /// Adds the Typesense provider under <paramref name="key"/>, so its services can be resolved with
     /// <c>[FromKeyedServices(key)]</c>; the unkeyed services use it when it is the only provider or the default.
+    /// <c>configureClient</c> sets what the options don't cover, such as a header, on the <see cref="HttpClient"/> of each
+    /// client the provider creates. It runs after the options are applied, so it can override them, and once per cached
+    /// client, not per request: clients are cached per connection. It applies to every Typesense client, whichever key routes to it.
     /// </summary>
-    public static Configurator AddTypesense(this Configurator configurator, string key = DefaultKey)
+    public static Configurator AddTypesense(this Configurator configurator, string key = DefaultKey,
+        Action<HttpClient>? configureClient = null)
     {
         // AddBetterSearch registers the validator and the indexing and search services after this runs.
         configurator.AddProvider<TypesenseSearchProviderAsync, TypesenseIndexingProviderAsync>(key);
         configurator.Services.AddSingleton<ITypesenseClientSettingsManager, TypesenseClientSettingsManager>();
-        configurator.Services.AddSingleton<IClientFactoryAsync<TypesenseHttpClientWrapper>, TypesenseClientFactory>();
+        ClientConfiguration<HttpClient>.Register(configurator.Services, configureClient);
+        configurator.Services.AddSingleton<IClientFactoryAsync<TypesenseHttpClientWrapper>>(services => new TypesenseClientFactory(
+            services.GetRequiredService<ITypesenseClientSettingsManager>(),
+            services.GetRequiredService<IOptionsMonitor<TypesenseOptions>>(),
+            services.GetServices<ClientConfiguration<HttpClient>>()));
         // Its constructor is internal, so it is built here rather than by the container.
         configurator.Services.AddSingleton(services => new TypesenseSchema(services.GetRequiredService<IOptionsMonitor<TypesenseOptions>>()));
         configurator.Services

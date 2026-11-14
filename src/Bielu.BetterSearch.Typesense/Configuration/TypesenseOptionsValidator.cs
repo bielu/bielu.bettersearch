@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 namespace Bielu.BetterSearch.Typesense.Configuration;
 
 /// <summary>
-/// Checks the connection settings and the schema check interval, at startup and whenever the options are read, listing
+/// Checks the connection settings, the request timeout and the schema check interval, at startup and whenever the options are read, listing
 /// every setting that is wrong and naming each one. The connection settings are checked as each call checks them, after
 /// merging each <c>Indexes</c> entry with the shared settings.
 /// </summary>
@@ -18,6 +18,7 @@ internal sealed class TypesenseOptionsValidator : IValidateOptions<TypesenseOpti
             .Concat(new[]
             {
                 ConnectionSettingsChecks.NotNegativeFailure($"{key}:{nameof(TypesenseOptions.SchemaCheckInterval)}", options.SchemaCheckInterval),
+                ConnectionSettingsChecks.NotNegativeFailure($"{key}:{nameof(TypesenseOptions.RequestTimeout)}", options.RequestTimeout),
             }.OfType<string>())
             .ToList();
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

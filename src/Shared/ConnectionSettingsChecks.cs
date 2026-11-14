@@ -60,6 +60,14 @@ internal static class ConnectionSettingsChecks
     public static string? GreaterThanZeroFailure(string path, long value) =>
         value > 0 ? null : $"{path} is {value}, but it must be greater than 0.";
 
+    /// <summary>A failure when the time span at <paramref name="path"/> is not greater than 0.</summary>
+    public static string? GreaterThanZeroFailure(string path, TimeSpan value) =>
+        value > TimeSpan.Zero ? null : $"{path} is {value}, but it must be greater than 0.";
+
+    /// <summary>A failure when the count at <paramref name="path"/> is negative.</summary>
+    public static string? NotNegativeFailure(string path, long value) =>
+        value >= 0 ? null : $"{path} is {value}, but it must not be negative.";
+
     /// <summary>A failure when the time span at <paramref name="path"/> is negative.</summary>
     public static string? NotNegativeFailure(string path, TimeSpan value) =>
         value >= TimeSpan.Zero ? null : $"{path} is {value}, but it must not be negative.";

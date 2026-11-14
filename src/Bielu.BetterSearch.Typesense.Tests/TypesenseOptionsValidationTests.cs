@@ -38,6 +38,13 @@ public class TypesenseOptionsValidationTests : OptionsValidationTestBase
     {
         Validate("SchemaCheckInterval", "00:00:00").ShouldBeNull();
     }
+
+    [Fact]
+    public void ValidateOnStart_RequestTimeoutNegative_FailsNamingTheSetting()
+    {
+        Validate("RequestTimeout", "-00:00:01").ShouldBe([$"{Key}:RequestTimeout is -00:00:01, but it must not be negative."]);
+    }
+
     [Fact]
     public async Task Providers_ReloadMakesSchemaCheckIntervalInvalid_ReturnFailedResultsNamingTheSetting()
     {

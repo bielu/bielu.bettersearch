@@ -28,7 +28,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
     /// <summary>
     /// Builds a new settings object, leaving the live options untouched: the index's connection string and
     /// authentication win, and an index without its own takes the shared one. Mappings are the shared ones with the
-    /// index's own on top, the bulk batch size is the index's own or else the shared one, and the index's write visibility wins over the shared one.
+    /// index's own on top, the bulk batch size is the index's own or else the shared one, the index's write visibility wins over the shared one, and so do its request timeout and retry count.
     /// </summary>
     internal static OpenSearchIndexSettings MergeSettings(OpenSearchIndexSettings indexSpecific,
         OpenSearchIndexSettings shared)
@@ -45,6 +45,8 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
             Mappings = FieldMappings.Merge(shared?.Mappings, indexSpecific.Mappings),
             BulkBatchSize = indexSpecific.BulkBatchSize ?? shared?.BulkBatchSize,
             WriteVisibility = indexSpecific.WriteVisibility ?? shared?.WriteVisibility ?? WriteVisibility.Default,
+            RequestTimeout = indexSpecific.RequestTimeout ?? shared?.RequestTimeout,
+            MaxRetries = indexSpecific.MaxRetries ?? shared?.MaxRetries,
         };
     }
 
@@ -89,6 +91,16 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
                 // OpenSearch API keys are sent as they are, "Authorization: ApiKey <token>", not encoded with an id.
                 connectionSettings.ApiKeyAuthentication(new ApiKeyAuthenticationCredentials(details.ApiKey));
                 break;
+        }
+
+        if (settings.RequestTimeout is { } requestTimeout)
+        {
+            connectionSettings.RequestTimeout(requestTimeout);
+        }
+
+        if (settings.MaxRetries is { } maxRetries)
+        {
+            connectionSettings.MaximumRetries(maxRetries);
         }
 
         return connectionSettings;

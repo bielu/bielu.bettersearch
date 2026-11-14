@@ -26,6 +26,7 @@
       <Compile Include="..\Shared\ConnectionSettingsChecks.cs" Link="Services\ConnectionSettingsChecks.cs" />
       <Compile Include="..\Shared\CurrentOptions.cs" Link="Services\CurrentOptions.cs" />
       <Compile Include="..\Shared\OptionsRegistration.cs" Link="Services\OptionsRegistration.cs" />
+      <Compile Include="..\Shared\ClientConfiguration.cs" Link="Services\ClientConfiguration.cs" />
     </ItemGroup>
 
 </Project>

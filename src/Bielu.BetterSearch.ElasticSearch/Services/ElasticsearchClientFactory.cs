@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
+using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using FluentResults;
 using Result = FluentResults.Result;
@@ -12,17 +13,39 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 /// settings an index connects with, not its name: indexes with the same connection string and authentication
 /// share a client, and a changed setting, such as a rotated password, gets a new client on the next call.
 /// The client for the old setting stays cached until the application restarts, which suits settings that rarely change.
+/// The request timeout and retry count are part of the key, so indexes that set different ones get different clients.
+/// The <c>configureClient</c> callbacks given to <c>AddElasticSearch</c> run on each client's settings once, when the
+/// client is created; two calls racing to create the same client can each run them, and only one client is kept.
 /// </summary>
-public class ElasticsearchClientFactory(IElasticSearchClientSettingsManager searchClientSettingsManager) : IClientFactoryAsync<ElasticsearchClient>
+public class ElasticsearchClientFactory : IClientFactoryAsync<ElasticsearchClient>
 {
     private readonly ConcurrentDictionary<ClientKey, Lazy<ElasticsearchClient>> _clients = new();
+    private readonly IElasticSearchClientSettingsManager searchClientSettingsManager;
+    private readonly IReadOnlyList<ClientConfiguration<ElasticsearchClientSettings>> clientConfigurations;
+
+    public ElasticsearchClientFactory(IElasticSearchClientSettingsManager searchClientSettingsManager)
+        : this(searchClientSettingsManager, [])
+    {
+    }
+
+    internal ElasticsearchClientFactory(IElasticSearchClientSettingsManager searchClientSettingsManager,
+        IEnumerable<ClientConfiguration<ElasticsearchClientSettings>> clientConfigurations)
+    {
+        this.searchClientSettingsManager = searchClientSettingsManager;
+        this.clientConfigurations = clientConfigurations.ToList();
+    }
 
     public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName)
     {
         var settings = searchClientSettingsManager.GetConnectionSettings(indexName);
         // PublicationOnly does not cache an exception, so invalid settings fail each call until they are fixed.
         var client = _clients.GetOrAdd(ClientKey.From(settings), _ => new Lazy<ElasticsearchClient>(
-            () => new ElasticsearchClient(searchClientSettingsManager.CreateClientSettings(settings)),
+            () =>
+            {
+                var clientSettings = searchClientSettingsManager.CreateClientSettings(settings);
+                ClientConfiguration<ElasticsearchClientSettings>.Apply(clientConfigurations, clientSettings);
+                return new ElasticsearchClient(clientSettings);
+            },
             LazyThreadSafetyMode.PublicationOnly));
         return Task.FromResult(client.Value);
     }
@@ -33,7 +56,9 @@ public class ElasticsearchClientFactory(IElasticSearchClientSettingsManager sear
         string? Id,
         string? Username,
         string? Password,
-        string? ApiKey)
+        string? ApiKey,
+        TimeSpan? RequestTimeout,
+        int? MaxRetries)
     {
         public static ClientKey From(ElasticSearchIndexSettings settings) => new(
             settings.ConnectionString,
@@ -41,11 +66,13 @@ public class ElasticsearchClientFactory(IElasticSearchClientSettingsManager sear
             settings.AuthenticationDetails?.Id,
             settings.AuthenticationDetails?.Username,
             settings.AuthenticationDetails?.Password,
-            settings.AuthenticationDetails?.ApiKey);
+            settings.AuthenticationDetails?.ApiKey,
+            settings.RequestTimeout,
+            settings.MaxRetries);
 
         // The generated ToString prints every member; keep the credentials out of logs and exception messages.
         public override string ToString() =>
-            $"{nameof(ClientKey)} {{ {nameof(ConnectionString)} = {ConnectionString}, {nameof(AuthenticationType)} = {AuthenticationType} }}";
+            $"{nameof(ClientKey)} {{ {nameof(ConnectionString)} = {ConnectionString}, {nameof(AuthenticationType)} = {AuthenticationType}, {nameof(RequestTimeout)} = {RequestTimeout}, {nameof(MaxRetries)} = {MaxRetries} }}";
     }
 }
 

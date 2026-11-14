@@ -8,14 +8,22 @@ namespace Bielu.BetterSearch.Typesense.Services;
 
 /// <summary>
 /// Each client owns an <see cref="HttpClient"/>, so clients are cached per set of nodes, key and timeout rather than
-/// created per call.
+/// created per call. The <c>configureClient</c> callbacks given to <c>AddTypesense</c> run on each client's
+/// <see cref="HttpClient"/> once, when the client is created.
 /// </summary>
 internal sealed class TypesenseClientFactory(
     ITypesenseClientSettingsManager settingsManager,
-    IOptionsMonitor<TypesenseOptions> optionsMonitor) : IClientFactoryAsync<TypesenseHttpClientWrapper>, IDisposable
+    IOptionsMonitor<TypesenseOptions> optionsMonitor,
+    IEnumerable<ClientConfiguration<HttpClient>> clientConfigurations) : IClientFactoryAsync<TypesenseHttpClientWrapper>, IDisposable
 {
     private readonly ConcurrentDictionary<ClientKey, Lazy<TypesenseHttpClientWrapper>> _clients = new();
     private readonly ConcurrentBag<HttpClient> _httpClients = [];
+    private readonly IReadOnlyList<ClientConfiguration<HttpClient>> _clientConfigurations = clientConfigurations.ToList();
+
+    public TypesenseClientFactory(ITypesenseClientSettingsManager settingsManager, IOptionsMonitor<TypesenseOptions> optionsMonitor)
+        : this(settingsManager, optionsMonitor, [])
+    {
+    }
 
     public Task<TypesenseHttpClientWrapper> GetOrCreateClientAsync(string indexName)
     {
@@ -32,6 +40,7 @@ internal sealed class TypesenseClientFactory(
         {
             var httpClient = new HttpClient { Timeout = k.Timeout > TimeSpan.Zero ? k.Timeout : Timeout.InfiniteTimeSpan };
             _httpClients.Add(httpClient);
+            ClientConfiguration<HttpClient>.Apply(_clientConfigurations, httpClient);
             return new TypesenseHttpClientWrapper(httpClient, nodes, k.ApiKey);
         })).Value);
     }

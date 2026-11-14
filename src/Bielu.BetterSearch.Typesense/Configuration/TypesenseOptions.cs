@@ -32,7 +32,10 @@ public class TypesenseOptions
         return copy;
     }
 
-    /// <summary>How long one request to one node may take before the next node is tried, or the request fails.</summary>
+    /// <summary>
+    /// How long one request to one node may take before the next node is tried, or the request fails.
+    /// <c>TimeSpan.Zero</c> means no timeout. It must not be negative.
+    /// </summary>
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
