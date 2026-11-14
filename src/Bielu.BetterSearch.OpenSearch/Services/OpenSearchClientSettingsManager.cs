@@ -52,24 +52,27 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
     /// The connection setting failures of <paramref name="settings"/>, already merged, each naming the setting to fix.
     /// The options validator runs the same checks at startup.
     /// </summary>
-    /// <remarks><c>index</c> is the <c>Indexes</c> entry the settings come from, or <c>null</c> when that is not known or they are the shared settings.</remarks>
-    internal static IEnumerable<string> ConnectionFailures(OpenSearchIndexSettings settings, string? index)
+    /// <remarks>
+    /// <c>connection</c> is where the connection string comes from, and <c>authentication</c> where the authentication
+    /// type and details come from, which an <c>Indexes</c> entry takes together.
+    /// </remarks>
+    internal static IEnumerable<string> ConnectionFailures(OpenSearchIndexSettings settings, SettingSource connection, SettingSource authentication)
     {
         var key = OpenSearchOptions.OpenSearchOptionsKey;
         var authenticationType = settings.AuthenticationType ?? OpenSearchAuthenticationType.NONE;
         var details = settings.AuthenticationDetails;
         string?[] failures =
         [
-            ConnectionSettingsChecks.HttpUrlFailure(key, index, settings.ConnectionString),
+            ConnectionSettingsChecks.HttpUrlFailure(key, connection, settings.ConnectionString),
             authenticationType switch
             {
                 OpenSearchAuthenticationType.NONE => null,
-                OpenSearchAuthenticationType.PASSWORD => ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                OpenSearchAuthenticationType.PASSWORD => ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(OpenSearchAuthenticationDetails.Username), details?.Username),
                     (nameof(OpenSearchAuthenticationDetails.Password), details?.Password)),
-                OpenSearchAuthenticationType.APIKEY => ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                OpenSearchAuthenticationType.APIKEY => ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(OpenSearchAuthenticationDetails.ApiKey), details?.ApiKey)),
-                _ => ConnectionSettingsChecks.UnknownAuthenticationTypeFailure(key, index, settings.AuthenticationType),
+                _ => ConnectionSettingsChecks.UnknownAuthenticationTypeFailure(key, authentication, settings.AuthenticationType),
             },
         ];
         return failures.OfType<string>();
@@ -77,7 +80,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
 
     public ConnectionSettings CreateClientSettings(OpenSearchIndexSettings settings)
     {
-        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, null));
+        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, SettingSource.Unknown, SettingSource.Unknown));
         var connectionSettings = new ConnectionSettings(new SingleNodeConnectionPool(new Uri(settings.ConnectionString)));
         var details = settings.AuthenticationDetails!;
         switch (settings.AuthenticationType ?? OpenSearchAuthenticationType.NONE)

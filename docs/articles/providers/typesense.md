@@ -5,7 +5,7 @@ query runs as a Typesense filter (`filter_by`) with the search text `*`, which m
 aren't ranked. Paging, sorting and post filters work.
 
 The provider talks to Typesense's HTTP API itself: there is no official .NET client, and the API it uses
-(collections, import, delete by filter, `truncate` and `multi_search`) is small. It needs Typesense 28 or later
+(collections, aliases, documents, import, export, delete by filter, `truncate` and `multi_search`) is small. It needs Typesense 28 or later
 for `truncate`; the AppHost and the integration tests run 29.0.
 
 > [!WARNING]
@@ -22,9 +22,13 @@ for `truncate`; the AppHost and the integration tests run 29.0.
 > - **`PrefixQuery` and `PrefixPhraseQuery`** with a value that isn't a string return a failed `Result`.
 > - **Relevance scores**: every hit has the `Score` 1.
 > - **Facets** and **highlighting** return a failed `Result`.
-> - **`GetDocumentAsync`, `CountAsync` and `UpdateDocumentAsync`** are not implemented yet and return a failed `Result`.
-> - **`IndexPrefix`** has no Typesense setting yet, and **index rebuilds** (`IIndexLifecycleServiceAsync`) return a failed `Result`:
->   the provider does not implement `IIndexLifecycleProviderAsync`.
+> - **`UpdateDocumentAsync`** reads the document, then sends a partial update. The JSON copy results come from,
+>   `source`, is written whole, so a change another caller makes to other fields of the document in between is
+>   lost from results, while it stays searchable.
+> - **Index rebuilds** are not atomic, as Typesense has no request that moves an alias and deletes a collection
+>   together: see [Rebuilding an index](#rebuilding-an-index). They have a single-writer contract: one rebuild of
+>   an index at a time, with no two of its calls running at once. The first rebuild of an index created as a plain
+>   collection deletes it before creating the alias, so searches in between fail.
 > - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
 > - **`PageSize`** above 250, the most Typesense returns in one page, returns a failed `Result`.
 > - **`SortOrder`** takes at most 3 fields, as Typesense does, and only fields holding one number, date or
@@ -74,6 +78,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddType
 | `AdditionalNodes` | URLs of the cluster's other nodes. A request that can't reach a node, times out, or gets a 5xx answer is sent to the next one, in order, starting from `ConnectionString`. A delete moves on only when it can't connect: a node that timed out or answered 5xx may have applied it, so its timeout or answer is the result |
 | `ApiKey` | The admin key, or a key allowed to manage the collections the provider uses |
 | `Indexes` | Per-index settings. An entry with its own `ConnectionString` uses only its own nodes and key; an entry without one uses the shared server, with its own `AdditionalNodes` and `ApiKey` if set or the shared ones. Keys match index names whatever their case, so `People` applies to the index `people` |
+| `IndexPrefix` | Put before every collection name sent to the server, so applications or environments can share a server: with `app-`, the index `people` is the collection `app-people`. Indexing, search, `GetDocumentAsync`, `CountAsync`, `UpdateDocumentAsync`, removal, the index checks, `DeleteIndexAsync` and rebuilds all add it, and you keep using `people`. Typesense accepts any characters in a collection name, so it is not checked |
 | `RequestTimeout` | How long one request to one node may take, 30 seconds by default |
 | `SchemaCheckInterval` | How long a search trusts the list of a collection's fields before reading it again, 5 seconds by default; a query on a field the list doesn't hold reads it again once the list is a second old, and a write through this provider makes the next search read it again |
 | `GeoField` | The field holding each document's location, a `"lat,lon"` string or a dictionary with `lat` and `lon`. Indexing a document whose point isn't valid returns a failed `Result` |
@@ -145,6 +150,71 @@ id longer than that is sent alone), and returns how many were removed; if a
 request fails, the error names the ids not yet sent or not confirmed, and the earlier requests' documents are
 already removed. A missing index is a failed `Result`. `RemoveAllDocumentsAsync` truncates the collection and
 returns the removed count.
+
+## Getting, counting and updating documents
+
+`GetDocumentAsync` reads the document and returns its fields from `source`, as hits return them; a missing
+document or collection is success with `null`, and any other error, such as a 401, a failed `Result`. A document
+whose id is `.`, `..`, `export` or `search`, which a document path can't address, is read by an export filtered on
+its id.
+`CountAsync` sends the filter `SearchAsync` would, post filter included, in a search for no hits (`per_page` 0)
+and returns Typesense's `found`, which is exact. A missing collection is a failed `Result`, as a search there.
+
+`UpdateDocumentAsync` reads the document, then sends a partial update, an import with `action=update`, holding
+the named fields' new typed copies, `null` for every other copy a named field can have, and `source` with the
+named fields replaced. So a field that changes kind, from an integer to a string say, no longer matches its old
+value, even when another update gave it that value after the read, and the fields left out keep their stored values. Typesense fails the update of a missing
+document or collection without creating either, which gives `false`, also when the document is removed between the
+read and the update. `source` is written whole, so a change another caller makes to other fields in between is
+lost from results, while its typed copies stay searchable. The collection's schema keeps every field a document
+ever held, so after a field changes from an integer to a `double` in its only document, a sort on it still fails
+as one on a field holding both.
+
+## Rebuilding an index
+
+The Typesense indexing provider implements `IIndexLifecycleProviderAsync`, so `IIndexLifecycleServiceAsync`
+rebuilds an index through a [collection alias](https://typesense.org/docs/latest/api/collection-alias.html) named
+like the index:
+
+```csharp
+var lifecycle = services.GetRequiredService<IIndexLifecycleServiceAsync>();
+var rebuild = await lifecycle.StartRebuildAsync("people");      // creates app-people-rebuild-<time>-<random>
+var indexed = await lifecycle.IndexRebuildDocumentsAsync(rebuild.Value, documents); // searches still read the old collection
+var deleted = await lifecycle.CompleteRebuildAsync(rebuild.Value); // points the alias at it and deletes the old collection
+```
+
+- **Start** creates a new collection named after the index (with the prefix), `-rebuild-`, the UTC start time and
+  a random suffix, with the provider's schema.
+- **Fill** imports into the new collection as `IndexMultipleDocumentsAsync` does. A new collection that is gone,
+  because the rebuild was aborted, fails the call and is not created again.
+- **Complete** points the alias at the new collection, then deletes the collection it pointed at before, then
+  deletes every other rebuild collection of the index, and returns the names it deleted. These are separate
+  requests: when a delete fails, the alias already points at the new collection and the error names the collection
+  left behind; calling `CompleteRebuildAsync` again deletes it. Completing a rebuild that is already complete
+  succeeds and deletes, and returns, any rebuild collection of the index other than the live one, which cleans up
+  after a complete that stopped after moving the alias, and after a rebuild that was never completed or aborted.
+  Rebuild collections are found by name, `<prefix><index>-rebuild-<17 digits>-<8 hex digits>`, so another index whose
+  name starts with the same text is not touched. A new collection that is gone fails to complete and leaves the
+  alias where it was.
+- **The first rebuild of a plain collection** has a short gap: Typesense refuses an alias named like a collection,
+  so complete deletes that collection and then creates the alias. Searches and writes in that moment fail, and a
+  write that recreates the collection is lost when it is deleted again. For zero downtime from the start, create the
+  index through a rebuild (start, fill and complete it before anything else writes to the index name), or accept
+  the gap once.
+- **Abort** deletes the new collection and leaves the alias where it is; `false` when it is already gone. It fails,
+  deleting nothing, when the alias points at it, as the rebuild is already complete.
+- **One rebuild at a time.** Typesense has no atomic or conditional alias update, so rebuilds have a single-writer
+  contract: at most one rebuild of an index is in progress at a time, and its start, fill, complete and abort don't
+  run at the same time as another rebuild call for the same index, in this process or another. Running them at the
+  same time is not supported and can leave an orphaned collection or the alias pointing at a deleted collection.
+  Elasticsearch and OpenSearch have no such limit.
+- After a rebuild the index name is an alias. Searches and writes go through it, `IndexExistsAsync` reads it as the
+  collection behind it, and `DeleteIndexAsync` deletes that collection and the alias:
+  deleting a collection by the alias's name would delete the collection and leave the alias pointing at nothing.
+  A search reads the fields of the collection behind the alias again after a complete in this process, and within
+  `SchemaCheckInterval` in other processes.
+
+Writes to the index name while a rebuild runs go to the old collection and are not copied to the new one.
 
 ## Health check
 

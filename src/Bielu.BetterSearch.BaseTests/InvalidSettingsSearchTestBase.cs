@@ -109,6 +109,6 @@ public abstract class InvalidSettingsSearchTestBase
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("ConnectionString is not an http or https URL");
-        result.Errors.Single().Message.ShouldContain($"Set {OptionsKey}:Indexes:People:ConnectionString,");
+        result.Errors.Single().Message.ShouldContain($"Set {OptionsKey}:Indexes:People:ConnectionString.");
     }
 }
