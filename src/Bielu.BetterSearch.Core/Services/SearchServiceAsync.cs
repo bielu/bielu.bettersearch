@@ -4,11 +4,15 @@ using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Diagnostics;
 using FluentResults;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Bielu.BetterSearch.Services;
 
 /// <summary>The default <see cref="ISearchServiceAsync"/>; see it for the observer contract.</summary>
-public class SearchServiceAsync(ISearchProviderAsync providerAsync, ILogger<SearchServiceAsync>? logger = null)
+public class SearchServiceAsync(
+    ISearchProviderAsync providerAsync,
+    ILogger<SearchServiceAsync>? logger = null,
+    IOptionsMonitor<BetterSearchInstrumentationOptions>? instrumentationOptions = null)
     : ISearchServiceAsync
 {
     private readonly ObserverList<ISearchModel> _searchObservers = new(logger);
@@ -25,6 +29,7 @@ public class SearchServiceAsync(ISearchProviderAsync providerAsync, ILogger<Sear
             query?.Index,
             providerAsync,
             logger,
+            BetterSearchTelemetry.RecordsErrorMessages(instrumentationOptions),
             activity =>
             {
                 activity.SetTag(BetterSearchTelemetry.PageTag, query?.Page);
@@ -57,23 +62,43 @@ public class SearchServiceAsync(ISearchProviderAsync providerAsync, ILogger<Sear
         return result;
     }
 
-    public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var check = DocumentLookups.CheckGet(index, id);
-        return check.IsFailed
-            ? Task.FromResult(check.ToResult<SearchDocument?>())
-            : providerAsync.GetDocumentAsync(index, id, cancellationToken);
-    }
+    /// <summary>Gets the document inside a <c>get</c> span, whose hit count is 1 when it was found and 0 when not.</summary>
+    public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default) =>
+        BetterSearchTelemetry.RunAsync(
+            "get",
+            index,
+            providerAsync,
+            logger,
+            BetterSearchTelemetry.RecordsErrorMessages(instrumentationOptions),
+            null,
+            () =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var check = DocumentLookups.CheckGet(index, id);
+                return check.IsFailed
+                    ? Task.FromResult(check.ToResult<SearchDocument?>())
+                    : providerAsync.GetDocumentAsync(index, id, cancellationToken);
+            },
+            (activity, result) => activity.SetTag(BetterSearchTelemetry.HitCountTag, result.Value is null ? 0 : 1));
 
-    public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var check = DocumentLookups.CheckCount(query?.Index);
-        return check.IsFailed
-            ? Task.FromResult(check.ToResult<long>())
-            : providerAsync.CountAsync(query!, cancellationToken);
-    }
+    /// <summary>Counts inside a <c>count</c> span, whose total count is the count.</summary>
+    public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
+        BetterSearchTelemetry.RunAsync(
+            "count",
+            query?.Index,
+            providerAsync,
+            logger,
+            BetterSearchTelemetry.RecordsErrorMessages(instrumentationOptions),
+            null,
+            () =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var check = DocumentLookups.CheckCount(query?.Index);
+                return check.IsFailed
+                    ? Task.FromResult(check.ToResult<long>())
+                    : providerAsync.CountAsync(query!, cancellationToken);
+            },
+            (activity, result) => activity.SetTag(BetterSearchTelemetry.TotalCountTag, result.Value));
 
     /// <summary>Ends the stream: each observer gets <see cref="IObserver{T}.OnCompleted"/> once and is unsubscribed.</summary>
     public void Dispose()

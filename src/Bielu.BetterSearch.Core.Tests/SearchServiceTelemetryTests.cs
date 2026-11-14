@@ -10,6 +10,8 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.Core.Tests;
 
+internal sealed class NotFoundError(string message) : Error(message);
+
 public class SearchServiceTelemetryTests
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
@@ -41,13 +43,13 @@ public class SearchServiceTelemetryTests
     }
 
     [Fact]
-    public async Task SearchAsync_ProviderFails_SetsErrorStatusWithFirstMessageAndLogsWarning()
+    public async Task SearchAsync_ProviderFails_SetsErrorStatusAndTypeWithoutMessageAndLogsWarning()
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
         var provider = new FakeSearchProvider
         {
-            Search = (_, _) => Task.FromResult(Result.Fail<ISearchResult>("first problem").WithError("second problem")),
+            Search = (_, _) => Task.FromResult(Result.Fail<ISearchResult>(new NotFoundError("first problem")).WithError("second problem")),
         };
         var logger = new RecordingLogger<SearchServiceAsync>();
         using var service = new SearchServiceAsync(provider, logger);
@@ -57,13 +59,49 @@ public class SearchServiceTelemetryTests
         result.IsFailed.ShouldBeTrue();
         var activity = capture.SingleActivity();
         activity.Status.ShouldBe(ActivityStatusCode.Error);
-        activity.StatusDescription.ShouldBe("first problem");
+        activity.StatusDescription.ShouldBeNull();
+        activity.GetTagItem(BetterSearchTelemetry.ErrorTypeTag).ShouldBe(typeof(NotFoundError).FullName);
         activity.GetTagItem(BetterSearchTelemetry.OutcomeTag).ShouldBe(BetterSearchTelemetry.Failure);
         activity.GetTagItem(BetterSearchTelemetry.HitCountTag).ShouldBeNull();
         var entry = logger.Entries.ShouldHaveSingleItem();
         entry.Level.ShouldBe(LogLevel.Warning);
-        entry.Message.ShouldContain("first problem");
+        entry.Message.ShouldNotContain("problem");
+        entry.Message.ShouldContain(typeof(NotFoundError).FullName!);
         entry.Message.ShouldContain(index);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ProviderFailsWithRecordErrorMessages_RecordsFirstMessage()
+    {
+        var index = NewIndex();
+        using var capture = new TelemetryCapture(index);
+        var provider = new FakeSearchProvider
+        {
+            Search = (_, _) => Task.FromResult(Result.Fail<ISearchResult>("first problem").WithError("second problem")),
+        };
+        var logger = new RecordingLogger<SearchServiceAsync>();
+        using var service = new SearchServiceAsync(provider, logger, new InstrumentationOptionsMonitor(recordErrorMessages: true));
+
+        await service.SearchAsync(new SearchQuery { Index = index }, Token);
+
+        capture.SingleActivity().StatusDescription.ShouldBe("first problem");
+        var entry = logger.Entries.ShouldHaveSingleItem();
+        entry.Message.ShouldContain("first problem");
+        entry.Message.ShouldNotContain("second problem");
+    }
+
+    [Fact]
+    public async Task SearchAsync_InstrumentationOptionsUnreadable_LeavesMessagesOutAndReturnsProviderResult()
+    {
+        var index = NewIndex();
+        using var capture = new TelemetryCapture(index);
+        var provider = new FakeSearchProvider { Search = (_, _) => Task.FromResult(Result.Fail<ISearchResult>("secret problem")) };
+        using var service = new SearchServiceAsync(provider, null, new InstrumentationOptionsMonitor(recordErrorMessages: true, throws: true));
+
+        var result = await service.SearchAsync(new SearchQuery { Index = index }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("secret problem");
+        capture.SingleActivity().StatusDescription.ShouldBeNull();
     }
 
     [Fact]
@@ -118,10 +156,110 @@ public class SearchServiceTelemetryTests
         await Should.ThrowAsync<InvalidOperationException>(() => service.SearchAsync(new SearchQuery { Index = index }, Token));
 
         var activity = capture.SingleActivity();
-        activity.StatusDescription.ShouldBe("engine exploded");
+        activity.Status.ShouldBe(ActivityStatusCode.Error);
+        activity.StatusDescription.ShouldBeNull();
         activity.GetTagItem(BetterSearchTelemetry.OutcomeTag).ShouldBe(BetterSearchTelemetry.Exception);
         activity.GetTagItem(BetterSearchTelemetry.ErrorTypeTag).ShouldBe(typeof(InvalidOperationException).FullName);
-        logger.Entries.ShouldHaveSingleItem().Level.ShouldBe(LogLevel.Error);
+        var entry = logger.Entries.ShouldHaveSingleItem();
+        entry.Level.ShouldBe(LogLevel.Error);
+        entry.Exception.ShouldBeNull();
+        entry.Message.ShouldNotContain("engine exploded");
+        entry.Message.ShouldContain(typeof(InvalidOperationException).FullName!);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ProviderThrowsWithRecordErrorMessages_RecordsMessageAndLogsException()
+    {
+        var index = NewIndex();
+        using var capture = new TelemetryCapture(index);
+        var exception = new InvalidOperationException("engine exploded");
+        var provider = new FakeSearchProvider { Search = (_, _) => throw exception };
+        var logger = new RecordingLogger<SearchServiceAsync>();
+        using var service = new SearchServiceAsync(provider, logger, new InstrumentationOptionsMonitor(recordErrorMessages: true));
+
+        await Should.ThrowAsync<InvalidOperationException>(() => service.SearchAsync(new SearchQuery { Index = index }, Token));
+
+        capture.SingleActivity().StatusDescription.ShouldBe("engine exploded");
+        logger.Entries.ShouldHaveSingleItem().Exception.ShouldBeSameAs(exception);
+    }
+
+    [Fact]
+    public async Task GetDocumentAsync_Found_RecordsGetSpanWithOneHit()
+    {
+        var index = NewIndex();
+        using var capture = new TelemetryCapture(index);
+        var provider = new FakeSearchProvider { GetDocumentResult = Result.Ok<SearchDocument?>(new SearchDocument { Id = "1", Index = index }) };
+        using var service = new SearchServiceAsync(provider);
+
+        (await service.GetDocumentAsync(index, "1", Token)).Value.ShouldNotBeNull();
+
+        var activity = capture.SingleActivity();
+        activity.OperationName.ShouldBe($"get {index}");
+        activity.GetTagItem(BetterSearchTelemetry.OperationTag).ShouldBe("get");
+        activity.GetTagItem(BetterSearchTelemetry.OutcomeTag).ShouldBe(BetterSearchTelemetry.Success);
+        activity.GetTagItem(BetterSearchTelemetry.HitCountTag).ShouldBe(1);
+        capture.Measurements("bettersearch.operations").ShouldHaveSingleItem()
+            .Tags[BetterSearchTelemetry.OperationTag].ShouldBe("get");
+    }
+
+    [Fact]
+    public async Task GetDocumentAsync_Missing_RecordsSuccessWithNoHit()
+    {
+        var index = NewIndex();
+        using var capture = new TelemetryCapture(index);
+        using var service = new SearchServiceAsync(new FakeSearchProvider());
+
+        (await service.GetDocumentAsync(index, "1", Token)).Value.ShouldBeNull();
+
+        var activity = capture.SingleActivity();
+        activity.GetTagItem(BetterSearchTelemetry.OutcomeTag).ShouldBe(BetterSearchTelemetry.Success);
+        activity.GetTagItem(BetterSearchTelemetry.HitCountTag).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task GetDocumentAsync_EmptyId_RecordsFailedGetSpan()
+    {
+        var index = NewIndex();
+        using var capture = new TelemetryCapture(index);
+        using var service = new SearchServiceAsync(new FakeSearchProvider());
+
+        (await service.GetDocumentAsync(index, "", Token)).IsFailed.ShouldBeTrue();
+
+        var activity = capture.SingleActivity();
+        activity.GetTagItem(BetterSearchTelemetry.OperationTag).ShouldBe("get");
+        activity.GetTagItem(BetterSearchTelemetry.OutcomeTag).ShouldBe(BetterSearchTelemetry.Failure);
+    }
+
+    [Fact]
+    public async Task CountAsync_Succeeds_RecordsCountSpanWithTheCount()
+    {
+        var index = NewIndex();
+        using var capture = new TelemetryCapture(index);
+        using var service = new SearchServiceAsync(new FakeSearchProvider { CountResult = Result.Ok(7L) });
+
+        (await service.CountAsync(new SearchQuery { Index = index }, Token)).Value.ShouldBe(7L);
+
+        var activity = capture.SingleActivity();
+        activity.OperationName.ShouldBe($"count {index}");
+        activity.GetTagItem(BetterSearchTelemetry.OperationTag).ShouldBe("count");
+        activity.GetTagItem(BetterSearchTelemetry.TotalCountTag).ShouldBe(7L);
+        capture.Measurements("bettersearch.operations").ShouldHaveSingleItem()
+            .Tags[BetterSearchTelemetry.OutcomeTag].ShouldBe(BetterSearchTelemetry.Success);
+    }
+
+    [Fact]
+    public async Task CountAsync_ProviderFails_RecordsFailedCountSpan()
+    {
+        var index = NewIndex();
+        using var capture = new TelemetryCapture(index);
+        using var service = new SearchServiceAsync(new FakeSearchProvider { CountResult = Result.Fail<long>("count rejected") });
+
+        (await service.CountAsync(new SearchQuery { Index = index }, Token)).IsFailed.ShouldBeTrue();
+
+        var activity = capture.SingleActivity();
+        activity.GetTagItem(BetterSearchTelemetry.OperationTag).ShouldBe("count");
+        activity.GetTagItem(BetterSearchTelemetry.OutcomeTag).ShouldBe(BetterSearchTelemetry.Failure);
+        activity.GetTagItem(BetterSearchTelemetry.TotalCountTag).ShouldBeNull();
     }
 
     [Fact]

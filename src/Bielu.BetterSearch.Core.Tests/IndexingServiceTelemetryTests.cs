@@ -42,7 +42,8 @@ public class IndexingServiceTelemetryTests
 
         var activity = capture.SingleActivity();
         activity.Status.ShouldBe(ActivityStatusCode.Error);
-        activity.StatusDescription!.ShouldContain("null values in fields (title)");
+        activity.StatusDescription.ShouldBeNull();
+        activity.GetTagItem(BetterSearchTelemetry.ErrorTypeTag).ShouldBe(typeof(Error).FullName);
         capture.Measurements("bettersearch.documents.indexed").ShouldBeEmpty();
     }
 
@@ -106,7 +107,7 @@ public class IndexingServiceTelemetryTests
 
         await service.IndexMultipleDocumentsAsync([Document(index, "1")], Token);
 
-        capture.SingleActivity().StatusDescription.ShouldBe("bulk rejected");
+        capture.SingleActivity().GetTagItem(BetterSearchTelemetry.OutcomeTag).ShouldBe(BetterSearchTelemetry.Failure);
         capture.Measurements("bettersearch.documents.indexed").ShouldBeEmpty();
         capture.Measurements("bettersearch.operations").ShouldHaveSingleItem()
             .Tags[BetterSearchTelemetry.OutcomeTag].ShouldBe(BetterSearchTelemetry.Failure);
@@ -175,4 +176,67 @@ public class IndexingServiceTelemetryTests
 
     /// <summary>Its own type name, so the listener of the two-index test picks out its span.</summary>
     private sealed class TwoIndexProvider : FakeIndexingProvider;
+
+    [Fact]
+    public async Task IndexDocumentAsync_NullValueWithRecordErrorMessages_RecordsTheMessage()
+    {
+        var index = NewIndex();
+        using var capture = new TelemetryCapture(index);
+        using var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator(), null,
+            new InstrumentationOptionsMonitor(recordErrorMessages: true));
+        var document = Document(index, "1");
+        document.Fields["title"] = [null!];
+
+        await service.IndexDocumentAsync(document, Token);
+
+        capture.SingleActivity().StatusDescription.ShouldNotBeNull().ShouldContain("null values in fields (title)");
+    }
+
+    [Fact]
+    public async Task UpdateDocumentAsync_Updated_RecordsUpdateSpanAndOneUpdatedDocument()
+    {
+        var index = NewIndex();
+        using var capture = new TelemetryCapture(index);
+        using var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator());
+
+        (await service.UpdateDocumentAsync(index, "1", new Dictionary<string, IList<object>> { ["title"] = ["new"] }, Token)).Value.ShouldBeTrue();
+
+        var activity = capture.SingleActivity();
+        activity.OperationName.ShouldBe($"update {index}");
+        activity.GetTagItem(BetterSearchTelemetry.OperationTag).ShouldBe("update");
+        activity.GetTagItem(BetterSearchTelemetry.DocumentCountTag).ShouldBe(1);
+        capture.Measurements("bettersearch.documents.updated").ShouldHaveSingleItem().Value.ShouldBe(1);
+        capture.Measurements("bettersearch.operations").ShouldHaveSingleItem()
+            .Tags[BetterSearchTelemetry.OutcomeTag].ShouldBe(BetterSearchTelemetry.Success);
+    }
+
+    [Fact]
+    public async Task UpdateDocumentAsync_DocumentMissing_RecordsSuccessButNothingUpdated()
+    {
+        var index = NewIndex();
+        using var capture = new TelemetryCapture(index);
+        using var service = new IndexingServiceAsync(new FakeIndexingProvider { UpdateResult = Result.Ok(false) }, new AcceptingValidator());
+
+        (await service.UpdateDocumentAsync(index, "1", new Dictionary<string, IList<object>> { ["title"] = ["new"] }, Token)).Value.ShouldBeFalse();
+
+        var activity = capture.SingleActivity();
+        activity.GetTagItem(BetterSearchTelemetry.OutcomeTag).ShouldBe(BetterSearchTelemetry.Success);
+        activity.GetTagItem(BetterSearchTelemetry.DocumentCountTag).ShouldBe(0);
+        capture.Measurements("bettersearch.documents.updated").ShouldBeEmpty();
+        capture.Measurements("bettersearch.operations").ShouldHaveSingleItem()
+            .Tags[BetterSearchTelemetry.OutcomeTag].ShouldBe(BetterSearchTelemetry.Success);
+    }
+
+    [Fact]
+    public async Task UpdateDocumentAsync_ProviderFails_RecordsFailedSpanAndNothingUpdated()
+    {
+        var index = NewIndex();
+        using var capture = new TelemetryCapture(index);
+        using var service = new IndexingServiceAsync(new FakeIndexingProvider { UpdateResult = Result.Fail<bool>("update rejected") }, new AcceptingValidator());
+
+        (await service.UpdateDocumentAsync(index, "1", new Dictionary<string, IList<object>> { ["title"] = ["new"] }, Token)).IsFailed.ShouldBeTrue();
+
+        capture.SingleActivity().GetTagItem(BetterSearchTelemetry.OutcomeTag).ShouldBe(BetterSearchTelemetry.Failure);
+        capture.Measurements("bettersearch.documents.updated").ShouldBeEmpty();
+    }
 }

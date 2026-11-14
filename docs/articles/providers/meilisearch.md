@@ -226,7 +226,8 @@ failed check as it is rather than trying to create the index.
 
 `PingAsync` calls `GET /health` on the server of the index it is given, or of `SharedIndexSettings` when it is
 given none, and succeeds when Meilisearch reports `available`. Another status, an error from the server or an
-unreachable server is a failed `Result` (`Meilisearch ping failed: ...`). `AddBetterSearchHealthCheck()` from
+unreachable server is a failed `Result` (`Meilisearch ping failed: ...`), and so are options the validator rejects,
+as after a reload to invalid settings, with the validator's messages. `AddBetterSearchHealthCheck()` from
 `Bielu.BetterSearch.HealthChecks` registers it as a health check, which the application maps to an endpoint such as `/health`; see
 [observability](../feature-matrix.md#observability).
 

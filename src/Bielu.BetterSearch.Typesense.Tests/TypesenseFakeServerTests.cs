@@ -233,8 +233,61 @@ public sealed class TypesenseFakeServerTests
         result.Value.ShouldBe("oi_Price:desc");
     }
 
+    [Fact]
+    public async Task PingAsync_HealthOk_SendsGetHealthAndSucceeds()
+    {
+        var server = new FakeServer(_ => (HttpStatusCode.OK, """{"ok":true}"""));
+
+        var result = await Search(server).PingAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var request = server.Requests.ShouldHaveSingleItem();
+        request.Method.ShouldBe(HttpMethod.Get);
+        request.Uri.AbsolutePath.ShouldBe("/health");
+    }
+
+    [Fact]
+    public async Task PingAsync_HealthNotOk_ReturnsFailedResultWithTheAnswer()
+    {
+        var server = new FakeServer(_ => (HttpStatusCode.OK, """{"ok":false}"""));
+
+        var result = await Search(server).PingAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("""Typesense ping failed: it reported its health as {"ok":false}, not {"ok":true}.""");
+    }
+
+    [Fact]
+    public async Task PingAsync_EveryNodeAnswers503_ReturnsFailedResultWithTheLastAnswer()
+    {
+        var server = new FakeServer(_ => (HttpStatusCode.ServiceUnavailable, """{"ok":false,"resource_error":"OUT_OF_DISK"}"""));
+
+        var result = await Search(server).PingAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldStartWith("Typesense ping failed: Typesense answered 503");
+        server.Requests.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task PingAsync_FirstNodeUnreachable_SucceedsOnTheNextNode()
+    {
+        var server = new FakeServer(request => request.RequestUri!.Host == FirstNode.Host
+            ? throw new HttpRequestException("connection refused")
+            : (HttpStatusCode.OK, """{"ok":true}"""));
+
+        var result = await Search(server).PingAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        server.Requests.Count.ShouldBe(2);
+    }
+
     private static TypesenseHttpClientWrapper Client(FakeServer server) =>
         new(new HttpClient(server), [FirstNode, SecondNode], "key");
+
+    private static TypesenseSearchProviderAsync Search(FakeServer server)
+    {
+        var options = new TestOptionsMonitor<TypesenseOptions>(new TypesenseOptions());
+        return new TypesenseSearchProviderAsync(null!, new FixedClientFactory(Client(server)), new TypesenseSchema(options), options);
+    }
 
     private static TypesenseIndexingProviderAsync Indexing(FakeServer server)
     {

@@ -146,6 +146,15 @@ request fails, the error names the ids not yet sent or not confirmed, and the ea
 already removed. A missing index is a failed `Result`. `RemoveAllDocumentsAsync` truncates the collection and
 returns the removed count.
 
+## Health check
+
+`PingAsync` calls `GET /health` on the nodes of the index it is given, or of `SharedIndexSettings` when it is given
+none, and succeeds when Typesense answers `{"ok": true}`. A node that can't be reached or answers 5xx is passed over
+for the next, as for every request, so the ping succeeds when one node answers that it is healthy. Any other answer,
+every node unreachable or invalid settings is a failed `Result` (`Typesense ping failed: ...`).
+`AddBetterSearchHealthCheck()` from `Bielu.BetterSearch.HealthChecks` registers it as a health check, which the
+application maps to an endpoint such as `/health`; see [observability](../feature-matrix.md#observability).
+
 ## Local development
 
 The examples AppHost runs `typesense/typesense:29.0` with a generated API key (the `typesense-api-key`

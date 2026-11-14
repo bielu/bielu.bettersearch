@@ -25,3 +25,10 @@ internal sealed class BetterSearchHealthCheck(ISearchProviderAsync provider, str
         }
     }
 }
+
+/// <summary>Reports the registration's failure status with <paramref name="description"/>, for a check that can't be set up.</summary>
+internal sealed class FailingHealthCheck(string description) : IHealthCheck
+{
+    public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new HealthCheckResult(context.Registration.FailureStatus, description));
+}
