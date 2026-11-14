@@ -768,7 +768,7 @@ public sealed class MeilisearchSearchTests(
     [Fact]
     public async Task SearchAsync_UnreachableServer_ReturnsFailedResult()
     {
-        var monitor = new StaticOptionsMonitor(new MeilisearchOptions
+        var monitor = new TestOptionsMonitor<MeilisearchOptions>(new MeilisearchOptions
         {
             SharedIndexSettings = new MeilisearchIndexSettings { ConnectionString = "http://127.0.0.1:1" },
         });

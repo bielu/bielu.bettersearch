@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
+using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using Shouldly;
 
@@ -9,9 +10,9 @@ namespace Bielu.BetterSearch.ElasticSearch.Tests;
 public class ElasticsearchClientFactoryTests
 {
     private static ElasticsearchClientFactory CreateFactory(ElasticSearchOptions options) =>
-        CreateFactory(new FixedOptionsMonitor(options));
+        CreateFactory(new TestOptionsMonitor<ElasticSearchOptions>(options));
 
-    private static ElasticsearchClientFactory CreateFactory(FixedOptionsMonitor monitor) =>
+    private static ElasticsearchClientFactory CreateFactory(TestOptionsMonitor<ElasticSearchOptions> monitor) =>
         new(new ElasticSearchClientSettingsManager(monitor));
 
     private static ElasticSearchOptions SharedOptions(string connectionString, string? password = null) => new()
@@ -136,7 +137,7 @@ public class ElasticsearchClientFactoryTests
     [Fact]
     public async Task GetOrCreateClientAsync_SharedConnectionStringChanges_UsesNewConnectionString()
     {
-        var monitor = new FixedOptionsMonitor(SharedOptions("http://old:9200"));
+        var monitor = new TestOptionsMonitor<ElasticSearchOptions>(SharedOptions("http://old:9200"));
         var factory = CreateFactory(monitor);
         var before = await factory.GetOrCreateClientAsync("people");
 
@@ -150,7 +151,7 @@ public class ElasticsearchClientFactoryTests
     [Fact]
     public async Task GetOrCreateClientAsync_SharedPasswordChanges_UsesNewPassword()
     {
-        var monitor = new FixedOptionsMonitor(SharedOptions("http://shared:9200", password: "old"));
+        var monitor = new TestOptionsMonitor<ElasticSearchOptions>(SharedOptions("http://shared:9200", password: "old"));
         var factory = CreateFactory(monitor);
         var before = await factory.GetOrCreateClientAsync("people");
 
@@ -207,7 +208,7 @@ public class ElasticsearchClientFactoryTests
                 AuthenticationType = AuthenticationType.PASSWORD,
             },
         };
-        var monitor = new FixedOptionsMonitor(invalid);
+        var monitor = new TestOptionsMonitor<ElasticSearchOptions>(invalid);
         var factory = CreateFactory(monitor);
 
         var failed = await factory.TryGetClientAsync("people", TestContext.Current.CancellationToken);
@@ -224,7 +225,7 @@ public class ElasticsearchClientFactoryTests
     [Fact]
     public async Task TryGetClientAsync_ClientCreationFailedOnce_SucceedsOnNextCallWithSameSettings()
     {
-        var monitor = new FixedOptionsMonitor(SharedOptions("http://shared:9200"));
+        var monitor = new TestOptionsMonitor<ElasticSearchOptions>(SharedOptions("http://shared:9200"));
         var factory = new ElasticsearchClientFactory(new FailingOnceElasticSearchClientSettingsManagerDecorator(new ElasticSearchClientSettingsManager(monitor)));
 
         var failed = await factory.TryGetClientAsync("people", TestContext.Current.CancellationToken);

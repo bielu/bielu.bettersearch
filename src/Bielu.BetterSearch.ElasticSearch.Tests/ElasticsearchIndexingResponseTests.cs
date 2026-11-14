@@ -30,10 +30,10 @@ public sealed class ElasticsearchIndexingResponseTests : RemoveDocumentResponseT
     }
 
     private static readonly IElasticSearchClientSettingsManager NoMappings =
-        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions { SharedIndexSettings = new() }));
+        new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions { SharedIndexSettings = new() }));
 
     private static readonly IElasticSearchClientSettingsManager WithMappings =
-        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions
+        new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions
         {
             SharedIndexSettings = new() { Mappings = [new() { Field = "City", Type = ElasticSearchFieldType.Keyword }] }
         }));
@@ -134,7 +134,7 @@ public sealed class ElasticsearchIndexingResponseTests : RemoveDocumentResponseT
     }
 
     private static IElasticSearchClientSettingsManager WithBulkBatchSize(int? bulkBatchSize) =>
-        new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions { SharedIndexSettings = new() { BulkBatchSize = bulkBatchSize } }));
+        new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions { SharedIndexSettings = new() { BulkBatchSize = bulkBatchSize } }));
 
     private static List<SearchDocument> PeopleDocuments(int count) =>
         Enumerable.Range(1, count).Select(i => new SearchDocument
