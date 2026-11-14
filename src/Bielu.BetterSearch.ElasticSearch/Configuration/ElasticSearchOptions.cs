@@ -58,6 +58,14 @@ public class ElasticSearchIndexSettings : IndexSettings
     /// of the same field.
     /// </summary>
     public List<ElasticSearchFieldMapping>? Mappings { get; set; }
+
+    /// <summary>
+    /// When a successful index or remove call returns. <see cref="Abstractions.Configuration.WriteVisibility.WaitUntilSearchable"/>
+    /// waits until a search can see the write, at the cost of a slower call. Left unset on an <c>Indexes</c> entry, the
+    /// index takes the shared setting; set it to <see cref="Abstractions.Configuration.WriteVisibility.Default"/> there
+    /// to turn the shared one off.
+    /// </summary>
+    public WriteVisibility? WriteVisibility { get; set; }
 }
 
 /// <summary>An explicit mapping for one document field.</summary>

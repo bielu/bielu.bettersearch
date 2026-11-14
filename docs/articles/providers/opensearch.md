@@ -67,6 +67,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
 | `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`) or `APIKEY` (an OpenSearch 3.x API key in `ApiKey`, sent as `Authorization: ApiKey <key>`) |
 | `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people` |
 | `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
+| `WriteVisibility` | `Default` or `WaitUntilSearchable`, in `SharedIndexSettings` or an `Indexes` entry; see [When writes are searchable](#when-writes-are-searchable). An entry that leaves it out takes the shared value, and `"WriteVisibility": "Default"` there turns the shared one off |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. It must be greater than 0, or every search fails with a configuration error |
 
 You can also set the options in code with `services.Configure<OpenSearchOptions>(...)`.
@@ -169,6 +170,25 @@ the field name without the `fields.` prefix (`Name`, also when the request names
 - **Invalid requests** return a failed `Result`: a `null` entry, an entry with neither `Field` nor
   `IsAllField`, two entries for the same field, also under different names for it (`Name` and `fields.Name`),
   and a `null` clause in a request's own `Queries`.
+
+## When writes are searchable
+
+By default a successful write is stored but not yet searchable: OpenSearch makes it visible at the next index
+refresh, about a second later unless `index.refresh_interval` is changed. Set `WriteVisibility` to
+`WaitUntilSearchable` to have every index and remove call return only once a search can see the write:
+
+```json
+"SharedIndexSettings": { "ConnectionString": "http://localhost:9200", "WriteVisibility": "WaitUntilSearchable" }
+```
+
+- `IndexDocumentAsync`, `IndexMultipleDocumentsAsync`, `RemoveDocumentAsync` and `RemoveDocumentsAsync` send
+  `refresh=wait_for`, so the call waits for the next scheduled refresh rather than forcing one.
+- `RemoveAllDocumentsAsync` sends `refresh=true`, because delete by query can't wait for a refresh; it refreshes
+  the index once the documents are removed.
+- **Cost**: each call can take up to the refresh interval. Core's `IndexingServiceAsync.IndexMultipleDocumentsAsync`
+  indexes one document at a time, so a batch through the service waits once per document. Leave it at `Default`
+  for bulk loads and turn it on where a write must be visible straight away, such as tests and small sites.
+- Waiting doesn't change what a failure means: a failed or cancelled call may still have stored the write.
 
 ## Removing documents
 

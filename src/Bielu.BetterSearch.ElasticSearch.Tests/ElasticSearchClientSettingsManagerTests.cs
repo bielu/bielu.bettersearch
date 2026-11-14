@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.ElasticSearch.Configuration;
+﻿using Bielu.BetterSearch.Abstractions.Configuration;
+using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
@@ -181,5 +182,25 @@ public class ElasticSearchClientSettingsManagerTests
 
         settings.ConnectionString.ShouldBe("http://people:9200");
         settings.Mappings.ShouldNotBeNull().ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(null, null, WriteVisibility.Default)]
+    [InlineData(WriteVisibility.WaitUntilSearchable, null, WriteVisibility.WaitUntilSearchable)]
+    [InlineData(WriteVisibility.WaitUntilSearchable, WriteVisibility.Default, WriteVisibility.Default)]
+    [InlineData(null, WriteVisibility.WaitUntilSearchable, WriteVisibility.WaitUntilSearchable)]
+    public void GetConnectionSettings_WriteVisibility_IndexSettingWinsAndUnsetInheritsShared(
+        WriteVisibility? shared, WriteVisibility? own, WriteVisibility expected)
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = new() { ConnectionString = "http://shared:9200", WriteVisibility = shared },
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() { WriteVisibility = own } },
+        };
+
+        var manager = new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(options));
+
+        manager.GetConnectionSettings("people").WriteVisibility.ShouldBe(expected);
+        manager.GetConnectionSettings("other").WriteVisibility.ShouldBe(shared ?? WriteVisibility.Default);
     }
 }

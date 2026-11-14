@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.OpenSearch.Configuration;
+﻿using Bielu.BetterSearch.Abstractions.Configuration;
+using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.Services;
 using Microsoft.Extensions.Options;
 using OpenSearch.Client;
@@ -24,7 +25,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
     /// <summary>
     /// Builds a new settings object, leaving the live options untouched: the index's connection string and
     /// authentication win, and an index without its own takes the shared one. Mappings are the shared ones with the
-    /// index's own on top.
+    /// index's own on top, and the index's write visibility wins over the shared one.
     /// </summary>
     private static OpenSearchIndexSettings MergeSettings(OpenSearchIndexSettings indexSpecific,
         OpenSearchIndexSettings shared)
@@ -39,6 +40,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
                                  ?? OpenSearchAuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
             Mappings = FieldMappings.Merge(shared?.Mappings, indexSpecific.Mappings),
+            WriteVisibility = indexSpecific.WriteVisibility ?? shared?.WriteVisibility ?? WriteVisibility.Default,
         };
     }
 

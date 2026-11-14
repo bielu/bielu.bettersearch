@@ -1,0 +1,5 @@
+---
+"bielu-bettersearch": minor
+---
+
+Let callers wait until a write is searchable on Elasticsearch and OpenSearch (#102). The new `WriteVisibility` setting, in `SharedIndexSettings` or an `Indexes` entry, takes `Default` (the engine's behavior: a write is searchable at the next index refresh, about a second later) or `WaitUntilSearchable`. With `WaitUntilSearchable`, `IndexDocumentAsync`, `IndexMultipleDocumentsAsync`, `RemoveDocumentAsync` and `RemoveDocumentsAsync` send `refresh=wait_for`, and `RemoveAllDocumentsAsync` sends `refresh=true`, so a successful call returns only once a search can see the write. An `Indexes` entry without the setting takes the shared value, and `Default` there turns the shared one off. Meilisearch and Lifti need no setting, as their writes are already searchable on return. The `WriteVisibility` enum lives in `Bielu.BetterSearch.Abstractions.Configuration`. No interface changes, so existing implementers are unaffected, and the default behavior is unchanged.
