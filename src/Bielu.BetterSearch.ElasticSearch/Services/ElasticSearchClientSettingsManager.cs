@@ -56,33 +56,36 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     /// Checked as OpenSearch does, except that Elastic Cloud connects by its cloud id, so <c>CLOUD</c> and
     /// <c>CLOUDAPI</c> don't need a connection string. The options validator runs the same checks at startup.
     /// </summary>
-    /// <remarks><c>index</c> is the <c>Indexes</c> entry the settings come from, or <c>null</c> when that is not known or they are the shared settings.</remarks>
-    internal static IEnumerable<string> ConnectionFailures(ElasticSearchIndexSettings settings, string? index)
+    /// <remarks>
+    /// <c>connection</c> is where the connection string comes from, and <c>authentication</c> where the authentication
+    /// type and details come from, which an <c>Indexes</c> entry takes together.
+    /// </remarks>
+    internal static IEnumerable<string> ConnectionFailures(ElasticSearchIndexSettings settings, SettingSource connection, SettingSource authentication)
     {
         var key = ElasticSearchOptions.ElasticSearchOptionsKey;
         var authenticationType = settings.AuthenticationType ?? AuthenticationType.NONE;
         var details = settings.AuthenticationDetails;
         string?[] failures = authenticationType switch
         {
-            AuthenticationType.NONE => [ConnectionSettingsChecks.HttpUrlFailure(key, index, settings.ConnectionString)],
+            AuthenticationType.NONE => [ConnectionSettingsChecks.HttpUrlFailure(key, connection, settings.ConnectionString)],
             AuthenticationType.PASSWORD =>
             [
-                ConnectionSettingsChecks.HttpUrlFailure(key, index, settings.ConnectionString),
-                ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                ConnectionSettingsChecks.HttpUrlFailure(key, connection, settings.ConnectionString),
+                ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(AuthenticationDetails.Username), details?.Username), (nameof(AuthenticationDetails.Password), details?.Password)),
             ],
             AuthenticationType.CLOUD =>
             [
-                ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(AuthenticationDetails.Id), details?.Id), (nameof(AuthenticationDetails.Username), details?.Username),
                     (nameof(AuthenticationDetails.Password), details?.Password)),
             ],
             AuthenticationType.CLOUDAPI =>
             [
-                ConnectionSettingsChecks.CredentialsFailure(key, index, authenticationType, details,
+                ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(AuthenticationDetails.Id), details?.Id), (nameof(AuthenticationDetails.ApiKey), details?.ApiKey)),
             ],
-            _ => [ConnectionSettingsChecks.UnknownAuthenticationTypeFailure(key, index, settings.AuthenticationType)],
+            _ => [ConnectionSettingsChecks.UnknownAuthenticationTypeFailure(key, authentication, settings.AuthenticationType)],
         };
         return failures.OfType<string>();
     }
@@ -93,7 +96,7 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     /// </summary>
     private static ElasticsearchClientSettings ParseMergedSettings(ElasticSearchIndexSettings settings)
     {
-        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, null));
+        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, SettingSource.Unknown, SettingSource.Unknown));
         var details = settings.AuthenticationDetails!;
         return (settings.AuthenticationType ?? AuthenticationType.NONE) switch
         {
