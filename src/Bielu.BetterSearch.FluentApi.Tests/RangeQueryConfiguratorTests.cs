@@ -25,11 +25,11 @@ public sealed class RangeQueryConfiguratorTests
     public void CreateNumericRangeQuery_MinAndMaxValue_SetsBothBoundsAndEdges(bool includeMin, bool includeMax)
     {
         var range = BuildRange<NumericRange>(query => query.CreateNumericRangeQuery(r => r
-            .WithField("Age").WithMinValue(1, includeMin).WithMaxValue(10, includeMax)));
+            .WithField("Price").WithMinValue(9.99, includeMin).WithMaxValue(49.5, includeMax)));
 
-        range.Field.ShouldBe("Age");
-        range.MinValue.ShouldBe(1);
-        range.MaxValue.ShouldBe(10);
+        range.Field.ShouldBe("Price");
+        range.MinValue.ShouldBe(9.99);
+        range.MaxValue.ShouldBe(49.5);
         range.IncludeMinEdge.ShouldBe(includeMin);
         range.IncludeMaxEdge.ShouldBe(includeMax);
     }
@@ -98,5 +98,46 @@ public sealed class RangeQueryConfiguratorTests
         stringRange.MaxValue.ShouldBe("m");
         dateRange.MinValue.ShouldBeNull();
         dateRange.MaxValue.ShouldBe(new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public void CreateDateRangeQuery_DateTimeOffsetBounds_KeepTheirInstants()
+    {
+        var range = BuildRange<DateRangeQuery>(query => query.CreateDateRangeQuery(r => r
+            .WithField("Born")
+            .WithMinValue(new DateTimeOffset(2024, 1, 1, 2, 0, 0, TimeSpan.FromHours(2)))
+            .WithMaxValue(new DateTimeOffset(2024, 1, 1, 7, 0, 0, TimeSpan.FromHours(-5)))));
+
+        range.MinValue.ShouldNotBeNull().UtcDateTime.ShouldBe(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        range.MaxValue.ShouldNotBeNull().UtcDateTime.ShouldBe(new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc));
+    }
+
+    public static TheoryData<DateTime, DateTime> DateTimesOfEveryKind() => new()
+    {
+        { new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc), new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc) },
+        // An unspecified DateTime is UTC, never the machine's local time.
+        { new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Unspecified), new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc) },
+        { new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc).ToLocalTime(), new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc) }
+    };
+
+    [Theory]
+    [MemberData(nameof(DateTimesOfEveryKind))]
+    public void DateRangeValue_FromDateTime_IsTheInstantInUtc(DateTime value, DateTime expected)
+    {
+        DateRangeValue bound = value;
+
+        bound.UtcDateTime.ShouldBe(expected);
+        bound.UtcDateTime.Kind.ShouldBe(DateTimeKind.Utc);
+        bound.Instant.Offset.ShouldBe(TimeSpan.Zero);
+    }
+
+    [Fact]
+    public void DateRangeValue_SameInstantWithTwoOffsets_AreEqual()
+    {
+        DateRangeValue plusTwo = new DateTimeOffset(2024, 6, 1, 14, 0, 0, TimeSpan.FromHours(2));
+        DateRangeValue minusFive = new DateTimeOffset(2024, 6, 1, 7, 0, 0, TimeSpan.FromHours(-5));
+
+        plusTwo.ShouldBe(minusFive);
+        plusTwo.Instant.Offset.ShouldBe(TimeSpan.Zero);
     }
 }

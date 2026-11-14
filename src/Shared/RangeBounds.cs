@@ -12,4 +12,13 @@ internal static class RangeBounds
         min is null && max is null
             ? Result.Fail($"{queryName} has neither MinValue nor MaxValue; set at least one bound.")
             : Result.Ok();
+
+    /// <summary>
+    /// A failure when a bound is <c>NaN</c> or an infinity, which no engine compares as a number: Elasticsearch and
+    /// OpenSearch reject it, and a Meilisearch filter reads it as text.
+    /// </summary>
+    public static Result RequireFinite(string queryName, double? min, double? max) =>
+        min is { } low && !double.IsFinite(low) || max is { } high && !double.IsFinite(high)
+            ? Result.Fail($"{queryName} has a bound that is not a finite number; use a finite MinValue and MaxValue.")
+            : Result.Ok();
 }

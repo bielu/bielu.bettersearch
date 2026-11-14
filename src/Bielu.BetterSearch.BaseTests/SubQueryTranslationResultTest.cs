@@ -105,6 +105,41 @@ public abstract class QueryResultBaseTests(
 
     private static TermSubQuery Name(string value) => new() { Field = "Name", Value = value };
 
+    /// <summary>Whether the provider supports range queries. Without them, each range test checks for a failed <c>Result</c> instead.</summary>
+    protected virtual bool SupportsRanges => true;
+
+    /// <summary>An index of its own holding one document per value of <paramref name="field"/>, with ids from 1.</summary>
+    private async Task<SearchQuery> CreateRangeQueryAsync(string field, params object[] values)
+    {
+        var index = $"query-results-{Guid.NewGuid():N}";
+        for (var i = 0; i < values.Length; i++)
+        {
+            (await indexingServiceAsync.IndexDocumentAsync(new SearchDocument
+            {
+                Id = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Index = index,
+                Fields = new Dictionary<string, IList<object>> { { "Name", ["Ranged"] }, { field, [values[i]] } }
+            }, TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
+        }
+
+        await DocumentsIndexedAsync(index);
+        return new SearchQuery { Index = index };
+    }
+
+    /// <summary>The ids matching <paramref name="query"/>, or <c>null</c> once a provider without ranges has failed it.</summary>
+    private async Task<List<string>?> SearchRangeIdsAsync(SearchQuery query)
+    {
+        if (SupportsRanges)
+        {
+            return await serviceAsync.SearchIdsAsync(query, TestContext.Current.CancellationToken);
+        }
+
+        var result = await serviceAsync.SearchAsync(query, TestContext.Current.CancellationToken);
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldContain(error => error.Message.Contains("does not support") && error.Message.Contains("range queries"));
+        return null;
+    }
+
     [Fact]
     public async Task SearchAsync_Hits_CarryAScore()
     {
@@ -409,6 +444,82 @@ public abstract class QueryResultBaseTests(
         var ids = await SearchIdsAsync(query);
 
         ids.ShouldBe(["1", "2"]);
+    }
+
+    /// <summary>
+    /// A fractional range keeps its bounds exactly: 9.98 and 49.51 lie just outside, 9.99 and 49.5 sit on the edges,
+    /// so a bound rounded or cut to a whole number, or an edge moved by a precision error, returns other documents.
+    /// </summary>
+    [Theory]
+    [InlineData(true, new[] { "2", "3", "4" })]
+    [InlineData(false, new[] { "3" })]
+    public async Task SearchAsync_FractionalRange_MatchesOnlyValuesInsideTheBounds(bool includeEdges, string[] expected)
+    {
+        var query = await CreateRangeQueryAsync("Price", 9.98, 9.99, 20.25, 49.5, 49.51);
+        query.Add(Occurance.MUST, new NumericRange
+        {
+            Field = "Price",
+            MinValue = 9.99,
+            MaxValue = 49.5,
+            IncludeMinEdge = includeEdges,
+            IncludeMaxEdge = includeEdges
+        });
+
+        (await SearchRangeIdsAsync(query))?.ShouldBe(expected);
+    }
+
+    /// <summary>A fractional bound on whole numbers is not rounded: at least 4.5 is 5, at most 4.5 is 4.</summary>
+    [Theory]
+    [InlineData(4.5, null, "2")]
+    [InlineData(null, 4.5, "1")]
+    public async Task SearchAsync_FractionalBoundOnWholeNumbers_IsNotRounded(double? min, double? max, string expected)
+    {
+        var query = await CreateRangeQueryAsync("Rating", 4, 5);
+        query.Add(Occurance.MUST, new NumericRange { Field = "Rating", MinValue = min, MaxValue = max });
+
+        (await SearchRangeIdsAsync(query))?.ShouldBe([expected]);
+    }
+
+    /// <summary>
+    /// A <see cref="DateTimeOffset"/> bound compares instants: the documents are at 10:00, 11:00 and 12:00 UTC, written
+    /// with other offsets, and the range runs from 10:30 to 12:00 UTC, also written with other offsets. Reading the
+    /// clock time of either side as UTC matches all three.
+    /// </summary>
+    [Theory]
+    [InlineData(true, new[] { "2", "3" })]
+    [InlineData(false, new[] { "2" })]
+    public async Task SearchAsync_DateRangeWithOffsets_ComparesInstants(bool includeMaxEdge, string[] expected)
+    {
+        var query = await CreateRangeQueryAsync("Born",
+            new DateTimeOffset(2026, 11, 8, 12, 0, 0, TimeSpan.FromHours(2)),
+            new DateTime(2026, 11, 8, 11, 0, 0, DateTimeKind.Utc),
+            new DateTimeOffset(2026, 11, 8, 7, 0, 0, TimeSpan.FromHours(-5)));
+        query.Add(Occurance.MUST, new DateRangeQuery
+        {
+            Field = "Born",
+            MinValue = new DateTimeOffset(2026, 11, 8, 6, 30, 0, TimeSpan.FromHours(-4)),
+            MaxValue = new DateTimeOffset(2026, 11, 8, 13, 0, 0, TimeSpan.FromHours(1)),
+            IncludeMaxEdge = includeMaxEdge
+        });
+
+        (await SearchRangeIdsAsync(query))?.ShouldBe(expected);
+    }
+
+    /// <summary>A <see cref="DateTime"/> bound with <see cref="DateTimeKind.Unspecified"/> is read as UTC, whatever the machine's time zone.</summary>
+    [Fact]
+    public async Task SearchAsync_DateRangeWithUnspecifiedKind_ReadsTheBoundAsUtc()
+    {
+        var query = await CreateRangeQueryAsync("Born",
+            new DateTime(2026, 11, 8, 10, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 11, 8, 11, 0, 0, DateTimeKind.Utc));
+        query.Add(Occurance.MUST, new DateRangeQuery
+        {
+            Field = "Born",
+            MinValue = new DateTime(2026, 11, 8, 10, 30, 0, DateTimeKind.Unspecified),
+            MaxValue = new DateTime(2026, 11, 8, 11, 30, 0, DateTimeKind.Unspecified)
+        });
+
+        (await SearchRangeIdsAsync(query))?.ShouldBe(["2"]);
     }
 
     [Fact]

@@ -106,7 +106,7 @@ filterable and sortable attributes the provider needs to the index settings, kee
   value of `NaN` or an infinity returns a failed `Result`, as a Meilisearch filter reads `NaN` and `Infinity` as text
   and would match the strings `"NaN"` and `"Infinity"` rather than a number.
 - **`LongRange`** values past 2^53 lose precision, as Meilisearch compares numbers as doubles.
-- **Dates** without a time zone are read as UTC.
+- **Dates** without a time zone are read as UTC, as on every provider.
 - **Field names** can only contain letters, digits, `_`, `-` and `.`, and **document ids** letters, digits, `-`
   and `_`; anything else returns a failed `Result`.
 - **Total hit count** is exact up to `MaxTotalHits` matches, then that number.
