@@ -195,7 +195,7 @@ public class OpenSearchOptionsValidationTests : TlsOptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"APIKEY authentication needs AuthenticationDetails:ApiKey. Set {Key}:Indexes:people:AuthenticationDetails:ApiKey, or {Key}:SharedIndexSettings:AuthenticationDetails:ApiKey for every index."
+            $"APIKEY authentication needs AuthenticationDetails:ApiKey. Set {Key}:Indexes:people:AuthenticationDetails:ApiKey."
         ]);
     }
 
@@ -210,7 +210,7 @@ public class OpenSearchOptionsValidationTests : TlsOptionsValidationTestBase
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
             $"ConnectionString is not an http or https URL. Set {Key}:SharedIndexSettings:ConnectionString, or {Key}:Indexes:<index>:ConnectionString for one index.",
-            $"PASSWORD authentication needs AuthenticationDetails. Set {Key}:SharedIndexSettings:AuthenticationDetails, or {Key}:Indexes:<index>:AuthenticationDetails for one index.",
+            $"PASSWORD authentication needs AuthenticationDetails. Set {Key}:SharedIndexSettings:AuthenticationDetails, or {Key}:Indexes:<index>:AuthenticationType with {Key}:Indexes:<index>:AuthenticationDetails for one index.",
         ]);
     }
 
@@ -238,7 +238,37 @@ public class OpenSearchOptionsValidationTests : TlsOptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:Indexes:people:AuthenticationDetails:Password, or {Key}:SharedIndexSettings:AuthenticationDetails:Password for every index."
+            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:SharedIndexSettings:AuthenticationDetails:Password, which {Key}:Indexes:people inherits."
         ]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_IndexWithOwnAuthenticationInheritingMissingConnectionString_FailsNamingOnlyTheSharedSetting()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["Indexes:people:AuthenticationType"] = "PASSWORD",
+            ["Indexes:people:AuthenticationDetails:Username"] = "admin",
+            ["Indexes:people:AuthenticationDetails:Password"] = "secret",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"ConnectionString is missing. Set {Key}:SharedIndexSettings:ConnectionString, which {Key}:Indexes:people inherits."
+        ]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_IndexWithOwnConnectionStringAndUnknownAuthenticationType_FailsNamingOnlyTheIndexSetting()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationDetails:Username"] = "admin",
+            ["SharedIndexSettings:AuthenticationDetails:Password"] = "secret",
+            ["Indexes:people:ConnectionString"] = "http://people:9200",
+            ["Indexes:people:AuthenticationType"] = "7",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldHaveSingleItem().ShouldEndWith($"Set {Key}:Indexes:people:AuthenticationType.");
     }
 }

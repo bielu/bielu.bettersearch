@@ -76,7 +76,7 @@ The options are validated at startup (`ValidateOnStart`), so a host with invalid
 `OptionsValidationException`, listing every setting that is wrong, each by its configuration path. The connection
 string and authentication are checked as each call checks them, after merging each `Indexes` entry with
 `SharedIndexSettings`. For example `ConnectionString is not an http or https URL. Set
-Bielu:BetterSearch:OpenSearch:Indexes:people:ConnectionString, or Bielu:BetterSearch:OpenSearch:SharedIndexSettings:ConnectionString for every index.`
+Bielu:BetterSearch:OpenSearch:Indexes:people:ConnectionString.` A failure for an `Indexes` entry names only the setting that changes its value: the entry's own path when it sets the value, and the `SharedIndexSettings` path when it inherits it, as an entry takes the authentication details only with its own `AuthenticationType`.
 Connection messages never include the connection string or a credential; the other messages show the rejected value, such as `MaxResultWindow is 0`. A missing section, or one whose name is misspelled, gives the single
 failure `No Bielu:BetterSearch:OpenSearch settings were found.`, naming the section. The shared settings are not checked on their own when they set
 no connection string and every `Indexes` entry sets its own connection: shared authentication is then checked with each index that inherits it, and an index not listed fails when it is used. `CertificateFingerprint` must be 64 hex digits, with or without colons, and can't be set together with `DevelopmentOnlySkipCertificateValidation`. `MaxResultWindow` must be greater than 0. The same

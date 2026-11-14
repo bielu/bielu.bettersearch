@@ -36,7 +36,7 @@ public abstract class TlsOptionsValidationTestBase : OptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"CertificateFingerprint is not a SHA-256 fingerprint: it needs 64 hex digits, with or without colons. Set {OptionsKey}:Indexes:people:CertificateFingerprint, or {OptionsKey}:SharedIndexSettings:CertificateFingerprint for every index."
+            $"CertificateFingerprint is not a SHA-256 fingerprint: it needs 64 hex digits, with or without colons. Set {OptionsKey}:Indexes:people:CertificateFingerprint."
         ]);
     }
 
