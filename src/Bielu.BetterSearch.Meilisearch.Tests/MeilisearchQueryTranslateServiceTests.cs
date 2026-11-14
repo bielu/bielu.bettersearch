@@ -137,7 +137,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [InlineData("b", "N", "tokens.Name \"b\0\" TO \"m\U0010FFFF\"")]
     public async Task TranslateMainQueryAsync_StringRangeWithExcludedEdges_MovesEachEdgeInward(string min, string max, string expected)
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new StringRange { Field = "Name", MinValue = min, MaxValue = max }));
+        var filter = await FilterAsync(Query(Occurance.MUST, new StringRange { Field = "Name", MinValue = min, MaxValue = max, IncludeMinEdge = false, IncludeMaxEdge = false }));
 
         filter.ShouldBe($"({expected})");
     }
@@ -145,7 +145,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_StringRangeBelowEmptyMaximum_MatchesNothing()
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new StringRange { Field = "Name", MinValue = "a", MaxValue = "" }));
+        var filter = await FilterAsync(Query(Occurance.MUST, new StringRange { Field = "Name", MinValue = "a", MaxValue = "", IncludeMinEdge = false, IncludeMaxEdge = false }));
 
         filter.ShouldBe("(id IN [])");
     }
@@ -191,11 +191,12 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     }
 
     [Fact]
-    public async Task TranslateMainQueryAsync_RangeWithoutBounds_RequiresTheField()
+    public async Task TranslateMainQueryAsync_RangeWithoutBounds_ReturnsFailedResult()
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new NumericRange { Field = "Age" }));
+        var result = await translateService.TranslateMainQueryAsync(Query(Occurance.MUST, new NumericRange { Field = "Age" }));
 
-        filter.ShouldBe("(fields.Age EXISTS)");
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("NumericRange has neither MinValue nor MaxValue; set at least one bound.");
     }
 
     [Fact]

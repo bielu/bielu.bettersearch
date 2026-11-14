@@ -35,6 +35,9 @@ public sealed class OpenSearchIndexingResponseTests
         public Task<IOpenSearchClient> GetOrCreateClientAsync(string indexName) => throw exception;
     }
 
+    private static readonly IOpenSearchClientSettingsManager NoMappings =
+        new OpenSearchClientSettingsManager(new InvalidSettingsOptionsMonitor());
+
     private sealed class InvalidSettingsOptionsMonitor(int maxResultWindow = 10_000) : IOptionsMonitor<OpenSearchOptions>
     {
         public OpenSearchOptions CurrentValue { get; } = new() { SharedIndexSettings = new() { ConnectionString = "localhost:9200" }, MaxResultWindow = maxResultWindow };
@@ -44,6 +47,13 @@ public sealed class OpenSearchIndexingResponseTests
 
     private static IClientFactoryAsync<IOpenSearchClient> InvalidSettingsFactory() =>
         new OpenSearchClientFactory(new OpenSearchClientSettingsManager(new InvalidSettingsOptionsMonitor()));
+
+    private static IOpenSearchClientSettingsManager WithMappings()
+    {
+        var monitor = new InvalidSettingsOptionsMonitor();
+        monitor.CurrentValue.SharedIndexSettings.Mappings = [new() { Field = "City", Type = OpenSearchFieldType.Keyword }];
+        return new OpenSearchClientSettingsManager(monitor);
+    }
 
     /// <summary>Answers HEAD requests, such as the index exists check, with one connection and every other request with another.</summary>
     private sealed class HeadRoutingConnectionDecorator(IConnection head, IConnection other) : IConnection
@@ -63,21 +73,43 @@ public sealed class OpenSearchIndexingResponseTests
         }
     }
 
-    private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false) =>
-        Provider(new InMemoryConnection(Encoding.UTF8.GetBytes(json), statusCode), throwExceptions);
+    /// <summary>Answers each request with the next connection in turn, and counts the requests made.</summary>
+    private sealed class SequenceConnection(params IConnection[] connections) : IConnection
+    {
+        public int Requests { get; private set; }
 
-    private static OpenSearchIndexingProviderAsync Provider(IConnection connection, bool throwExceptions = false)
+        private IConnection Next() => connections[Requests++];
+
+        public TResponse Request<TResponse>(RequestData requestData)
+            where TResponse : class, IOpenSearchResponse, new() =>
+            Next().Request<TResponse>(requestData);
+
+        public Task<TResponse> RequestAsync<TResponse>(RequestData requestData, CancellationToken cancellationToken)
+            where TResponse : class, IOpenSearchResponse, new() =>
+            Next().RequestAsync<TResponse>(requestData, cancellationToken);
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false,
+        IOpenSearchClientSettingsManager? settingsManager = null) =>
+        Provider(new InMemoryConnection(Encoding.UTF8.GetBytes(json), statusCode), throwExceptions, settingsManager);
+
+    private static OpenSearchIndexingProviderAsync Provider(IConnection connection, bool throwExceptions = false,
+        IOpenSearchClientSettingsManager? settingsManager = null)
     {
         var settings = new ConnectionSettings(new SingleNodeConnectionPool(new Uri("http://localhost:9200")), connection)
             .ThrowExceptions(throwExceptions);
-        return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+        return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance, settingsManager ?? NoMappings);
     }
 
     /// <summary>A provider that talks to <paramref name="port"/> on this machine over the real HTTP connection.</summary>
     private static OpenSearchIndexingProviderAsync LocalProvider(int port)
     {
         var settings = new ConnectionSettings(new Uri($"http://127.0.0.1:{port}"));
-        return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+        return new OpenSearchIndexingProviderAsync(new FixedClientFactory(new OpenSearchClient(settings)), NullLogger<OpenSearchIndexingProviderAsync>.Instance, NoMappings);
     }
 
     /// <summary>A port nothing listens on, so a connection to it is refused.</summary>
@@ -91,6 +123,29 @@ public sealed class OpenSearchIndexingResponseTests
     }
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_MappingsNotAcknowledged_ReturnsFailureSayingTheyMayStillApply()
+    {
+        // The in-memory connection answers every request with this body: the exists check with 200, then the put-mapping.
+        var provider = Provider("""{"acknowledged":false}""", 200, settingsManager: WithMappings());
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldBe("Adding the configured mappings to index people was not acknowledged in time. The mappings are not rolled back and may still apply; call EnsureIndexExistsAsync again to confirm them.");
+    }
+
+    [Fact]
+    public async Task EnsureIndexExistsAsync_MappingsAcknowledged_ReturnsTrueForAnExistingIndex()
+    {
+        var provider = Provider("""{"acknowledged":true}""", 200, settingsManager: WithMappings());
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
+    }
 
     [Theory]
     [InlineData(401)]
@@ -248,6 +303,24 @@ public sealed class OpenSearchIndexingResponseTests
     }
 
     [Fact]
+    public async Task EnsureIndexExistsAsync_CreatedByAnotherCallerFirstWithMappings_AddsThemAndReturnsTrue()
+    {
+        // The exists check sees no index, another caller creates it before this caller's create, so the mappings are put.
+        var alreadyExists = """{"error":{"root_cause":[{"type":"resource_already_exists_exception","reason":"index [people/abc] already exists","index":"people"}],"type":"resource_already_exists_exception","reason":"index [people/abc] already exists","index":"people"},"status":400}""";
+        var connection = new SequenceConnection(
+            new InMemoryConnection(Encoding.UTF8.GetBytes("{}"), 404),
+            new InMemoryConnection(Encoding.UTF8.GetBytes(alreadyExists), 400),
+            new InMemoryConnection(Encoding.UTF8.GetBytes("""{"acknowledged":true}"""), 200));
+        var provider = Provider(connection, settingsManager: WithMappings());
+
+        var result = await provider.EnsureIndexExistsAsync("people", Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
+        connection.Requests.ShouldBe(3);
+    }
+
+    [Fact]
     public async Task EnsureIndexExistsAsync_ExistsCheckForbidden_ReturnsTheCheckFailure()
     {
         // Every request gets the same 401; a create attempt would fail with a create error instead.
@@ -262,7 +335,7 @@ public sealed class OpenSearchIndexingResponseTests
     [Fact]
     public async Task IndexingProvider_InvalidSettings_ReturnsFailuresInsteadOfThrowing()
     {
-        var provider = new OpenSearchIndexingProviderAsync(InvalidSettingsFactory(), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+        var provider = new OpenSearchIndexingProviderAsync(InvalidSettingsFactory(), NullLogger<OpenSearchIndexingProviderAsync>.Instance, NoMappings);
         var document = new SearchDocument { Id = "1", Index = "people" };
 
         (await provider.IndexDocumentAsync(document, Token)).IsFailed.ShouldBeTrue();
@@ -334,7 +407,7 @@ public sealed class OpenSearchIndexingResponseTests
     {
         // Not an ArgumentException, so TryGetClientAsync does not turn it into an invalid settings failure.
         var exception = new InvalidOperationException("bad connection string");
-        var provider = new OpenSearchIndexingProviderAsync(new ThrowingClientFactory(exception), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+        var provider = new OpenSearchIndexingProviderAsync(new ThrowingClientFactory(exception), NullLogger<OpenSearchIndexingProviderAsync>.Instance, NoMappings);
 
         var result = await InvokeAsync(provider, method, Token);
 
@@ -369,7 +442,7 @@ public sealed class OpenSearchIndexingResponseTests
     [MemberData(nameof(IndexingMethods))]
     public async Task IndexingMethod_ClientFactoryCancelled_ThrowsOperationCanceledException(string method)
     {
-        var provider = new OpenSearchIndexingProviderAsync(new CancelledClientFactory(), NullLogger<OpenSearchIndexingProviderAsync>.Instance);
+        var provider = new OpenSearchIndexingProviderAsync(new CancelledClientFactory(), NullLogger<OpenSearchIndexingProviderAsync>.Instance, NoMappings);
 
         await Should.ThrowAsync<OperationCanceledException>(() => InvokeAsync(provider, method, Token));
     }
@@ -391,7 +464,7 @@ public sealed class OpenSearchIndexingResponseTests
     public async Task SearchAsync_MaxResultWindowNotPositive_ReturnsConfigurationError(int maxResultWindow)
     {
         var translateService = new OpenSearchQueryTranslateService([]);
-        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), new InvalidSettingsOptionsMonitor(maxResultWindow));
+        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), new InvalidSettingsOptionsMonitor(maxResultWindow), NoMappings);
 
         var result = await provider.SearchAsync(new SearchQuery { Index = "people" });
 
@@ -404,7 +477,7 @@ public sealed class OpenSearchIndexingResponseTests
     {
         var options = new InvalidSettingsOptionsMonitor();
         var translateService = new OpenSearchQueryTranslateService([]);
-        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), options);
+        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), options, NoMappings);
 
         var result = await provider.SearchAsync(new SearchQuery { Index = "people" });
 

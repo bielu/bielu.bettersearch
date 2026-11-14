@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using FluentResults;
 using DateRangeQuery = Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeQuery;
@@ -16,6 +17,12 @@ internal sealed class NumericRangeSubQueryTranslator : ElasticSearchSubQueryTran
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<EsQuery>());
+        }
+
+        var bounds = RangeBounds.Require(nameof(NumericRange), query.MinValue, query.MaxValue);
+        if (bounds.IsFailed)
+        {
+            return Task.FromResult(bounds.ToResult<EsQuery>());
         }
 
         return Task.FromResult(Result.Ok<EsQuery>(new NumberRangeQuery
@@ -41,6 +48,12 @@ internal sealed class LongRangeSubQueryTranslator : ElasticSearchSubQueryTransla
             return Task.FromResult(field.ToResult<EsQuery>());
         }
 
+        var bounds = RangeBounds.Require(nameof(LongRange), query.MinValue, query.MaxValue);
+        if (bounds.IsFailed)
+        {
+            return Task.FromResult(bounds.ToResult<EsQuery>());
+        }
+
         return Task.FromResult(Result.Ok<EsQuery>(new UntypedRangeQuery
         {
             Field = field.Value,
@@ -61,6 +74,12 @@ internal sealed class DateRangeSubQueryTranslator : ElasticSearchSubQueryTransla
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<EsQuery>());
+        }
+
+        var bounds = RangeBounds.Require(nameof(DateRangeQuery), query.MinValue, query.MaxValue);
+        if (bounds.IsFailed)
+        {
+            return Task.FromResult(bounds.ToResult<EsQuery>());
         }
 
         return Task.FromResult(Result.Ok<EsQuery>(new EsDateRangeQuery
@@ -84,6 +103,12 @@ internal sealed class StringRangeSubQueryTranslator : ElasticSearchSubQueryTrans
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<EsQuery>());
+        }
+
+        var bounds = RangeBounds.Require(nameof(StringRange), query.MinValue, query.MaxValue);
+        if (bounds.IsFailed)
+        {
+            return Task.FromResult(bounds.ToResult<EsQuery>());
         }
 
         return Task.FromResult(Result.Ok<EsQuery>(new TermRangeQuery

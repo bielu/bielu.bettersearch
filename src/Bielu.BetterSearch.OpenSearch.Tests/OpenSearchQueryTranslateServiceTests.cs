@@ -47,9 +47,6 @@ public class OpenSearchQueryTranslateServiceTests(
     {
         new TermSubQuery { Field = "City.keyword", Value = "" },
         new FuzzyQuery { Field = "Name", Value = "" },
-        new DateRangeQuery { Field = "Born" },
-        new NumericRange { Field = "Age" },
-        new StringRange { Field = "Name" },
     };
 
     [Theory]
@@ -177,7 +174,7 @@ public class OpenSearchQueryTranslateServiceTests(
 
         var json = await TranslateToJsonAsync(subQuery);
 
-        json.ShouldContain("\"gt\":\"2020-05-01T12:00:00Z\"");
+        json.ShouldContain("\"gte\":\"2020-05-01T12:00:00Z\"");
     }
 
     [Fact]
@@ -189,7 +186,7 @@ public class OpenSearchQueryTranslateServiceTests(
         var json = await TranslateToJsonAsync(subQuery);
 
         var offset = new DateTimeOffset(bound).ToString("zzz", System.Globalization.CultureInfo.InvariantCulture);
-        json.ShouldContain($"\"gt\":\"2020-05-01T12:00:00{offset}\"");
+        json.ShouldContain($"\"gte\":\"2020-05-01T12:00:00{offset}\"");
     }
 
     private async Task<string> TranslateToJsonAsync(ISearchSubQuery subQuery)

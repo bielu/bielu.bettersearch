@@ -17,7 +17,8 @@ public class ElasticSearchSearchProviderAsync(
     IPostFilterTranslateServiceAsync<EsQuery> postFilterTranslateService,
     IClientFactoryAsync<ElasticsearchClient> clientFactoryAsync,
     IResultMapper<SearchResponse<SearchDocument>> resultMapper,
-    IOptionsMonitor<ElasticSearchOptions> optionsMonitor) : ISearchProviderAsync
+    IOptionsMonitor<ElasticSearchOptions> optionsMonitor,
+    IElasticSearchClientSettingsManager settingsManager) : ISearchProviderAsync
 {
     /// <summary>Used when <c>PageSize</c> is not set, as Elasticsearch does.</summary>
     public const int DefaultPageSize = 10;
@@ -60,7 +61,8 @@ public class ElasticSearchSearchProviderAsync(
             return highlight.ToResult<ISearchResult>();
         }
 
-        var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow);
+        var mappings = settingsManager.GetConnectionSettings(query.Index).Mappings ?? [];
+        var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow, mappings);
         request.Highlight = highlight.Value;
         var client = await clientFactoryAsync.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
         var response = await client.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
@@ -141,7 +143,8 @@ public class ElasticSearchSearchProviderAsync(
     /// <summary>The position of the page's last result, in <c>long</c> so a large page can't overflow.</summary>
     private static long LastResultOf(ISearchQuery query) => (long)PageOf(query) * PageSizeOf(query);
 
-    private static SearchRequest CreateRequest(ISearchQuery query, EsQuery mainQuery, EsQuery? postFilter, int maxResultWindow)
+    private static SearchRequest CreateRequest(ISearchQuery query, EsQuery mainQuery, EsQuery? postFilter, int maxResultWindow,
+        IReadOnlyList<ElasticSearchFieldMapping> mappings)
     {
         var pageSize = PageSizeOf(query);
         var request = new SearchRequest(query.Index)
@@ -163,7 +166,8 @@ public class ElasticSearchSearchProviderAsync(
                 {
                     Field = new FieldSort
                     {
-                        Field = ElasticSearchFieldNames.Resolve(sort.FieldName),
+                        // A field mapped as text sorts on its keyword sub-field.
+                        Field = FieldMappings.SortField(ElasticSearchFieldNames.Resolve(sort.FieldName), mappings),
                         Order = sort.Desc ? SortOrder.Desc : SortOrder.Asc
                     }
                 })

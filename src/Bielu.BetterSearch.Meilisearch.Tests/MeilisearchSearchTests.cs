@@ -205,7 +205,9 @@ public sealed class MeilisearchSearchTests(
         {
             Field = "Age",
             MinValue = 30,
-            MaxValue = 40
+            MaxValue = 40,
+            IncludeMinEdge = false,
+            IncludeMaxEdge = false
         }));
 
         inclusive.ShouldBe(["2", "3", "4"]);
@@ -286,7 +288,9 @@ public sealed class MeilisearchSearchTests(
         {
             Field = "fields.City",
             MinValue = "Gdansk",
-            MaxValue = "Warsaw"
+            MaxValue = "Warsaw",
+            IncludeMinEdge = false,
+            IncludeMaxEdge = false
         }));
 
         ids.ShouldBe(["2", "5"]);
@@ -312,7 +316,7 @@ public sealed class MeilisearchSearchTests(
             IncludeMinEdge = true,
             IncludeMaxEdge = true
         }));
-        var exclusive = await SearchIdsAsync(Query(index, Occurance.MUST, new NumericRange { Field = "Scores", MinValue = 1, MaxValue = 5 }));
+        var exclusive = await SearchIdsAsync(Query(index, Occurance.MUST, new NumericRange { Field = "Scores", MinValue = 1, MaxValue = 5, IncludeMinEdge = false, IncludeMaxEdge = false }));
 
         inclusive.ShouldBe(["2", "3"]);
         exclusive.ShouldBe(["2"]);

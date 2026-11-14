@@ -342,4 +342,22 @@ public class OpenSearchClientSettingsManagerTests
 
         public IDisposable? OnChange(Action<OpenSearchOptions, string?> listener) => null;
     }
+
+    [Fact]
+    public void GetConnectionSettings_NoSharedSettingsAndIndexHasItsOwn_UsesIndexSettingsWithoutMappings()
+    {
+        var options = new OpenSearchOptions
+        {
+            SharedIndexSettings = null!,
+            Indexes = new Dictionary<string, OpenSearchIndexSettings>
+            {
+                ["products"] = new() { ConnectionString = "http://products:9200", AuthenticationType = OpenSearchAuthenticationType.NONE },
+            },
+        };
+
+        var settings = CreateManager(options).GetConnectionSettings("products");
+
+        settings.ConnectionString.ShouldBe("http://products:9200");
+        settings.Mappings.ShouldNotBeNull().ShouldBeEmpty();
+    }
 }

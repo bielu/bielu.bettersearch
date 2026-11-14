@@ -7,7 +7,10 @@ using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.OpenSearch.Services;
 
-internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenSearchClient> clientFactory, ILogger<OpenSearchIndexingProviderAsync> logger) : IIndexingProviderAsync
+internal sealed class OpenSearchIndexingProviderAsync(
+    IClientFactoryAsync<IOpenSearchClient> clientFactory,
+    ILogger<OpenSearchIndexingProviderAsync> logger,
+    IOpenSearchClientSettingsManager settingsManager) : IIndexingProviderAsync
 {
     // OpenSearch.Client treats some 404s (for example delete by query on a missing index) as valid,
     // so a response that carries a server error is a failure too.
@@ -116,6 +119,11 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
             return Result.Ok<long?>(response.Deleted);
         }, cancellationToken);
 
+    /// <summary>
+    /// Creates the index with its configured mappings when it is missing. When it exists, adds the configured mappings
+    /// to it, which fails when one conflicts with how the field is already mapped. <c>true</c> whenever the index exists
+    /// afterwards, whether it already existed, this call created it, or another caller created it first.
+    /// </summary>
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {
         var exist = await IndexExistsAsync(index, cancellationToken).ConfigureAwait(false);
@@ -125,16 +133,48 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
             return exist;
         }
 
-        if (exist.Value)
+        if (!exist.Value)
         {
-            return Result.Ok(true);
+            var created = await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
+            if (created.IsFailed)
+            {
+                return created;
+            }
+
+            // Ok(true) means this call created the index with the mappings. Ok(false) means another caller
+            // created it in between, perhaps without them, so they still have to be added.
+            if (created.Value)
+            {
+                return Result.Ok(true);
+            }
         }
 
-        // A concurrent caller may create the index first, which CreateIndexAsync reports as Ok(false);
-        // the index exists either way.
-        var created = await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
-        return created.IsSuccess ? Result.Ok(true) : created;
+        // The index exists either way; only a failure to add the mappings is a failure.
+        var mapped = await PutMappingsAsync(index, cancellationToken).ConfigureAwait(false);
+        return mapped.IsFailed ? mapped : Result.Ok(true);
     }
+
+    private Task<Result<bool>> PutMappingsAsync(string index, CancellationToken cancellationToken) =>
+        clientFactory.TryWithClientAsync(index, async client =>
+        {
+            var properties = OpenSearchMappings.Create(settingsManager.GetConnectionSettings(index).Mappings);
+            if (properties is null)
+            {
+                return Result.Ok(false);
+            }
+
+            var response = await client.Indices.PutMappingAsync(new PutMappingRequest(index) { Properties = properties }, cancellationToken).ConfigureAwait(false);
+            // A 200 with acknowledged false means the cluster took the mappings but did not confirm them in time. The client
+            // calls that response invalid, so it is told apart before the generic failure.
+            if (response.ApiCall is { Success: true } && response.OriginalException is null && response.ServerError is null && !response.Acknowledged)
+            {
+                return Result.Fail<bool>(NotAcknowledged(index));
+            }
+
+            return IsSuccess(response)
+                ? Result.Ok(true)
+                : Result.Fail<bool>(RequestFailed(OpenSearchFailures.Describe($"adding the configured mappings to index {index}", response), response.OriginalException));
+        }, cancellationToken);
 
     public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(index, async client =>
@@ -156,16 +196,32 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
             };
         }, cancellationToken);
 
+    private static string NotAcknowledged(string index) =>
+        $"Adding the configured mappings to index {index} was not acknowledged in time. The mappings are not rolled back and may still apply; call EnsureIndexExistsAsync again to confirm them.";
+
     private static Error RequestFailed(string message, Exception? exception)
     {
         var error = new Error(message);
         return exception is null ? error : error.CausedBy(exception);
     }
 
+    /// <summary>
+    /// Creates the index with its configured mappings. <c>false</c> when it already exists, which leaves its mappings as
+    /// they are; any other refusal, such as an unknown analyzer, is a failure.
+    /// </summary>
     public Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(index, async client =>
         {
-            var response = await client.Indices.CreateAsync(index, ct: cancellationToken).ConfigureAwait(false);
+            var request = new CreateIndexRequest(index);
+            var properties = OpenSearchMappings.Create(settingsManager.GetConnectionSettings(index).Mappings);
+            if (properties is not null)
+            {
+                request.Mappings = new TypeMapping { Properties = properties };
+            }
+
+            var response = await client.Indices.CreateAsync(request, cancellationToken).ConfigureAwait(false);
+            // The client reports a cancelled request as a failed response; check before logging it as an error.
+            cancellationToken.ThrowIfCancellationRequested();
             if (IsSuccess(response))
             {
                 return Result.Ok(true);
@@ -178,6 +234,6 @@ internal sealed class OpenSearchIndexingProviderAsync(IClientFactoryAsync<IOpenS
             }
 
             logger.LogError("Creating index {Index} failed: {Error}", index, response.DebugInformation);
-            return Result.Fail<bool>(new Error(response.DebugInformation));
+            return Result.Fail<bool>(RequestFailed(OpenSearchFailures.Describe("create index", response), response.OriginalException));
         }, cancellationToken);
 }

@@ -107,15 +107,15 @@ public class QueryTranslationUnitTests(IEnumerable<ISubQueryTranslator<IQuery>> 
 
     [Fact]
     public override async Task DateRangeQueryShouldBeTranslatable()
-        => await SubQueryTranslationShouldFailAsync(new DateRangeQuery());
+        => await RangeShouldBeUnsupportedAsync(new DateRangeQuery { Field = "Born", MinValue = Date }, "date");
 
     [Fact]
     public override async Task LongRangeShouldBeTranslatable()
-        => await SubQueryTranslationShouldFailAsync(new LongRange());
+        => await RangeShouldBeUnsupportedAsync(new LongRange { Field = "Age", MinValue = 1, MaxValue = 100 }, "long");
 
     [Fact]
     public override async Task NumericRangeShouldBeTranslatable()
-        => await SubQueryTranslationShouldFailAsync(new NumericRange());
+        => await RangeShouldBeUnsupportedAsync(new NumericRange { Field = "Age", MinValue = 1, MaxValue = 100 }, "numeric");
 
     [Fact]
     public override async Task SpatialSearchQueryShouldBeTranslatable()
@@ -123,9 +123,17 @@ public class QueryTranslationUnitTests(IEnumerable<ISubQueryTranslator<IQuery>> 
 
     [Fact]
     public override async Task StringRangeShouldBeTranslatable()
-        => await SubQueryTranslationShouldFailAsync(new StringRange());
+        => await RangeShouldBeUnsupportedAsync(new StringRange { Field = "Name", MinValue = "a", MaxValue = "m" }, "string");
 
     [Fact]
     public override async Task LuceneSubQueryShouldBeTranslatable()
         => await SubQueryTranslationShouldFailAsync(new LuceneSubQuery());
+
+    // A bounded range, so the failure is the unsupported one rather than the missing bounds.
+    private async Task RangeShouldBeUnsupportedAsync(ISearchSubQuery subQuery, string kind)
+    {
+        var result = await TranslateAsync(subQuery);
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe($"Lifti does not support {kind} range queries.");
+    }
 }

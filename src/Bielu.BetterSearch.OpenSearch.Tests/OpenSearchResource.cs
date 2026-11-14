@@ -14,29 +14,53 @@ public sealed class OpenSearchResource : IHostedService
 {
     private const string ResourceName = "opensearch";
 
+    private readonly SemaphoreSlim _starting = new(1, 1);
     private DistributedApplication? _app;
 
     /// <summary>The HTTP endpoint of the running server, once started.</summary>
     public Uri? Endpoint { get; private set; }
 
+    /// <summary>
+    /// The endpoint, starting the server first when the host has not yet. Startup validation reads the options
+    /// before the host starts its hosted services, so the options ask for the endpoint through this.
+    /// </summary>
+    public Uri EnsureStarted()
+    {
+        StartAsync(CancellationToken.None).GetAwaiter().GetResult();
+        return Endpoint!;
+    }
+
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        // A first run may need to pull the image.
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromMinutes(5));
-
-        var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Bielu_BetterSearch_Examples_AppHost>(timeout.Token);
-        // The AppHost runs every engine; these tests only need OpenSearch.
-        foreach (var other in builder.Resources.Where(r => r.Name != ResourceName).ToList())
+        await _starting.WaitAsync(cancellationToken);
+        try
         {
-            builder.Resources.Remove(other);
+            if (Endpoint is not null)
+            {
+                return;
+            }
+
+            // A first run may need to pull the image.
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromMinutes(5));
+
+            var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Bielu_BetterSearch_Examples_AppHost>(timeout.Token);
+            // The AppHost runs every engine; these tests only need OpenSearch.
+            foreach (var other in builder.Resources.Where(r => r.Name != ResourceName).ToList())
+            {
+                builder.Resources.Remove(other);
+            }
+
+            _app = await builder.BuildAsync(timeout.Token);
+            await _app.StartAsync(timeout.Token);
+            await _app.ResourceNotifications.WaitForResourceHealthyAsync(ResourceName, timeout.Token);
+
+            Endpoint = _app.GetEndpoint(ResourceName, "http");
         }
-
-        _app = await builder.BuildAsync(timeout.Token);
-        await _app.StartAsync(timeout.Token);
-        await _app.ResourceNotifications.WaitForResourceHealthyAsync(ResourceName, timeout.Token);
-
-        Endpoint = _app.GetEndpoint(ResourceName, "http");
+        finally
+        {
+            _starting.Release();
+        }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)

@@ -25,7 +25,6 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Lifti index | `CreateIndexAsync` on an existing index silently wipes its documents | An error or a no-op |
 | Lifti search | Searching a missing index creates it and returns no hits | A failed `Result`, as on the other providers, without creating the index |
 | Core | Indexing observers live on a scoped service, so a subscription only sees the operations of its own scope (*by inspection*) | See phase 1 |
-| Models | `new TermSubQuery().Occurance` is `0`, which is not a defined enum value | A defined default |
 | Lifti search | `Page` and `PageSize` are ignored; hits contain only an id | Paged hits with fields |
 
 ## Replacing Lifti: use Lucene.NET
