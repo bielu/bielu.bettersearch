@@ -14,7 +14,7 @@ The solution is `src/Bielu.BetterSearch.slnx`. Everything, tests included, lives
 |---------|---------|
 | `Bielu.BetterSearch.Abstractions` | Query model (`SearchQuery`, sub-queries) and service interfaces |
 | `Bielu.BetterSearch.Models` | `SearchDocument` and request models |
-| `Bielu.BetterSearch.Core` | `AddBetterSearch`, `IndexingServiceAsync`, `SearchServiceAsync` |
+| `Bielu.BetterSearch.Core` | `AddBetterSearch`, `IndexingServiceAsync`, `SearchServiceAsync`, routing, the in-memory search result cache, telemetry sources |
 | `Bielu.BetterSearch.FluentApi` | Fluent query builder |
 | `Bielu.BetterSearch.ElasticSearch` | Elasticsearch provider |
 | `Bielu.BetterSearch.Meilisearch` | Meilisearch provider |
@@ -22,10 +22,16 @@ The solution is `src/Bielu.BetterSearch.slnx`. Everything, tests included, lives
 | `Bielu.BetterSearch.Typesense` | Typesense provider |
 | `Bielu.BetterSearch.PostgreSql` | PostgreSQL full-text search provider |
 | `Bielu.BetterSearch.Lifti` | In-memory provider |
+| `Bielu.BetterSearch.Caching.FusionCache` | Search result cache on FusionCache (`AddFusionSearchCache`) |
+| `Bielu.BetterSearch.HealthChecks` | Health check (`AddBetterSearchHealthCheck`) |
+| `Bielu.BetterSearch.OpenTelemetry` | OpenTelemetry tracing and metrics registration (`AddBetterSearchInstrumentation`) |
 | `Bielu.BetterSearch.EndpointApi` | Placeholder (not packed) |
 | `examples/Bielu.BetterSearch.Examples.AppHost` | Aspire AppHost running the search engines and their UIs, for local development and the integration tests (not packed) |
 | `Bielu.BetterSearch.BaseTests` | Provider-agnostic test bases, inherited by each provider's test project (not packed) |
-| `Bielu.BetterSearch.*.Tests` | Test projects (not packed) |
+| `Bielu.BetterSearch.Core.Tests` | Health check and telemetry tests (not packed) |
+| `Bielu.BetterSearch.Caching.Tests` | Search result cache tests, in memory and on FusionCache (not packed) |
+| `Bielu.BetterSearch.FluentApi.Tests` | Fluent query builder tests (not packed) |
+| `Bielu.BetterSearch.ElasticSearch.Tests`, `.OpenSearch.Tests`, `.Meilisearch.Tests`, `.Typesense.Tests`, `.PostgreSql.Tests`, `.Lifti.Tests` | Provider tests, inheriting `BaseTests`; all but Lifti run against the engine in the AppHost (not packed) |
 
 ## Conventions
 
