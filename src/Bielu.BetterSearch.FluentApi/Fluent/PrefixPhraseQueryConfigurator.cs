@@ -17,5 +17,6 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
 
         private PrefixPhraseSubQuery _query = new();
         public ISearchSubQuery Query => _query;
+        protected override ISearchSubQuery SubQuery => _query;
     }
 }

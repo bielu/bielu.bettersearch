@@ -22,5 +22,6 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
 
         private TermsSubQuery _query;
         public ISearchSubQuery Query => _query;
+        protected override ISearchSubQuery SubQuery => _query;
     }
 }

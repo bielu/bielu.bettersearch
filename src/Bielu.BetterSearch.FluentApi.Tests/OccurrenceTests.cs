@@ -2,6 +2,7 @@
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.FluentApi.Fluent;
 using Bielu.BetterSearch.FluentApi.Fluent.Extensions;
+using Bielu.BetterSearch.FluentApi.Fluent.RangeQueries;
 using Shouldly;
 
 namespace Bielu.BetterSearch.FluentApi.Tests;
@@ -140,6 +141,22 @@ public class OccurrenceTests
 
         query.Query.Keys.ShouldBe([Occurance.SHOULD]);
         query.Query[Occurance.SHOULD].ShouldHaveSingleItem().Occurance.ShouldBe(Occurance.SHOULD);
+    }
+
+    [Fact]
+    public void Query_OwnOccurrenceChosen_IsWrittenToTheQuery()
+    {
+        new FuzzyQueryConfigurator().WithField("City").WithValue("Warsaw").MustNot().Query.Occurance.ShouldBe(Occurance.MUSTNOT);
+        new PrefixQueryConfigurator().WithField("City").WithValue("War").Should().Query.Occurance.ShouldBe(Occurance.SHOULD);
+        new PrefixPhraseQueryConfigurator().WithField("City").WithValue("War").Filter().Query.Occurance.ShouldBe(Occurance.FILTER);
+        new TermQueryConfigurator().WithField("City").WithValue("Warsaw").MustNot().Query.Occurance.ShouldBe(Occurance.MUSTNOT);
+        new TermsQueryConfigurator().WithField("City").WithValue("Warsaw").Should().Query.Occurance.ShouldBe(Occurance.SHOULD);
+        new SpatialQueryConfigurator().WithField("Location").WithDistance(5).Filter().Query.Occurance.ShouldBe(Occurance.FILTER);
+        new NumericRangeQueryConfigurator().WithField("Age").WithMinValue(18).MustNot().Query.Occurance.ShouldBe(Occurance.MUSTNOT);
+        new LongRangeQueryConfigurator().WithField("Views").WithMinValue(18L).Should().Query.Occurance.ShouldBe(Occurance.SHOULD);
+        new StringRangeQueryConfigurator().WithField("Name").WithMinValue("a").Filter().Query.Occurance.ShouldBe(Occurance.FILTER);
+        new DateRangeQueryConfigurator().WithField("Born").WithMinValue(new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc)).MustNot()
+            .Query.Occurance.ShouldBe(Occurance.MUSTNOT);
     }
 
     // The parent bool is MUST; the first clause chose SHOULD and the second chose nothing.
