@@ -106,11 +106,12 @@ public sealed class TypesenseSearchProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
+            var collection = IndexNames.WithPrefix(options.Value.IndexPrefix, query.Index);
             var filterFields = request.Value.Filter.FieldNames().ToList();
             var refresh = false;
             for (var attempt = 0; ; attempt++)
             {
-                var fields = await schema.FieldsAsync(client, query.Index, refresh, cancellationToken).ConfigureAwait(false);
+                var fields = await schema.FieldsAsync(client, collection, refresh, cancellationToken).ConfigureAwait(false);
                 if (fields.IsFailed)
                 {
                     return Result.Fail<ISearchResult>(new Error($"Typesense search failed: {fields.Errors[0].Message}"));
@@ -142,7 +143,7 @@ public sealed class TypesenseSearchProviderAsync(
 
                 var search = new JsonObject
                 {
-                    ["collection"] = query.Index,
+                    ["collection"] = collection,
                     ["q"] = "*",
                     ["page"] = page,
                     ["per_page"] = pageSize,
@@ -179,7 +180,7 @@ public sealed class TypesenseSearchProviderAsync(
                     // The collection was recreated without a field the cached schema still held: read it again once.
                     if (attempt == 0 && message.StartsWith("Could not find a ", StringComparison.Ordinal))
                     {
-                        schema.Forget(client, query.Index);
+                        schema.Forget(client, collection);
                         refresh = true;
                         continue;
                     }

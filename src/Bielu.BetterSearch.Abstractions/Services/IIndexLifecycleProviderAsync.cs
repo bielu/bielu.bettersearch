@@ -10,7 +10,8 @@ namespace Bielu.BetterSearch.Abstractions.Services;
 /// </summary>
 /// <remarks>
 /// A rebuild creates a new index with the index's configured mappings, fills it, and then points the index name, an
-/// alias, at it in one atomic step that also deletes the indexes the alias pointed at before. Until that step,
+/// alias, at it and deletes the indexes the alias pointed at before, in one atomic step where the engine has one
+/// (Elasticsearch, OpenSearch) and in separate requests otherwise (Typesense). Until that step,
 /// searches and writes through the index name keep using the current index; a write made there during the rebuild is
 /// not copied to the new one. When the engine rejects a step, the alias stays where it was. When the engine does not
 /// confirm a step in time, the call fails but the step may still apply: call it again to learn the outcome. Completing
@@ -29,7 +30,7 @@ public interface IIndexLifecycleProviderAsync
 
     /// <summary>
     /// Points the index name at the rebuild's new index and deletes the indexes it pointed at before, in one atomic
-    /// step, and returns the names of the deleted indexes. The first rebuild of an index created without an alias
+    /// step where the engine has one, and returns the names of the deleted indexes. The first rebuild of an index created without an alias
     /// replaces that index with the alias. Completing a rebuild that is already complete succeeds and deletes nothing.
     /// </summary>
     Task<Result<IReadOnlyList<string>>> CompleteRebuildAsync(IndexRebuild rebuild, CancellationToken cancellationToken = default);

@@ -27,6 +27,12 @@ public abstract class IndexPrefixTestBase(IServiceProvider services) : IDisposab
     /// <summary>The field the test counts a term facet on: <c>Name</c>, or a keyword form of it on an engine that needs one.</summary>
     protected virtual string FacetField => "Name";
 
+    /// <summary>Whether the provider counts term facets, which the test then counts too.</summary>
+    protected virtual bool HasFacets => true;
+
+    /// <summary>Whether the provider has <c>GetDocumentAsync</c>, <c>CountAsync</c> and <c>UpdateDocumentAsync</c>, which the test then runs too.</summary>
+    protected virtual bool HasGetCountAndUpdate => true;
+
     /// <summary>Whether the engine has an index, not an alias, named exactly <paramref name="engineName"/>.</summary>
     protected abstract Task<bool> EngineIndexExistsAsync(string engineName);
 
@@ -88,26 +94,23 @@ public abstract class IndexPrefixTestBase(IServiceProvider services) : IDisposab
             ShouldSucceed(await Indexing.IndexDocumentAsync(Document(index, "a"), Token));
             ShouldSucceed(await Indexing.IndexMultipleDocumentsAsync([Document(index, "b"), Document(index, "c"), Document(index, "d")], Token));
             (await IdsAsync(index)).ShouldBe(["a", "b", "c", "d"]);
-            var faceted = await Search.SearchAsync(new SearchQuery
+            if (HasFacets)
             {
-                Index = index,
-                FacetQueries = [new TermAggregation { AggregationName = "names", TermFieldName = FacetField }]
-            }, Token);
-            ShouldSucceed(faceted);
-            faceted.Value.RetrieveBucketAggregation("names").Buckets.Cast<KeyBucket>().Select(bucket => bucket.Key).Order()
-                .ShouldBe(["item a", "item b", "item c", "item d"]);
-            var got = await Search.GetDocumentAsync(index, "a", Token);
-            ShouldSucceed(got);
-            got.Value.ShouldNotBeNull().Fields["Name"].ShouldHaveSingleItem().ShouldBe("item a");
-            var counted = await Search.CountAsync(SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "item" }), Token);
-            ShouldSucceed(counted);
-            counted.Value.ShouldBe(4);
-            var updated = await Indexing.UpdateDocumentAsync(index, "d", new Dictionary<string, IList<object>> { ["Name"] = ["item d updated"] }, Token);
-            ShouldSucceed(updated);
-            updated.Value.ShouldBeTrue();
-            var gotUpdated = await Search.GetDocumentAsync(index, "d", Token);
-            ShouldSucceed(gotUpdated);
-            gotUpdated.Value.ShouldNotBeNull().Fields["Name"].ShouldHaveSingleItem().ShouldBe("item d updated");
+                var faceted = await Search.SearchAsync(new SearchQuery
+                {
+                    Index = index,
+                    FacetQueries = [new TermAggregation { AggregationName = "names", TermFieldName = FacetField }]
+                }, Token);
+                ShouldSucceed(faceted);
+                faceted.Value.RetrieveBucketAggregation("names").Buckets.Cast<KeyBucket>().Select(bucket => bucket.Key).Order()
+                    .ShouldBe(["item a", "item b", "item c", "item d"]);
+            }
+
+            if (HasGetCountAndUpdate)
+            {
+                await GetCountAndUpdateAsync(index);
+            }
+
             // Nothing was written under the unprefixed name.
             (await EngineIndexExistsAsync(index)).ShouldBeFalse();
 
@@ -134,6 +137,22 @@ public abstract class IndexPrefixTestBase(IServiceProvider services) : IDisposab
         {
             await DeleteIndexAsync(index);
         }
+    }
+
+    private async Task GetCountAndUpdateAsync(string index)
+    {
+        var got = await Search.GetDocumentAsync(index, "a", Token);
+        ShouldSucceed(got);
+        got.Value.ShouldNotBeNull().Fields["Name"].ShouldHaveSingleItem().ShouldBe("item a");
+        var counted = await Search.CountAsync(SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "item" }), Token);
+        ShouldSucceed(counted);
+        counted.Value.ShouldBe(4);
+        var updated = await Indexing.UpdateDocumentAsync(index, "d", new Dictionary<string, IList<object>> { ["Name"] = ["item d updated"] }, Token);
+        ShouldSucceed(updated);
+        updated.Value.ShouldBeTrue();
+        var gotUpdated = await Search.GetDocumentAsync(index, "d", Token);
+        ShouldSucceed(gotUpdated);
+        gotUpdated.Value.ShouldNotBeNull().Fields["Name"].ShouldHaveSingleItem().ShouldBe("item d updated");
     }
 
     public void Dispose()

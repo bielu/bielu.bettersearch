@@ -19,8 +19,11 @@ public abstract class IndexLifecycleTestBase(IServiceProvider services) : IndexP
     /// <summary>The indexes the alias <paramref name="alias"/> points at on the engine, in ordinal order; empty when there is no such alias.</summary>
     protected abstract Task<IReadOnlyList<string>> AliasTargetsAsync(string alias);
 
-    /// <summary>Removes the pending alias of <paramref name="rebuild"/>'s new index on the engine, as an abort does before it deletes the index.</summary>
-    protected abstract Task RemovePendingAliasAsync(IndexRebuild rebuild);
+    /// <summary>
+    /// Does on the engine what an abort of <paramref name="rebuild"/> does before it deletes the new index, such as
+    /// removing its pending alias, so the test can act as an overlapping abort that has not yet deleted it.
+    /// </summary>
+    protected abstract Task BeginAbortAsync(IndexRebuild rebuild);
 
     private IIndexLifecycleServiceAsync Lifecycle => ScopedServices.GetRequiredService<IIndexLifecycleServiceAsync>();
 
@@ -237,8 +240,8 @@ public abstract class IndexLifecycleTestBase(IServiceProvider services) : IndexP
             var first = await FilledRebuildAsync(index, "current");
             ShouldSucceed(await Lifecycle.CompleteRebuildAsync(first, Token));
             var second = await FilledRebuildAsync(index, "abandoned");
-            // An overlapping abort has removed the pending alias but not yet deleted the index.
-            await RemovePendingAliasAsync(second);
+            // An overlapping abort has claimed the rebuild but not yet deleted the index.
+            await BeginAbortAsync(second);
 
             var completed = await Lifecycle.CompleteRebuildAsync(second, Token);
 
