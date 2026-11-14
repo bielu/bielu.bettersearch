@@ -77,6 +77,6 @@ internal sealed class MeilisearchOptionsValidator : IValidateOptions<Meilisearch
 
     private static IEnumerable<string> RequestTimeoutFailures(string path, MeilisearchIndexSettings? settings) =>
         settings?.RequestTimeout is { } timeout
-            ? new[] { ConnectionSettingsChecks.GreaterThanZeroFailure($"{path}:{nameof(MeilisearchIndexSettings.RequestTimeout)}", timeout) }.OfType<string>()
+            ? new[] { ConnectionSettingsChecks.RequestTimeoutFailure($"{path}:{nameof(MeilisearchIndexSettings.RequestTimeout)}", timeout) }.OfType<string>()
             : [];
 }

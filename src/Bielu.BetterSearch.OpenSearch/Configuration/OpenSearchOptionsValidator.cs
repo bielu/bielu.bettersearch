@@ -68,7 +68,7 @@ internal sealed class OpenSearchOptionsValidator : IValidateOptions<OpenSearchOp
         new[]
         {
             settings?.RequestTimeout is { } timeout
-                ? ConnectionSettingsChecks.GreaterThanZeroFailure($"{path}:{nameof(OpenSearchIndexSettings.RequestTimeout)}", timeout)
+                ? ConnectionSettingsChecks.RequestTimeoutFailure($"{path}:{nameof(OpenSearchIndexSettings.RequestTimeout)}", timeout)
                 : null,
             settings?.MaxRetries is { } retries
                 ? ConnectionSettingsChecks.NotNegativeFailure($"{path}:{nameof(OpenSearchIndexSettings.MaxRetries)}", retries)

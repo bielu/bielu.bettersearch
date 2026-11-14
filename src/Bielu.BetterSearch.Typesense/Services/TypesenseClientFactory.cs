@@ -9,7 +9,8 @@ namespace Bielu.BetterSearch.Typesense.Services;
 /// <summary>
 /// Each client owns an <see cref="HttpClient"/>, so clients are cached per set of nodes, key and timeout rather than
 /// created per call. The <c>configureClient</c> callbacks given to <c>AddTypesense</c> run on each client's
-/// <see cref="HttpClient"/> once, when the client is created.
+/// <see cref="HttpClient"/> once, when the client is created. When one throws, the client is not cached, so the next call
+/// creates it again and runs them again.
 /// </summary>
 internal sealed class TypesenseClientFactory(
     ITypesenseClientSettingsManager settingsManager,
@@ -36,13 +37,34 @@ internal sealed class TypesenseClientFactory(
 
         var apiKey = string.IsNullOrWhiteSpace(settings.ApiKey) ? null : settings.ApiKey;
         var key = new ClientKey(string.Join(' ', nodes), apiKey, optionsMonitor.CurrentValue.RequestTimeout);
-        return Task.FromResult(_clients.GetOrAdd(key, k => new Lazy<TypesenseHttpClientWrapper>(() =>
+        var client = _clients.GetOrAdd(key, k => new Lazy<TypesenseHttpClientWrapper>(() => CreateClient(k, nodes)));
+        try
         {
-            var httpClient = new HttpClient { Timeout = k.Timeout > TimeSpan.Zero ? k.Timeout : Timeout.InfiniteTimeSpan };
-            _httpClients.Add(httpClient);
+            return Task.FromResult(client.Value);
+        }
+        catch
+        {
+            // A Lazy keeps the exception it threw, so drop it, or every later call would get the same exception.
+            _clients.TryRemove(new KeyValuePair<ClientKey, Lazy<TypesenseHttpClientWrapper>>(key, client));
+            throw;
+        }
+    }
+
+    private TypesenseHttpClientWrapper CreateClient(ClientKey key, List<Uri> nodes)
+    {
+        var httpClient = new HttpClient { Timeout = key.Timeout > TimeSpan.Zero ? key.Timeout : Timeout.InfiniteTimeSpan };
+        try
+        {
             ClientConfiguration<HttpClient>.Apply(_clientConfigurations, httpClient);
-            return new TypesenseHttpClientWrapper(httpClient, nodes, k.ApiKey);
-        })).Value);
+        }
+        catch
+        {
+            httpClient.Dispose();
+            throw;
+        }
+
+        _httpClients.Add(httpClient);
+        return new TypesenseHttpClientWrapper(httpClient, nodes, key.ApiKey);
     }
 
     public void Dispose()

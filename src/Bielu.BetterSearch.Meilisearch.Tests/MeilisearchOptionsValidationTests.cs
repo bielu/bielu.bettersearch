@@ -133,6 +133,16 @@ public class MeilisearchOptionsValidationTests : OptionsValidationTestBase
         ]);
     }
 
+    [Theory]
+    [InlineData("SharedIndexSettings", "30.00:00:00")]
+    [InlineData("Indexes:people", "24.20:31:23.6480000")]
+    public void ValidateOnStart_RequestTimeoutAboveHttpClientMaximum_FailsNamingTheSetting(string path, string value)
+    {
+        Validate($"{path}:RequestTimeout", value).Failures.ShouldBe([
+            $"{Key}:{path}:RequestTimeout is {value}, but it must be at most 24.20:31:23.6470000, the longest timeout HttpClient accepts."
+        ]);
+    }
+
     [Fact]
     public void ValidateOnStart_PositiveRequestTimeouts_Passes()
     {
@@ -140,7 +150,7 @@ public class MeilisearchOptionsValidationTests : OptionsValidationTestBase
         {
             ["SharedIndexSettings:ConnectionString"] = "http://localhost:7700",
             ["SharedIndexSettings:RequestTimeout"] = "00:00:05",
-            ["Indexes:people:RequestTimeout"] = "00:01:00",
+            ["Indexes:people:RequestTimeout"] = "24.20:31:23.6470000",
         }).ShouldBeNull();
     }
 

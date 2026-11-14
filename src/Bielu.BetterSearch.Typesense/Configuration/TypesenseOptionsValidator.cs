@@ -18,7 +18,8 @@ internal sealed class TypesenseOptionsValidator : IValidateOptions<TypesenseOpti
             .Concat(new[]
             {
                 ConnectionSettingsChecks.NotNegativeFailure($"{key}:{nameof(TypesenseOptions.SchemaCheckInterval)}", options.SchemaCheckInterval),
-                ConnectionSettingsChecks.NotNegativeFailure($"{key}:{nameof(TypesenseOptions.RequestTimeout)}", options.RequestTimeout),
+                ConnectionSettingsChecks.NotNegativeFailure($"{key}:{nameof(TypesenseOptions.RequestTimeout)}", options.RequestTimeout)
+                    ?? ConnectionSettingsChecks.MaxRequestTimeoutFailure($"{key}:{nameof(TypesenseOptions.RequestTimeout)}", options.RequestTimeout),
             }.OfType<string>())
             .ToList();
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

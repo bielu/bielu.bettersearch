@@ -68,7 +68,7 @@ internal sealed class ElasticSearchOptionsValidator : IValidateOptions<ElasticSe
         new[]
         {
             settings?.RequestTimeout is { } timeout
-                ? ConnectionSettingsChecks.GreaterThanZeroFailure($"{path}:{nameof(ElasticSearchIndexSettings.RequestTimeout)}", timeout)
+                ? ConnectionSettingsChecks.RequestTimeoutFailure($"{path}:{nameof(ElasticSearchIndexSettings.RequestTimeout)}", timeout)
                 : null,
             settings?.MaxRetries is { } retries
                 ? ConnectionSettingsChecks.NotNegativeFailure($"{path}:{nameof(ElasticSearchIndexSettings.MaxRetries)}", retries)

@@ -46,6 +46,19 @@ public class TypesenseOptionsValidationTests : OptionsValidationTestBase
     }
 
     [Fact]
+    public void ValidateOnStart_RequestTimeoutAboveHttpClientMaximum_FailsNamingTheSetting()
+    {
+        Validate("RequestTimeout", "30.00:00:00").ShouldBe(
+            [$"{Key}:RequestTimeout is 30.00:00:00, but it must be at most 24.20:31:23.6470000, the longest timeout HttpClient accepts."]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_RequestTimeoutAtHttpClientMaximum_Passes()
+    {
+        Validate("RequestTimeout", "24.20:31:23.6470000").ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Providers_ReloadMakesSchemaCheckIntervalInvalid_ReturnFailedResultsNamingTheSetting()
     {
         // Nothing listens on port 1, so a call that got past the options would fail with a connection error instead.

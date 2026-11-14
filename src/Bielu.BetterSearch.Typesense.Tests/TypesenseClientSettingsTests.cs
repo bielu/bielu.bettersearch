@@ -39,6 +39,31 @@ public sealed class TypesenseClientSettingsTests
     }
 
     [Fact]
+    public async Task GetOrCreateClientAsync_ConfigureClientThrowsOnce_NextCallRunsItAgainAndCachesTheClient()
+    {
+        var calls = 0;
+        var options = new TypesenseOptions
+        {
+            SharedIndexSettings = new TypesenseIndexSettings { ConnectionString = "http://shared:8108" },
+        };
+        using var factory = CreateFactory(options, _ =>
+        {
+            if (++calls == 1)
+            {
+                throw new InvalidOperationException("credential store unavailable");
+            }
+        });
+
+        (await Should.ThrowAsync<InvalidOperationException>(() => factory.GetOrCreateClientAsync("people")))
+            .Message.ShouldBe("credential store unavailable");
+        var first = await factory.GetOrCreateClientAsync("people");
+        var second = await factory.GetOrCreateClientAsync("places");
+
+        second.ShouldBeSameAs(first);
+        calls.ShouldBe(2);
+    }
+
+    [Fact]
     public async Task AddTypesense_ConfigureClient_RunsOnTheClientTheFactoryCreates()
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
