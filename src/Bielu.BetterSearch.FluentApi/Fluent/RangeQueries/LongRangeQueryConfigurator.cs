@@ -2,7 +2,7 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent.RangeQueries;
 
-public class LongRangeQueryConfigurator
+public class LongRangeQueryConfigurator : SubQueryConfigurator<LongRangeQueryConfigurator>
 {
     public LongRangeQueryConfigurator()
     {
@@ -10,6 +10,7 @@ public class LongRangeQueryConfigurator
     }
 
     public LongRange Query { get; set; }
+    protected override ISearchSubQuery SubQuery => Query;
     public LongRangeQueryConfigurator WithField(string fieldName)
     {
         Query.Field = fieldName;
@@ -23,7 +24,7 @@ public class LongRangeQueryConfigurator
     }
     public LongRangeQueryConfigurator WithMaxValue(long value, bool includeEdge = false)
     {
-        Query.MinValue = value;
+        Query.MaxValue = value;
         Query.IncludeMaxEdge = includeEdge;
         return this;
     }

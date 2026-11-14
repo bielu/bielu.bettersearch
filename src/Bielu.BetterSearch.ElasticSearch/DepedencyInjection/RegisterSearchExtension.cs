@@ -16,13 +16,9 @@ public static class RegisterSearchExtension
     {
         configurator.Services.AddSingleton<IElasticSearchClientSettingsManager, ElasticSearchClientSettingsManager>();
         configurator.Services.AddSingleton<IClientFactoryAsync<ElasticsearchClient>, ElasticsearchClientFactory>();
-        configurator.Services.AddScoped(typeof(IDocumentValidatorAsync),
-            configurator.Configuration.DocumentValidatorType);
+        // AddBetterSearch registers the validator and the indexing and search services after this runs.
         configurator.SetSearchProviderType<ElasticSearchSearchProviderAsync>()
             .SetIndexingProviderType<ElasticSearchIndexingProviderAsync>();
-        configurator.Services.AddScoped(typeof(IIndexingServiceAsync), configurator.Configuration.IndexingServiceType);
-
-        configurator.Services.AddScoped(typeof(ISearchServiceAsync), configurator.Configuration.SearchServiceType);
         configurator.Services.AddScoped<ElasticSearchQueryTranslateService>();
         configurator.Services.AddScoped<IQueryTranslateServiceAsync<Query>>(sp =>
             sp.GetRequiredService<ElasticSearchQueryTranslateService>());

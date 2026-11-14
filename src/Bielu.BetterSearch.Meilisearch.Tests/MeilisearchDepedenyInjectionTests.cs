@@ -1,4 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Configuration;
+using Bielu.BetterSearch.Meilisearch.DepedencyInjection;
 using Bielu.BetterSearch.Meilisearch.Services;
 using Bielu.BetterSearch.Tests;
 using Meilisearch;
@@ -9,6 +11,8 @@ namespace Bielu.BetterSearch.Meilisearch.Tests;
 public class MeilisearchDepedenyInjectionTests(IServiceProvider collection)
     : DepedenyInjectionTestBase<MeilisearchIndexingProviderAsync, MeilisearchClient, MeilisearchQuery>(collection)
 {
+    protected override void AddProvider(Configurator search) => search.AddMeilisearch();
+
     [Fact]
     public void SearchProviderShouldBeTypeOfMeilisearchSearchProviderAsync() => ServiceShouldBeTypeOf(typeof(ISearchProviderAsync), typeof(MeilisearchSearchProviderAsync));
 

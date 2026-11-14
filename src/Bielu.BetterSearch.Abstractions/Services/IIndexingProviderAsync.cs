@@ -14,6 +14,10 @@ public interface IIndexingProviderAsync
     /// the <see cref="Result"/> fails and names them, but the other documents may already be removed.
     /// </summary>
     Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Removes every document from the index named by <paramref name="index"/> and returns how many were removed, or
+    /// <c>null</c> when the engine removed them but did not report how many.
+    /// </summary>
     Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
         CancellationToken cancellationToken = default);
     Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default);
