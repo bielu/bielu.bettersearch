@@ -17,7 +17,7 @@ namespace Bielu.BetterSearch.Typesense.Services;
 /// Runs the query as a Typesense filter with the search text <c>*</c>, so every hit matches it exactly and has the
 /// same score, 1. Hits are ordered by <c>SortOrder</c> when given.
 /// </summary>
-public sealed class TypesenseSearchProviderAsync(
+internal sealed class TypesenseSearchProviderAsync(
     IQueryTranslateServiceAsync<TypesenseSearchRequest> queryTranslateService,
     IClientFactoryAsync<TypesenseHttpClientWrapper> clientFactory,
     TypesenseSchema schema,

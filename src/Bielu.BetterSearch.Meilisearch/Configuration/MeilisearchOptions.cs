@@ -86,7 +86,7 @@ public class MeilisearchOptions
     public IList<string>? PhraseFields { get; set; }
 }
 
-public class MeilisearchIndexSettings : IndexSettings
+public class MeilisearchIndexSettings
 {
     /// <summary>The URL of the Meilisearch server, for example <c>http://localhost:7700</c>.</summary>
     public string ConnectionString { get; set; } = string.Empty;

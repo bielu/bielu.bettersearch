@@ -17,7 +17,7 @@ namespace Bielu.BetterSearch.Typesense.Services;
 /// write succeeds. A missing collection is created, with the provider's schema, by the first write to it. Every
 /// collection name has <see cref="TypesenseOptions.IndexPrefix"/> before it.
 /// </summary>
-public sealed partial class TypesenseIndexingProviderAsync(
+internal sealed partial class TypesenseIndexingProviderAsync(
     IClientFactoryAsync<TypesenseHttpClientWrapper> clientFactory,
     IOptionsMonitor<TypesenseOptions> optionsMonitor,
     TypesenseSchema schema,

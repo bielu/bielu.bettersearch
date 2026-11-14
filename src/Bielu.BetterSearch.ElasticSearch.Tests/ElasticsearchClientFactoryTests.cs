@@ -49,7 +49,7 @@ public class ElasticsearchClientFactoryTests
             SharedIndexSettings = new ElasticSearchIndexSettings { ConnectionString = "http://shared:9200" },
             Indexes = new Dictionary<string, ElasticSearchIndexSettings>
             {
-                ["people"] = new() { IndexName = "people" },
+                ["people"] = new(),
             },
         };
         var factory = CreateFactory(options);
@@ -168,7 +168,7 @@ public class ElasticsearchClientFactoryTests
     public async Task GetOrCreateClientAsync_IndexWithoutConnectionStringUnderSharedPassword_UsesSharedAuthentication()
     {
         var options = SharedOptions("http://shared:9200", password: "secret");
-        options.Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() { IndexName = "people" } };
+        options.Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() };
 
         var people = await CreateFactory(options).GetOrCreateClientAsync("people");
 
@@ -186,7 +186,7 @@ public class ElasticsearchClientFactoryTests
                 AuthenticationType = AuthenticationType.CLOUDAPI,
                 AuthenticationDetails = new AuthenticationDetails { Id = CloudId, ApiKey = "shared-key" },
             },
-            Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() { IndexName = "people" } },
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() },
         };
 
         var people = await CreateFactory(options).GetOrCreateClientAsync("people");

@@ -14,7 +14,7 @@ using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.ElasticSearch.Services;
 
-public partial class ElasticSearchIndexingProviderAsync(
+internal sealed partial class ElasticSearchIndexingProviderAsync(
     IClientFactoryAsync<ElasticsearchClient> clientFactory,
     ILogger<ElasticSearchIndexingProviderAsync> logger,
     IElasticSearchClientSettingsManager settingsManager) : IIndexingProviderAsync, IIndexLifecycleProviderAsync

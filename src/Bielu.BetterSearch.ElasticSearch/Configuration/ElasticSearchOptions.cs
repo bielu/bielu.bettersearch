@@ -50,7 +50,7 @@ public class ElasticSearchOptions
 
 }
 
-public class ElasticSearchIndexSettings : IndexSettings
+public class ElasticSearchIndexSettings
 {
     public string ConnectionString { get; set; }
 

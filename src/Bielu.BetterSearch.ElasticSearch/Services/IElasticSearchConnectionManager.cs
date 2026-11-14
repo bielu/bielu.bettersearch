@@ -3,7 +3,7 @@ using Elastic.Clients.Elasticsearch;
 
 namespace Bielu.BetterSearch.ElasticSearch.Services;
 
-public interface IElasticSearchClientSettingsManager
+internal interface IElasticSearchClientSettingsManager
 {
     /// <summary>
     /// The settings an index connects with: its own, with what it leaves out taken from the shared ones.

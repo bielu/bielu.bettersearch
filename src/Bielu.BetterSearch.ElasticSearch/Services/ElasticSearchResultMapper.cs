@@ -12,7 +12,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 /// a field stored as <c>null</c> becoming an empty list and <c>null</c> values left out, and its highlights
 /// keyed by the query model's field names.
 /// </summary>
-public class ElasticSearchResultMapper : IResultMapper<SearchResponse<SearchDocument>>
+internal sealed class ElasticSearchResultMapper : IResultMapper<SearchResponse<SearchDocument>>
 {
     public ISearchResult MapResult(SearchResponse<SearchDocument> searchEngineResult) => new BaseSearchResults
     {

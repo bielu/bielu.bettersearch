@@ -20,7 +20,7 @@ using TaskResource = Meilisearch.TaskResource;
 
 namespace Bielu.BetterSearch.Meilisearch.Services;
 
-public sealed class MeilisearchIndexingProviderAsync(
+internal sealed class MeilisearchIndexingProviderAsync(
     IClientFactoryAsync<MeilisearchClient> clientFactory,
     IOptionsMonitor<MeilisearchOptions> optionsMonitor,
     ILogger<MeilisearchIndexingProviderAsync> logger) : IIndexingProviderAsync
