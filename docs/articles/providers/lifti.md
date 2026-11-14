@@ -16,7 +16,8 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 >   so there is no text to mark the matched terms in.
 > - **Range and spatial queries**: `DateRangeQuery`, `NumericRange`, `LongRange`, `StringRange` and
 >   `SpatialSearchQuery` return a failed `Result`. A range with neither bound fails with the message every provider
->   gives for it, naming the missing bounds, rather than saying ranges are not supported.
+>   gives for it, naming the missing bounds, rather than saying ranges are not supported, and so does a
+>   `NumericRange` with a `NaN` or infinite bound.
 > - **`LuceneQuery`** is not supported.
 > - **Fields are ignored**: term, terms, fuzzy, prefix and phrase prefix queries match the value in any field.
 > - **A value with no words**, such as `null`, `""` or `-`, returns a failed `Result` from a term, fuzzy, prefix or

@@ -25,6 +25,12 @@ internal sealed class NumericRangeSubQueryTranslator : ElasticSearchSubQueryTran
             return Task.FromResult(bounds.ToResult<EsQuery>());
         }
 
+        var finite = RangeBounds.RequireFinite(nameof(NumericRange), query.MinValue, query.MaxValue);
+        if (finite.IsFailed)
+        {
+            return Task.FromResult(finite.ToResult<EsQuery>());
+        }
+
         return Task.FromResult(Result.Ok<EsQuery>(new NumberRangeQuery
         {
             Field = field.Value,
@@ -82,13 +88,16 @@ internal sealed class DateRangeSubQueryTranslator : ElasticSearchSubQueryTransla
             return Task.FromResult(bounds.ToResult<EsQuery>());
         }
 
+        // Sent in UTC, so an unspecified DateTime is read as UTC and a DateTimeOffset keeps its instant.
+        var min = query.MinValue?.UtcDateTime;
+        var max = query.MaxValue?.UtcDateTime;
         return Task.FromResult(Result.Ok<EsQuery>(new EsDateRangeQuery
         {
             Field = field.Value,
-            Gte = query.IncludeMinEdge ? query.MinValue : null,
-            Gt = query.IncludeMinEdge ? null : query.MinValue,
-            Lte = query.IncludeMaxEdge ? query.MaxValue : null,
-            Lt = query.IncludeMaxEdge ? null : query.MaxValue,
+            Gte = query.IncludeMinEdge ? min : null,
+            Gt = query.IncludeMinEdge ? null : min,
+            Lte = query.IncludeMaxEdge ? max : null,
+            Lt = query.IncludeMaxEdge ? null : max,
             Boost = ElasticSearchFieldNames.Boost(query.BoostValue)
         }));
     }

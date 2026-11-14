@@ -15,6 +15,9 @@ public class QueryTranslationResultsUnitTests(
     /// <summary>Lifti's hits hold only the document id.</summary>
     protected override bool ReturnsStoredFields => false;
 
+    /// <summary>Lifti does not support ranges, so each range test checks that the range fails.</summary>
+    protected override bool SupportsRanges => false;
+
     /// <summary>Lifti has no query for every document, so the ids come from the index itself.</summary>
     protected override async Task<IReadOnlyCollection<string>> IndexedIdsAsync(string index) =>
         (await indexManager.GetIndexAsync(index)).Value?.Metadata.GetIndexedDocuments().Select(document => document.Key).ToList() ?? [];
