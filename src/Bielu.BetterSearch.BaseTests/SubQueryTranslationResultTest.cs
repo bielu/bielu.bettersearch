@@ -383,6 +383,34 @@ public abstract class QueryResultBaseTests(
         ids.ShouldBe(["1", "3"]);
     }
 
+    /// <summary>A sub-query put in <c>NestedQueries</c> without <c>Add</c> keeps its default occurrence, <c>MUST</c>.</summary>
+    [Fact]
+    public async Task SearchAsync_SubQueryAddedToNestedQueriesDirectly_IsAMust()
+    {
+        var query = await CreateQueryAsync();
+        var nested = new BoolSearchSubQuery
+        {
+            NestedQueries = [Name("john"), new TermSubQuery { Field = "Name", Value = "jane", Occurance = Occurance.SHOULD }]
+        };
+        query.Add(Occurance.MUST, nested);
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["2", "3"]);
+    }
+
+    /// <summary>Both edges are inclusive by default: the ages 25 and 30 sit exactly on the bounds.</summary>
+    [Fact]
+    public virtual async Task SearchAsync_RangeWithDefaultEdges_IncludesBothBounds()
+    {
+        var query = await CreateQueryAsync();
+        query.Add(Occurance.MUST, new NumericRange { Field = "Age", MinValue = 25, MaxValue = 30 });
+
+        var ids = await SearchIdsAsync(query);
+
+        ids.ShouldBe(["1", "2"]);
+    }
+
     [Fact]
     public async Task SearchAsync_NestedBoolBuiltWithAdd_KeepsEachOccurrence()
     {
@@ -562,6 +590,18 @@ public abstract class QueryResultBaseTests(
         var ids = await SearchIdsAsync(query);
 
         ids.ShouldBe(["2", "3"]);
+    }
+
+    /// <summary>For providers that do not support ranges: a failed <c>Result</c>, never the matches.</summary>
+    protected async Task SearchAsync_RangeWithDefaultEdges_ShouldFailAsync()
+    {
+        var query = await CreateQueryAsync();
+        query.Add(Occurance.MUST, new NumericRange { Field = "Age", MinValue = 25, MaxValue = 30 });
+
+        var result = await serviceAsync.SearchAsync(query);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldContain(error => error.Message.Contains("does not support numeric range queries"));
     }
 
     /// <summary>For providers that cannot return the complement: a failed <c>Result</c>, never the matches.</summary>
