@@ -103,22 +103,120 @@ public sealed class TypesenseSearchProviderAsync(
             return Result.Fail<ISearchResult>($"SortOrder has {sortFields.Count} fields; Typesense sorts on at most {MaxSortFields}.");
         }
 
+        var properties = query.Properties?.Where(property => !string.IsNullOrWhiteSpace(property)).Select(N.Name).ToHashSet(StringComparer.Ordinal);
+        var results = await RunAsync("search", query.Index, IndexNames.WithPrefix(options.Value.IndexPrefix, query.Index), request.Value.Filter, sortFields, search =>
+            {
+                search["page"] = page;
+                search["per_page"] = pageSize;
+                search["include_fields"] = $"id,{N.Type},{N.Source}";
+            },
+            result => Results(result.GetProperty("hits").EnumerateArray().Select(hit => MapHit(hit, properties)).ToList(),
+                result.GetProperty("found").GetInt64(), page, pageSize),
+            Results([], 0, page, pageSize), cancellationToken).ConfigureAwait(false);
+        return results.IsSuccess ? results.WithSuccesses(request.Successes) : results;
+    }
+
+    /// <summary>
+    /// Counts with a search for no hits, <c>per_page</c> 0, whose <c>found</c> is the exact number of matches. The
+    /// filter is the one <see cref="SearchAsync"/> sends, post filter included, so a missing index fails as a search does.
+    /// </summary>
+    public async Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var check = DocumentLookups.CheckCount(query.Index);
+        if (check.IsFailed)
+        {
+            return check.ToResult<long>();
+        }
+
+        var options = optionsMonitor.TryCurrentValue();
+        if (options.IsFailed)
+        {
+            return options.ToResult<long>();
+        }
+
+        var request = await queryTranslateService.TranslateMainQueryAsync(query).ConfigureAwait(false);
+        if (request.IsFailed)
+        {
+            return request.ToResult<long>();
+        }
+
+        var count = await RunAsync("count", query.Index, IndexNames.WithPrefix(options.Value.IndexPrefix, query.Index), request.Value.Filter, [], search => search["per_page"] = 0,
+            result => result.GetProperty("found").GetInt64(), 0L, cancellationToken).ConfigureAwait(false);
+        return count.IsSuccess ? count.WithSuccesses(request.Successes) : count;
+    }
+
+    /// <summary>
+    /// The stored document, its fields as hits return them; <c>null</c> when Typesense answers that the document or
+    /// the collection is not there.
+    /// </summary>
+    public async Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var check = DocumentLookups.CheckGet(index, id);
+        if (check.IsFailed)
+        {
+            return check.ToResult<SearchDocument?>();
+        }
+
         try
         {
-            var client = await clientFactory.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
-            var filterFields = request.Value.Filter.FieldNames().ToList();
+            var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
+            var collection = IndexNames.WithPrefix(optionsMonitor.CurrentValue.IndexPrefix, index);
+            var stored = await TypesenseDocument.GetAsync(client, collection, id, cancellationToken).ConfigureAwait(false);
+            if (stored.IsFailed)
+            {
+                return Result.Fail<SearchDocument?>($"Typesense get of document {id} failed: {stored.Errors[0].Message}");
+            }
+
+            if (stored.Value is not { } document)
+            {
+                return Result.Ok<SearchDocument?>(null);
+            }
+
+            return Result.Ok<SearchDocument?>(new SearchDocument
+            {
+                Id = document["id"]?.GetValue<string>() ?? id,
+                Type = document[N.Type]?.GetValue<string>() ?? string.Empty,
+                Index = index,
+                Fields = DocumentLookups.ToFields(StoredFields.ToCustomProperties(TypesenseDocument.ReadSource(document[N.Source]?.GetValue<string>())))
+            });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            return Result.Fail<SearchDocument?>(new Error($"Typesense get of document {id} failed: {e.Message}").CausedBy(e));
+        }
+    }
+
+    /// <summary>
+    /// Sends one search of <paramref name="collection"/>, the engine's name of <paramref name="index"/>, with <paramref name="filter"/> and <paramref name="sortFields"/>,
+    /// <paramref name="configure"/> setting the rest, and reads the answer with <paramref name="read"/>; a filter no
+    /// document can match gives <paramref name="none"/> without a request.
+    /// </summary>
+    private async Task<Result<T>> RunAsync<T>(string operation, string index, string collection, TypesenseFilter filter,
+        List<(string Name, bool Desc)> sortFields, Action<JsonObject> configure, Func<JsonElement, T> read, T none,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
+            var filterFields = filter.FieldNames().ToList();
             var refresh = false;
             for (var attempt = 0; ; attempt++)
             {
-                var fields = await schema.FieldsAsync(client, query.Index, refresh, cancellationToken).ConfigureAwait(false);
+                var fields = await schema.FieldsAsync(client, collection, refresh, cancellationToken).ConfigureAwait(false);
                 if (fields.IsFailed)
                 {
-                    return Result.Fail<ISearchResult>(new Error($"Typesense search failed: {fields.Errors[0].Message}"));
+                    return Result.Fail<T>(new Error($"Typesense {operation} failed: {fields.Errors[0].Message}"));
                 }
 
                 if (fields.Value is not { } known)
                 {
-                    return Result.Fail<ISearchResult>($"Typesense search failed: the index {query.Index} does not exist.");
+                    return Result.Fail<T>($"Typesense {operation} failed: the index {index} does not exist.");
                 }
 
                 // A field added since the fields were read would be missed, so a field they don't hold reads them again.
@@ -129,25 +227,23 @@ public sealed class TypesenseSearchProviderAsync(
                     continue;
                 }
 
-                var rendered = request.Value.Filter.Render(known.Contains);
+                var rendered = filter.Render(known.Contains);
                 if (rendered.IsFailed)
                 {
-                    return rendered.ToResult<ISearchResult>();
+                    return rendered.ToResult<T>();
                 }
 
                 if (rendered.Value.MatchesNone)
                 {
-                    return Result.Ok(Results([], 0, page, pageSize)).WithSuccesses(request.Successes);
+                    return Result.Ok(none);
                 }
 
                 var search = new JsonObject
                 {
-                    ["collection"] = query.Index,
+                    ["collection"] = collection,
                     ["q"] = "*",
-                    ["page"] = page,
-                    ["per_page"] = pageSize,
-                    ["include_fields"] = $"id,{N.Type},{N.Source}",
                 };
+                configure(search);
                 if (rendered.Value.Expression is { } filterBy)
                 {
                     search["filter_by"] = filterBy;
@@ -156,7 +252,7 @@ public sealed class TypesenseSearchProviderAsync(
                 var sortBy = SortBy(sortFields, known);
                 if (sortBy.IsFailed)
                 {
-                    return sortBy.ToResult<ISearchResult>();
+                    return sortBy.ToResult<T>();
                 }
 
                 if (sortBy.Value is { } sortExpression)
@@ -168,7 +264,7 @@ public sealed class TypesenseSearchProviderAsync(
                 var response = await client.SendAsync(HttpMethod.Post, "multi_search", () => JsonContent.Create(body), cancellationToken).ConfigureAwait(false);
                 if (!response.IsSuccess)
                 {
-                    return Result.Fail<ISearchResult>($"Typesense search failed: {response.Describe()}");
+                    return Result.Fail<T>($"Typesense {operation} failed: {response.Describe()}");
                 }
 
                 using var json = JsonDocument.Parse(response.Body);
@@ -179,19 +275,16 @@ public sealed class TypesenseSearchProviderAsync(
                     // The collection was recreated without a field the cached schema still held: read it again once.
                     if (attempt == 0 && message.StartsWith("Could not find a ", StringComparison.Ordinal))
                     {
-                        schema.Forget(client, query.Index);
+                        schema.Forget(client, collection);
                         refresh = true;
                         continue;
                     }
 
                     var code = result.TryGetProperty("code", out var status) ? status.ToString() : "?";
-                    return Result.Fail<ISearchResult>(new Error($"Typesense search failed ({code}): {message}").WithMetadata("code", code));
+                    return Result.Fail<T>(new Error($"Typesense {operation} failed ({code}): {message}").WithMetadata("code", code));
                 }
 
-                var found = result.GetProperty("found").GetInt64();
-                var properties = query.Properties?.Where(property => !string.IsNullOrWhiteSpace(property)).Select(N.Name).ToHashSet(StringComparer.Ordinal);
-                var hits = result.GetProperty("hits").EnumerateArray().Select(hit => MapHit(hit, properties)).ToList();
-                return Result.Ok(Results(hits, found, page, pageSize)).WithSuccesses(request.Successes);
+                return Result.Ok(read(result));
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -200,7 +293,46 @@ public sealed class TypesenseSearchProviderAsync(
         }
         catch (Exception e)
         {
-            return Result.Fail<ISearchResult>(new Error($"Typesense search failed: {e.Message}").CausedBy(e));
+            return Result.Fail<T>(new Error($"Typesense {operation} failed: {e.Message}").CausedBy(e));
+        }
+    }
+
+    /// <summary>
+    /// Calls <c>GET /health</c> on the nodes of <paramref name="index"/>, or of the shared settings when it is
+    /// <c>null</c>, and needs <c>"ok": true</c>. A node that can't be reached or answers 5xx is passed over for the
+    /// next, as for every request, so the ping succeeds when one node answers that it is healthy.
+    /// </summary>
+    public async Task<Result> PingAsync(string? index = null, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            var options = optionsMonitor.TryCurrentValue();
+            if (options.IsFailed)
+            {
+                return options.ToResult();
+            }
+
+            var client = await clientFactory.GetOrCreateClientAsync(index ?? string.Empty).ConfigureAwait(false);
+            var response = await client.SendAsync(HttpMethod.Get, "health", null, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccess)
+            {
+                return Result.Fail(new Error($"Typesense ping failed: {response.Describe()}").WithMetadata("code", (int)response.StatusCode));
+            }
+
+            using var json = JsonDocument.Parse(response.Body);
+            return json.RootElement.ValueKind == JsonValueKind.Object
+                   && json.RootElement.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.True
+                ? Result.Ok()
+                : Result.Fail($"Typesense ping failed: it reported its health as {response.Body}, not {{\"ok\":true}}.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            return Result.Fail(new Error($"Typesense ping failed: {e.Message}").CausedBy(e));
         }
     }
 

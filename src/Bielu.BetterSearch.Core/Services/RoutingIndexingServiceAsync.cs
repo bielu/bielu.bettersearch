@@ -26,11 +26,11 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
         _indexingObservers = new ObserverList<SearchDocument>(logger);
         _deleteDocumentObservers = new ObserverList<DeleteDocumentRequest>(logger);
         _deleteAllDocumentsObservers = new ObserverList<DeleteAllDocumentsRequest>(logger);
-        _services = new RoutedServices<IIndexingServiceAsync>(serviceProvider, service =>
+        _services = new RoutedServices<IIndexingServiceAsync>(serviceProvider, (service, services) =>
         [
-            service.Subscribe(_services.ForwardTo(_indexingObservers)),
-            service.Subscribe(_services.ForwardTo(_deleteDocumentObservers)),
-            service.Subscribe(_services.ForwardTo(_deleteAllDocumentsObservers)),
+            service.Subscribe(services.ForwardTo(_indexingObservers)),
+            service.Subscribe(services.ForwardTo(_deleteDocumentObservers)),
+            service.Subscribe(services.ForwardTo(_deleteAllDocumentsObservers)),
         ]);
     }
 

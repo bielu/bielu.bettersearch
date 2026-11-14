@@ -43,9 +43,9 @@ internal sealed class TypesenseOptionsValidator : IValidateOptions<TypesenseOpti
 
         var withOwnConnection = indexes.Where(index => !string.IsNullOrWhiteSpace(index.Value?.ConnectionString)).ToList();
         var sharedFailures = sharedConnection || indexes.Count == 0 || withOwnConnection.Count < indexes.Count
-            ? TypesenseClientSettingsManager.ConnectionFailures(shared, null)
+            ? TypesenseClientSettingsManager.ConnectionFailures(shared, SettingSource.Unknown)
             : [];
         return sharedFailures.Concat(withOwnConnection.SelectMany(index => TypesenseClientSettingsManager.ConnectionFailures(
-            TypesenseClientSettingsManager.MergeSettings(index.Value, shared), index.Key)));
+            TypesenseClientSettingsManager.MergeSettings(index.Value, shared), new SettingSource(index.Key, Inherited: false))));
     }
 }

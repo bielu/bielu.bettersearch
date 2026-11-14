@@ -16,7 +16,7 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
             : shared;
 
         // Checked here so a URL without a scheme fails with a message that names the setting.
-        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, null));
+        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, SettingSource.Unknown));
         return settings;
     }
 
@@ -24,9 +24,8 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
     /// The connection setting failures of <paramref name="settings"/>, already merged, each naming the setting to fix.
     /// The options validator runs the same checks at startup. The API key is optional, as a server can run without one.
     /// </summary>
-    /// <remarks><c>index</c> is the <c>Indexes</c> entry the settings come from, or <c>null</c> when that is not known or they are the shared settings.</remarks>
-    internal static IEnumerable<string> ConnectionFailures(MeilisearchIndexSettings settings, string? index) =>
-        new[] { ConnectionSettingsChecks.HttpUrlFailure(MeilisearchOptions.MeilisearchOptionsKey, index, settings.ConnectionString) }
+    internal static IEnumerable<string> ConnectionFailures(MeilisearchIndexSettings settings, SettingSource source) =>
+        new[] { ConnectionSettingsChecks.HttpUrlFailure(MeilisearchOptions.MeilisearchOptionsKey, source, settings.ConnectionString) }
             .OfType<string>();
 
     internal static MeilisearchIndexSettings MergeSettings(MeilisearchIndexSettings indexSpecific,
