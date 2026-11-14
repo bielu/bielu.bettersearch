@@ -1,4 +1,6 @@
-﻿using Bielu.BetterSearch.Abstractions.Configuration;
+﻿using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
+using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
 using Bielu.BetterSearch.Tests;
@@ -9,8 +11,14 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
 
-public class ElasticSearchClientSettingsManagerTests
+public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTestBase
 {
+    protected override Func<object, X509Certificate, X509Chain, SslPolicyErrors, bool> FingerprintCallback(string fingerprint) =>
+        GetSettings(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings { ConnectionString = "https://shared:9200", CertificateFingerprint = fingerprint },
+        }, "people").ServerCertificateValidationCallback.ShouldNotBeNull();
+
     private static IElasticsearchClientSettings GetSettings(ElasticSearchOptions options, string index)
     {
         var manager = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options));
@@ -283,7 +291,7 @@ public class ElasticSearchClientSettingsManagerTests
     }
 
     [Fact]
-    public void CreateClientSettings_ColonSeparatedFingerprint_SetsItWithoutColons()
+    public void CreateClientSettings_CertificateFingerprint_ValidatesWithItsOwnCallbackInsteadOfTheTransports()
     {
         var settings = GetSettings(new ElasticSearchOptions
         {
@@ -294,8 +302,9 @@ public class ElasticSearchClientSettingsManagerTests
             },
         }, "people");
 
-        settings.CertificateFingerprint.ShouldBe(string.Concat(Enumerable.Repeat("AB", 32)));
-        settings.ServerCertificateValidationCallback.ShouldBeNull();
+        // The transport's own fingerprint check accepts any chain listing the fingerprint, even one whose signatures fail.
+        settings.CertificateFingerprint.ShouldBeNull();
+        settings.ServerCertificateValidationCallback.ShouldNotBeNull();
     }
 
     [Fact]

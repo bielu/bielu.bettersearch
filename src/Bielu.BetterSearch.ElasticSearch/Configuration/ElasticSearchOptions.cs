@@ -63,8 +63,9 @@ public class ElasticSearchIndexSettings : IndexSettings
 
     /// <summary>
     /// The SHA-256 fingerprint of the server's certificate or of the CA that signed it, as hex, with or without colons,
-    /// such as the one Elasticsearch prints on first start for its self-signed <c>http_ca.crt</c>. The server's certificate
-    /// is then trusted when it or a certificate in its chain has this fingerprint. Like
+    /// such as the one Elasticsearch prints on first start for its self-signed <c>http_ca.crt</c>. A certificate the
+    /// system does not trust is then accepted when it has this fingerprint, or chains through valid signatures to a CA
+    /// that has it, whatever host name it names. Like
     /// <see cref="DevelopmentOnlySkipCertificateValidation"/>, it goes with the endpoint: an <c>Indexes</c> entry with its own
     /// <c>ConnectionString</c>, or its own <c>CLOUD</c> or <c>CLOUDAPI</c> authentication, uses only its own TLS settings,
     /// and one without takes the shared ones.

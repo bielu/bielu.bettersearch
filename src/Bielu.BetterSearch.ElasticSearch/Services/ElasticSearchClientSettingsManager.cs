@@ -133,7 +133,9 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
         };
         if (!string.IsNullOrWhiteSpace(settings.CertificateFingerprint))
         {
-            clientSettings.CertificateFingerprint(ConnectionSettingsChecks.NormalizeFingerprint(settings.CertificateFingerprint)!);
+            // Not the transport's own CertificateFingerprint: it accepts any chain that lists the fingerprint, whatever the
+            // chain errors, so a forged leaf sent with the public CA certificate passes.
+            clientSettings.ServerCertificateValidationCallback(CertificateFingerprints.Validator(settings.CertificateFingerprint));
         }
         else if (settings.DevelopmentOnlySkipCertificateValidation == true)
         {
