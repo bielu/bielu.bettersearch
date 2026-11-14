@@ -317,6 +317,40 @@ public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
         ]);
     }
 
+    [Theory]
+    [InlineData("SharedIndexSettings", "RequestTimeout", "00:00:00", "must be greater than 0.")]
+    [InlineData("Indexes:people", "RequestTimeout", "-00:00:01", "must be greater than 0.")]
+    [InlineData("SharedIndexSettings", "RequestTimeout", "30.00:00:00", "must be at most 24.20:31:23.6470000, the longest timeout HttpClient accepts.")]
+    [InlineData("Indexes:people", "RequestTimeout", "24.20:31:23.6480000", "must be at most 24.20:31:23.6470000, the longest timeout HttpClient accepts.")]
+    [InlineData("SharedIndexSettings", "MaxRetries", "-1", "must not be negative.")]
+    [InlineData("Indexes:people", "MaxRetries", "-2", "must not be negative.")]
+    public void ValidateOnStart_InvalidClientSetting_ThrowsNamingTheSetting(string path, string setting, string value, string rule)
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            [$"{Key}:{path}:{setting}"] = value,
+        });
+
+        var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
+
+        exception.Failures.ShouldBe([$"{Key}:{path}:{setting} is {value}, but it {rule}"]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_ValidClientSettings_Passes()
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            [$"{Key}:SharedIndexSettings:RequestTimeout"] = "00:00:05",
+            [$"{Key}:SharedIndexSettings:MaxRetries"] = "0",
+            [$"{Key}:Indexes:people:RequestTimeout"] = "24.20:31:23.6470000",
+        });
+
+        Should.NotThrow(() => ValidateOnStart(services));
+    }
+
     [Fact]
     public void ValidateOnStart_IndexWithOwnAuthenticationInheritingMissingConnectionString_FailsNamingOnlyTheSharedSetting()
     {
@@ -345,5 +379,66 @@ public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldHaveSingleItem().ShouldEndWith($"Set {Key}:Indexes:people:AuthenticationType.");
+    }
+
+    [Fact]
+    public void ValidateOnStart_ValidAdditionalNodesAndPoolType_Passes()
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://first:9200",
+            [$"{Key}:SharedIndexSettings:AdditionalNodes:0"] = "http://second:9200",
+            [$"{Key}:SharedIndexSettings:PoolType"] = "Sniffing",
+            [$"{Key}:Indexes:people:AdditionalNodes:0"] = "http://people:9200",
+        });
+
+        Should.NotThrow(() => ValidateOnStart(services));
+    }
+
+    [Theory]
+    [InlineData("first:9200", "AdditionalNodes:1 is not an http or https URL.")]
+    [InlineData("ftp://first:9200", "AdditionalNodes:1 is not an http or https URL.")]
+    [InlineData(" ", "AdditionalNodes:1 is missing.")]
+    [InlineData("https://first:9200", "AdditionalNodes:1 does not use http, as ConnectionString does, and every node must use the same scheme.")]
+    public void ValidateOnStart_InvalidSharedAdditionalNode_ThrowsNamingItsPosition(string node, string expected)
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://first:9200",
+            [$"{Key}:SharedIndexSettings:AdditionalNodes:0"] = "http://second:9200",
+            [$"{Key}:SharedIndexSettings:AdditionalNodes:1"] = node,
+        });
+
+        var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
+
+        exception.Message.ShouldContain($"{expected} Set {Key}:SharedIndexSettings:AdditionalNodes:1, or {Key}:Indexes:<index>:AdditionalNodes:1 for one index.");
+        exception.Message.ShouldNotContain("AdditionalNodes:0");
+    }
+
+    [Fact]
+    public void ValidateOnStart_IndexWithOnlyAnInvalidAdditionalNode_ThrowsNamingTheIndexSetting()
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:SharedIndexSettings:ConnectionString"] = "http://first:9200",
+            [$"{Key}:Indexes:people:AdditionalNodes:0"] = "people:9200",
+        });
+
+        var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
+
+        exception.Message.ShouldContain($"AdditionalNodes:0 is not an http or https URL. Set {Key}:Indexes:people:AdditionalNodes:0.");
+    }
+
+    [Fact]
+    public void ValidateOnStart_IndexWithOnlyAPoolTypeAndNoConnectionStringAnywhere_ThrowsNamingTheIndexSetting()
+    {
+        using var services = Services(new()
+        {
+            [$"{Key}:Indexes:people:PoolType"] = "Sticky",
+        });
+
+        var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
+
+        exception.Message.ShouldContain($"ConnectionString is missing. Set {Key}:SharedIndexSettings:ConnectionString, which {Key}:Indexes:people inherits.");
     }
 }

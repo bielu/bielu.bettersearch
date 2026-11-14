@@ -298,6 +298,45 @@ public sealed class TypesenseSearchProviderAsync(
     }
 
     /// <summary>
+    /// Calls <c>GET /health</c> on the nodes of <paramref name="index"/>, or of the shared settings when it is
+    /// <c>null</c>, and needs <c>"ok": true</c>. A node that can't be reached or answers 5xx is passed over for the
+    /// next, as for every request, so the ping succeeds when one node answers that it is healthy.
+    /// </summary>
+    public async Task<Result> PingAsync(string? index = null, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            var options = optionsMonitor.TryCurrentValue();
+            if (options.IsFailed)
+            {
+                return options.ToResult();
+            }
+
+            var client = await clientFactory.GetOrCreateClientAsync(index ?? string.Empty).ConfigureAwait(false);
+            var response = await client.SendAsync(HttpMethod.Get, "health", null, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccess)
+            {
+                return Result.Fail(new Error($"Typesense ping failed: {response.Describe()}").WithMetadata("code", (int)response.StatusCode));
+            }
+
+            using var json = JsonDocument.Parse(response.Body);
+            return json.RootElement.ValueKind == JsonValueKind.Object
+                   && json.RootElement.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.True
+                ? Result.Ok()
+                : Result.Fail($"Typesense ping failed: it reported its health as {response.Body}, not {{\"ok\":true}}.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            return Result.Fail(new Error($"Typesense ping failed: {e.Message}").CausedBy(e));
+        }
+    }
+
+    /// <summary>
     /// The <c>sort_by</c> for <paramref name="sortFields"/>, given the collection's <paramref name="known"/> fields, or
     /// <c>null</c> when no document has any of them. Integers and dates are kept apart from other numbers, so a field
     /// holding both can't be ordered as one and fails.

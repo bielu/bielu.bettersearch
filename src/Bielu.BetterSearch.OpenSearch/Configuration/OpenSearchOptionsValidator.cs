@@ -20,6 +20,9 @@ internal sealed class OpenSearchOptionsValidator : IValidateOptions<OpenSearchOp
             .Concat((options.Indexes ?? []).SelectMany(index =>
                 FieldMappings.Validate($"{key}:{nameof(OpenSearchOptions.Indexes)}:{index.Key}", index.Value?.Mappings?.ToList<OpenSearchFieldMapping?>())))
             .Concat(BulkBatchSizeFailures($"{key}:{nameof(OpenSearchOptions.SharedIndexSettings)}", options.SharedIndexSettings))
+            .Concat(ClientSettingsFailures($"{key}:{nameof(OpenSearchOptions.SharedIndexSettings)}", options.SharedIndexSettings))
+            .Concat((options.Indexes ?? []).SelectMany(index =>
+                ClientSettingsFailures($"{key}:{nameof(OpenSearchOptions.Indexes)}:{index.Key}", index.Value)))
             .Concat((options.Indexes ?? []).SelectMany(index =>
                 BulkBatchSizeFailures($"{key}:{nameof(OpenSearchOptions.Indexes)}:{index.Key}", index.Value)))
             .Concat(IndexNames.ValidatePrefix($"{key}:{nameof(OpenSearchOptions.IndexPrefix)}", options.IndexPrefix))
@@ -35,7 +38,9 @@ internal sealed class OpenSearchOptionsValidator : IValidateOptions<OpenSearchOp
     /// Otherwise the shared settings are checked as an index not listed under <c>Indexes</c> gets them, unless they set no
     /// connection string and every index is listed with its own connection: shared authentication is then a default the
     /// indexes inherit, checked with each of them. An <c>Indexes</c> entry is checked after merging, unless it sets no
-    /// connection of its own and so has the shared one, which is checked already.
+    /// connection string, authentication, additional nodes or pool type of its own and so has the shared connection,
+    /// which is checked already. Each additional node is checked, and a failure names its position, such as
+    /// <c>AdditionalNodes:1</c>.
     /// </summary>
     private static IEnumerable<string> ConnectionFailures(OpenSearchOptions options)
     {
@@ -56,14 +61,28 @@ internal sealed class OpenSearchOptionsValidator : IValidateOptions<OpenSearchOp
             .SelectMany(index => OpenSearchClientSettingsManager.ConnectionFailures(
                 OpenSearchClientSettingsManager.MergeSettings(index.Value, shared),
                 new SettingSource(index.Key, Inherited: string.IsNullOrWhiteSpace(index.Value.ConnectionString)),
-                new SettingSource(index.Key, Inherited: index.Value.AuthenticationType is null))));
+                new SettingSource(index.Key, Inherited: index.Value.AuthenticationType is null),
+                new SettingSource(index.Key, Inherited: string.IsNullOrWhiteSpace(index.Value.ConnectionString) && index.Value.AdditionalNodes is null),
+                new SettingSource(index.Key, Inherited: index.Value.PoolType is null))));
     }
 
     private static bool HasConnection(OpenSearchIndexSettings settings) =>
-        !string.IsNullOrWhiteSpace(settings.ConnectionString) || settings.AuthenticationType is not null;
+        !string.IsNullOrWhiteSpace(settings.ConnectionString) || settings.AuthenticationType is not null ||
+        settings.AdditionalNodes is not null || settings.PoolType is not null;
 
     private static IEnumerable<string> BulkBatchSizeFailures(string path, OpenSearchIndexSettings? settings) =>
         settings?.BulkBatchSize is <= 0
             ? [$"{path}:{nameof(OpenSearchIndexSettings.BulkBatchSize)} is {settings.BulkBatchSize}, but it must be greater than 0."]
             : [];
+
+    private static IEnumerable<string> ClientSettingsFailures(string path, OpenSearchIndexSettings? settings) =>
+        new[]
+        {
+            settings?.RequestTimeout is { } timeout
+                ? ConnectionSettingsChecks.RequestTimeoutFailure($"{path}:{nameof(OpenSearchIndexSettings.RequestTimeout)}", timeout)
+                : null,
+            settings?.MaxRetries is { } retries
+                ? ConnectionSettingsChecks.NotNegativeFailure($"{path}:{nameof(OpenSearchIndexSettings.MaxRetries)}", retries)
+                : null,
+        }.OfType<string>();
 }

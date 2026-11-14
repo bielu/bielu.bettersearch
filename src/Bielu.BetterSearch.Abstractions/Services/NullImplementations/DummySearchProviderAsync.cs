@@ -18,4 +18,6 @@ public class DummySearchProviderAsync : ISearchProviderAsync
     public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<SearchDocument?>(NoProviderMessage));
 
     public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<long>(NoProviderMessage));
+
+    public Task<Result> PingAsync(string? index = null, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail(NoProviderMessage));
 }

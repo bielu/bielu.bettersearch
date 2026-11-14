@@ -33,7 +33,24 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
     {
         if (!string.IsNullOrWhiteSpace(indexSpecific.ConnectionString))
         {
-            return indexSpecific;
+            if (indexSpecific.RequestTimeout is not null || shared.RequestTimeout is null)
+            {
+                return indexSpecific;
+            }
+
+            // The index has its own server but takes the shared request timeout.
+            return new MeilisearchIndexSettings
+            {
+                IndexName = indexSpecific.IndexName,
+                AliasName = indexSpecific.AliasName,
+                TypeName = indexSpecific.TypeName,
+                IndexingEnabled = indexSpecific.IndexingEnabled,
+                DevMode = indexSpecific.DevMode,
+                ConnectionString = indexSpecific.ConnectionString,
+                ApiKey = indexSpecific.ApiKey,
+                BulkBatchSize = indexSpecific.BulkBatchSize,
+                RequestTimeout = shared.RequestTimeout,
+            };
         }
 
         // Merge into a copy: the monitored options are shared, so mutating them would let a concurrent
@@ -48,6 +65,7 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
             ConnectionString = shared.ConnectionString,
             ApiKey = indexSpecific.ApiKey ?? shared.ApiKey,
             BulkBatchSize = indexSpecific.BulkBatchSize ?? shared.BulkBatchSize,
+            RequestTimeout = indexSpecific.RequestTimeout ?? shared.RequestTimeout,
         };
     }
 }

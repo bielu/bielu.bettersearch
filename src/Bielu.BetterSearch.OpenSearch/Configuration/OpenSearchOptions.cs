@@ -52,6 +52,21 @@ public class OpenSearchOptions
 public class OpenSearchIndexSettings : IndexSettings
 {
     public string ConnectionString { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The URLs of the cluster's other nodes, beside <see cref="ConnectionString"/>. A request that cannot reach a node
+    /// is sent to the next one. Left unset on an <c>Indexes</c> entry that takes the shared connection string, the
+    /// index takes the shared nodes; an entry with its own connection string uses only its own.
+    /// </summary>
+    public IList<string>? AdditionalNodes { get; set; }
+
+    /// <summary>
+    /// How the client spreads requests over the nodes. Unset, a single <see cref="ConnectionString"/> is the only node
+    /// the client uses, as before, and with <see cref="AdditionalNodes"/> the nodes take turns as with
+    /// <see cref="Abstractions.Configuration.NodePoolType.Static"/>. Left unset on an <c>Indexes</c> entry, the index
+    /// takes the shared setting.
+    /// </summary>
+    public NodePoolType? PoolType { get; set; }
     /// <summary>
     /// How to authenticate. Unset under <c>Indexes</c> means the index takes the shared authentication;
     /// <c>NONE</c> there turns it off for that index. Unset in <c>SharedIndexSettings</c> means <c>NONE</c>.
@@ -97,6 +112,21 @@ public class OpenSearchIndexSettings : IndexSettings
     /// to turn the shared one off.
     /// </summary>
     public WriteVisibility? WriteVisibility { get; set; }
+
+    /// <summary>
+    /// How long a request may take before the client gives up on it, set as the client's <c>RequestTimeout</c>. The client
+    /// also limits a request's retries to this time unless its <c>MaxRetryTimeout</c> is set, which the
+    /// <c>configureClient</c> callback can do. Unset on an <c>Indexes</c> entry, the index takes the shared value, and unset
+    /// there leaves the client's default of 60 seconds. It must be greater than 0.
+    /// </summary>
+    public TimeSpan? RequestTimeout { get; set; }
+
+    /// <summary>
+    /// How many times the client retries a failed request, set as the client's <c>MaximumRetries</c>.
+    /// Unset on an <c>Indexes</c> entry, the index takes the shared value, and unset there leaves the client's default.
+    /// It must not be negative.
+    /// </summary>
+    public int? MaxRetries { get; set; }
 }
 
 /// <summary>An explicit mapping for one document field.</summary>

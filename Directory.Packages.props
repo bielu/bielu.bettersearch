@@ -18,6 +18,9 @@
     <PackageVersion Include="ZiggyCreatures.FusionCache" Version="2.9.0" />
     <PackageVersion Include="ZiggyCreatures.FusionCache.Backplane.Memory" Version="2.9.0" />
     <PackageVersion Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.9.0" />
+    <!-- Observability: referenced by Bielu.BetterSearch.HealthChecks and Bielu.BetterSearch.OpenTelemetry only, never by Core. -->
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.14" />
+    <PackageVersion Include="OpenTelemetry.Api" Version="1.21.0" />
     <!-- Providers -->
     <PackageVersion Include="Elastic.Clients.Elasticsearch" Version="9.5.3" />
     <PackageVersion Include="Lifti.Core" Version="7.0.2" />
@@ -27,6 +30,7 @@
     <PackageVersion Include="OpenSearch.Client" Version="2.3.0" />
     <!-- Test frameworks -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
+    <PackageVersion Include="OpenTelemetry" Version="1.21.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
     <PackageVersion Include="xunit.v3.assert" Version="4.0.2" />
