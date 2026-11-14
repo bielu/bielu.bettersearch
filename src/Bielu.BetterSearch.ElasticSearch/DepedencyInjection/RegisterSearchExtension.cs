@@ -12,13 +12,19 @@ namespace Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
 
 public static class RegisterSearchExtension
 {
-    public static Configurator AddElasticSearch(this Configurator configurator)
+    /// <summary>The key AddElasticSearch registers its provider under when no key is given.</summary>
+    public const string DefaultKey = "ElasticSearch";
+
+    /// <summary>
+    /// Adds the ElasticSearch provider under <paramref name="key"/>, so its services can be resolved with
+    /// <c>[FromKeyedServices(key)]</c>; the unkeyed services use it when it is the only provider or the default.
+    /// </summary>
+    public static Configurator AddElasticSearch(this Configurator configurator, string key = DefaultKey)
     {
+        // AddBetterSearch registers the validator and the indexing and search services after this runs.
+        configurator.AddProvider<ElasticSearchSearchProviderAsync, ElasticSearchIndexingProviderAsync>(key);
         configurator.Services.AddSingleton<IElasticSearchClientSettingsManager, ElasticSearchClientSettingsManager>();
         configurator.Services.AddSingleton<IClientFactoryAsync<ElasticsearchClient>, ElasticsearchClientFactory>();
-        // AddBetterSearch registers the validator and the indexing and search services after this runs.
-        configurator.SetSearchProviderType<ElasticSearchSearchProviderAsync>()
-            .SetIndexingProviderType<ElasticSearchIndexingProviderAsync>();
         configurator.Services.AddScoped<ElasticSearchQueryTranslateService>();
         configurator.Services.AddScoped<IQueryTranslateServiceAsync<Query>>(sp =>
             sp.GetRequiredService<ElasticSearchQueryTranslateService>());
