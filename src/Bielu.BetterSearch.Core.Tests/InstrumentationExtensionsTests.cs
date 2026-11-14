@@ -21,7 +21,7 @@ public class InstrumentationExtensionsTests
                    .AddProcessor(new CollectingProcessor(exported, index))
                    .Build())
         {
-            using var service = new SearchServiceAsync(new FakeSearchProvider());
+            var service = new SearchServiceAsync(new FakeSearchProvider());
             await service.SearchAsync(new SearchQuery { Index = index }, TestContext.Current.CancellationToken);
         }
 

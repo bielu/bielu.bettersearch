@@ -100,9 +100,6 @@ public class ProductSearch([FromKeyedServices("products")] ISearchServiceAsync s
 - `SetIndexingServiceType<T>()` and `SetSearchServiceType<T>()` apply to every key. The validator of a key is
   the unkeyed `IDocumentValidatorAsync` unless you register one for that key before calling `AddBetterSearch`,
   for example `services.AddKeyedScoped<IDocumentValidatorAsync, ProductValidator>("products")`.
-- Observers are per key: each keyed service is its own instance, so an observer subscribed to the `products`
-  indexing service hears nothing indexed through `site`. The unkeyed service is a separate instance too, even
-  when it uses the same provider, so it doesn't hear operations run through the keyed one.
 
 ### Route indexes to providers
 
@@ -145,12 +142,6 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search
 - Routing applies to the unkeyed `ISearchServiceAsync` and `IIndexingServiceAsync` only. The unkeyed
   `ISearchProviderAsync` and `IIndexingProviderAsync` still use the default provider, or throw on resolution
   when there is none.
-- Observers: the routing services run each call on the keyed service of the same DI scope, so that keyed
-  service's observers hear routed calls too. The unkeyed observers hear what the keyed service reported for each
-  call made through the unkeyed service, whichever provider it went to, and nothing for calls made on a keyed
-  service directly, including writes an observer makes while it is being notified. For a batch they hear the
-  documents only when every provider succeeded; when the batch fails they hear nothing, even for documents a
-  provider stored, while each keyed service's own observers hear what that service stored.
 
 ## Index and search
 
@@ -195,44 +186,53 @@ highlight. `Page` counts from 1. A cancelled search throws `OperationCanceledExc
 rather than returning a failed `Result`. The [feature matrix](feature-matrix.md) compares every provider side
 by side.
 
-## Watch indexing
+## Run code after a write
 
-`IIndexingServiceAsync` is an `IObservable` of `SearchDocument`, `DeleteDocumentRequest` and
-`DeleteAllDocumentsRequest`. All three streams follow one contract:
-
-- `OnNext` is sent once for each operation that succeeded, after the provider has done it: a document indexed,
-  a document removed, an index emptied. `RemoveDocumentsAsync` sends one `DeleteDocumentRequest` for each
-  distinct id when it succeeds.
-- A document the validator rejects, or an operation the provider fails, sends nothing. The returned `Result`
-  carries the reason.
-- `OnError` is never sent. `OnCompleted` is sent once, when the service is disposed, so a stream stays open for
-  every operation the service performs. Dispose the value `Subscribe` returns to stop earlier. Subscribing after
-  the service is disposed sends `OnCompleted` straight away, and operations after it notify nobody.
-- An observer that throws is logged and skipped: the operation still returns its `Result`, and the other
-  observers are still notified. `Dispose` never throws.
-- Subscribing the same observer twice notifies it once, until both handles `Subscribe` returned are disposed.
-
-`ISearchServiceAsync` follows the same contract for `ISearchModel`: `OnNext` for each hit of a successful search.
-Both interfaces extend `IDisposable`. The DI scope owns the services and disposes them, which completes the
-streams for every subscriber in that scope, so don't dispose an injected service yourself: dispose the handle
-`Subscribe` returned to stop listening. Only code that creates a service itself, outside DI, should dispose it.
-
-Observers are called one at a time, and never after `OnCompleted`, only while the service isn't used
-concurrently. When one instance runs operations in parallel, for example
-`Task.WhenAll(documents.Select(indexing.IndexDocumentAsync))`, or is disposed while an operation runs, an observer
-can get overlapping `OnNext` calls, or one last `OnNext` after `OnCompleted`. In that case the observer must be
-thread-safe.
+The services have no events. To run code around an operation, such as logging every document indexed, decorate
+the service in DI, as the [search cache](caching.md) does. Register the decorator after `AddBetterSearch`, for
+example with Scrutor's `Decorate`, which wraps the unkeyed service; with routed indexes that is the routing
+service, so it sees every call made through the unkeyed service, whichever provider it goes to. A decorator sees
+the `Result` of each call, so it can act on success only. Calls made on a keyed service, or on a provider directly,
+don't go through it.
 
 ```csharp
-using var subscription = indexing.Subscribe(new IndexedLogger());
+builder.Services.AddBetterSearch(builder.Configuration, search => search.AddElasticSearch());
+builder.Services.Decorate<IIndexingServiceAsync, LoggingIndexingService>();
 
-sealed class IndexedLogger : IObserver<SearchDocument>
+sealed class LoggingIndexingService(IIndexingServiceAsync inner, ILogger<LoggingIndexingService> logger)
+    : IIndexingServiceAsync
 {
-    public void OnNext(SearchDocument document) => Console.WriteLine($"Indexed {document.Id}");
-    public void OnError(Exception error) { }
-    public void OnCompleted() { }
+    public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
+    {
+        var result = await inner.IndexDocumentAsync(document, cancellationToken);
+        if (result.IsSuccess)
+        {
+            logger.LogInformation("Indexed {Id}", document.Id);
+        }
+
+        return result;
+    }
+
+    public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents, CancellationToken cancellationToken = default) =>
+        inner.IndexMultipleDocumentsAsync(documents, cancellationToken);
+
+    public Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document, CancellationToken cancellationToken = default) =>
+        inner.RemoveDocumentAsync(document, cancellationToken);
+
+    public Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids, CancellationToken cancellationToken = default) =>
+        inner.RemoveDocumentsAsync(index, ids, cancellationToken);
+
+    public Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default) =>
+        inner.RemoveAllDocumentsAsync(request, cancellationToken);
+
+    public Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+        CancellationToken cancellationToken = default) =>
+        inner.UpdateDocumentAsync(index, id, fields, cancellationToken);
 }
 ```
+
+For metrics and traces, use the built-in [OpenTelemetry instrumentation](feature-matrix.md#observability)
+instead.
 
 ## Filter by culture
 

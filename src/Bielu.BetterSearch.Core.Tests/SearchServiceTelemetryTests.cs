@@ -24,7 +24,7 @@ public class SearchServiceTelemetryTests
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
         var provider = new FakeSearchProvider { Search = (_, _) => Task.FromResult(Result.Ok<ISearchResult>(FakeSearchProvider.Results(3, 42))) };
-        using var service = new SearchServiceAsync(provider);
+        var service = new SearchServiceAsync(provider);
 
         var result = await service.SearchAsync(new SearchQuery { Index = index, Page = 2, PageSize = 3 }, Token);
 
@@ -52,7 +52,7 @@ public class SearchServiceTelemetryTests
             Search = (_, _) => Task.FromResult(Result.Fail<ISearchResult>(new NotFoundError("first problem")).WithError("second problem")),
         };
         var logger = new RecordingLogger<SearchServiceAsync>();
-        using var service = new SearchServiceAsync(provider, logger);
+        var service = new SearchServiceAsync(provider, logger);
 
         var result = await service.SearchAsync(new SearchQuery { Index = index }, Token);
 
@@ -80,7 +80,7 @@ public class SearchServiceTelemetryTests
             Search = (_, _) => Task.FromResult(Result.Fail<ISearchResult>("first problem").WithError("second problem")),
         };
         var logger = new RecordingLogger<SearchServiceAsync>();
-        using var service = new SearchServiceAsync(provider, logger, new InstrumentationOptionsMonitor(recordErrorMessages: true));
+        var service = new SearchServiceAsync(provider, logger, new InstrumentationOptionsMonitor(recordErrorMessages: true));
 
         await service.SearchAsync(new SearchQuery { Index = index }, Token);
 
@@ -96,7 +96,7 @@ public class SearchServiceTelemetryTests
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
         var provider = new FakeSearchProvider { Search = (_, _) => Task.FromResult(Result.Fail<ISearchResult>("secret problem")) };
-        using var service = new SearchServiceAsync(provider, null, new InstrumentationOptionsMonitor(recordErrorMessages: true, throws: true));
+        var service = new SearchServiceAsync(provider, null, new InstrumentationOptionsMonitor(recordErrorMessages: true, throws: true));
 
         var result = await service.SearchAsync(new SearchQuery { Index = index }, Token);
 
@@ -109,7 +109,7 @@ public class SearchServiceTelemetryTests
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
-        using var service = new SearchServiceAsync(new FakeSearchProvider());
+        var service = new SearchServiceAsync(new FakeSearchProvider());
         var query = new SearchQuery { Index = index };
         query.Add(Occurance.MUST, new TermSubQuery { Field = "secretField", Value = "secret-value" });
 
@@ -130,7 +130,7 @@ public class SearchServiceTelemetryTests
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
         var logger = new RecordingLogger<SearchServiceAsync>();
-        using var service = new SearchServiceAsync(new FakeSearchProvider(), logger);
+        var service = new SearchServiceAsync(new FakeSearchProvider(), logger);
         using var cancelled = new CancellationTokenSource();
         await cancelled.CancelAsync();
 
@@ -151,7 +151,7 @@ public class SearchServiceTelemetryTests
         using var capture = new TelemetryCapture(index);
         var provider = new FakeSearchProvider { Search = (_, _) => throw new InvalidOperationException("engine exploded") };
         var logger = new RecordingLogger<SearchServiceAsync>();
-        using var service = new SearchServiceAsync(provider, logger);
+        var service = new SearchServiceAsync(provider, logger);
 
         await Should.ThrowAsync<InvalidOperationException>(() => service.SearchAsync(new SearchQuery { Index = index }, Token));
 
@@ -175,7 +175,7 @@ public class SearchServiceTelemetryTests
         var exception = new InvalidOperationException("engine exploded");
         var provider = new FakeSearchProvider { Search = (_, _) => throw exception };
         var logger = new RecordingLogger<SearchServiceAsync>();
-        using var service = new SearchServiceAsync(provider, logger, new InstrumentationOptionsMonitor(recordErrorMessages: true));
+        var service = new SearchServiceAsync(provider, logger, new InstrumentationOptionsMonitor(recordErrorMessages: true));
 
         await Should.ThrowAsync<InvalidOperationException>(() => service.SearchAsync(new SearchQuery { Index = index }, Token));
 
@@ -189,7 +189,7 @@ public class SearchServiceTelemetryTests
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
         var provider = new FakeSearchProvider { GetDocumentResult = Result.Ok<SearchDocument?>(new SearchDocument { Id = "1", Index = index }) };
-        using var service = new SearchServiceAsync(provider);
+        var service = new SearchServiceAsync(provider);
 
         (await service.GetDocumentAsync(index, "1", Token)).Value.ShouldNotBeNull();
 
@@ -207,7 +207,7 @@ public class SearchServiceTelemetryTests
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
-        using var service = new SearchServiceAsync(new FakeSearchProvider());
+        var service = new SearchServiceAsync(new FakeSearchProvider());
 
         (await service.GetDocumentAsync(index, "1", Token)).Value.ShouldBeNull();
 
@@ -221,7 +221,7 @@ public class SearchServiceTelemetryTests
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
-        using var service = new SearchServiceAsync(new FakeSearchProvider());
+        var service = new SearchServiceAsync(new FakeSearchProvider());
 
         (await service.GetDocumentAsync(index, "", Token)).IsFailed.ShouldBeTrue();
 
@@ -235,7 +235,7 @@ public class SearchServiceTelemetryTests
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
-        using var service = new SearchServiceAsync(new FakeSearchProvider { CountResult = Result.Ok(7L) });
+        var service = new SearchServiceAsync(new FakeSearchProvider { CountResult = Result.Ok(7L) });
 
         (await service.CountAsync(new SearchQuery { Index = index }, Token)).Value.ShouldBe(7L);
 
@@ -252,7 +252,7 @@ public class SearchServiceTelemetryTests
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
-        using var service = new SearchServiceAsync(new FakeSearchProvider { CountResult = Result.Fail<long>("count rejected") });
+        var service = new SearchServiceAsync(new FakeSearchProvider { CountResult = Result.Fail<long>("count rejected") });
 
         (await service.CountAsync(new SearchQuery { Index = index }, Token)).IsFailed.ShouldBeTrue();
 
@@ -272,7 +272,7 @@ public class SearchServiceTelemetryTests
         {
             Search = (_, _) => Task.FromResult(fail ? Result.Fail<ISearchResult>("no") : Result.Ok<ISearchResult>(FakeSearchProvider.Results(0, 0))),
         };
-        using var service = new SearchServiceAsync(provider);
+        var service = new SearchServiceAsync(provider);
 
         await service.SearchAsync(new SearchQuery { Index = index }, Token);
         fail = true;
@@ -296,15 +296,12 @@ public class SearchServiceTelemetryTests
         {
             Search = (_, _) => Task.FromResult(Result.Ok<ISearchResult>(new BaseSearchResults { Items = hits, Pagination = new Pagination { TotalCount = 3 } })),
         };
-        using var service = new SearchServiceAsync(provider);
-        var notified = new List<ISearchModel>();
-        using var subscription = service.Subscribe(new RecordingObserver(notified));
+        var service = new SearchServiceAsync(provider);
 
         var result = await service.SearchAsync(new SearchQuery { Index = index }, Token);
 
         result.IsSuccess.ShouldBeTrue();
         hits.Enumerations.ShouldBe(1);
-        notified.Count.ShouldBe(3);
         capture.SingleActivity().GetTagItem(BetterSearchTelemetry.HitCountTag).ShouldBe(3);
     }
 
@@ -312,7 +309,7 @@ public class SearchServiceTelemetryTests
     public async Task SearchAsync_NoListener_StillReturnsProviderResult()
     {
         var provider = new FakeSearchProvider { Search = (_, _) => Task.FromResult(Result.Ok<ISearchResult>(FakeSearchProvider.Results(2, 2))) };
-        using var service = new SearchServiceAsync(provider);
+        var service = new SearchServiceAsync(provider);
 
         var result = await service.SearchAsync(new SearchQuery { Index = NewIndex() }, Token);
 
@@ -332,18 +329,5 @@ public class SearchServiceTelemetryTests
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
-    }
-
-    private sealed class RecordingObserver(List<ISearchModel> notified) : IObserver<ISearchModel>
-    {
-        public void OnCompleted()
-        {
-        }
-
-        public void OnError(Exception error)
-        {
-        }
-
-        public void OnNext(ISearchModel value) => notified.Add(value);
     }
 }

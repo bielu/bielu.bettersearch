@@ -19,12 +19,6 @@ namespace Bielu.BetterSearch.Caching;
 /// cached. A cache that throws before the search runs is skipped, and one that throws while storing a successful search
 /// is logged, and the search is returned uncached. A cached search returns the same values as the one that filled the
 /// cache, read back from the <see cref="CachedSearchResult"/> each time.
-/// <para>
-/// The decorator has its own observers: <see cref="Subscribe"/> registers on it, and it notifies them of the hits of
-/// every successful search, from the cache or not, following the <see cref="ISearchServiceAsync"/> contract. The
-/// decorated service's own observers are not used through it. Disposing the decorator completes its observers only;
-/// the container disposes the decorated service.
-/// </para>
 /// </remarks>
 internal sealed class CachingSearchServiceAsyncDecorator(
     ISearchServiceAsync inner,
@@ -34,25 +28,7 @@ internal sealed class CachingSearchServiceAsyncDecorator(
     ILogger<CachingSearchServiceAsyncDecorator>? logger = null)
     : ISearchServiceAsync
 {
-    private readonly ObserverList<ISearchModel> _searchObservers = new(logger);
-
-    public IDisposable Subscribe(IObserver<ISearchModel> observer) => _searchObservers.Subscribe(observer);
-
     public async Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
-    {
-        var result = await SearchThroughCacheAsync(query, cancellationToken).ConfigureAwait(false);
-        if (result.IsSuccess)
-        {
-            foreach (var hit in result.Value.Items)
-            {
-                _searchObservers.Notify(hit.Document);
-            }
-        }
-
-        return result;
-    }
-
-    private async Task<Result<ISearchResult>> SearchThroughCacheAsync(ISearchQuery query, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (query is null)
@@ -156,7 +132,4 @@ internal sealed class CachingSearchServiceAsyncDecorator(
             return Result.Fail(new Error($"The search cache options failed for index '{query.Index}': {e.Message}").CausedBy(e));
         }
     }
-
-    /// <summary>Ends the stream of this decorator's observers; the decorated service is disposed by its owner.</summary>
-    public void Dispose() => _searchObservers.Complete();
 }

@@ -112,9 +112,6 @@ the library ships no adapter for it.
 - If the cache throws before the search runs, for example because its store is down, the search runs without it. If
   it throws while storing a successful search, that search is returned uncached and the engine is not called again.
   Both are logged as warnings.
-- Observers subscribed to `ISearchServiceAsync` are notified of a search's hits on a cache hit too. The decorator
-  has its own observers: `Subscribe` registers on it, and it notifies them from the result it returns, on a hit and on
-  a miss, so they observe searches, not engine calls. The decorated service's own observers are not used.
 - A cache hit is not in the [telemetry](feature-matrix.md#observability): it returns before `SearchServiceAsync`
   runs, so it has no `search` span and no `bettersearch.operations` count. Only searches that reach the service, the
   misses and the searches that aren't cached, are recorded.
@@ -158,11 +155,6 @@ call to the decorated service. If the eviction itself throws, it is logged at `E
 own `Result`. `CompleteRebuildAsync` on the decorated `IIndexLifecycleServiceAsync` evicts the rebuilt index the same way, as the
 swap changes what its searches return; starting, filling and aborting a rebuild don't evict. `GetDocumentAsync` and `CountAsync` on the decorated `ISearchServiceAsync` are not cached:
 each call goes to the decorated service.
-
-The indexing decorator has its own observers too: `Subscribe` registers on it, and it notifies them after the
-eviction, following the `IIndexingServiceAsync` contract (once for each document indexed, each distinct id removed,
-each index emptied, and nothing when the write fails). So an observer that searches the index from `OnNext` reads past
-the evicted result. The decorated service's own observers are not used.
 
 The cache can't see:
 

@@ -19,7 +19,7 @@ public class IndexingServiceTelemetryTests
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
-        using var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator());
+        var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator());
 
         (await service.IndexDocumentAsync(Document(index, "1"), Token)).IsSuccess.ShouldBeTrue();
 
@@ -34,7 +34,7 @@ public class IndexingServiceTelemetryTests
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
-        using var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator());
+        var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator());
         var document = Document(index, "1");
         document.Fields["title"] = [null!];
 
@@ -53,7 +53,7 @@ public class IndexingServiceTelemetryTests
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
         var provider = new FakeIndexingProvider { BulkIndexResult = Result.Ok(3) };
-        using var service = new IndexingServiceAsync(provider, new AcceptingValidator());
+        var service = new IndexingServiceAsync(provider, new AcceptingValidator());
 
         var result = await service.IndexMultipleDocumentsAsync([Document(index, "1"), Document(index, "2"), Document(index, "3")], Token);
 
@@ -88,7 +88,7 @@ public class IndexingServiceTelemetryTests
             }
         };
         ActivitySource.AddActivityListener(listener);
-        using var service = new IndexingServiceAsync(new TwoIndexProvider(), new AcceptingValidator());
+        var service = new IndexingServiceAsync(new TwoIndexProvider(), new AcceptingValidator());
 
         await service.IndexMultipleDocumentsAsync([Document(index, "1"), Document(other, "2")], Token);
 
@@ -103,7 +103,7 @@ public class IndexingServiceTelemetryTests
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
         var provider = new FakeIndexingProvider { BulkIndexResult = Result.Fail<int>("bulk rejected") };
-        using var service = new IndexingServiceAsync(provider, new AcceptingValidator());
+        var service = new IndexingServiceAsync(provider, new AcceptingValidator());
 
         await service.IndexMultipleDocumentsAsync([Document(index, "1")], Token);
 
@@ -118,7 +118,7 @@ public class IndexingServiceTelemetryTests
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
-        using var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator());
+        var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator());
 
         (await service.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "1", Type = index }, Token)).IsSuccess.ShouldBeTrue();
 
@@ -134,7 +134,7 @@ public class IndexingServiceTelemetryTests
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
         var provider = new FakeIndexingProvider { RemoveDocumentsResult = Result.Ok(2) };
-        using var service = new IndexingServiceAsync(provider, new AcceptingValidator());
+        var service = new IndexingServiceAsync(provider, new AcceptingValidator());
 
         var result = await service.RemoveDocumentsAsync(index, ["1", "2", "3"], Token);
 
@@ -151,7 +151,7 @@ public class IndexingServiceTelemetryTests
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
         var provider = new FakeIndexingProvider { RemoveAllResult = Result.Ok<long?>(7) };
-        using var service = new IndexingServiceAsync(provider, new AcceptingValidator());
+        var service = new IndexingServiceAsync(provider, new AcceptingValidator());
 
         await service.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = index }, Token);
 
@@ -166,7 +166,7 @@ public class IndexingServiceTelemetryTests
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
-        using var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator());
+        var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator());
 
         (await service.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = index }, Token)).IsSuccess.ShouldBeTrue();
 
@@ -182,7 +182,7 @@ public class IndexingServiceTelemetryTests
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
-        using var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator(), null,
+        var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator(), null,
             new InstrumentationOptionsMonitor(recordErrorMessages: true));
         var document = Document(index, "1");
         document.Fields["title"] = [null!];
@@ -197,7 +197,7 @@ public class IndexingServiceTelemetryTests
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
-        using var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator());
+        var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator());
 
         (await service.UpdateDocumentAsync(index, "1", new Dictionary<string, IList<object>> { ["title"] = ["new"] }, Token)).Value.ShouldBeTrue();
 
@@ -215,7 +215,7 @@ public class IndexingServiceTelemetryTests
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
-        using var service = new IndexingServiceAsync(new FakeIndexingProvider { UpdateResult = Result.Ok(false) }, new AcceptingValidator());
+        var service = new IndexingServiceAsync(new FakeIndexingProvider { UpdateResult = Result.Ok(false) }, new AcceptingValidator());
 
         (await service.UpdateDocumentAsync(index, "1", new Dictionary<string, IList<object>> { ["title"] = ["new"] }, Token)).Value.ShouldBeFalse();
 
@@ -232,7 +232,7 @@ public class IndexingServiceTelemetryTests
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
-        using var service = new IndexingServiceAsync(new FakeIndexingProvider { UpdateResult = Result.Fail<bool>("update rejected") }, new AcceptingValidator());
+        var service = new IndexingServiceAsync(new FakeIndexingProvider { UpdateResult = Result.Fail<bool>("update rejected") }, new AcceptingValidator());
 
         (await service.UpdateDocumentAsync(index, "1", new Dictionary<string, IList<object>> { ["title"] = ["new"] }, Token)).IsFailed.ShouldBeTrue();
 

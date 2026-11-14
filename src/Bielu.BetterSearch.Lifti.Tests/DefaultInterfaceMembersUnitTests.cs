@@ -19,7 +19,7 @@ public class DefaultInterfaceMembersUnitTests
     [Fact]
     public async Task GetDocumentAsync_ProviderWithoutIt_ReturnsFailedResult()
     {
-        using var service = new SearchServiceAsync(new OldSearchProvider());
+        var service = new SearchServiceAsync(new OldSearchProvider());
 
         var result = await service.GetDocumentAsync("index", "a", Token);
 
@@ -30,7 +30,7 @@ public class DefaultInterfaceMembersUnitTests
     [Fact]
     public async Task CountAsync_ProviderWithoutIt_ReturnsFailedResult()
     {
-        using var service = new SearchServiceAsync(new OldSearchProvider());
+        var service = new SearchServiceAsync(new OldSearchProvider());
 
         var result = await service.CountAsync(new SearchQuery { Index = "index" }, Token);
 
@@ -41,7 +41,7 @@ public class DefaultInterfaceMembersUnitTests
     [Fact]
     public async Task UpdateDocumentAsync_ProviderWithoutIt_ReturnsFailedResult()
     {
-        using var service = new IndexingServiceAsync(new OldIndexingProvider(), new DummyDocumentValidatorAsync());
+        var service = new IndexingServiceAsync(new OldIndexingProvider(), new DummyDocumentValidatorAsync());
 
         var result = await service.UpdateDocumentAsync("index", "a",
             new Dictionary<string, IList<object>> { { "Title", ["new"] } }, Token);

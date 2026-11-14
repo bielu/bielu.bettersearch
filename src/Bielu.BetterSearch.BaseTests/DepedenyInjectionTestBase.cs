@@ -284,23 +284,20 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
     }
 
     [Fact]
-    public async Task AddBetterSearch_TwoProviders_ObserversArePerKey()
+    public async Task AddBetterSearch_TwoProviders_EachKeyIndexesThroughItsOwnProvider()
     {
         var token = TestContext.Current.CancellationToken;
-        var observer = new RecordingObserver<SearchDocument>();
         using var provider = TwoFakeProviders().BuildServiceProvider();
-        using (var scope = provider.CreateScope())
-        {
-            var first = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(FirstKey);
-            var second = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(SecondKey);
-            first.ShouldNotBeSameAs(second);
-            using var subscription = first.Subscribe(observer);
+        using var scope = provider.CreateScope();
+        var first = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(FirstKey);
+        var second = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(SecondKey);
+        first.ShouldNotBeSameAs(second);
 
-            (await second.IndexDocumentAsync(new SearchDocument { Id = "second", Type = "TestDocument", Index = "any" }, token)).IsSuccess.ShouldBeTrue();
-            (await first.IndexDocumentAsync(new SearchDocument { Id = "first", Type = "TestDocument", Index = "any" }, token)).IsSuccess.ShouldBeTrue();
-        }
+        (await second.IndexDocumentAsync(new SearchDocument { Id = "second", Type = "TestDocument", Index = "any" }, token)).IsSuccess.ShouldBeTrue();
+        (await first.IndexDocumentAsync(new SearchDocument { Id = "first", Type = "TestDocument", Index = "any" }, token)).IsSuccess.ShouldBeTrue();
 
-        observer.Values.ShouldHaveSingleItem().Id.ShouldBe("first");
+        Indexed(scope, FirstKey).ShouldBe(["first"]);
+        Indexed(scope, SecondKey).ShouldBe(["second"]);
     }
 
     [Fact]
@@ -498,15 +495,9 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
     public async Task RouteIndex_MixedBatch_EachProviderIndexesItsOwnDocuments()
     {
         var token = TestContext.Current.CancellationToken;
-        var first = new RecordingObserver<SearchDocument>();
-        var second = new RecordingObserver<SearchDocument>();
-        var unkeyed = new RecordingObserver<SearchDocument>();
         using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
         using var scope = provider.CreateScope();
-        using var firstSubscription = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(FirstKey).Subscribe(first);
-        using var secondSubscription = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(SecondKey).Subscribe(second);
         var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
-        using var unkeyedSubscription = indexing.Subscribe(unkeyed);
 
         var result = await indexing.IndexMultipleDocumentsAsync(
         [
@@ -517,9 +508,8 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe(3);
-        first.Values.Select(document => document.Id).ShouldBe(["1", "3"]);
-        second.Values.Select(document => document.Id).ShouldBe(["2"]);
-        unkeyed.Values.Select(document => document.Id).ShouldBe(["1", "3", "2"]);
+        Indexed(scope, FirstKey).ShouldBe(["1", "3"]);
+        Indexed(scope, SecondKey).ShouldBe(["2"]);
     }
 
     [Fact]
@@ -528,11 +518,7 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
         using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
         using var scope = provider.CreateScope();
         var token = TestContext.Current.CancellationToken;
-        var first = new RecordingObserver<SearchDocument>();
-        var unkeyed = new RecordingObserver<SearchDocument>();
-        using var firstSubscription = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(FirstKey).Subscribe(first);
         var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
-        using var unkeyedSubscription = indexing.Subscribe(unkeyed);
 
         var result = await indexing.IndexMultipleDocumentsAsync(
         [
@@ -549,9 +535,8 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
         reason.Metadata["key"].ShouldBe(SecondKey);
         reason.Metadata["ids"].ShouldBe(new List<string> { "fail-4" });
         reason.Reasons.ShouldHaveSingleItem().Message.ShouldBe("second provider rejected fail-4");
-        // The keyed service heard what it stored, but a failed batch notifies none of the unkeyed observers.
-        first.Values.Select(document => document.Id).ShouldBe(["1", "3"]);
-        unkeyed.Values.ShouldBeEmpty();
+        Indexed(scope, FirstKey).ShouldBe(["1", "3"]);
+        Indexed(scope, SecondKey).ShouldBe(["2"]);
     }
 
     [Fact]
@@ -579,8 +564,6 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
         using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
         using var scope = provider.CreateScope();
         var token = TestContext.Current.CancellationToken;
-        var second = new RecordingObserver<SearchDocument>();
-        using var secondSubscription = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(SecondKey).Subscribe(second);
 
         var result = await scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>().IndexMultipleDocumentsAsync(
         [
@@ -593,7 +576,7 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
         error.Metadata["ids"].ShouldBe(new List<string> { "throw" });
         error.Reasons.ShouldHaveSingleItem().Reasons.ShouldHaveSingleItem().Reasons.ShouldHaveSingleItem().ShouldBeOfType<ExceptionalError>()
             .Exception.ShouldBeOfType<InvalidOperationException>();
-        second.Values.ShouldHaveSingleItem().Id.ShouldBe("2");
+        Indexed(scope, SecondKey).ShouldBe(["2"]);
     }
 
     [Fact]
@@ -619,11 +602,7 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
         var token = TestContext.Current.CancellationToken;
-        var first = new RecordingObserver<SearchDocument>();
-        var unkeyed = new RecordingObserver<SearchDocument>();
-        using var firstSubscription = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(FirstKey).Subscribe(first);
         var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
-        using var subscription = indexing.Subscribe(unkeyed);
 
         var result = await indexing.IndexMultipleDocumentsAsync(
         [
@@ -636,61 +615,17 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
         var error = result.Errors.ShouldHaveSingleItem();
         error.Message.ShouldBe("Document reject is not valid.");
         error.Metadata["id"].ShouldBe("reject");
-        first.Values.ShouldBeEmpty();
-        unkeyed.Values.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public async Task RouteIndex_UnkeyedObserverWritesToAKeyedService_DoesNotHearThatWrite()
-    {
-        var token = TestContext.Current.CancellationToken;
-        using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
-        using var scope = provider.CreateScope();
-        var keyed = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(FirstKey);
-        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
-        var unkeyed = new RecordingObserver<SearchDocument>();
-        var mirror = new MirroringObserver(keyed, token);
-        using var mirrorSubscription = indexing.Subscribe(mirror);
-        using var subscription = indexing.Subscribe(unkeyed);
-
-        (await indexing.IndexDocumentAsync(new SearchDocument { Id = "routed", Type = "TestDocument", Index = "people" }, token)).IsSuccess.ShouldBeTrue();
-
-        mirror.Results.ShouldHaveSingleItem().IsSuccess.ShouldBeTrue();
-        unkeyed.Values.Select(document => document.Id).ShouldBe(["routed"]);
-    }
-
-    [Fact]
-    public async Task RouteIndex_KeyedObserverWritesToItsService_UnkeyedObserversDoNotHearThatWrite()
-    {
-        var token = TestContext.Current.CancellationToken;
-        using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
-        using var scope = provider.CreateScope();
-        var keyed = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(FirstKey);
-        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
-        var unkeyed = new RecordingObserver<SearchDocument>();
-        using var subscription = indexing.Subscribe(unkeyed);
-        var mirror = new MirroringObserver(keyed, token);
-        using var mirrorSubscription = keyed.Subscribe(mirror);
-
-        (await indexing.IndexMultipleDocumentsAsync(
-        [
-            new SearchDocument { Id = "1", Type = "TestDocument", Index = "people" },
-            new SearchDocument { Id = "2", Type = "TestDocument", Index = "products" },
-        ], token)).Value.ShouldBe(2);
-
-        mirror.Results.ShouldHaveSingleItem().IsSuccess.ShouldBeTrue();
-        unkeyed.Values.Select(document => document.Id).ShouldBe(["1", "2"]);
+        Indexed(scope, FirstKey).ShouldBeEmpty();
+        Indexed(scope, SecondKey).ShouldBeEmpty();
     }
 
     [Fact]
     public async Task RouteIndex_BatchWithUnroutedIndex_IndexesNothing()
     {
         var token = TestContext.Current.CancellationToken;
-        var unkeyed = new RecordingObserver<SearchDocument>();
         using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
         using var scope = provider.CreateScope();
         var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
-        using var subscription = indexing.Subscribe(unkeyed);
 
         var result = await indexing.IndexMultipleDocumentsAsync(
         [
@@ -699,28 +634,7 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
         ], token);
 
         result.Errors.ShouldHaveSingleItem().Message.ShouldStartWith("No provider is routed for the index 'other'");
-        unkeyed.Values.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public async Task RouteIndex_UnkeyedObservers_HearRoutedCallsOnly()
-    {
-        var token = TestContext.Current.CancellationToken;
-        var unkeyed = new RecordingObserver<SearchDocument>();
-        var removed = new RecordingObserver<DeleteDocumentRequest>();
-        using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
-        using var scope = provider.CreateScope();
-        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
-        using var subscription = indexing.Subscribe(unkeyed);
-        using var removedSubscription = indexing.Subscribe(removed);
-        var keyed = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(FirstKey);
-
-        (await indexing.IndexDocumentAsync(new SearchDocument { Id = "routed", Type = "TestDocument", Index = "people" }, token)).IsSuccess.ShouldBeTrue();
-        (await keyed.IndexDocumentAsync(new SearchDocument { Id = "direct", Type = "TestDocument", Index = "people" }, token)).IsSuccess.ShouldBeTrue();
-        (await indexing.RemoveDocumentsAsync("people", [], token)).Value.ShouldBe(0);
-
-        unkeyed.Values.ShouldHaveSingleItem().Id.ShouldBe("routed");
-        removed.Values.ShouldBeEmpty();
+        Indexed(scope, FirstKey).ShouldBeEmpty();
     }
 
     [Fact]
@@ -804,6 +718,10 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
             configure?.Invoke(search);
         });
 
+    /// <summary>The ids the fake provider under <paramref name="key"/> stored in this scope, in the order it stored them.</summary>
+    private static List<string> Indexed(IServiceScope scope, string key) =>
+        ((FakeProvider)scope.ServiceProvider.GetRequiredKeyedService<IIndexingProviderAsync>(key)).Indexed;
+
     private static Type? ImplementationType<TService>(IServiceCollection services) =>
         services.Single(descriptor => descriptor.ServiceType == typeof(TService) && !descriptor.IsKeyedService).ImplementationType;
 
@@ -829,14 +747,22 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
             Task.FromResult(Result.Fail<bool>($"second provider aborted {rebuild.TargetIndex}"));
     }
 
-    /// <summary>Indexes documents; every other call fails with a message naming the provider and the call.</summary>
+    /// <summary>
+    /// Indexes documents, recording their ids in <see cref="Indexed"/>; every other call fails with a message naming
+    /// the provider and the call.
+    /// </summary>
     private abstract class FakeProvider(string name) : ISearchProviderAsync, IIndexingProviderAsync
     {
+        public List<string> Indexed { get; } = new();
+
         public Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
             Task.FromResult(Result.Fail<ISearchResult>($"{name} provider searched"));
 
-        public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
-            Task.FromResult(Result.Ok());
+        public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
+        {
+            Indexed.Add(document.Id);
+            return Task.FromResult(Result.Ok());
+        }
 
         /// <summary>
         /// Indexes the batch, except the documents whose id starts with <c>fail</c>: as an engine that applies each item
@@ -856,6 +782,7 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
             }
 
             var failed = batch.Select(document => document.Id).Where(id => id.StartsWith("fail", StringComparison.Ordinal)).ToList();
+            Indexed.AddRange(batch.Select(document => document.Id).Where(id => !failed.Contains(id)));
             return Task.FromResult(failed.Count == 0
                 ? Result.Ok(batch.Count)
                 : Result.Fail<int>(new Error($"{name} provider rejected {string.Join(", ", failed)}").WithMetadata("ids", failed)));
@@ -897,29 +824,6 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
     {
         public Task<Result<bool>> ValidateDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
             Task.FromResult<Result<bool>>(false);
-    }
-
-    /// <summary>For each document it hears that isn't a mirror, indexes a <c>mirror-</c> copy through <paramref name="service"/>.</summary>
-    private sealed class MirroringObserver(IIndexingServiceAsync service, CancellationToken cancellationToken) : IObserver<SearchDocument>
-    {
-        public List<Result> Results { get; } = new();
-
-        public void OnNext(SearchDocument value)
-        {
-            if (!value.Id.StartsWith("mirror-", StringComparison.Ordinal))
-            {
-                // The fake provider and the indexing service complete synchronously, so the write is done when this returns.
-                Results.Add(service.IndexDocumentAsync(new SearchDocument { Id = $"mirror-{value.Id}", Type = value.Type, Index = value.Index }, cancellationToken).GetAwaiter().GetResult());
-            }
-        }
-
-        public void OnCompleted()
-        {
-        }
-
-        public void OnError(Exception error)
-        {
-        }
     }
 
     /// <summary>Rejects the document with the id <c>reject</c>.</summary>

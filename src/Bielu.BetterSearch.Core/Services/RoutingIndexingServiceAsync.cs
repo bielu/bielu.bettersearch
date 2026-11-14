@@ -1,45 +1,15 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
 using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Bielu.BetterSearch.Services;
 
 /// <summary>
 /// The unkeyed <see cref="IIndexingServiceAsync"/> when indexes are routed: runs each write on the keyed indexing
-/// service that <see cref="IndexRoutes"/> picks for its index. Its observers hear everything that keyed service
-/// reports for a write run through this service, and for a batch only once every provider has succeeded.
+/// service that <see cref="IndexRoutes"/> picks for its index.
 /// </summary>
-internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
+internal sealed class RoutingIndexingServiceAsync(IServiceProvider serviceProvider, IndexRoutes routes) : IIndexingServiceAsync
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IndexRoutes _routes;
-    private readonly ObserverList<SearchDocument> _indexingObservers;
-    private readonly ObserverList<DeleteDocumentRequest> _deleteDocumentObservers;
-    private readonly ObserverList<DeleteAllDocumentsRequest> _deleteAllDocumentsObservers;
-    private readonly RoutedServices<IIndexingServiceAsync> _services;
-
-    public RoutingIndexingServiceAsync(IServiceProvider serviceProvider, IndexRoutes routes, ILogger<RoutingIndexingServiceAsync>? logger = null)
-    {
-        _serviceProvider = serviceProvider;
-        _routes = routes;
-        _indexingObservers = new ObserverList<SearchDocument>(logger);
-        _deleteDocumentObservers = new ObserverList<DeleteDocumentRequest>(logger);
-        _deleteAllDocumentsObservers = new ObserverList<DeleteAllDocumentsRequest>(logger);
-        _services = new RoutedServices<IIndexingServiceAsync>(serviceProvider, (service, services) =>
-        [
-            service.Subscribe(services.ForwardTo(_indexingObservers)),
-            service.Subscribe(services.ForwardTo(_deleteDocumentObservers)),
-            service.Subscribe(services.ForwardTo(_deleteAllDocumentsObservers)),
-        ]);
-    }
-
-    public IDisposable Subscribe(IObserver<SearchDocument> observer) => _indexingObservers.Subscribe(observer);
-
-    public IDisposable Subscribe(IObserver<DeleteDocumentRequest> observer) => _deleteDocumentObservers.Subscribe(observer);
-
-    public IDisposable Subscribe(IObserver<DeleteAllDocumentsRequest> observer) => _deleteAllDocumentsObservers.Subscribe(observer);
-
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
     {
         var documentCheck = IndexingServiceAsync.CheckDocument(document);
@@ -48,13 +18,13 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
             return documentCheck;
         }
 
-        var key = _routes.KeyFor(document.Index);
+        var key = routes.KeyFor(document.Index);
         if (key.IsFailed)
         {
             return key.ToResult();
         }
 
-        return await _services.RunAsync(key.Value, service => service.IndexDocumentAsync(document, cancellationToken)).ConfigureAwait(false);
+        return await Service(key.Value).IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -65,7 +35,7 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
     /// <see cref="Result"/> has one error saying how many documents each provider indexed. Its <c>ids</c> metadata
     /// holds the ids not confirmed as stored, as a single provider's error does, and its reasons have one error for
     /// each provider that failed, with the provider key in <c>key</c> and that provider's ids not confirmed as stored
-    /// in <c>ids</c>. The observers hear the documents only when every provider succeeded.
+    /// in <c>ids</c>.
     /// </summary>
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document, CancellationToken cancellationToken = default)
     {
@@ -85,7 +55,7 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
         var groups = new List<(string Key, List<SearchDocument> Documents)>();
         foreach (var doc in documents)
         {
-            var key = _routes.KeyFor(doc.Index);
+            var key = routes.KeyFor(doc.Index);
             if (key.IsFailed)
             {
                 return key.ToResult<int>();
@@ -108,7 +78,7 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
         var errors = new List<IError>();
         for (var i = 0; i < documents.Count; i++)
         {
-            var validator = _serviceProvider.GetRequiredKeyedService<IDocumentValidatorAsync>(keys[i]);
+            var validator = serviceProvider.GetRequiredKeyedService<IDocumentValidatorAsync>(keys[i]);
             errors.AddRange((await IndexingServiceAsync.ValidateAsync(validator, documents[i], cancellationToken).ConfigureAwait(false)).Errors);
         }
 
@@ -117,15 +87,13 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
             return Result.Fail<int>(errors);
         }
 
-        // The keyed services' notifications are held until every provider has succeeded, as a failed batch notifies nobody.
-        var call = _services.BufferedCall();
         var outcomes = new List<(string Key, List<SearchDocument> Documents, Result<int> Result)>();
         foreach (var (key, keyDocuments) in groups)
         {
             Result<int> result;
             try
             {
-                result = await _services.RunAsync(key, service => service.IndexMultipleDocumentsAsync(keyDocuments, cancellationToken), call).ConfigureAwait(false);
+                result = await Service(key).IndexMultipleDocumentsAsync(keyDocuments, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -138,7 +106,6 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
 
         if (outcomes.All(outcome => outcome.Result.IsSuccess))
         {
-            call.Flush();
             return Result.Ok(outcomes.Sum(outcome => outcome.Result.Value));
         }
 
@@ -188,55 +155,49 @@ internal sealed class RoutingIndexingServiceAsync : IIndexingServiceAsync
     /// <summary>Routes by <see cref="DeleteDocumentRequest.Type"/>, which holds the index name.</summary>
     public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document, CancellationToken cancellationToken = default)
     {
-        var key = _routes.KeyFor(document?.Type);
+        var key = routes.KeyFor(document?.Type);
         if (key.IsFailed)
         {
             return key.ToResult();
         }
 
-        return await _services.RunAsync(key.Value, service => service.RemoveDocumentAsync(document!, cancellationToken)).ConfigureAwait(false);
+        return await Service(key.Value).RemoveDocumentAsync(document!, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids, CancellationToken cancellationToken = default)
     {
-        var key = _routes.KeyFor(index);
+        var key = routes.KeyFor(index);
         if (key.IsFailed)
         {
             return key.ToResult<int>();
         }
 
-        return await _services.RunAsync(key.Value, service => service.RemoveDocumentsAsync(index, ids, cancellationToken)).ConfigureAwait(false);
+        return await Service(key.Value).RemoveDocumentsAsync(index, ids, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
     {
-        var key = _routes.KeyFor(request?.IndexName);
+        var key = routes.KeyFor(request?.IndexName);
         if (key.IsFailed)
         {
             return key.ToResult<long?>();
         }
 
-        return await _services.RunAsync(key.Value, service => service.RemoveAllDocumentsAsync(request!, cancellationToken)).ConfigureAwait(false);
+        return await Service(key.Value).RemoveAllDocumentsAsync(request!, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Runs on the keyed indexing service routed for <paramref name="index"/>. Observers are not notified.</summary>
+    /// <summary>Runs on the keyed indexing service routed for <paramref name="index"/>.</summary>
     public async Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
         CancellationToken cancellationToken = default)
     {
-        var key = _routes.KeyFor(index);
+        var key = routes.KeyFor(index);
         if (key.IsFailed)
         {
             return key.ToResult<bool>();
         }
 
-        return await _services.RunAsync(key.Value, service => service.UpdateDocumentAsync(index, id, fields, cancellationToken)).ConfigureAwait(false);
+        return await Service(key.Value).UpdateDocumentAsync(index, id, fields, cancellationToken).ConfigureAwait(false);
     }
 
-    public void Dispose()
-    {
-        _services.Dispose();
-        _indexingObservers.Complete();
-        _deleteDocumentObservers.Complete();
-        _deleteAllDocumentsObservers.Complete();
-    }
+    private IIndexingServiceAsync Service(string key) => serviceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(key);
 }
