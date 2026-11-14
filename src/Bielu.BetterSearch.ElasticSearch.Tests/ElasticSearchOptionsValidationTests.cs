@@ -2,6 +2,7 @@
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Services;
+using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -128,7 +129,7 @@ public class ElasticSearchOptionsValidationTests
                 ["people"] = new() { Mappings = [new ElasticSearchFieldMapping { Field = "City", Type = ElasticSearchFieldType.Text }] }
             }
         };
-        var manager = new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(options));
+        var manager = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options));
 
         var mappings = manager.GetConnectionSettings("People").Mappings!;
 

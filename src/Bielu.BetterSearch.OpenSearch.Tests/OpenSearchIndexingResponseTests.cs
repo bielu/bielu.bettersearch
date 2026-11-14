@@ -6,9 +6,9 @@ using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
+using Bielu.BetterSearch.Tests;
 using FluentResults;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using OpenSearch.Client;
 using OpenSearch.Net;
 using Shouldly;
@@ -36,21 +36,18 @@ public sealed class OpenSearchIndexingResponseTests
     }
 
     private static readonly IOpenSearchClientSettingsManager NoMappings =
-        new OpenSearchClientSettingsManager(new InvalidSettingsOptionsMonitor());
+        new OpenSearchClientSettingsManager(InvalidSettingsOptions());
 
-    private sealed class InvalidSettingsOptionsMonitor(int maxResultWindow = 10_000) : IOptionsMonitor<OpenSearchOptions>
-    {
-        public OpenSearchOptions CurrentValue { get; } = new() { SharedIndexSettings = new() { ConnectionString = "localhost:9200" }, MaxResultWindow = maxResultWindow };
-        public OpenSearchOptions Get(string? name) => CurrentValue;
-        public IDisposable? OnChange(Action<OpenSearchOptions, string?> listener) => null;
-    }
+    /// <summary>Options whose connection string has no scheme, new on every call so a test can change them.</summary>
+    private static TestOptionsMonitor<OpenSearchOptions> InvalidSettingsOptions(int maxResultWindow = 10_000) =>
+        new(new OpenSearchOptions { SharedIndexSettings = new() { ConnectionString = "localhost:9200" }, MaxResultWindow = maxResultWindow });
 
     private static IClientFactoryAsync<IOpenSearchClient> InvalidSettingsFactory() =>
-        new OpenSearchClientFactory(new OpenSearchClientSettingsManager(new InvalidSettingsOptionsMonitor()));
+        new OpenSearchClientFactory(new OpenSearchClientSettingsManager(InvalidSettingsOptions()));
 
     private static IOpenSearchClientSettingsManager WithMappings()
     {
-        var monitor = new InvalidSettingsOptionsMonitor();
+        var monitor = InvalidSettingsOptions();
         monitor.CurrentValue.SharedIndexSettings.Mappings = [new() { Field = "City", Type = OpenSearchFieldType.Keyword }];
         return new OpenSearchClientSettingsManager(monitor);
     }
@@ -204,7 +201,7 @@ public sealed class OpenSearchIndexingResponseTests
 
     private static IOpenSearchClientSettingsManager WithBulkBatchSize(int? bulkBatchSize)
     {
-        var monitor = new InvalidSettingsOptionsMonitor();
+        var monitor = InvalidSettingsOptions();
         monitor.CurrentValue.SharedIndexSettings.BulkBatchSize = bulkBatchSize;
         return new OpenSearchClientSettingsManager(monitor);
     }
@@ -571,7 +568,7 @@ public sealed class OpenSearchIndexingResponseTests
     public async Task SearchAsync_MaxResultWindowNotPositive_ReturnsConfigurationError(int maxResultWindow)
     {
         var translateService = new OpenSearchQueryTranslateService([]);
-        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), new InvalidSettingsOptionsMonitor(maxResultWindow), NoMappings);
+        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), InvalidSettingsOptions(maxResultWindow), NoMappings);
 
         var result = await provider.SearchAsync(new SearchQuery { Index = "people" });
 
@@ -582,7 +579,7 @@ public sealed class OpenSearchIndexingResponseTests
     [Fact]
     public async Task SearchAsync_InvalidSettings_ReturnsFailureInsteadOfThrowing()
     {
-        var options = new InvalidSettingsOptionsMonitor();
+        var options = InvalidSettingsOptions();
         var translateService = new OpenSearchQueryTranslateService([]);
         var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), options, NoMappings);
 

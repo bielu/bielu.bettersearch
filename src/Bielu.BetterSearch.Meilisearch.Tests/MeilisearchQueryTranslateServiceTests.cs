@@ -3,6 +3,7 @@ using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
 using Bielu.BetterSearch.Meilisearch.Services.Queries;
+using Bielu.BetterSearch.Tests;
 using Shouldly;
 using MeilisearchQuery = Meilisearch.SearchQuery;
 
@@ -171,7 +172,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_PrefixPhraseOutsidePhraseFields_ReturnsFailure()
     {
-        var translator = new PrefixPhraseSubQueryTranslator(new StaticOptionsMonitor(new MeilisearchOptions { PhraseFields = ["Title"] }));
+        var translator = new PrefixPhraseSubQueryTranslator(new TestOptionsMonitor<MeilisearchOptions>(new MeilisearchOptions { PhraseFields = ["Title"] }));
 
         var outside = await translator.TranslateAsync(new PrefixPhraseSubQuery { Field = "Name", Value = "jane d" }, [translator]);
         var inside = await translator.TranslateAsync(new PrefixPhraseSubQuery { Field = "Title", Value = "jane d" }, [translator]);
@@ -296,7 +297,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_SpatialQueryWithoutGeoField_ReturnsFailure()
     {
-        var translator = new SpatialSearchSubQueryTranslator(new StaticOptionsMonitor(new MeilisearchOptions()));
+        var translator = new SpatialSearchSubQueryTranslator(new TestOptionsMonitor<MeilisearchOptions>(new MeilisearchOptions()));
 
         var result = await translator.TranslateAsync(new SpatialSearchQuery { Field = "Location", Distance = 10 }, [translator]);
 
