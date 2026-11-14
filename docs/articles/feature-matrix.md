@@ -105,6 +105,7 @@ Meilisearch applies writes as tasks; the provider waits for each one, so a succe
 | Basic authentication | ✅ `PASSWORD` | ✅ `PASSWORD` | ❌ | ❌ | ✅ `Username` and `Password` in the Npgsql connection string | n/a |
 | API key | ✅ `APIKEY` with `ConnectionString`, or `CLOUDAPI` with a cloud id | ✅ `APIKEY` (OpenSearch 3.x) | ✅ `ApiKey` | ✅ `ApiKey` | n/a | n/a |
 | Bearer token | ✅ `BEARER`, such as a service account token | ❌ | ❌ | ❌ | ❌ | n/a |
+| AWS SigV4 signing | ❌ | ✅ with the `Bielu.BetterSearch.OpenSearch.Aws` package, for Amazon OpenSearch Service (`es`) and Serverless (`aoss`); tested against a local endpoint, not a real AWS domain | ❌ | ❌ | ❌ | n/a |
 | Trust a certificate by fingerprint (`CertificateFingerprint`) | ✅ the certificate, or a CA it chains to through valid signatures, for a certificate the system does not trust; the host name is not checked then | ✅ the certificate, or a CA it chains to through valid signatures, for a certificate the system does not trust; the host name is not checked then | ❌ the system's trust only | ❌ the system's trust only | ➖ no setting; the TLS settings of the Npgsql connection string apply | n/a |
 | Skip certificate validation (`DevelopmentOnlySkipCertificateValidation`) | ✅ for development only | ✅ for development only | ❌ | ❌ | ➖ no setting; the TLS settings of the Npgsql connection string apply | n/a |
 | Spans, metrics and logs | ✅ from `SearchServiceAsync` and `IndexingServiceAsync` | ✅ as Elasticsearch | ✅ as Elasticsearch | ✅ as Elasticsearch | ✅ as Elasticsearch | ✅ as Elasticsearch |
