@@ -42,9 +42,9 @@ public sealed class SecuredElasticsearchResource : IHostedService
 
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-    public async Task EnsureStartedAsync()
+    public async Task EnsureStartedAsync(CancellationToken cancellationToken)
     {
-        await _starting.WaitAsync();
+        await _starting.WaitAsync(cancellationToken);
         try
         {
             if (ServiceAccountToken is not null)
@@ -59,8 +59,9 @@ public sealed class SecuredElasticsearchResource : IHostedService
                 _app = null;
             }
 
-            // A first run may need to pull the image.
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+            // A first run may need to pull the image. A cancelled test stops the start too.
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromMinutes(5));
             var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.Bielu_BetterSearch_Examples_AppHost>(timeout.Token);
             builder.Configuration[$"Parameters:{PasswordParameter}"] = Password;
             foreach (var other in builder.Resources.Where(r => r.Name is not (ResourceName or PasswordParameter)).ToList())

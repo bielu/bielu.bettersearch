@@ -104,10 +104,10 @@ Meilisearch applies writes as tasks; the provider waits for each one, so a succe
 | Basic authentication | ✅ `PASSWORD` | ✅ `PASSWORD` | ❌ | ❌ | n/a |
 | API key | ✅ `APIKEY` with `ConnectionString`, or `CLOUDAPI` with a cloud id | ✅ `APIKEY` (OpenSearch 3.x) | ✅ `ApiKey` | ✅ `ApiKey` | n/a |
 | Bearer token | ✅ `BEARER`, such as a service account token | ❌ | ❌ | ❌ | n/a |
-| Trust a certificate by fingerprint (`CertificateFingerprint`) | ✅ the certificate or one in its chain | ✅ the certificate or one in its chain, for a certificate the system does not trust; the host name is not checked then | ❌ the system's trust only | ❌ the system's trust only | n/a |
+| Trust a certificate by fingerprint (`CertificateFingerprint`) | ✅ the certificate or one in its chain | ✅ the certificate, or a CA it chains to through valid signatures, for a certificate the system does not trust; the host name is not checked then | ❌ the system's trust only | ❌ the system's trust only | n/a |
 | Skip certificate validation (`DevelopmentOnlySkipCertificateValidation`) | ✅ for development only | ✅ for development only | ❌ | ❌ | n/a |
 
-Elasticsearch's `APIKEY`, `BEARER`, `PASSWORD`, `CertificateFingerprint` and `DevelopmentOnlySkipCertificateValidation` are tested against an Elasticsearch with security on and the self-signed CA it generates; a missing or wrong fingerprint and a wrong API key or token are failed `Result`s. OpenSearch's fingerprint check is tested with generated certificates, not against a server. Startup validation rejects a fingerprint that is not 64 hex digits, one set together with `DevelopmentOnlySkipCertificateValidation`, and a TLS setting on an `Indexes` entry without its own `ConnectionString`.
+Elasticsearch's `APIKEY`, `BEARER`, `PASSWORD`, `CertificateFingerprint` and `DevelopmentOnlySkipCertificateValidation` are tested against an Elasticsearch with security on and the self-signed CA it generates; a missing or wrong fingerprint and a wrong API key or token are failed `Result`s. OpenSearch's fingerprint check is tested with generated certificates, not against a server. Startup validation rejects a fingerprint that is not 64 hex digits, one set together with `DevelopmentOnlySkipCertificateValidation`, and a TLS setting on an `Indexes` entry without its own `ConnectionString` (on Elasticsearch, without its own `ConnectionString` or `CLOUD`/`CLOUDAPI` authentication).
 
 ## Test coverage
 

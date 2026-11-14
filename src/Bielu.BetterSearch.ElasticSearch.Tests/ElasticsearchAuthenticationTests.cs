@@ -19,7 +19,7 @@ public class ElasticsearchAuthenticationTests(SecuredElasticsearchResource elast
     [Fact]
     public async Task IndexAndGetDocument_ApiKeyWithCertificateFingerprint_RoundTrips()
     {
-        await elasticsearch.EnsureStartedAsync();
+        await elasticsearch.EnsureStartedAsync(TestContext.Current.CancellationToken);
 
         await AssertRoundTripAsync(new Dictionary<string, string?>
         {
@@ -32,7 +32,7 @@ public class ElasticsearchAuthenticationTests(SecuredElasticsearchResource elast
     [Fact]
     public async Task IndexAndGetDocument_BearerServiceAccountTokenWithColonSeparatedLowerCaseFingerprint_RoundTrips()
     {
-        await elasticsearch.EnsureStartedAsync();
+        await elasticsearch.EnsureStartedAsync(TestContext.Current.CancellationToken);
 
         await AssertRoundTripAsync(new Dictionary<string, string?>
         {
@@ -45,7 +45,7 @@ public class ElasticsearchAuthenticationTests(SecuredElasticsearchResource elast
     [Fact]
     public async Task IndexAndGetDocument_PasswordWithSkippedCertificateValidation_RoundTrips()
     {
-        await elasticsearch.EnsureStartedAsync();
+        await elasticsearch.EnsureStartedAsync(TestContext.Current.CancellationToken);
 
         await AssertRoundTripAsync(new Dictionary<string, string?>
         {
@@ -59,7 +59,7 @@ public class ElasticsearchAuthenticationTests(SecuredElasticsearchResource elast
     [Fact]
     public async Task IndexDocument_ApiKeyWithoutTlsSettings_FailsOnTheUntrustedCertificate()
     {
-        await elasticsearch.EnsureStartedAsync();
+        await elasticsearch.EnsureStartedAsync(TestContext.Current.CancellationToken);
 
         var result = await IndexAsync(new Dictionary<string, string?>
         {
@@ -74,7 +74,7 @@ public class ElasticsearchAuthenticationTests(SecuredElasticsearchResource elast
     [Fact]
     public async Task IndexDocument_ApiKeyWithAnotherCertificateFingerprint_FailsOnTheCertificate()
     {
-        await elasticsearch.EnsureStartedAsync();
+        await elasticsearch.EnsureStartedAsync(TestContext.Current.CancellationToken);
 
         var result = await IndexAsync(new Dictionary<string, string?>
         {
@@ -92,7 +92,7 @@ public class ElasticsearchAuthenticationTests(SecuredElasticsearchResource elast
     [InlineData("BEARER", "Token")]
     public async Task IndexDocument_WrongCredential_FailsWithUnauthorized(string authenticationType, string detail)
     {
-        await elasticsearch.EnsureStartedAsync();
+        await elasticsearch.EnsureStartedAsync(TestContext.Current.CancellationToken);
 
         var result = await IndexAsync(new Dictionary<string, string?>
         {

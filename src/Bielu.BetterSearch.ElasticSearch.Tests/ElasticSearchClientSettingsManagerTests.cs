@@ -350,6 +350,35 @@ public class ElasticSearchClientSettingsManagerTests
         inherits.DevelopmentOnlySkipCertificateValidation.ShouldBe(false);
     }
 
+    [Theory]
+    [InlineData(AuthenticationType.CLOUD)]
+    [InlineData(AuthenticationType.CLOUDAPI)]
+    public void GetConnectionSettings_IndexWithItsOwnCloudId_KeepsItsOwnTlsSettings(AuthenticationType authenticationType)
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                DevelopmentOnlySkipCertificateValidation = true,
+            },
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings>
+            {
+                ["cloud"] = new()
+                {
+                    AuthenticationType = authenticationType,
+                    AuthenticationDetails = new AuthenticationDetails { Id = "name:ZXhhbXBsZS5lcy5pbyRhYmMkZGVm", Username = "elastic", Password = "secret", ApiKey = "key" },
+                },
+            },
+        };
+
+        var cloud = GetConnectionSettings(options, "cloud");
+
+        cloud.DevelopmentOnlySkipCertificateValidation.ShouldBe(false);
+        GetSettings(options, "cloud").ServerCertificateValidationCallback.ShouldBeNull();
+        GetConnectionSettings(options, "people").DevelopmentOnlySkipCertificateValidation.ShouldBe(true);
+    }
+
     [Fact]
     public void ClientKey_ToString_LeavesOutTheTokenAndApiKey()
     {

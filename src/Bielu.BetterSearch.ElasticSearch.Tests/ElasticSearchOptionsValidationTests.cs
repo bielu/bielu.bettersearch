@@ -245,6 +245,20 @@ public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
     }
 
     [Fact]
+    public void ValidateOnStart_TlsSettingOnACloudIndexEntry_Passes()
+    {
+        ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "https://shared:9200",
+            ["SharedIndexSettings:DevelopmentOnlySkipCertificateValidation"] = "true",
+            ["Indexes:people:AuthenticationType"] = "CLOUDAPI",
+            ["Indexes:people:AuthenticationDetails:Id"] = "name:abc",
+            ["Indexes:people:AuthenticationDetails:ApiKey"] = "key",
+            ["Indexes:people:DevelopmentOnlySkipCertificateValidation"] = "false",
+        }).ShouldBeNull();
+    }
+
+    [Fact]
     public void ValidateOnStart_UnknownAuthenticationType_FailsListingTheTypes()
     {
         var failure = ValidateOnStart(new Dictionary<string, string?>

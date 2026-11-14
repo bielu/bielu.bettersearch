@@ -31,20 +31,20 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     /// <summary>
     /// Builds a new settings object, leaving the live options untouched: the index's connection string and
     /// authentication win, and an index without its own takes the shared one. The TLS settings come from where the
-    /// connection string does. Mappings are the shared ones with the
+    /// endpoint does: the index's own when it sets a connection string or cloud authentication, else the shared ones. Mappings are the shared ones with the
     /// index's own on top, the bulk batch size is the index's own or else the shared one, and the index's write visibility wins over the shared one.
     /// </summary>
     internal static ElasticSearchIndexSettings MergeSettings(ElasticSearchIndexSettings indexSpecific,
         ElasticSearchIndexSettings shared)
     {
         var ownAuthentication = indexSpecific.AuthenticationType is not null;
-        // The TLS settings belong to the server, so they come with the connection string.
-        var connection = string.IsNullOrWhiteSpace(indexSpecific.ConnectionString) ? shared : indexSpecific;
+        // The TLS settings belong to the server, so they come with the endpoint: the connection string, or the cloud id.
+        var tls = HasOwnEndpoint(indexSpecific) ? indexSpecific : shared;
         return new ElasticSearchIndexSettings
         {
-            ConnectionString = connection.ConnectionString,
-            CertificateFingerprint = connection.CertificateFingerprint,
-            DevelopmentOnlySkipCertificateValidation = connection.DevelopmentOnlySkipCertificateValidation ?? false,
+            ConnectionString = string.IsNullOrWhiteSpace(indexSpecific.ConnectionString) ? shared.ConnectionString : indexSpecific.ConnectionString,
+            CertificateFingerprint = tls.CertificateFingerprint,
+            DevelopmentOnlySkipCertificateValidation = tls.DevelopmentOnlySkipCertificateValidation ?? false,
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
                                  ?? AuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
@@ -53,6 +53,14 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
             WriteVisibility = indexSpecific.WriteVisibility ?? shared.WriteVisibility ?? WriteVisibility.Default,
         };
     }
+
+    /// <summary>
+    /// Whether <paramref name="settings"/> name a server of their own: a connection string, or <c>CLOUD</c> or
+    /// <c>CLOUDAPI</c> authentication, which connects by its cloud id. Only then do they use their own TLS settings.
+    /// </summary>
+    internal static bool HasOwnEndpoint(ElasticSearchIndexSettings settings) =>
+        !string.IsNullOrWhiteSpace(settings.ConnectionString) ||
+        settings.AuthenticationType is AuthenticationType.CLOUD or AuthenticationType.CLOUDAPI;
 
     /// <summary>
     /// The connection setting failures of <paramref name="settings"/>, already merged, each naming the setting to fix.

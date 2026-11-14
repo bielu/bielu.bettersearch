@@ -23,7 +23,7 @@ internal sealed class ElasticSearchOptionsValidator : IValidateOptions<ElasticSe
             .Concat((options.Indexes ?? []).SelectMany(index =>
                 BulkBatchSizeFailures($"{key}:{nameof(ElasticSearchOptions.Indexes)}:{index.Key}", index.Value)))
             .Concat(IndexNames.ValidatePrefix($"{key}:{nameof(ElasticSearchOptions.IndexPrefix)}", options.IndexPrefix))
-            .Concat((options.Indexes ?? []).Where(index => index.Value is not null).Select(index =>
+            .Concat((options.Indexes ?? []).Where(index => index.Value is not null && !ElasticSearchClientSettingsManager.HasOwnEndpoint(index.Value)).Select(index =>
                 ConnectionSettingsChecks.TlsWithoutConnectionStringFailure(key, index.Key, index.Value.ConnectionString,
                     index.Value.CertificateFingerprint, index.Value.DevelopmentOnlySkipCertificateValidation)).OfType<string>())
             .ToList();

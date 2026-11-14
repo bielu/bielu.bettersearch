@@ -61,8 +61,8 @@ public class OpenSearchIndexSettings : IndexSettings
 
     /// <summary>
     /// The SHA-256 fingerprint of the server's certificate or of the CA that signed it, as hex, with or without colons.
-    /// A certificate the system does not trust is then accepted when it or a certificate in its chain has this
-    /// fingerprint, whatever host name it names. Like <see cref="DevelopmentOnlySkipCertificateValidation"/>, it goes with
+    /// A certificate the system does not trust is then accepted when it has this fingerprint, or chains through valid
+    /// signatures to a CA that has it, whatever host name it names. Like <see cref="DevelopmentOnlySkipCertificateValidation"/>, it goes with
     /// the connection string: an <c>Indexes</c> entry with its own <c>ConnectionString</c> uses only its own TLS settings,
     /// and one without takes the shared ones.
     /// </summary>
@@ -70,8 +70,9 @@ public class OpenSearchIndexSettings : IndexSettings
 
     /// <summary>
     /// Accepts any server certificate, so anyone between the application and the server can read and change the traffic,
-    /// credentials included. Only for a local development cluster with a self-signed certificate; set
-    /// <see cref="CertificateFingerprint"/> instead everywhere else. It can't be set together with <see cref="CertificateFingerprint"/>.
+    /// credentials included. Only for a local development cluster with a self-signed certificate. A certificate the system
+    /// trusts needs neither TLS setting; set <see cref="CertificateFingerprint"/> only for one it does not. It can't be set
+    /// together with <see cref="CertificateFingerprint"/>.
     /// </summary>
     public bool? DevelopmentOnlySkipCertificateValidation { get; set; }
 
