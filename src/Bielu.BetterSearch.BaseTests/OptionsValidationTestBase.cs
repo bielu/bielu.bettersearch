@@ -26,15 +26,46 @@ public abstract class OptionsValidationTestBase
     /// </summary>
     protected OptionsValidationException? ValidateOnStart(IDictionary<string, string?> settings, params string[] keys)
     {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(settings.ToDictionary(setting => $"{OptionsKey}:{setting.Key}", setting => setting.Value))
-            .Build();
+        var configuration = Configuration(settings);
         var services = new ServiceCollection();
         foreach (var key in keys.Length == 0 ? ["default"] : keys)
         {
             services.AddBetterSearch(configuration, search => AddProvider(search, key));
         }
 
+        return ValidateOnStart(services);
+    }
+
+    /// <summary>
+    /// Like <see cref="ValidateOnStart(IDictionary{string, string?}, string[])"/>, but each AddBetterSearch call gets its own
+    /// configuration, in order, from <paramref name="settingsPerCall"/>. A <c>null</c> entry calls the overload that takes
+    /// no configuration.
+    /// </summary>
+    protected OptionsValidationException? ValidateOnStartWithConfigurations(params IDictionary<string, string?>?[] settingsPerCall)
+    {
+        var services = new ServiceCollection();
+        for (var call = 0; call < settingsPerCall.Length; call++)
+        {
+            var key = $"key{call}";
+            if (settingsPerCall[call] is { } settings)
+            {
+                services.AddBetterSearch(Configuration(settings), search => AddProvider(search, key));
+            }
+            else
+            {
+                services.AddBetterSearch(search => AddProvider(search, key));
+            }
+        }
+
+        return ValidateOnStart(services);
+    }
+
+    private IConfiguration Configuration(IDictionary<string, string?> settings) => new ConfigurationBuilder()
+        .AddInMemoryCollection(settings.ToDictionary(setting => $"{OptionsKey}:{setting.Key}", setting => setting.Value))
+        .Build();
+
+    private static OptionsValidationException? ValidateOnStart(ServiceCollection services)
+    {
         using var provider = services.BuildServiceProvider();
         try
         {
@@ -72,6 +103,26 @@ public abstract class OptionsValidationTestBase
         var failure = ValidateOnStart(new Dictionary<string, string?>(), "first", "second");
 
         failure.ShouldNotBeNull().Failures.ShouldHaveSingleItem().ShouldStartWith($"No {OptionsKey} settings were found.");
+    }
+
+    [Fact]
+    public void ValidateOnStart_LaterCallWithAnotherConfiguration_BindsItOverTheFirst()
+    {
+        var failure = ValidateOnStartWithConfigurations(
+            new Dictionary<string, string?> { ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200" },
+            new Dictionary<string, string?> { ["SharedIndexSettings:ConnectionString"] = "localhost:9200" });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"ConnectionString is not an http or https URL. Set {OptionsKey}:SharedIndexSettings:ConnectionString, or {OptionsKey}:Indexes:<index>:ConnectionString for one index."
+        ]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_FirstCallWithoutConfiguration_BindsTheLaterConfiguration()
+    {
+        ValidateOnStartWithConfigurations(
+            null,
+            new Dictionary<string, string?> { ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200" }).ShouldBeNull();
     }
 
     [Theory]

@@ -70,6 +70,20 @@ public class MeilisearchOptionsValidationTests : OptionsValidationTestBase
     }
 
     [Fact]
+    public void ValidateOnStart_ProviderAddedUnderTwoKeysWithOneConfiguration_BindsItsListsOnce()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "http://localhost:7700",
+            ["PhraseFields:0"] = "Body(text)",
+        }, "first", "second");
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"{Key}:PhraseFields:0 Body(text) can only contain letters, digits, '_', '-' and '.', as Meilisearch filters write field names unquoted."
+        ]);
+    }
+
+    [Fact]
     public void ValidateOnStart_ValidFieldNames_Passes()
     {
         ValidateOnStart(new Dictionary<string, string?>

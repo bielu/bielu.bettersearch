@@ -83,7 +83,7 @@ The options are validated at startup (`ValidateOnStart`), so a host with invalid
 string and authentication are checked as each call checks them, after merging each `Indexes` entry with
 `SharedIndexSettings`. For example `ConnectionString is not an http or https URL. Set
 Bielu:BetterSearch:Meilisearch:Indexes:people:ConnectionString, or Bielu:BetterSearch:Meilisearch:SharedIndexSettings:ConnectionString for every index.`
-The messages never include a setting's value. A missing section, or one whose name is misspelled, gives the single
+Connection messages never include the connection string or a credential; the other messages show the rejected value, such as `MaxTotalHits is 0` or a `GeoField` name. A missing section, or one whose name is misspelled, gives the single
 failure `No Bielu:BetterSearch:Meilisearch settings were found.`, naming the section. The shared settings are not checked when they set
 no connection and every `Indexes` entry sets its own; an index not listed then fails when it is used. `MaxTotalHits` must be greater than 0, `TaskTimeout` and `SettingsCheckInterval` must not be negative, and `GeoField` and each `PhraseFields` entry can only contain letters, digits, `_`, `-` and `.`. The same
 checks run whenever the options are read, so after a configuration reload to invalid settings, every call returns a

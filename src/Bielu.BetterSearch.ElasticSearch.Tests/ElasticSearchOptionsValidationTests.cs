@@ -214,4 +214,32 @@ public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
             $"AuthenticationType 7 is not one of NONE, CLOUD, CLOUDAPI, PASSWORD. Set {Key}:SharedIndexSettings:AuthenticationType, or {Key}:Indexes:<index>:AuthenticationType for one index."
         ]);
     }
+
+    [Fact]
+    public void ValidateOnStart_SharedPasswordWithoutUrlAndEveryIndexWithItsOwn_Passes()
+    {
+        ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationDetails:Username"] = "elastic",
+            ["SharedIndexSettings:AuthenticationDetails:Password"] = "secret",
+            ["Indexes:people:ConnectionString"] = "http://people:9200",
+            ["Indexes:places:ConnectionString"] = "https://places:9200",
+        }).ShouldBeNull();
+    }
+
+    [Fact]
+    public void ValidateOnStart_SharedPasswordWithoutUrlOrPassword_FailsNamingEachIndexThatInheritsIt()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationDetails:Username"] = "elastic",
+            ["Indexes:people:ConnectionString"] = "http://people:9200",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:Indexes:people:AuthenticationDetails:Password, or {Key}:SharedIndexSettings:AuthenticationDetails:Password for every index."
+        ]);
+    }
 }

@@ -29,14 +29,15 @@ internal sealed class ElasticSearchOptionsValidator : IValidateOptions<ElasticSe
     /// <summary>
     /// Options with no connection string, authentication or <c>Indexes</c> entry at all fail once, naming the section.
     /// Otherwise the shared settings are checked as an index not listed under <c>Indexes</c> gets them, unless they set no
-    /// connection and every index is listed with its own. An <c>Indexes</c> entry is checked after merging, unless it
-    /// sets no connection of its own and so has the shared one, which is checked already.
+    /// connection string and every index is listed with its own connection: shared authentication is then a default the
+    /// indexes inherit, checked with each of them. An <c>Indexes</c> entry is checked after merging, unless it sets no
+    /// connection of its own and so has the shared one, which is checked already.
     /// </summary>
     private static IEnumerable<string> ConnectionFailures(ElasticSearchOptions options)
     {
         var shared = options.SharedIndexSettings ?? new ElasticSearchIndexSettings();
         var indexes = options.Indexes ?? [];
-        var sharedConnection = HasConnection(shared);
+        var sharedConnection = !string.IsNullOrWhiteSpace(shared.ConnectionString);
         if (string.IsNullOrEmpty(shared.ConnectionString) && shared.AuthenticationType is null && indexes.Count == 0)
         {
             return [ConnectionSettingsChecks.NoSettingsFailure(ElasticSearchOptions.ElasticSearchOptionsKey)];

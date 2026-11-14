@@ -28,6 +28,7 @@
       <Compile Include="..\Shared\LuceneQueryParser.cs" Link="Services\LuceneQueryParser.cs" />
       <Compile Include="..\Shared\ConnectionSettingsChecks.cs" Link="Services\ConnectionSettingsChecks.cs" />
       <Compile Include="..\Shared\CurrentOptions.cs" Link="Services\CurrentOptions.cs" />
+      <Compile Include="..\Shared\OptionsRegistration.cs" Link="Services\OptionsRegistration.cs" />
     </ItemGroup>
 
 </Project>

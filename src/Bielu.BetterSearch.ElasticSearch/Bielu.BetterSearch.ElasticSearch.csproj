@@ -28,6 +28,7 @@
       <Compile Include="..\Shared\FieldMappings.cs" Link="Services\FieldMappings.cs" />
       <Compile Include="..\Shared\ConnectionSettingsChecks.cs" Link="Services\ConnectionSettingsChecks.cs" />
       <Compile Include="..\Shared\CurrentOptions.cs" Link="Services\CurrentOptions.cs" />
+      <Compile Include="..\Shared\OptionsRegistration.cs" Link="Services\OptionsRegistration.cs" />
       <Compile Include="..\Shared\SortOrders.cs" Link="Services\SortOrders.cs" />
     </ItemGroup>
 
