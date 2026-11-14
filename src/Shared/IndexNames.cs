@@ -22,6 +22,13 @@ internal static class IndexNames
     public static string NewRebuildTarget(string engineIndex, DateTimeOffset now) =>
         $"{engineIndex}{RebuildMarker}{now.UtcDateTime:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}"[..(engineIndex.Length + RebuildMarker.Length + 17 + 1 + 8)];
 
+    /// <summary>
+    /// The alias a rebuild index carries from its creation until the rebuild is completed or aborted. Completing removes
+    /// it in the same atomic request that moves the index alias, and aborting removes it before deleting the index, each
+    /// requiring it to exist, so once one of them has removed it the other fails rather than acting on a stale check.
+    /// </summary>
+    public static string RebuildPendingAlias(string target) => target + "-pending";
+
     /// <summary>Whether <paramref name="target"/> is a name <see cref="NewRebuildTarget"/> gave a rebuild of <paramref name="engineIndex"/>.</summary>
     public static bool IsRebuildTargetOf(string engineIndex, string? target)
     {

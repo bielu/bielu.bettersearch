@@ -5,10 +5,12 @@ using System.Text;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
+using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
 using FluentResults;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Shouldly;
 
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
@@ -565,5 +567,69 @@ public sealed class ElasticsearchIndexingResponseTests
         await cancellation.CancelAsync();
 
         await Should.ThrowAsync<OperationCanceledException>(() => InvokeAsync(provider, method, cancellation.Token));
+    }
+
+    /// <summary>Gives prefix <c>blue-</c> until the first read after <see cref="Arm"/>, and <c>green-</c> from then on, as a configuration reload would.</summary>
+    private sealed class ReloadingPrefixOptionsMonitor : IOptionsMonitor<ElasticSearchOptions>
+    {
+        private readonly ElasticSearchOptions blue = new() { IndexPrefix = "blue-", SharedIndexSettings = new() };
+        private readonly ElasticSearchOptions green = new() { IndexPrefix = "green-", SharedIndexSettings = new() };
+        private bool armed;
+        private bool reloaded;
+
+        public void Arm() => armed = true;
+
+        public ElasticSearchOptions CurrentValue
+        {
+            get
+            {
+                var value = reloaded ? green : blue;
+                reloaded |= armed;
+                return value;
+            }
+        }
+
+        public ElasticSearchOptions Get(string? name) => CurrentValue;
+        public IDisposable? OnChange(Action<ElasticSearchOptions, string?> listener) => null;
+    }
+
+    private static readonly DateTimeOffset RebuildStarted = new(2026, 11, 14, 12, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public async Task CompleteRebuildAsync_RefreshFailedOnSomeShards_FailsWithoutTouchingTheAlias()
+    {
+        var invoker = new SequenceRequestInvoker(
+            Invoker("""{"_shards":{"total":2,"successful":1,"failed":1,"failures":[{"shard":0,"index":"people","status":"INTERNAL_SERVER_ERROR","reason":{"type":"exception","reason":"refresh failed"}}]}}""", 200));
+        var provider = Provider(invoker);
+        var rebuild = new Abstractions.Models.IndexRebuild("people", IndexNames.NewRebuildTarget("people", RebuildStarted));
+
+        var result = await provider.CompleteRebuildAsync(rebuild, Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldContain("failed on 1 of 2 shards");
+        invoker.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task CompleteRebuildAsync_PrefixReloadedDuringTheCall_UsesTheAliasItChecked()
+    {
+        var monitor = new ReloadingPrefixOptionsMonitor();
+        var settingsManager = new ElasticSearchClientSettingsManager(monitor);
+        // Refresh, alias lookup (no alias), exists check (no index), a rejected alias update, then the alias read again.
+        var invoker = new SequenceRequestInvoker(
+            Invoker("""{"_shards":{"total":1,"successful":1,"failed":0}}""", 200),
+            Invoker("""{"error":"alias [blue-people] missing","status":404}""", 404),
+            Invoker("", 404),
+            Invoker("""{"error":{"root_cause":[{"type":"illegal_argument_exception","reason":"rejected"}],"type":"illegal_argument_exception","reason":"rejected"},"status":400}""", 400),
+            Invoker("""{"error":"alias [blue-people] missing","status":404}""", 404));
+        var provider = Provider(invoker, settingsManager: settingsManager);
+        var rebuild = new Abstractions.Models.IndexRebuild("people", IndexNames.NewRebuildTarget("blue-people", RebuildStarted));
+        monitor.Arm();
+
+        var result = await provider.CompleteRebuildAsync(rebuild, Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldContain("pointing alias blue-people at");
+        invoker.Requests.ShouldBe(5);
     }
 }

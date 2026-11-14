@@ -1,9 +1,11 @@
 ﻿using System.Text.Json;
 using Bielu.BetterSearch.Abstractions.Configuration;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.DepedencyInjection;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.DependencyInjection;
 using OpenSearch.Client;
@@ -61,6 +63,13 @@ public sealed class OpenSearchIndexLifecycleTests(OpenSearchResource openSearch)
         (await IndexNamesAsync($"/{engineName}")).Contains(engineName);
 
     protected override Task<IReadOnlyList<string>> AliasTargetsAsync(string alias) => IndexNamesAsync($"/_alias/{alias}");
+
+    protected override async Task RemovePendingAliasAsync(IndexRebuild rebuild)
+    {
+        var client = await Services.GetRequiredService<IClientFactoryAsync<IOpenSearchClient>>().GetOrCreateClientAsync("any");
+        var response = await client.LowLevel.DoRequestAsync<StringResponse>(global::OpenSearch.Net.HttpMethod.DELETE, $"/{rebuild.TargetIndex}/_alias/{IndexNames.RebuildPendingAlias(rebuild.TargetIndex)}", TestContext.Current.CancellationToken);
+        response.HttpStatusCode.ShouldBe(200, response.Body);
+    }
 
     [Fact]
     public async Task StartRebuild_ConfiguredMappings_RebuildIndexHasThem()

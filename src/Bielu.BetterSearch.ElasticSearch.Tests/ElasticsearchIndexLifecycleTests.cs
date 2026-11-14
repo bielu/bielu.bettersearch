@@ -1,9 +1,11 @@
 ﻿using System.Text.Json;
 using Bielu.BetterSearch.Abstractions.Configuration;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.DepedencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
+using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
@@ -61,6 +63,13 @@ public sealed class ElasticsearchIndexLifecycleTests(ElasticsearchResource elast
         (await IndexNamesAsync($"/{engineName}")).Contains(engineName);
 
     protected override Task<IReadOnlyList<string>> AliasTargetsAsync(string alias) => IndexNamesAsync($"/_alias/{alias}");
+
+    protected override async Task RemovePendingAliasAsync(IndexRebuild rebuild)
+    {
+        var client = await Services.GetRequiredService<IClientFactoryAsync<ElasticsearchClient>>().GetOrCreateClientAsync("any");
+        var response = await client.Transport.RequestAsync<StringResponse>(Elastic.Transport.HttpMethod.DELETE, $"/{rebuild.TargetIndex}/_alias/{IndexNames.RebuildPendingAlias(rebuild.TargetIndex)}", cancellationToken: TestContext.Current.CancellationToken);
+        response.ApiCallDetails.HttpStatusCode.ShouldBe(200, response.Body);
+    }
 
     [Fact]
     public async Task StartRebuild_ConfiguredMappings_RebuildIndexHasThem()

@@ -19,6 +19,9 @@ public abstract class IndexLifecycleTestBase(IServiceProvider services) : IndexP
     /// <summary>The indexes the alias <paramref name="alias"/> points at on the engine, in ordinal order; empty when there is no such alias.</summary>
     protected abstract Task<IReadOnlyList<string>> AliasTargetsAsync(string alias);
 
+    /// <summary>Removes the pending alias of <paramref name="rebuild"/>'s new index on the engine, as an abort does before it deletes the index.</summary>
+    protected abstract Task RemovePendingAliasAsync(IndexRebuild rebuild);
+
     private IIndexLifecycleServiceAsync Lifecycle => ScopedServices.GetRequiredService<IIndexLifecycleServiceAsync>();
 
     /// <summary>An index with documents <paramref name="ids"/>, created as a plain index, not an alias.</summary>
@@ -218,6 +221,95 @@ public abstract class IndexLifecycleTestBase(IServiceProvider services) : IndexP
             completed.IsFailed.ShouldBeTrue();
             (await EngineIndexExistsAsync(Prefix + index)).ShouldBeTrue();
             (await IdsAsync(index)).ShouldBe(["old"]);
+        }
+        finally
+        {
+            await DeleteAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task CompleteRebuild_AbortStartedFirst_FailsAndLeavesTheAliasOnTheOldIndex()
+    {
+        var index = await IndexWithDocumentsAsync("old");
+        try
+        {
+            var first = await FilledRebuildAsync(index, "current");
+            ShouldSucceed(await Lifecycle.CompleteRebuildAsync(first, Token));
+            var second = await FilledRebuildAsync(index, "abandoned");
+            // An overlapping abort has removed the pending alias but not yet deleted the index.
+            await RemovePendingAliasAsync(second);
+
+            var completed = await Lifecycle.CompleteRebuildAsync(second, Token);
+
+            completed.IsFailed.ShouldBeTrue();
+            (await AliasTargetsAsync(Prefix + index)).ShouldBe([first.TargetIndex]);
+            (await EngineIndexExistsAsync(second.TargetIndex)).ShouldBeTrue();
+            (await IdsAsync(index)).ShouldBe(["current"]);
+
+            var aborted = await Lifecycle.AbortRebuildAsync(second, Token);
+
+            ShouldSucceed(aborted);
+            aborted.Value.ShouldBeTrue();
+            (await EngineIndexExistsAsync(second.TargetIndex)).ShouldBeFalse();
+            (await AliasTargetsAsync(Prefix + index)).ShouldBe([first.TargetIndex]);
+        }
+        finally
+        {
+            await DeleteAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task AbortRebuild_AtTheSameTimeAsComplete_OneWinsAndTheAliasPointsAtAnIndexThatExists()
+    {
+        var index = await IndexWithDocumentsAsync("old");
+        try
+        {
+            var first = await FilledRebuildAsync(index, "current");
+            ShouldSucceed(await Lifecycle.CompleteRebuildAsync(first, Token));
+            var second = await FilledRebuildAsync(index, "new");
+
+            var completing = Lifecycle.CompleteRebuildAsync(second, Token);
+            var aborting = Lifecycle.AbortRebuildAsync(second, Token);
+            var completed = await completing;
+            var aborted = await aborting;
+
+            (completed.IsSuccess && aborted.IsSuccess).ShouldBeFalse();
+            if (completed.IsSuccess)
+            {
+                Errors(aborted).ShouldContain("already complete");
+                (await AliasTargetsAsync(Prefix + index)).ShouldBe([second.TargetIndex]);
+                (await IdsAsync(index)).ShouldBe(["new"]);
+            }
+            else
+            {
+                ShouldSucceed(aborted);
+                (await EngineIndexExistsAsync(second.TargetIndex)).ShouldBeFalse();
+                (await AliasTargetsAsync(Prefix + index)).ShouldBe([first.TargetIndex]);
+                (await IdsAsync(index)).ShouldBe(["current"]);
+            }
+        }
+        finally
+        {
+            await DeleteAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task CompleteRebuild_TwoCallsAtOnce_BothSucceedAndTheNewIndexIsLive()
+    {
+        var index = await IndexWithDocumentsAsync("old");
+        try
+        {
+            var rebuild = await FilledRebuildAsync(index, "new");
+
+            var completed = await Task.WhenAll(Lifecycle.CompleteRebuildAsync(rebuild, Token), Lifecycle.CompleteRebuildAsync(rebuild, Token));
+
+            ShouldSucceed(completed[0]);
+            ShouldSucceed(completed[1]);
+            (await AliasTargetsAsync(Prefix + index)).ShouldBe([rebuild.TargetIndex]);
+            (await IdsAsync(index)).ShouldBe(["new"]);
         }
         finally
         {

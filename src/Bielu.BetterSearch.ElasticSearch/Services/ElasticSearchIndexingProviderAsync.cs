@@ -220,10 +220,18 @@ public partial class ElasticSearchIndexingProviderAsync(
     public Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(index, client => CreateIndexAsync(client, index, Name(index), cancellationToken), cancellationToken);
 
-    /// <summary>Creates <paramref name="name"/> on the server with the configured mappings of <paramref name="index"/>.</summary>
-    private async Task<Result<bool>> CreateIndexAsync(ElasticsearchClient client, string index, string name, CancellationToken cancellationToken)
+    /// <summary>
+    /// Creates <paramref name="name"/> on the server with the configured mappings of <paramref name="index"/>, and with
+    /// the alias <paramref name="alias"/> when it is given.
+    /// </summary>
+    private async Task<Result<bool>> CreateIndexAsync(ElasticsearchClient client, string index, string name, CancellationToken cancellationToken, string? alias = null)
     {
         var request = new CreateIndexRequest(Indices.Index(name));
+        if (alias is not null)
+        {
+            request.Aliases = new Dictionary<Name, Alias> { [alias] = new Alias() };
+        }
+
         var properties = ElasticSearchMappings.Create(settingsManager.GetConnectionSettings(index).Mappings);
         if (properties is not null)
         {

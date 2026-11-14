@@ -12,7 +12,9 @@ namespace Bielu.BetterSearch.Abstractions.Services;
 /// A rebuild creates a new index with the index's configured mappings, fills it, and then points the index name, an
 /// alias, at it in one atomic step that also deletes the indexes the alias pointed at before. Until that step,
 /// searches and writes through the index name keep using the current index; a write made there during the rebuild is
-/// not copied to the new one. When any step fails, the alias stays where it was.
+/// not copied to the new one. When the engine rejects a step, the alias stays where it was. When the engine does not
+/// confirm a step in time, the call fails but the step may still apply: call it again to learn the outcome. Completing
+/// and aborting the same rebuild exclude each other: once one has taken effect, the other fails.
 /// </remarks>
 public interface IIndexLifecycleProviderAsync
 {
