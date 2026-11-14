@@ -4,7 +4,7 @@ namespace Bielu.BetterSearch.Services;
 
 /// <summary>
 /// Checks the ids of a bulk remove the same way in the service and every provider: the list and each id must be
-/// set, and a repeated id is removed once.
+/// set, and a repeated id is removed once. Also builds the error each provider returns for the ids a bulk write failed.
 /// </summary>
 internal static class DocumentIds
 {
@@ -40,15 +40,26 @@ internal static class DocumentIds
     /// The error for ids the engine failed to remove. The message names up to 20 of them and the <c>ids</c> metadata
     /// holds every one.
     /// </summary>
-    public static Error FailedError(string index, int removed, int requested, IReadOnlyCollection<string> failedIds, string reason)
+    public static Error FailedError(string index, int removed, int requested, IReadOnlyCollection<string> failedIds, string reason) =>
+        new Error($"Removing documents from {index} failed for ids {Named(failedIds)}: {reason}. {removed} of {requested} documents were removed.")
+            .WithMetadata("ids", failedIds.ToList());
+
+    /// <summary>
+    /// The error for documents the engine failed to index. The message names up to 20 of their ids and the
+    /// <c>ids</c> metadata holds every one.
+    /// </summary>
+    public static Error IndexFailedError(string index, int indexed, int requested, IReadOnlyCollection<string> failedIds, string reason) =>
+        new Error($"Indexing documents into {index} failed for ids {Named(failedIds)}: {reason}. {indexed} of {requested} documents were indexed.")
+            .WithMetadata("ids", failedIds.ToList());
+
+    private static string Named(IReadOnlyCollection<string> ids)
     {
-        var named = string.Join(", ", failedIds.Take(NamedIds));
-        if (failedIds.Count > NamedIds)
+        var named = string.Join(", ", ids.Take(NamedIds));
+        if (ids.Count > NamedIds)
         {
-            named += $" and {failedIds.Count - NamedIds} more";
+            named += $" and {ids.Count - NamedIds} more";
         }
 
-        return new Error($"Removing documents from {index} failed for ids {named}: {reason}. {removed} of {requested} documents were removed.")
-            .WithMetadata("ids", failedIds.ToList());
+        return named;
     }
 }

@@ -44,6 +44,35 @@ public sealed class LiftiIndexingProviderTests(IIndexingProviderAsync indexingPr
     }
 
     [Fact]
+    public async Task IndexMultipleDocumentsAsync_SameIdTwice_KeepsTheLaterDocument()
+    {
+        var index = $"bulk-{Guid.NewGuid():N}";
+
+        var result = await indexingProvider.IndexMultipleDocumentsAsync([Document(index, "1", "alpha"), Document(index, "1", "beta")], Token);
+
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+        (await indexManager.GetOrCreateIndexAsync(index)).Value.Count.ShouldBe(1);
+        (await SearchIdsAsync(index, "alpha")).ShouldBeEmpty();
+        (await SearchIdsAsync(index, "beta")).ShouldBe(["1"]);
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_RejectedDocumentInOneIndex_KeepsTheOtherIndexAndNamesTheIds()
+    {
+        var first = $"bulk-{Guid.NewGuid():N}";
+        var second = $"bulk-{Guid.NewGuid():N}";
+
+        var result = await indexingProvider.IndexMultipleDocumentsAsync(
+            [Document(first, "1", "alpha"), Document(second, "2", "alpha"), new SearchDocument { Id = null!, Index = second }], Token);
+
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Message.ShouldContain($"Indexing documents into {second} failed");
+        error.Message.ShouldContain("0 of 2 documents were indexed");
+        (await SearchIdsAsync(first, "alpha")).ShouldBe(["1"]);
+        (await SearchIdsAsync(second, "alpha")).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task IndexMultipleDocumentsAsync_NoDocuments_ReturnsZero()
     {
         var result = await indexingProvider.IndexMultipleDocumentsAsync([], Token);

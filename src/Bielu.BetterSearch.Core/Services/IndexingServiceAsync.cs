@@ -25,7 +25,19 @@ public class IndexingServiceAsync(
             return nullFieldsResult;
         }
 
-        return await IndexCheckedDocumentAsync(document, cancellationToken).ConfigureAwait(false);
+        var validationResult = await ValidateAsync(document, cancellationToken).ConfigureAwait(false);
+        if (validationResult.IsFailed)
+        {
+            return validationResult;
+        }
+
+        var result = await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
+        if (result.IsSuccess)
+        {
+            _indexingObservers.Notify(document);
+        }
+
+        return result;
     }
 
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
@@ -39,38 +51,54 @@ public class IndexingServiceAsync(
             return Result.Fail<int>(nullFieldsResult.Errors);
         }
 
+        if (documents.Count == 0)
+        {
+            return Result.Ok(0);
+        }
+
+        // Validate every document before sending any, so a rejected document can't leave the batch partly stored.
+        var errors = new List<IError>();
         foreach (var doc in documents)
         {
-            var result = await IndexCheckedDocumentAsync(doc, cancellationToken).ConfigureAwait(false);
-            if (result.IsFailed)
+            errors.AddRange((await ValidateAsync(doc, cancellationToken).ConfigureAwait(false)).Errors);
+        }
+
+        if (errors.Count > 0)
+        {
+            return Result.Fail<int>(errors);
+        }
+
+        // One bulk call. When it fails, observers get nothing, even for documents the engine already stored.
+        var result = await indexingProvider.IndexMultipleDocumentsAsync(documents, cancellationToken).ConfigureAwait(false);
+        if (result.IsSuccess)
+        {
+            foreach (var doc in documents)
             {
-                return Result.Fail<int>(result.Errors);
+                _indexingObservers.Notify(doc);
             }
         }
-        return Result.Ok(documents.Count);
+
+        return result;
     }
 
-    /// <summary>Validates and indexes a document that <see cref="CheckNullFields"/> has already passed.</summary>
-    private async Task<Result> IndexCheckedDocumentAsync(SearchDocument document, CancellationToken cancellationToken)
+    /// <summary>
+    /// Runs the validator on a document that <see cref="CheckNullFields"/> has already passed. The error names the
+    /// document and holds its id in the <c>id</c> metadata.
+    /// </summary>
+    private async Task<Result> ValidateAsync(SearchDocument document, CancellationToken cancellationToken)
     {
         var validationResult = await documentValidator.ValidateDocumentAsync(document, cancellationToken).ConfigureAwait(false);
         if (validationResult.IsFailed)
         {
-            return Result.Fail("Validation failed");
+            return Result.Fail(new Error($"Validation of document {document.Id} failed.").WithMetadata("id", document.Id).CausedBy(validationResult.Errors));
         }
 
         if (validationResult.Value == false)
         {
-            return Result.Fail("Document is not valid");
+            return Result.Fail(new Error($"Document {document.Id} is not valid.").WithMetadata("id", document.Id));
         }
 
-        var result = await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
-        if (result.IsSuccess)
-        {
-            _indexingObservers.Notify(document);
-        }
-
-        return result;
+        return Result.Ok();
     }
 
     /// <summary>

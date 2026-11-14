@@ -24,11 +24,8 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Lifti query | `Field` is ignored: `Name=jane` also matches `City=Jane` | Only that field |
 | Lifti index | `CreateIndexAsync` on an existing index silently wipes its documents | An error or a no-op |
 | Lifti search | Searching a missing index creates it and returns no hits | A failed `Result`, as on the other providers, without creating the index |
-| Core | `IndexMultipleDocumentsAsync` indexes one at a time, so the provider bulk path is never used (*by inspection*) | Bulk indexing |
 | Core | Indexing observers live on a scoped service, so a subscription only sees the operations of its own scope (*by inspection*) | See phase 1 |
 | Lifti search | `Page` and `PageSize` are ignored; hits contain only an id | Paged hits with fields |
-| Elasticsearch | `IndexMultipleDocumentsAsync` returns `Result.Ok()` where a `Result<int>` is due, so `Value` is `0` even on success (*by inspection*) | The real count |
-| Elasticsearch | Bulk indexing ignores per-item failures (*by inspection*) | A failed `Result` naming them |
 
 ## Replacing Lifti: use Lucene.NET
 
@@ -63,7 +60,7 @@ Breaking, and cheapest now.
 - Stop catching `OperationCanceledException` in the indexing providers, and keep exceptions through `ExceptionalError`. (Done in #17: `SearchAsync` and the validator take a `CancellationToken`, and a cancelled search throws.)
 - Remove the global configuration singleton and the duplicate registrations. Add the missing `SetDocumentValidatorType`. (Done in #89: each `AddBetterSearch` call has its own configuration, the shared services are registered once, and without a provider every call that reaches the provider returns a failed `Result`.)
 - Replace the `IObservable` surface with something that fits its use, such as an indexing pipeline or events, or remove it. (The `IObserver` contract is fixed in #56: `OnNext` after each successful operation, nothing for a rejection or failure, `OnCompleted` only when the service is disposed.)
-- Pass bulk through to the provider from `IndexMultipleDocumentsAsync`.
+- Pass bulk through to the provider from `IndexMultipleDocumentsAsync`. (Done in #57: the service validates the whole batch first and makes one provider call, and every provider names the documents an engine rejects.)
 - Deduplicate the fluent API and fix the lost occurrence, with its first tests. (The occurrence is fixed in #85: a sub-query's own `Must()`, `Should()`, `MustNot()` or `Filter()` wins over its parent's, and `Bielu.BetterSearch.FluentApi.Tests` checks it for every query type. #86 shares one implementation between the top-level and nested `Create…Query` methods and covers the rest of the query model: spatial centre, fuzzy options, raw Lucene, boost, sorting, properties, post filters and highlighting.)
 - Decide the `SHOULD` semantics: follow Lucene, and write them down.
 
@@ -77,7 +74,7 @@ Breaking, and cheapest now.
 
 - ~~Implement sub-query translators, `SearchAsync`, result mapping, pagination and sorting.~~ Done; highlighting is done on Elasticsearch and OpenSearch; facets are still to come.
 - Run the same conformance suite as Lucene.
-- Fix the provider defects above: real return values, per-item bulk errors, non-mutating settings, options validation at startup.
+- Fix the provider defects above: real return values, non-mutating settings, options validation at startup.
 - Add a sample API to the AppHost, with `ServiceDefaults`.
 
 ### Phase 4: stabilize
