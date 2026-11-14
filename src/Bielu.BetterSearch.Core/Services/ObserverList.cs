@@ -49,13 +49,41 @@ internal sealed class ObserverList<T>(ILogger? logger)
             snapshot = _entries.ToArray();
         }
 
-        foreach (var entry in snapshot)
+        // Observers run outside the routed call that sent this, so a write an observer starts on a keyed service is
+        // not taken for part of it. Only a routing service's forwarding observer is told which call it was.
+        var routedCall = RoutedCall.Current;
+        if (routedCall is not null)
         {
-            // Skip an observer that left during this dispatch, so one that unsubscribed, or was completed by a
-            // Complete from inside OnNext, gets nothing more.
-            if (entry.Active)
+            RoutedCall.Current = null;
+        }
+
+        try
+        {
+            foreach (var entry in snapshot)
             {
-                Call(entry.Observer, o => o.OnNext(value), nameof(IObserver<T>.OnNext));
+                // Skip an observer that left during this dispatch, so one that unsubscribed, or was completed by a
+                // Complete from inside OnNext, gets nothing more.
+                if (entry.Active)
+                {
+                    Call(entry.Observer, o =>
+                    {
+                        if (o is ForwardingObserver<T> forwarder)
+                        {
+                            forwarder.OnNext(value, routedCall);
+                        }
+                        else
+                        {
+                            o.OnNext(value);
+                        }
+                    }, nameof(IObserver<T>.OnNext));
+                }
+            }
+        }
+        finally
+        {
+            if (routedCall is not null)
+            {
+                RoutedCall.Current = routedCall;
             }
         }
     }
