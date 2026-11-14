@@ -15,13 +15,9 @@ public static class RegisterSearchExtension
     {
         configurator.Services.AddSingleton<IMeilisearchClientSettingsManager, MeilisearchClientSettingsManager>();
         configurator.Services.AddSingleton<IClientFactoryAsync<MeilisearchClient>, MeilisearchClientFactory>();
-        configurator.Services.AddScoped(typeof(IDocumentValidatorAsync),
-            configurator.Configuration.DocumentValidatorType);
+        // AddBetterSearch registers the validator and the indexing and search services after this runs.
         configurator.SetSearchProviderType<MeilisearchSearchProviderAsync>()
             .SetIndexingProviderType<MeilisearchIndexingProviderAsync>();
-        configurator.Services.AddScoped(typeof(IIndexingServiceAsync), configurator.Configuration.IndexingServiceType);
-
-        configurator.Services.AddScoped(typeof(ISearchServiceAsync), configurator.Configuration.SearchServiceType);
         configurator.Services
             .AddScoped<IQueryTranslateServiceAsync<MeilisearchQuery>, MeilisearchQueryTranslateService>();
         configurator.Services.AddScoped<ISubQueryTranslator<MeilisearchFilter>, BooleanSubQueryTranslator>();

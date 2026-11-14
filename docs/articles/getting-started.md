@@ -43,6 +43,13 @@ overload that takes it:
 builder.Services.AddBetterSearch(builder.Configuration, search => search.AddElasticSearch());
 ```
 
+`AddBetterSearch` registers the validator, the indexing and search services and the provider once, after
+your callback has run, so a `SetIndexingServiceType<T>()`, `SetSearchServiceType<T>()` or
+`SetDocumentValidatorType<T>()` call works before or after the provider extension. It uses `TryAdd`, so a
+service you registered before calling `AddBetterSearch` is kept. Each call has its own configuration, so
+two containers in one process (an app and a test host, say) don't share provider types. Without a provider
+extension, every search and write returns a failed `Result` saying that no provider is registered.
+
 Each provider has its own page with its settings and, importantly, **what it doesn't support**:
 
 | Provider | Register with | Configuration section |

@@ -13,14 +13,11 @@ public static class RegisterSearchExtension
     public static Configurator AddLiftiSearch(this Configurator configurator)
     {
         configurator.Services.AddSingleton<ILiftiIndexManager, LiftiIndexManager>();
-        configurator.Services.AddScoped(typeof(IDocumentValidatorAsync),
-            configurator.Configuration.DocumentValidatorType);
+        // AddBetterSearch registers the validator and the indexing and search services after this runs.
         configurator.SetSearchProviderType<LiftiSearchProviderAsync>()
             .SetIndexingProviderType<LiftiIndexingProviderAsync>();
-        configurator.Services.AddScoped(typeof(IIndexingServiceAsync), configurator.Configuration.IndexingServiceType);
         configurator.Services.AddScoped(typeof(IClientFactoryAsync<IFullTextIndex<string>>),
             typeof(LiftiClientFactoryAsync));
-        configurator.Services.AddScoped(typeof(ISearchServiceAsync), configurator.Configuration.SearchServiceType);
         configurator.Services.AddScoped<IQueryTranslateServiceAsync<IQuery>, LiftiQueryTranslatorService>();
         configurator.Services.AddScoped<IResultMapper<ISearchResults<string>>, LiftiBaseSearchModelMapper>();
 
