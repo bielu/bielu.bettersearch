@@ -128,4 +128,27 @@ public class OpenSearchOptionsValidationTests
         public OpenSearchOptions Get(string? name) => value;
         public IDisposable? OnChange(Action<OpenSearchOptions, string?> listener) => null;
     }
+
+    [Fact]
+    public void ValidateOnStart_ValidIndexPrefix_Passes()
+    {
+        using var services = Services(new() { [$"{Key}:IndexPrefix"] = "app-1." });
+
+        Should.NotThrow(() => ValidateOnStart(services));
+    }
+
+    [Theory]
+    [InlineData("App-", "has upper case letters")]
+    [InlineData("app/", "has a character index names can't contain")]
+    [InlineData("app ", "has a character index names can't contain")]
+    [InlineData("_app", "starts with '_'")]
+    [InlineData("-app", "starts with '-'")]
+    public void ValidateOnStart_InvalidIndexPrefix_ThrowsNamingTheSetting(string prefix, string expected)
+    {
+        using var services = Services(new() { [$"{Key}:IndexPrefix"] = prefix });
+
+        var exception = Should.Throw<OptionsValidationException>(() => ValidateOnStart(services));
+
+        exception.Message.ShouldContain($"{Key}:IndexPrefix '{prefix}' {expected}");
+    }
 }

@@ -320,7 +320,10 @@ public sealed class ElasticsearchIndexingResponseTests
     [Fact]
     public async Task DeleteIndexAsync_Deleted_ReturnsTrue()
     {
-        var provider = Provider("""{"acknowledged":true}""", 200);
+        // The alias lookup answers that people is no alias, so the index of that name is deleted.
+        var provider = Provider(new SequenceRequestInvoker(
+            Invoker("""{"error":"alias [people] missing","status":404}""", 404),
+            Invoker("""{"acknowledged":true}""", 200)));
 
         var result = await provider.DeleteIndexAsync("people", Token);
 

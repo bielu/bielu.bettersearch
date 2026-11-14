@@ -203,4 +203,26 @@ public class ElasticSearchClientSettingsManagerTests
         manager.GetConnectionSettings("people").WriteVisibility.ShouldBe(expected);
         manager.GetConnectionSettings("other").WriteVisibility.ShouldBe(shared ?? WriteVisibility.Default);
     }
+
+    [Theory]
+    [InlineData(null, "people", "people")]
+    [InlineData("", "people", "people")]
+    [InlineData("app-", "people", "app-people")]
+    public void GetIndexName_Prefix_IsPutBeforeTheName(string? prefix, string index, string expected)
+    {
+        var manager = new ElasticSearchClientSettingsManager(new FixedOptionsMonitor(new ElasticSearchOptions { IndexPrefix = prefix }));
+
+        manager.GetIndexName(index).ShouldBe(expected);
+    }
+
+    [Fact]
+    public void GetIndexName_PrefixChanges_UsesTheCurrentPrefix()
+    {
+        var monitor = new FixedOptionsMonitor(new ElasticSearchOptions { IndexPrefix = "blue-" });
+        IElasticSearchClientSettingsManager manager = new ElasticSearchClientSettingsManager(monitor);
+
+        monitor.CurrentValue = new ElasticSearchOptions { IndexPrefix = "green-" };
+
+        manager.GetIndexName("people").ShouldBe("green-people");
+    }
 }
