@@ -81,7 +81,7 @@ Breaking, and cheapest now.
 ### Phase 4: stabilize
 
 - One conformance suite covering every query type and boolean combination, run against both providers. the feature matrix (`docs/articles/feature-matrix.md`) becomes a record of its results.
-- OpenTelemetry traces and metrics, as in `Bielu.PersistentQueues`.
+- ~~OpenTelemetry traces and metrics, as in `Bielu.PersistentQueues`.~~ Done, with health checks; the AppHost sample waits on the sample API with `ServiceDefaults` (phase 3).
 - ~~Facets, or remove them from the query model for 1.0.~~ Done (#20).
 - Turn on `Microsoft.CodeAnalysis.PublicApiAnalyzers`, enable CS1591 and document the public API.
 - Add `ship-public-api.mjs` to the release flow, a package icon, and an entry on packages.bielu.pl.

@@ -1,6 +1,8 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Diagnostics;
 using FluentResults;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Bielu.BetterSearch.Services;
 
@@ -8,16 +10,31 @@ namespace Bielu.BetterSearch.Services;
 public class IndexingServiceAsync(
     IIndexingProviderAsync indexingProvider,
     IDocumentValidatorAsync documentValidator,
-    ILogger<IndexingServiceAsync>? logger = null)
+    ILogger<IndexingServiceAsync>? logger = null,
+    IOptionsMonitor<BetterSearchInstrumentationOptions>? instrumentationOptions = null)
     : IIndexingServiceAsync
 {
     private readonly ObserverList<SearchDocument> _indexingObservers = new(logger);
     private readonly ObserverList<DeleteDocumentRequest> _deleteDocumentObservers = new(logger);
     private readonly ObserverList<DeleteAllDocumentsRequest> _deleteAllDocumentsObservers = new(logger);
 
+    private bool RecordErrorMessages => BetterSearchTelemetry.RecordsErrorMessages(instrumentationOptions);
+
     public IDisposable Subscribe(IObserver<SearchDocument> observer) => _indexingObservers.Subscribe(observer);
 
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
+    {
+        var result = await BetterSearchTelemetry.RunAsync("index", document?.Index, indexingProvider, logger, RecordErrorMessages, null,
+            () => IndexDocumentCoreAsync(document!, cancellationToken)).ConfigureAwait(false);
+        if (result.IsSuccess)
+        {
+            BetterSearchTelemetry.RecordIndexed(1, document?.Index, indexingProvider);
+        }
+
+        return result;
+    }
+
+    private async Task<Result> IndexDocumentCoreAsync(SearchDocument document, CancellationToken cancellationToken)
     {
         var documentResult = CheckDocument(document);
         if (documentResult.IsFailed)
@@ -49,6 +66,31 @@ public class IndexingServiceAsync(
         }
 
         var documents = document.ToList();
+        var index = SingleIndex(documents.Select(doc => doc?.Index));
+        var result = await BetterSearchTelemetry.RunAsync("bulk index", index, indexingProvider, logger, RecordErrorMessages,
+            activity => activity.SetTag(BetterSearchTelemetry.DocumentCountTag, documents.Count),
+            () => IndexMultipleDocumentsCoreAsync(documents, cancellationToken)).ConfigureAwait(false);
+        if (result.IsSuccess && result.Value > 0)
+        {
+            BetterSearchTelemetry.RecordIndexed(result.Value, index, indexingProvider);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// The index every value names, or <c>null</c> when they name none or more than one. Names that differ only in
+    /// case count as two, as a provider such as Lifti stores them as two indexes.
+    /// </summary>
+    private static string? SingleIndex(IEnumerable<string?> indexes)
+    {
+        var distinct = indexes.Distinct(StringComparer.Ordinal).Take(2).ToList();
+        return distinct.Count == 1 ? distinct[0] : null;
+    }
+
+    private async Task<Result<int>> IndexMultipleDocumentsCoreAsync(List<SearchDocument> documents,
+        CancellationToken cancellationToken)
+    {
         // Reject the whole batch before indexing any of it, so a null field can't leave it partly stored.
         var documentsResult = Result.Merge(documents.Select(CheckDocument).ToArray());
         if (documentsResult.IsFailed)
@@ -165,8 +207,14 @@ public class IndexingServiceAsync(
         return Result.Ok();
     }
 
-    public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
-        CancellationToken cancellationToken = default)
+    // Not counted in bettersearch.documents.removed: the provider does not say whether the document was there.
+    public Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
+        CancellationToken cancellationToken = default) =>
+        BetterSearchTelemetry.RunAsync("remove", document?.Type, indexingProvider, logger, RecordErrorMessages, null,
+            () => RemoveDocumentCoreAsync(document!, cancellationToken));
+
+    private async Task<Result> RemoveDocumentCoreAsync(DeleteDocumentRequest document,
+        CancellationToken cancellationToken)
     {
         if (document is null)
         {
@@ -195,6 +243,20 @@ public class IndexingServiceAsync(
     public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,
         CancellationToken cancellationToken = default)
     {
+        var result = await BetterSearchTelemetry.RunAsync("bulk remove", index, indexingProvider, logger, RecordErrorMessages, null,
+            () => RemoveDocumentsCoreAsync(index, ids, cancellationToken),
+            (activity, removed) => activity.SetTag(BetterSearchTelemetry.DocumentCountTag, removed.Value)).ConfigureAwait(false);
+        if (result.IsSuccess && result.Value > 0)
+        {
+            BetterSearchTelemetry.RecordRemoved(result.Value, index, indexingProvider);
+        }
+
+        return result;
+    }
+
+    private async Task<Result<int>> RemoveDocumentsCoreAsync(string index, IEnumerable<string> ids,
+        CancellationToken cancellationToken)
+    {
         var distinctIds = DocumentIds.Distinct(ids);
         if (distinctIds.IsFailed)
         {
@@ -220,6 +282,19 @@ public class IndexingServiceAsync(
 
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
     {
+        var result = await BetterSearchTelemetry.RunAsync("remove all", request?.IndexName, indexingProvider, logger, RecordErrorMessages, null,
+            () => RemoveAllDocumentsCoreAsync(request!, cancellationToken),
+            (activity, removed) => activity.SetTag(BetterSearchTelemetry.DocumentCountTag, removed.Value)).ConfigureAwait(false);
+        if (result.IsSuccess && result.Value > 0)
+        {
+            BetterSearchTelemetry.RecordRemoved(result.Value.Value, request?.IndexName, indexingProvider);
+        }
+
+        return result;
+    }
+
+    private async Task<Result<long?>> RemoveAllDocumentsCoreAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken)
+    {
         if (request is null)
         {
             return Result.Fail<long?>("The request to remove all documents is null.");
@@ -239,14 +314,29 @@ public class IndexingServiceAsync(
         return result;
     }
 
-    public Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
+    /// <summary>
+    /// Updates inside an <c>update</c> span. Only <c>true</c>, a document the provider updated, adds to
+    /// <c>bettersearch.documents.updated</c>; <c>false</c>, a missing document, is a success with nothing updated.
+    /// </summary>
+    public async Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var check = DocumentLookups.CheckUpdate(index, id, fields);
-        return check.IsFailed
-            ? Task.FromResult(check.ToResult<bool>())
-            : indexingProvider.UpdateDocumentAsync(index, id, fields, cancellationToken);
+        var result = await BetterSearchTelemetry.RunAsync("update", index, indexingProvider, logger, RecordErrorMessages, null,
+            () =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var check = DocumentLookups.CheckUpdate(index, id, fields);
+                return check.IsFailed
+                    ? Task.FromResult(check.ToResult<bool>())
+                    : indexingProvider.UpdateDocumentAsync(index, id, fields, cancellationToken);
+            },
+            (activity, updated) => activity.SetTag(BetterSearchTelemetry.DocumentCountTag, updated.Value ? 1 : 0)).ConfigureAwait(false);
+        if (result.IsSuccess && result.Value)
+        {
+            BetterSearchTelemetry.RecordUpdated(1, index, indexingProvider);
+        }
+
+        return result;
     }
 
     public IDisposable Subscribe(IObserver<DeleteDocumentRequest> observer) => _deleteDocumentObservers.Subscribe(observer);

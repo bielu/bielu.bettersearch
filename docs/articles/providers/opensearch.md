@@ -315,6 +315,13 @@ write them again after the swap. After a rebuild the index name is an alias: sea
   configured `Mappings`, so the provider checks the index exists first; an index deleted between that check and
   the update is still created again. `WriteVisibility` applies to it as to the other writes.
 
+## Health check
+
+As on Elasticsearch, `PingAsync` sends `HEAD /` with the client of the index it is given, or of
+`SharedIndexSettings` when it is given none, and any answer other than 200, an unreachable server or invalid
+settings is a failed `Result`. `AddBetterSearchHealthCheck()` from `Bielu.BetterSearch.HealthChecks` registers it as a health check,
+which the application maps to an endpoint such as `/health`; see [observability](../feature-matrix.md#observability).
+
 ## Checking an index exists
 
 `IndexExistsAsync` is success with `true` on a 200 and `false` on a 404. Any other answer, such as a 401, 403

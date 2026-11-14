@@ -33,6 +33,44 @@ public abstract class InvalidSettingsSearchTestBase
             .SearchAsync(new SearchQuery { Index = "people" }, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Pings through the registered <see cref="ISearchProviderAsync"/> with the settings given relative to <see cref="OptionsKey"/>.</summary>
+    protected async Task<FluentResults.Result> PingWithSettingsAsync(IDictionary<string, string?> settings, string? index = null)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(settings.ToDictionary(setting => $"{OptionsKey}:{setting.Key}", setting => setting.Value))
+            .Build();
+        using var provider = new ServiceCollection().AddBetterSearch(configuration, AddProvider).BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<ISearchProviderAsync>()
+            .PingAsync(index, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task PingAsync_NoServerListening_ReturnsFailedResult()
+    {
+        // Port 1 is reserved (tcpmux) and nothing listens on it, so the connection is refused straight away.
+        var result = await PingWithSettingsAsync(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "http://127.0.0.1:1",
+        });
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain("ping failed");
+    }
+
+    [Fact]
+    public async Task PingAsync_InvalidIndexConnectionString_ReturnsFailedResultNamingTheIndexSetting()
+    {
+        var result = await PingWithSettingsAsync(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            ["Indexes:People:ConnectionString"] = "localhost:9200",
+        }, "people");
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldContain("ConnectionString is not an http or https URL");
+    }
+
     [Fact]
     public async Task SearchAsync_NoSettings_ReturnsFailedResultNamingConnectionString()
     {

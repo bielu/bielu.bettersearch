@@ -328,4 +328,12 @@ rejection, such as a 403, is a failed `Result` whose message names the HTTP stat
 `EnsureIndexExistsAsync` and `DeleteIndexAsync` succeed with `true` (on an alias, `DeleteIndexAsync` deletes the indexes behind it), and `EnsureIndexExistsAsync` is `true` too
 when another caller created the index between its check and its create.
 
+## Health check
+
+`PingAsync` sends `HEAD /` with the client of the index it is given, or of `SharedIndexSettings` when it is given
+none. It succeeds when Elasticsearch answers 200, and any other answer, an unreachable server or invalid settings
+is a failed `Result` whose message names the problem. `AddBetterSearchHealthCheck()` from
+`Bielu.BetterSearch.HealthChecks` registers it as a health check, which the application maps to an endpoint such as `/health`; see
+[observability](../feature-matrix.md#observability).
+
 The [feature matrix](../feature-matrix.md) has the full detail.
