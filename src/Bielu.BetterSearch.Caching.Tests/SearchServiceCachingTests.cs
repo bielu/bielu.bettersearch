@@ -400,6 +400,124 @@ public class SearchServiceCachingTests
         first.Items.Single().Document.CustomProperties["link"].Single().ShouldBe(new Uri("https://example.com"));
     }
 
+    [Theory]
+    [InlineData("index")]
+    [InlineData("index many")]
+    public async Task IndexingWrite_ObserverSearchesTheIndex_ReadsPastTheEvictedResult(string write)
+    {
+        //Arrange
+        await using var services = Build();
+        await SearchAsync(services, Queries.Term("products"));
+        var indexing = Indexing(services);
+        var seen = new List<string>();
+        // Searches from inside OnNext, as an observer that refreshes a view of the index would.
+        using var subscription = indexing.Subscribe(new CallbackObserver<SearchDocument>(_ =>
+            seen.Add(SearchAsync(services, Queries.Term("products")).GetAwaiter().GetResult().Items.Single().Document.Id)));
+
+        //Act
+        await WriteAsync(indexing, write, "products");
+
+        //Assert
+        seen.ShouldBe(["products-2"]);
+    }
+
+    [Fact]
+    public async Task IndexMultipleDocumentsAsync_LaterDocumentFails_NotifiesEarlierDocumentsAfterEvicting()
+    {
+        //Arrange
+        await using var services = Build();
+        await SearchAsync(services, Queries.Term("products"));
+        _indexing.FailId = "2";
+        var indexing = Indexing(services);
+        var seen = new List<(string Document, string Hit)>();
+        using var subscription = indexing.Subscribe(new CallbackObserver<SearchDocument>(document =>
+            seen.Add((document.Id, SearchAsync(services, Queries.Term("products")).GetAwaiter().GetResult().Items.Single().Document.Id))));
+
+        //Act
+        var result = await indexing.IndexMultipleDocumentsAsync(
+            [new SearchDocument { Id = "1", Index = "products" }, new SearchDocument { Id = "2", Index = "products" }], Token);
+
+        //Assert
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldBe("write failed");
+        seen.ShouldBe([("1", "products-2")]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_CacheThrowsAfterSearching_ReturnsTheSearchWithoutSearchingAgain()
+    {
+        //Arrange
+        await using var services = Build(c => c.AddSearchCache<StoreFailingCache>());
+
+        //Act
+        var result = await SearchAsync(services, Queries.Term("products"));
+
+        //Assert
+        _search.Calls.ShouldBe(1);
+        result.Items.Single().Document.Id.ShouldBe("products-1");
+        result.Items.Single().Document.CustomProperties["call"].ShouldBe([1L]);
+    }
+
+    [Fact]
+    public async Task SearchAsync_CacheThrowsAfterProviderFails_ReturnsTheFailure()
+    {
+        //Arrange
+        await using var services = Build(c => c.AddSearchCache<StoreFailingCache>());
+        _search.FailWith = "engine down";
+        using var scope = services.CreateScope();
+
+        //Act
+        var result = await scope.ServiceProvider.GetRequiredService<ISearchServiceAsync>().SearchAsync(Queries.Term("products"), Token);
+
+        //Assert
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.Single().Message.ShouldBe("engine down");
+        _search.Calls.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task SearchAsync_KeyedProvider_CachesThroughTheKeyedService()
+    {
+        //Arrange
+        var services = new ServiceCollection();
+        services.AddBetterSearch(c => c.AddProvider<CountingSearchProvider, FakeIndexingProvider>("fake").AddMemorySearchCache());
+        await using var built = services.BuildServiceProvider();
+        using var scope = built.CreateScope();
+        var search = scope.ServiceProvider.GetRequiredKeyedService<ISearchServiceAsync>("fake");
+        var indexing = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>("fake");
+
+        //Act
+        var first = await search.SearchAsync(Queries.Term("products"), Token);
+        var cached = await search.SearchAsync(Queries.Term("products"), Token);
+        (await indexing.RemoveDocumentsAsync("products", ["1"], Token)).IsSuccess.ShouldBeTrue();
+        var evicted = await search.SearchAsync(Queries.Term("products"), Token);
+
+        //Assert
+        first.Value.Items.Single().Document.Id.ShouldBe("products-1");
+        cached.Value.Items.Single().Document.Id.ShouldBe("products-1");
+        evicted.Value.Items.Single().Document.Id.ShouldBe("products-2");
+    }
+
+    private sealed class CallbackObserver<T>(Action<T> onNext) : IObserver<T>
+    {
+        public void OnCompleted() { }
+        public void OnError(Exception error) { }
+        public void OnNext(T value) => onNext(value);
+    }
+
+    /// <summary>Runs the factory, then fails to store what it returned.</summary>
+    private sealed class StoreFailingCache : ISearchResultCache
+    {
+        public async ValueTask<T> GetOrCreateAsync<T>(string key, Func<CancellationToken, ValueTask<T>> factory,
+            SearchCacheEntryOptions options, CancellationToken cancellationToken = default)
+        {
+            await factory(cancellationToken);
+            throw new InvalidOperationException("store full");
+        }
+
+        public ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+    }
+
     private sealed class FixedProvider(object value) : ISearchProviderAsync
     {
         public int Calls { get; private set; }

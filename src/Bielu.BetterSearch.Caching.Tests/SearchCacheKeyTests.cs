@@ -1,4 +1,6 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+﻿using System.Text.Json;
+using System.Text.Json.Nodes;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.Highlighter;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Tests;
@@ -89,6 +91,30 @@ public class SearchCacheKeyTests
         second.Add(Occurance.MUST, new TermSubQuery { Field = "Name", Value = "jane", BoostValue = 1 });
 
         Key(second).ShouldBe(Key(first));
+    }
+
+    [Fact]
+    public void Build_JsonElementValuesDiffer_DifferentKeys()
+    {
+        var jane = With(q => ((TermSubQuery)q.Query[Occurance.MUST][0]).Value = JsonSerializer.SerializeToElement("jane"));
+        var john = With(q => ((TermSubQuery)q.Query[Occurance.MUST][0]).Value = JsonSerializer.SerializeToElement("john"));
+        var janeAgain = With(q => ((TermSubQuery)q.Query[Occurance.MUST][0]).Value = JsonSerializer.SerializeToElement("jane"));
+
+        Key(jane).ShouldNotBe(Key(john));
+        Key(jane).ShouldBe(Key(janeAgain));
+        Key(jane).ShouldNotBe(Key(With(q => ((TermSubQuery)q.Query[Occurance.MUST][0]).Value = "jane")));
+    }
+
+    [Fact]
+    public void Build_JsonNodeValuesDiffer_DifferentKeys()
+    {
+        var jane = With(q => ((TermSubQuery)q.Query[Occurance.MUST][0]).Value = JsonValue.Create("jane"));
+        var john = With(q => ((TermSubQuery)q.Query[Occurance.MUST][0]).Value = JsonValue.Create("john"));
+        var array = With(q => ((TermSubQuery)q.Query[Occurance.MUST][0]).Value = new JsonArray("jane"));
+        var otherArray = With(q => ((TermSubQuery)q.Query[Occurance.MUST][0]).Value = new JsonArray("john"));
+
+        Key(jane).ShouldNotBe(Key(john));
+        Key(array).ShouldNotBe(Key(otherArray));
     }
 
     [Fact]

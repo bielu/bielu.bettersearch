@@ -48,15 +48,20 @@ internal sealed class CountingSearchProvider : ISearchProviderAsync
     }
 }
 
-/// <summary>An indexing provider whose writes all succeed, or all fail when <see cref="Fail"/> is set.</summary>
+/// <summary>
+/// An indexing provider whose writes all succeed, or all fail when <see cref="Fail"/> is set, or fail for the document
+/// <see cref="FailId"/> only.
+/// </summary>
 internal sealed class FakeIndexingProvider : IIndexingProviderAsync
 {
     public bool Fail { get; set; }
 
+    public string? FailId { get; set; }
+
     private Result Outcome() => Fail ? Result.Fail("write failed") : Result.Ok();
 
     public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Outcome());
+        Task.FromResult(document.Id == FailId ? Result.Fail("write failed") : Outcome());
 
     public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents, CancellationToken cancellationToken = default) =>
         Task.FromResult(Outcome().ToResult(documents.Count()));

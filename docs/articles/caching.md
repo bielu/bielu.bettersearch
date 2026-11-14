@@ -23,6 +23,9 @@ builder.Services.AddBetterSearch(search => search
 
 Two searches with the same key that miss at the same time both reach the engine. A search that started before an
 eviction and ends after it is not served from the cache, so it can't bring back the result the eviction removed.
+Each entry has a size of 1, so an `IMemoryCache` with a `SizeLimit` holds that many searches. The cache keeps a
+small record for each tag only while a search with that tag runs or an entry with it is stored, so searching many
+short-lived indexes doesn't grow it past the cached entries.
 
 ### Several instances: FusionCache
 
@@ -90,12 +93,16 @@ the library ships no adapter for it.
 - The key is built from the provider type, the application's `KeyPart` and the whole query: the index, every
   sub-query with its occurrence, boost and values, paging, sorting, post filters, highlighting, `Properties` and
   `PreviewAt`. Values are written the same way on every machine, whatever its culture, and a string `"1"` and a
-  number `1` give different keys. A query holding something with no stable text, such as a delegate, is not cached.
+  number `1` give different keys. A `JsonElement` or `JsonNode` value is keyed by its JSON text. A query holding
+  something with no stable text, such as a delegate, is not cached.
 - A result whose hits hold a field value of a type the cached shape can't carry (anything other than a string,
   `bool`, `int`, `long`, `double`, `float`, `decimal`, `DateTime`, `DateTimeOffset`, `DateOnly`, `JsonElement` or
   `null`) is returned as the provider gave it and not cached.
 - A search returns the values read back from the cached shape, whether it hit or missed, so the first search and
   the cached ones return the same types. `TranslationWarning` reasons are kept.
+- If the cache throws before the search runs, for example because its store is down, the search runs without it. If
+  it throws while storing a successful search, that search is returned uncached and the engine is not called again.
+  Both are logged as warnings.
 - Observers subscribed to `ISearchServiceAsync` are notified of a search's hits on a cache hit too: they observe
   searches, not engine calls.
 
@@ -131,7 +138,8 @@ Every write through `IIndexingServiceAsync` (`IndexDocumentAsync`, `IndexMultipl
 `SearchCacheOptions.IndexTag(index)` once the provider returns, before the observers are notified. The index name
 is compared ignoring case. A write that fails still evicts, as it can have changed part of the index, and the
 eviction ignores the caller's cancellation, so a write that went through always evicts. A batch evicts each of its
-indexes once, after the batch. If the eviction itself throws, it is logged at `Error` and the write still returns
+indexes once, after the batch, and notifies the observers of the documents it indexed after that, so an observer
+that searches the index doesn't read the evicted results. If the eviction itself throws, it is logged at `Error` and the write still returns
 its own `Result`.
 
 The cache can't see:
@@ -147,5 +155,6 @@ Those are bounded only by the entry's duration, which is why the default is shor
 
 ## Lifti
 
-Lifti keeps its indexes in memory already, so caching its searches gains nothing. It is allowed, and behaves as on
-the other providers.
+Lifti keeps its indexes in memory, so a cached search saves no network call. It still saves translating and running
+the query and mapping its results, which can matter for a repeated, expensive query; measure before you turn it on.
+It is allowed, and behaves as on the other providers.

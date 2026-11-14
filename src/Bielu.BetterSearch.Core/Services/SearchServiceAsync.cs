@@ -14,9 +14,11 @@ namespace Bielu.BetterSearch.Services;
 /// With an <see cref="ISearchResultCache"/>, registered through <c>AddSearchCache</c>, a successful search is cached
 /// as a <see cref="CachedSearchResult"/> under a key built from the provider, <see cref="SearchCacheOptions.KeyPart"/>
 /// and the whole query, and tagged with <see cref="SearchCacheOptions.IndexTag"/>. A failed or cancelled search, and
-/// one whose hits hold a field value <see cref="CachedValueKind"/> can't carry, is not cached. A cached search returns
-/// the same values as the one that filled the cache, read back from the <see cref="CachedSearchResult"/> each time, and
-/// observers are notified of its hits whether the result came from the cache or from the provider.
+/// one whose hits hold a field value <see cref="CachedValueKind"/> can't carry, is not cached. A cache that throws
+/// before the search runs is skipped, and one that throws while storing a successful search is logged, and the search
+/// is returned uncached. A cached search returns the same values as the one that filled the cache, read back from the
+/// <see cref="CachedSearchResult"/> each time, and observers are notified of its hits whether the result came from the
+/// cache or from the provider.
 /// </remarks>
 public class SearchServiceAsync(
     ISearchProviderAsync providerAsync,
@@ -66,6 +68,7 @@ public class SearchServiceAsync(
 
         var (key, entryOptions) = entry;
         var factoryRan = false;
+        CachedSearchResult? searched = null;
         try
         {
             var cached = await cache.GetOrCreateAsync(key, async token =>
@@ -77,13 +80,20 @@ public class SearchServiceAsync(
                     throw new SearchNotCachedException(result);
                 }
 
-                return CachedSearchResults.From(result) ?? throw new SearchNotCachedException(result);
+                searched = CachedSearchResults.From(result) ?? throw new SearchNotCachedException(result);
+                return searched;
             }, entryOptions, cancellationToken).ConfigureAwait(false);
             return CachedSearchResults.ToResult(cached);
         }
         catch (Exception e) when (SearchNotCachedException.Find(e) is { } notCached)
         {
             return notCached.Result;
+        }
+        catch (Exception e) when (e is not OperationCanceledException && searched is not null)
+        {
+            // The search succeeded and only storing it failed, so return it rather than search again or fail.
+            logger?.LogWarning(e, "The search cache failed to store a search of {Index}, so it was not cached.", query.Index);
+            return CachedSearchResults.ToResult(searched);
         }
         catch (Exception e) when (e is not OperationCanceledException && !factoryRan)
         {

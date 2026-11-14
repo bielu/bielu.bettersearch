@@ -54,7 +54,7 @@ Every sub-query starts as `Occurance.MUST` with a `BoostValue` of 1, so one put 
 | Cancelling a search | ✅ throws `OperationCanceledException`, before validating the query when the token is already cancelled | ✅ throws `OperationCanceledException`, before validating the query when the token is already cancelled | ✅ throws `OperationCanceledException`, before validating the query when the token is already cancelled | ⚠️ throws `OperationCanceledException` when cancelled before the search starts, before validating the query; a running search runs to the end |
 | Searching a missing index | ✅ a failed `Result` | ✅ a failed `Result` | ✅ a failed `Result` with Meilisearch's code | ⚠️ creates the index and returns no hits (the shared test is skipped on Lifti, and a Lifti test pins this) |
 | Culture filter (`FilterByCulture`) | ✅ | ✅ | ✅ | ⚠️ field ignored, as TermQuery: a document holding the culture value in another field matches too (the shared test is skipped on Lifti, and a Lifti test pins the extra match) |
-| Search result cache (opt-in, see [caching](caching.md)) | ✅ | ✅ | ✅ | ⚠️ allowed, but gains nothing, as Lifti is in memory already |
+| Search result cache (opt-in, see [caching](caching.md)) | ✅ | ✅ | ✅ | ✅ saves no network call, as Lifti is in memory, but skips running the query again |
 
 The query model and fluent API can express sorting, facets, highlighting and post filters. Elasticsearch, OpenSearch and Meilisearch apply sorting and post filters, and Elasticsearch and OpenSearch highlight; Lifti applies none of them and fails a query that asks for highlighting.
 

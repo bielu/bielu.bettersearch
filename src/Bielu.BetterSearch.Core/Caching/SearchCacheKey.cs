@@ -2,6 +2,8 @@
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Services;
 
@@ -43,8 +45,8 @@ internal static class SearchCacheKey
 
     /// <summary>
     /// The canonical text of <paramref name="value"/>: its runtime type and every public property, in name order, with
-    /// dictionaries in key order, lists in their own order and scalar values tagged with their type and written with
-    /// <see cref="QueryValueText"/>, so <c>1</c> and <c>"1"</c> differ while the machine's culture changes nothing.
+    /// dictionaries in key order, lists in their own order, JSON as its text and scalar values tagged with their type and
+    /// written with <see cref="QueryValueText"/>, so <c>1</c> and <c>"1"</c> differ while the machine's culture changes nothing.
     /// </summary>
     internal static string Canonical(object? value)
     {
@@ -73,6 +75,18 @@ internal static class SearchCacheKey
                 return;
             case Delegate:
                 throw new InvalidOperationException("A query holding a delegate has no cache key.");
+            // JSON keeps its contents out of its public properties, so it is written as its JSON text.
+            case JsonElement { ValueKind: JsonValueKind.Undefined }:
+                text.Append("JsonElement:undefined");
+                return;
+            case JsonElement element:
+                text.Append("JsonElement:");
+                WriteString(text, element.GetRawText());
+                return;
+            case JsonNode node:
+                text.Append("JsonNode:");
+                WriteString(text, node.ToJsonString());
+                return;
         }
 
         var type = value.GetType();

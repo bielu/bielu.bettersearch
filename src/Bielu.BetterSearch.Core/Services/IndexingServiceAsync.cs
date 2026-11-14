@@ -34,7 +34,28 @@ public class IndexingServiceAsync(
             return nullFieldsResult;
         }
 
-        return await IndexCheckedDocumentAsync(document, true, cancellationToken).ConfigureAwait(false);
+        var validationResult = await ValidateAsync(document, cancellationToken).ConfigureAwait(false);
+        if (validationResult.IsFailed)
+        {
+            return validationResult;
+        }
+
+        Result result;
+        try
+        {
+            result = await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            await EvictIndexAsync(document.Index).ConfigureAwait(false);
+        }
+
+        if (result.IsSuccess)
+        {
+            _indexingObservers.Notify(document);
+        }
+
+        return result;
     }
 
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
@@ -48,18 +69,28 @@ public class IndexingServiceAsync(
             return Result.Fail<int>(nullFieldsResult.Errors);
         }
 
-        // Evicts each index once, after the batch, rather than once for each document.
+        // Evicts each index once, after the batch rather than once for each document, and only then notifies the
+        // observers of the documents that were indexed, so an observer that searches doesn't read the evicted results.
         var written = new HashSet<string?>(StringComparer.OrdinalIgnoreCase);
+        var indexed = new List<SearchDocument>();
         try
         {
             foreach (var doc in documents)
             {
+                var validationResult = await ValidateAsync(doc, cancellationToken).ConfigureAwait(false);
+                if (validationResult.IsFailed)
+                {
+                    return Result.Fail<int>(validationResult.Errors);
+                }
+
                 written.Add(doc.Index);
-                var result = await IndexCheckedDocumentAsync(doc, false, cancellationToken).ConfigureAwait(false);
+                var result = await indexingProvider.IndexDocumentAsync(doc, cancellationToken).ConfigureAwait(false);
                 if (result.IsFailed)
                 {
                     return Result.Fail<int>(result.Errors);
                 }
+
+                indexed.Add(doc);
             }
         }
         finally
@@ -68,16 +99,18 @@ public class IndexingServiceAsync(
             {
                 await EvictIndexAsync(index).ConfigureAwait(false);
             }
+
+            foreach (var doc in indexed)
+            {
+                _indexingObservers.Notify(doc);
+            }
         }
 
         return Result.Ok(documents.Count);
     }
 
-    /// <summary>
-    /// Validates and indexes a document that <see cref="CheckNullFields"/> has already passed, evicting its index's
-    /// cached searches when <paramref name="evict"/> is <c>true</c>.
-    /// </summary>
-    private async Task<Result> IndexCheckedDocumentAsync(SearchDocument document, bool evict, CancellationToken cancellationToken)
+    /// <summary>Validates a document that <see cref="CheckNullFields"/> has already passed.</summary>
+    private async Task<Result> ValidateAsync(SearchDocument document, CancellationToken cancellationToken)
     {
         var validationResult = await documentValidator.ValidateDocumentAsync(document, cancellationToken).ConfigureAwait(false);
         if (validationResult.IsFailed)
@@ -85,30 +118,7 @@ public class IndexingServiceAsync(
             return Result.Fail("Validation failed");
         }
 
-        if (validationResult.Value == false)
-        {
-            return Result.Fail("Document is not valid");
-        }
-
-        Result result;
-        try
-        {
-            result = await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            if (evict)
-            {
-                await EvictIndexAsync(document.Index).ConfigureAwait(false);
-            }
-        }
-
-        if (result.IsSuccess)
-        {
-            _indexingObservers.Notify(document);
-        }
-
-        return result;
+        return validationResult.Value ? Result.Ok() : Result.Fail("Document is not valid");
     }
 
     /// <summary>
