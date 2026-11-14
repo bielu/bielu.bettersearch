@@ -104,6 +104,11 @@ and `MaxRetries`, so two indexes with different timeouts get two clients. The ca
 it is created, not on every request; two calls racing to create the same client can each run it, and only one of the
 clients is kept. It runs for every client the provider creates, whichever `Indexes` entry the client is for.
 
+A changed connection setting, such as a password or API key rotated through `IOptionsMonitor`, gets a new client
+on the next call for the index. The provider then drops the client for the old setting once no index name resolves to it
+any more, so the number of cached clients stays at one per connection that is in use, however often a credential
+rotates. A dropped client is not disposed, so a request already running on it finishes.
+
 ## How queries behave
 
 Documents are stored with their values under `fields`, as with Elasticsearch, so a query on `Name` searches
