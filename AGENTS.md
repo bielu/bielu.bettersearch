@@ -19,6 +19,7 @@ The solution is `src/Bielu.BetterSearch.slnx`. Everything, tests included, lives
 | `Bielu.BetterSearch.ElasticSearch` | Elasticsearch provider |
 | `Bielu.BetterSearch.Meilisearch` | Meilisearch provider |
 | `Bielu.BetterSearch.OpenSearch` | OpenSearch provider |
+| `Bielu.BetterSearch.OpenSearch.Aws` | AWS SigV4 request signing for the OpenSearch provider (`AddOpenSearchAwsSigV4`), on `OpenSearch.Net.Auth.AwsSigV4` |
 | `Bielu.BetterSearch.Typesense` | Typesense provider |
 | `Bielu.BetterSearch.PostgreSql` | PostgreSQL full-text search provider |
 | `Bielu.BetterSearch.Lifti` | In-memory provider |
@@ -31,6 +32,7 @@ The solution is `src/Bielu.BetterSearch.slnx`. Everything, tests included, lives
 | `Bielu.BetterSearch.Core.Tests` | Health check and telemetry tests (not packed) |
 | `Bielu.BetterSearch.Caching.Tests` | Search result cache tests, in memory and on FusionCache (not packed) |
 | `Bielu.BetterSearch.FluentApi.Tests` | Fluent query builder tests (not packed) |
+| `Bielu.BetterSearch.OpenSearch.Aws.Tests` | AWS SigV4 signing tests against a local endpoint, with no AWS account or Docker (not packed) |
 | `Bielu.BetterSearch.ElasticSearch.Tests`, `.OpenSearch.Tests`, `.Meilisearch.Tests`, `.Typesense.Tests`, `.PostgreSql.Tests`, `.Lifti.Tests` | Provider tests, inheriting `BaseTests`; all but Lifti run against the engine in the AppHost (not packed) |
 
 ## Conventions
