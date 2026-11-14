@@ -69,6 +69,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeil
 | `ConnectionString` | Server URL, such as `http://localhost:7700` |
 | `ApiKey` | The master key or an API key; leave it empty when the server has none |
 | `Indexes` | Per-index settings. An entry with its own `ConnectionString` uses only its own key; an entry without one uses the shared server, with its own `ApiKey` if set or the shared one. Keys match index names whatever their case, so `People` applies to the index `people` |
+| `IndexPrefix` | Put before every index uid sent to the server, so applications or environments can share a server: with `app-`, the index `people` is `app-people` on the server. Indexing, search, removal, the index checks and `DeleteIndexAsync` all add it, and you keep using `people`. Meilisearch accepts only letters, digits, `-` and `_` in a uid, and the provider does not check the prefix at startup |
 | `TaskTimeout` | How long to wait for a write task to finish, 30 seconds by default. A timeout fails the `Result` but doesn't cancel the task, so the write may still be applied; the error's `taskUid` metadata holds the task's uid |
 | `MaxTotalHits` | Deepest result a search may page to, 10,000 by default; the provider sets it as each index's `pagination.maxTotalHits` |
 | `SettingsCheckInterval` | How long a write trusts an index's settings before checking them again, 5 seconds by default |
@@ -76,6 +77,9 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeil
 | `PhraseFields` | The fields phrase prefix queries can search. Unset, every text field stores the word runs they need; set, a phrase prefix on any other field returns a failed `Result` |
 
 You can also set the options in code with `services.Configure<MeilisearchOptions>(...)`.
+
+Meilisearch has no index rebuilds yet: the provider does not implement `IIndexLifecycleProviderAsync`, so every
+`IIndexLifecycleServiceAsync` call returns a failed `Result`.
 
 ## How documents are stored
 

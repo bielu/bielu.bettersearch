@@ -67,6 +67,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddElas
 | `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people` |
 | `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
 | `WriteVisibility` | `Default` or `WaitUntilSearchable`, in `SharedIndexSettings` or an `Indexes` entry; see [When writes are searchable](#when-writes-are-searchable). An entry that leaves it out takes the shared value, and `"WriteVisibility": "Default"` there turns the shared one off |
+| `IndexPrefix` | Put before every index name sent to the server, so applications or environments can share a cluster: with `app-`, the index `people` is `app-people` on the server. Indexing, search, removal, the index checks, `DeleteIndexAsync` and rebuilds all add it, and you keep using `people`. Lower case only, without `\ / * ? " < > \| , # :` or spaces, and not starting with `-`, `_` or `+`; startup validation fails otherwise, naming `IndexPrefix` |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. A page past it returns a failed `Result` |
 
 You can also set the options in code with `services.Configure<ElasticSearchOptions>(...)`.
@@ -190,6 +191,36 @@ refresh, about a second later unless `index.refresh_interval` is changed. Set `W
   for bulk loads and turn it on where a write must be visible straight away, such as tests and small sites.
 - Waiting doesn't change what a failure means: a failed or cancelled call may still have stored the write.
 
+## Rebuilding an index without downtime
+
+The indexing provider also implements `IIndexLifecycleProviderAsync`, which `IIndexLifecycleServiceAsync`, registered
+by `AddBetterSearch` and by key like the other services, runs:
+
+```csharp
+var rebuild = await lifecycle.StartRebuildAsync("people");          // creates app-people-rebuild-<time>-<random>
+await lifecycle.IndexRebuildDocumentsAsync(rebuild.Value, documents); // fills it; searches still read the old index
+var deleted = await lifecycle.CompleteRebuildAsync(rebuild.Value);    // swaps the alias and deletes the old indexes
+```
+
+- **Start** creates a new index named after the index (with the prefix), `-rebuild-`, the UTC start time and a random
+  suffix, with the index's configured `Mappings`.
+- **Index** writes the documents to the new index only. Each document's `Index` must be the index being rebuilt;
+  the service checks the whole batch, as `IndexMultipleDocumentsAsync` does, before writing any of it.
+- **Complete** refreshes the new index, then sends one update aliases request that points an alias named like the
+  index at it and deletes, with `remove_index`, every index the alias pointed at before. Elasticsearch applies the request
+  atomically, so searches switch from the old documents to the new ones at once, and when anything in it fails,
+  nothing changes and the alias stays on the old index. It returns the names of the deleted indexes. The first rebuild
+  of an index created as a plain index replaces that index with the alias in the same request. Completing a rebuild
+  that is already complete succeeds and deletes nothing.
+- **Abort** deletes the new index and leaves the alias where it is. It fails, deleting nothing, once the rebuild is
+  complete. A rebuild whose new index is gone, aborted or deleted elsewhere, fails to complete and leaves the alias
+  on the old index.
+- A rebuild that names an index `StartRebuildAsync` could not have created for it fails without touching anything.
+
+Writes to the index name while a rebuild runs go to the old index and are not copied to the new one, so pause them or
+write them again after the swap. After a rebuild the index name is an alias: searches and writes go through it, and
+`DeleteIndexAsync` deletes the index behind it, and so the alias.
+
 ## Removing documents
 
 `DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.
@@ -213,7 +244,7 @@ a failed check as it is rather than trying to create the index.
 
 Index operations report what happened: creating an existing index is success with `false`, and any other
 rejection, such as a 403, is a failed `Result` whose message names the HTTP status and the server's error.
-`EnsureIndexExistsAsync` and `DeleteIndexAsync` succeed with `true`, and `EnsureIndexExistsAsync` is `true` too
+`EnsureIndexExistsAsync` and `DeleteIndexAsync` succeed with `true` (on an alias, `DeleteIndexAsync` deletes the indexes behind it), and `EnsureIndexExistsAsync` is `true` too
 when another caller created the index between its check and its create.
 
 The [feature matrix](../feature-matrix.md) has the full detail.
