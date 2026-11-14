@@ -16,7 +16,7 @@ internal sealed class TypesenseClientSettingsManager(IOptionsMonitor<TypesenseOp
             : shared;
 
         // Checked here so a URL without a scheme fails with a message that names the setting.
-        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, null));
+        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, SettingSource.Unknown));
         return settings;
     }
 
@@ -25,9 +25,8 @@ internal sealed class TypesenseClientSettingsManager(IOptionsMonitor<TypesenseOp
     /// The options validator runs the same checks at startup. The API key is optional, as a node can run without one
     /// in development; each node of <c>AdditionalNodes</c> is checked when a client is created.
     /// </summary>
-    /// <remarks><c>index</c> is the <c>Indexes</c> entry the settings come from, or <c>null</c> when that is not known or they are the shared settings.</remarks>
-    internal static IEnumerable<string> ConnectionFailures(TypesenseIndexSettings settings, string? index) =>
-        new[] { ConnectionSettingsChecks.HttpUrlFailure(TypesenseOptions.TypesenseOptionsKey, index, settings.ConnectionString) }
+    internal static IEnumerable<string> ConnectionFailures(TypesenseIndexSettings settings, SettingSource source) =>
+        new[] { ConnectionSettingsChecks.HttpUrlFailure(TypesenseOptions.TypesenseOptionsKey, source, settings.ConnectionString) }
             .OfType<string>();
 
     internal static TypesenseIndexSettings MergeSettings(TypesenseIndexSettings indexSpecific, TypesenseIndexSettings shared)

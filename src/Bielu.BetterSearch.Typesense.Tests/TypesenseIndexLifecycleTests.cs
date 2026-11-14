@@ -20,10 +20,8 @@ public sealed class TypesenseIndexLifecycleTests(TypesenseResource typesense) : 
 
     protected override string Prefix => IndexPrefix;
 
-    // The Typesense provider does not implement facets, GetDocumentAsync, CountAsync or UpdateDocumentAsync yet.
+    // The Typesense provider does not implement facets yet.
     protected override bool HasFacets => false;
-
-    protected override bool HasGetCountAndUpdate => false;
 
     private static ServiceProvider CreateServices(TypesenseResource typesense)
     {

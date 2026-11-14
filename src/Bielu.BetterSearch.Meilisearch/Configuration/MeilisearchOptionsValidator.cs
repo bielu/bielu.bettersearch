@@ -49,10 +49,10 @@ internal sealed class MeilisearchOptionsValidator : IValidateOptions<Meilisearch
 
         var withOwnConnection = indexes.Where(index => !string.IsNullOrWhiteSpace(index.Value?.ConnectionString)).ToList();
         var sharedFailures = sharedConnection || indexes.Count == 0 || withOwnConnection.Count < indexes.Count
-            ? MeilisearchClientSettingsManager.ConnectionFailures(shared, null)
+            ? MeilisearchClientSettingsManager.ConnectionFailures(shared, SettingSource.Unknown)
             : [];
         return sharedFailures.Concat(withOwnConnection.SelectMany(index => MeilisearchClientSettingsManager.ConnectionFailures(
-            MeilisearchClientSettingsManager.MergeSettings(index.Value, shared), index.Key)));
+            MeilisearchClientSettingsManager.MergeSettings(index.Value, shared), new SettingSource(index.Key, Inherited: false))));
     }
 
     private static string? FieldNameFailure(string path, string? field)

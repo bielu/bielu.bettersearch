@@ -30,9 +30,6 @@ public abstract class IndexPrefixTestBase(IServiceProvider services) : IDisposab
     /// <summary>Whether the provider counts term facets, which the test then counts too.</summary>
     protected virtual bool HasFacets => true;
 
-    /// <summary>Whether the provider has <c>GetDocumentAsync</c>, <c>CountAsync</c> and <c>UpdateDocumentAsync</c>, which the test then runs too.</summary>
-    protected virtual bool HasGetCountAndUpdate => true;
-
     /// <summary>Whether the engine has an index, not an alias, named exactly <paramref name="engineName"/>.</summary>
     protected abstract Task<bool> EngineIndexExistsAsync(string engineName);
 
@@ -106,10 +103,7 @@ public abstract class IndexPrefixTestBase(IServiceProvider services) : IDisposab
                     .ShouldBe(["item a", "item b", "item c", "item d"]);
             }
 
-            if (HasGetCountAndUpdate)
-            {
-                await GetCountAndUpdateAsync(index);
-            }
+            await GetCountAndUpdateAsync(index);
 
             // Nothing was written under the unprefixed name.
             (await EngineIndexExistsAsync(index)).ShouldBeFalse();
