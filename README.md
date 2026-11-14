@@ -202,6 +202,10 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
   paging, sorting and post filters on Meilisearch and Typesense
 - ✅ **Field mappings** on Elasticsearch and OpenSearch: `Text`, `Keyword`, `Date`, numeric, `Boolean` and
   `GeoPoint` fields, with an optional analyzer or format, validated at startup
+- ✅ **Zero-downtime rebuilds** on Elasticsearch and OpenSearch through `IIndexLifecycleServiceAsync`: fill a new
+  index while searches read the old one, then swap an alias and delete the old index in one atomic step
+- ✅ **Index name prefix** (`IndexPrefix`) on Elasticsearch, OpenSearch and Meilisearch, so applications or
+  environments can share one cluster
 - ✅ **Errors as results**: searching and indexing return [FluentResults](https://github.com/altmann/FluentResults)
   `Result`s. Lifti and Typesense fail a query that asks for facets, and Meilisearch one that asks for any facet other than a
   top-level term facet; Meilisearch, Typesense and Lifti also fail a query that asks for highlighting. Lifti ignores paging, sorting and post filters, so check the [feature matrix](docs/articles/feature-matrix.md) for what

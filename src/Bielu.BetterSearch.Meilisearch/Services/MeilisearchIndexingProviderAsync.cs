@@ -129,7 +129,7 @@ public sealed class MeilisearchIndexingProviderAsync(
 
     public async Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default)
     {
-        var task = await RunTaskAsync(type, client => client.Index(type).DeleteOneDocumentAsync(id, cancellationToken), cancellationToken).ConfigureAwait(false);
+        var task = await RunTaskAsync(type, client => client.Index(Name(type)).DeleteOneDocumentAsync(id, cancellationToken), cancellationToken).ConfigureAwait(false);
         return task.ToResult();
     }
 
@@ -143,7 +143,7 @@ public sealed class MeilisearchIndexingProviderAsync(
         }
 
         // One deletion task: Meilisearch applies it whole or fails it whole, so there are no per-id failures.
-        var task = await RunTaskAsync(index, client => client.Index(index).DeleteDocumentsAsync(distinctIds.Value, cancellationToken), cancellationToken).ConfigureAwait(false);
+        var task = await RunTaskAsync(index, client => client.Index(Name(index)).DeleteDocumentsAsync(distinctIds.Value, cancellationToken), cancellationToken).ConfigureAwait(false);
         if (task.IsFailed)
         {
             // A task that was queued but not seen to finish may still remove any or all of the ids, so the count is
@@ -166,7 +166,7 @@ public sealed class MeilisearchIndexingProviderAsync(
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
         CancellationToken cancellationToken = default)
     {
-        var task = await RunTaskAsync(index.IndexName, client => client.Index(index.IndexName).DeleteAllDocumentsAsync(cancellationToken), cancellationToken).ConfigureAwait(false);
+        var task = await RunTaskAsync(index.IndexName, client => client.Index(Name(index.IndexName)).DeleteAllDocumentsAsync(cancellationToken), cancellationToken).ConfigureAwait(false);
         return task.IsSuccess ? Result.Ok(GetDeletedDocuments(task.Value)) : Result.Fail<long?>(task.Errors);
     }
 
@@ -203,7 +203,7 @@ public sealed class MeilisearchIndexingProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-            current = await client.Index(index).GetDocumentAsync<MeilisearchDocument>(id, cancellationToken: cancellationToken).ConfigureAwait(false);
+            current = await client.Index(Name(index)).GetDocumentAsync<MeilisearchDocument>(id, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (MeilisearchApiError e) when (e.Code is IndexNotFound or DocumentNotFound)
         {
@@ -250,8 +250,8 @@ public sealed class MeilisearchIndexingProviderAsync(
     {
         var task = await RunTaskAsync(index, client =>
         {
-            ForgetSettingsCheck(client, index);
-            return client.DeleteIndexAsync(index, cancellationToken);
+            ForgetSettingsCheck(client, Name(index));
+            return client.DeleteIndexAsync(Name(index), cancellationToken);
         }, cancellationToken).ConfigureAwait(false);
         return task.IsSuccess ? Result.Ok(true) : Result.Fail<bool>(task.Errors);
     }
@@ -261,7 +261,7 @@ public sealed class MeilisearchIndexingProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-            await client.GetIndexAsync(index, cancellationToken).ConfigureAwait(false);
+            await client.GetIndexAsync(Name(index), cancellationToken).ConfigureAwait(false);
             return Result.Ok(true);
         }
         catch (MeilisearchApiError e) when (e.Code == IndexNotFound)
@@ -280,8 +280,8 @@ public sealed class MeilisearchIndexingProviderAsync(
         {
             // A created index has no settings, so an earlier check, made before it was deleted elsewhere, no longer
             // holds. Forgetting it when the index already exists only costs one more settings read.
-            ForgetSettingsCheck(client, index);
-            return client.CreateIndexAsync(index, PrimaryKey, cancellationToken);
+            ForgetSettingsCheck(client, Name(index));
+            return client.CreateIndexAsync(Name(index), PrimaryKey, cancellationToken);
         }, cancellationToken).ConfigureAwait(false);
         var created = task.IsSuccess;
         // Matches the other providers: creating an index that already exists is not an error, it just creates nothing.
@@ -346,7 +346,7 @@ public sealed class MeilisearchIndexingProviderAsync(
         var task = await RunTaskAsync(index, client =>
         {
             sent = true;
-            return client.Index(index).AddDocumentsAsync(documents, PrimaryKey, cancellationToken);
+            return client.Index(Name(index)).AddDocumentsAsync(documents, PrimaryKey, cancellationToken);
         }, cancellationToken).ConfigureAwait(false);
         // A MeilisearchApiError is Meilisearch's answer that it rejected the request; any other exception after the
         // request started, such as a dropped connection, leaves the outcome unknown.
@@ -385,7 +385,7 @@ public sealed class MeilisearchIndexingProviderAsync(
         }
 
         var checks = SettingsChecks.GetValue(client, _ => new ConcurrentDictionary<string, (long, int)>(StringComparer.Ordinal));
-        if (checks.TryGetValue(index, out var last) && last.MaxTotalHits >= maxTotalHits
+        if (checks.TryGetValue(Name(index), out var last) && last.MaxTotalHits >= maxTotalHits
             && Stopwatch.GetElapsedTime(last.CheckedAt) < options.SettingsCheckInterval)
         {
             return Result.Ok();
@@ -394,7 +394,7 @@ public sealed class MeilisearchIndexingProviderAsync(
         Settings? current = null;
         try
         {
-            current = await client.Index(index).GetSettingsAsync(cancellationToken).ConfigureAwait(false);
+            current = await client.Index(Name(index)).GetSettingsAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (MeilisearchApiError e) when (e.Code == IndexNotFound)
         {
@@ -420,16 +420,19 @@ public sealed class MeilisearchIndexingProviderAsync(
                 SortableAttributes = sortable.Concat(missingSortable).ToList(),
                 Pagination = new Pagination { MaxTotalHits = configuredMaxTotalHits }
             };
-            var task = await RunTaskAsync(index, c => c.Index(index).UpdateSettingsAsync(settings, cancellationToken), cancellationToken).ConfigureAwait(false);
+            var task = await RunTaskAsync(index, c => c.Index(Name(index)).UpdateSettingsAsync(settings, cancellationToken), cancellationToken).ConfigureAwait(false);
             if (task.IsFailed)
             {
                 return task.ToResult();
             }
         }
 
-        checks[index] = (Stopwatch.GetTimestamp(), configuredMaxTotalHits);
+        checks[Name(index)] = (Stopwatch.GetTimestamp(), configuredMaxTotalHits);
         return Result.Ok();
     }
+
+    /// <summary>The uid Meilisearch knows <paramref name="index"/> by, with the configured prefix.</summary>
+    private string Name(string index) => IndexNames.WithPrefix(optionsMonitor.CurrentValue.IndexPrefix, index);
 
     private static void ForgetSettingsCheck(MeilisearchClient client, string index)
     {

@@ -123,7 +123,8 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search
 
 - With at least one route, the unkeyed services send each call to the keyed service of the provider routed for
   its index: `SearchQuery.Index`, `SearchDocument.Index`, `DeleteDocumentRequest.Type` (which holds the index
-  name), the `index` of `RemoveDocumentsAsync` and `DeleteAllDocumentsRequest.IndexName`. Index names compare
+  name), the `index` of `RemoveDocumentsAsync`, `DeleteAllDocumentsRequest.IndexName`, and for
+  `IIndexLifecycleServiceAsync` the index being rebuilt (`IndexRebuild.Index`). Index names compare
   ignoring case, and so do the keys a route names.
 - An index with no route goes to the default provider: the one `SetDefaultProvider` names, or the only one. With
   no default, the call returns a failed `Result` that names the index and the registered keys; resolving the

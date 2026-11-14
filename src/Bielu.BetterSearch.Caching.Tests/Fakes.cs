@@ -96,6 +96,23 @@ internal class FakeIndexingProvider : IIndexingProviderAsync
     public Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default) => Task.FromResult(Result.Ok(true));
 }
 
+/// <summary>An indexing provider that also rebuilds indexes; every rebuild step succeeds.</summary>
+internal sealed class FakeRebuildingIndexingProvider : FakeIndexingProvider, IIndexLifecycleProviderAsync
+{
+    public Task<Result<IndexRebuild>> StartRebuildAsync(string index, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Ok(new IndexRebuild(index, index + "-rebuild")));
+
+    public Task<Result<int>> IndexRebuildDocumentsAsync(IndexRebuild rebuild, IEnumerable<SearchDocument> documents,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Ok(documents.Count()));
+
+    public Task<Result<IReadOnlyList<string>>> CompleteRebuildAsync(IndexRebuild rebuild, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Ok<IReadOnlyList<string>>([]));
+
+    public Task<Result<bool>> AbortRebuildAsync(IndexRebuild rebuild, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Ok(true));
+}
+
 /// <summary>A second provider type, for registering two providers under two keys.</summary>
 internal sealed class SecondCountingSearchProvider : CountingSearchProvider;
 

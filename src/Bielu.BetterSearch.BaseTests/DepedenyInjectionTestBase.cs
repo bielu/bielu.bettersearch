@@ -45,6 +45,9 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
     [Fact]
     public void SearchProviderShouldBeRegistered() => ServiceShouldBeRegistered(typeof(ISearchProviderAsync));
 
+    [Fact]
+    public void IndexLifecycleServiceShouldBeRegistered() => ServiceShouldBeRegistered(typeof(IIndexLifecycleServiceAsync));
+
     /// <summary>Calls the provider's extension, for example <c>search.AddElasticSearch()</c>.</summary>
     protected abstract void AddProvider(Configurator search);
 
@@ -177,6 +180,7 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
     [InlineData(typeof(IIndexingServiceAsync))]
     [InlineData(typeof(ISearchProviderAsync))]
     [InlineData(typeof(IIndexingProviderAsync))]
+    [InlineData(typeof(IIndexLifecycleServiceAsync))]
     public void AddBetterSearch_TwoProvidersAndNoDefault_UnkeyedServiceFailsListingTheKeys(Type serviceType)
     {
         using var provider = TwoFakeProviders().BuildServiceProvider();
@@ -202,6 +206,63 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
         search.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider searched");
         exists.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider checked any");
         provider.GetRequiredService<SearchApplicationConfiguration>().SearchProviderType.ShouldBe(typeof(SecondFakeProvider));
+    }
+
+    [Fact]
+    public async Task AddBetterSearch_TwoProviders_KeyedLifecycleServiceUsesItsOwnProviderOrFails()
+    {
+        using var provider = TwoFakeProviders().BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await scope.ServiceProvider.GetRequiredKeyedService<IIndexLifecycleServiceAsync>(FirstKey).StartRebuildAsync("any", token);
+        var second = await scope.ServiceProvider.GetRequiredKeyedService<IIndexLifecycleServiceAsync>(SecondKey).StartRebuildAsync("any", token);
+
+        first.Errors.ShouldHaveSingleItem().Message.ShouldBe("FirstFakeProvider does not support index rebuilds: it does not implement IIndexLifecycleProviderAsync.");
+        second.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider started a rebuild of any");
+    }
+
+    [Fact]
+    public async Task IndexLifecycleService_ProviderWithoutLifecycle_EveryCallFails()
+    {
+        using var provider = TwoFakeProviders().BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var lifecycle = scope.ServiceProvider.GetRequiredKeyedService<IIndexLifecycleServiceAsync>(FirstKey);
+        var token = TestContext.Current.CancellationToken;
+        var rebuild = new IndexRebuild("any", "any-rebuild-1");
+
+        ResultBase[] results =
+        [
+            await lifecycle.StartRebuildAsync("any", token),
+            await lifecycle.IndexRebuildDocumentsAsync(rebuild, [new SearchDocument { Id = "1", Index = "any" }], token),
+            await lifecycle.CompleteRebuildAsync(rebuild, token),
+            await lifecycle.AbortRebuildAsync(rebuild, token),
+        ];
+
+        results.ShouldAllBe(result => result.IsFailed && result.Errors.Single().Message.Contains("does not support index rebuilds"));
+    }
+
+    [Fact]
+    public async Task IndexLifecycleService_IndexRebuildDocuments_ChecksTheBatchBeforeTheProvider()
+    {
+        using var provider = TwoFakeProviders().BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var lifecycle = scope.ServiceProvider.GetRequiredKeyedService<IIndexLifecycleServiceAsync>(SecondKey);
+        var token = TestContext.Current.CancellationToken;
+        var rebuild = new IndexRebuild("people", "people-rebuild-1");
+
+        var otherIndex = await lifecycle.IndexRebuildDocumentsAsync(rebuild,
+            [new SearchDocument { Id = "1", Index = "people" }, new SearchDocument { Id = "2", Index = "products" }], token);
+        var nullField = await lifecycle.IndexRebuildDocumentsAsync(rebuild,
+            [new SearchDocument { Id = "3", Index = "people", Fields = new Dictionary<string, IList<object>> { ["Name"] = null! } }], token);
+        var empty = await lifecycle.IndexRebuildDocumentsAsync(rebuild, [], token);
+        var valid = await lifecycle.IndexRebuildDocumentsAsync(rebuild, [new SearchDocument { Id = "4", Index = "PEOPLE" }], token);
+
+        otherIndex.Errors.ShouldHaveSingleItem().Message.ShouldBe("Document 2 is for index 'products', not 'people', the index being rebuilt.");
+        nullField.Errors.ShouldHaveSingleItem().Message.ShouldContain("Document 3 has null fields (Name)");
+        empty.IsSuccess.ShouldBeTrue();
+        empty.Value.ShouldBe(0);
+        valid.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider indexed 1 documents into people-rebuild-1");
     }
 
     [Fact]
@@ -338,6 +399,38 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
         remove.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider removed 1");
         removeMany.Errors.ShouldHaveSingleItem().Message.ShouldBe("first provider removed many");
         removeAll.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider removed all");
+    }
+
+    [Fact]
+    public async Task RouteIndex_Rebuild_RunsOnTheRoutedProvider()
+    {
+        using var provider = TwoFakeProviders(search => RouteTwoIndexes(search.SetDefaultProvider(FirstKey))).BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var token = TestContext.Current.CancellationToken;
+        var lifecycle = scope.ServiceProvider.GetRequiredService<IIndexLifecycleServiceAsync>();
+
+        var start = await lifecycle.StartRebuildAsync("products", token);
+        var fill = await lifecycle.IndexRebuildDocumentsAsync(new IndexRebuild("PRODUCTS", "products-2"), [new SearchDocument { Id = "1", Index = "products" }], token);
+        var complete = await lifecycle.CompleteRebuildAsync(new IndexRebuild("people", "people-2"), token);
+        var abort = await lifecycle.AbortRebuildAsync(new IndexRebuild("Products", "products-2"), token);
+
+        // Products is routed to the second provider, which rebuilds; people to the first, the default, which doesn't.
+        start.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider started a rebuild of products");
+        fill.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider indexed 1 documents into products-2");
+        complete.Errors.ShouldHaveSingleItem().Message.ShouldStartWith("FirstFakeProvider does not support index rebuilds");
+        abort.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider aborted products-2");
+    }
+
+    [Fact]
+    public async Task RouteIndex_RebuildOfUnroutedIndexWithoutDefault_ReturnsFailedResultNamingTheIndex()
+    {
+        using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        var start = await scope.ServiceProvider.GetRequiredService<IIndexLifecycleServiceAsync>()
+            .StartRebuildAsync("other", TestContext.Current.CancellationToken);
+
+        start.Errors.ShouldHaveSingleItem().Message.ShouldStartWith("No provider is routed for the index 'other', and there is no default provider.");
     }
 
     [Fact]
@@ -720,7 +813,21 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
 
     private sealed class FirstFakeProvider() : FakeProvider("first");
 
-    private sealed class SecondFakeProvider() : FakeProvider("second");
+    /// <summary>Also implements <see cref="IIndexLifecycleProviderAsync"/>, whose calls fail naming what they got.</summary>
+    private sealed class SecondFakeProvider() : FakeProvider("second"), IIndexLifecycleProviderAsync
+    {
+        public Task<Result<IndexRebuild>> StartRebuildAsync(string index, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Result.Fail<IndexRebuild>($"second provider started a rebuild of {index}"));
+
+        public Task<Result<int>> IndexRebuildDocumentsAsync(IndexRebuild rebuild, IEnumerable<SearchDocument> documents, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Result.Fail<int>($"second provider indexed {documents.Count()} documents into {rebuild.TargetIndex}"));
+
+        public Task<Result<IReadOnlyList<string>>> CompleteRebuildAsync(IndexRebuild rebuild, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Result.Fail<IReadOnlyList<string>>($"second provider completed {rebuild.TargetIndex}"));
+
+        public Task<Result<bool>> AbortRebuildAsync(IndexRebuild rebuild, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Result.Fail<bool>($"second provider aborted {rebuild.TargetIndex}"));
+    }
 
     /// <summary>Indexes documents; every other call fails with a message naming the provider and the call.</summary>
     private abstract class FakeProvider(string name) : ISearchProviderAsync, IIndexingProviderAsync

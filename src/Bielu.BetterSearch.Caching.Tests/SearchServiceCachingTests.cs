@@ -606,6 +606,39 @@ public class SearchServiceCachingTests
     }
 
     [Fact]
+    public async Task CompleteRebuildAsync_CacheRegistered_EvictsCachedSearchesOfTheIndexOnly()
+    {
+        //Arrange
+        var services = new ServiceCollection();
+        services.AddSingleton<ISearchProviderAsync>(_search);
+        services.AddSingleton<IIndexingProviderAsync>(new FakeRebuildingIndexingProvider());
+        services.AddBetterSearch(c => c.AddMemorySearchCache());
+        await using var provider = services.BuildServiceProvider();
+        await SearchAsync(provider, Queries.Term("products"));
+        await SearchAsync(provider, Queries.Term("articles"));
+        using var scope = provider.CreateScope();
+        var lifecycle = scope.ServiceProvider.GetRequiredService<IIndexLifecycleServiceAsync>();
+        var rebuild = await lifecycle.StartRebuildAsync("products", Token);
+        rebuild.IsSuccess.ShouldBeTrue(string.Join("; ", rebuild.Errors.Select(e => e.Message)));
+        var filled = await lifecycle.IndexRebuildDocumentsAsync(rebuild.Value, [new SearchDocument { Id = "1", Index = "products" }], Token);
+        filled.IsSuccess.ShouldBeTrue(string.Join("; ", filled.Errors.Select(e => e.Message)));
+
+        //Act
+        // Filling the new index doesn't change what searches of the index return, so the cached search stays.
+        var whileFilling = await SearchAsync(provider, Queries.Term("products"));
+        var completed = await lifecycle.CompleteRebuildAsync(rebuild.Value, Token);
+        var products = await SearchAsync(provider, Queries.Term("products"));
+        var articles = await SearchAsync(provider, Queries.Term("articles"));
+
+        //Assert
+        completed.IsSuccess.ShouldBeTrue(string.Join("; ", completed.Errors.Select(e => e.Message)));
+        whileFilling.Items.Single().Document.Id.ShouldBe("products-1");
+        products.Items.Single().Document.Id.ShouldBe("products-3");
+        articles.Items.Single().Document.Id.ShouldBe("articles-2");
+        _search.Calls.ShouldBe(3);
+    }
+
+    [Fact]
     public async Task UpdateDocumentAsync_CacheRegistered_ReachesProviderAndNotifiesNoObserver()
     {
         //Arrange

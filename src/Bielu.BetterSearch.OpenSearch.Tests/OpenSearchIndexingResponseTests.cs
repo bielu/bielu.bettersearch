@@ -6,9 +6,11 @@ using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
+using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Tests;
 using FluentResults;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using OpenSearch.Client;
 using OpenSearch.Net;
 using Shouldly;
@@ -616,5 +618,69 @@ public sealed class OpenSearchIndexingResponseTests : RemoveDocumentResponseTest
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("people");
+    }
+
+    /// <summary>Gives prefix <c>blue-</c> until the first read after <see cref="Arm"/>, and <c>green-</c> from then on, as a configuration reload would.</summary>
+    private sealed class ReloadingPrefixOptionsMonitor : IOptionsMonitor<OpenSearchOptions>
+    {
+        private readonly OpenSearchOptions blue = new() { IndexPrefix = "blue-", SharedIndexSettings = new() { ConnectionString = "localhost:9200" } };
+        private readonly OpenSearchOptions green = new() { IndexPrefix = "green-", SharedIndexSettings = new() { ConnectionString = "localhost:9200" } };
+        private bool armed;
+        private bool reloaded;
+
+        public void Arm() => armed = true;
+
+        public OpenSearchOptions CurrentValue
+        {
+            get
+            {
+                var value = reloaded ? green : blue;
+                reloaded |= armed;
+                return value;
+            }
+        }
+
+        public OpenSearchOptions Get(string? name) => CurrentValue;
+        public IDisposable? OnChange(Action<OpenSearchOptions, string?> listener) => null;
+    }
+
+    private static readonly DateTimeOffset RebuildStarted = new(2026, 11, 14, 12, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public async Task CompleteRebuildAsync_RefreshFailedOnSomeShards_FailsWithoutTouchingTheAlias()
+    {
+        var connection = new SequenceConnection(
+            Answer("""{"_shards":{"total":2,"successful":1,"failed":1,"failures":[{"shard":0,"index":"people","status":"INTERNAL_SERVER_ERROR","reason":{"type":"exception","reason":"refresh failed"}}]}}""", 200));
+        var provider = Provider(connection);
+        var rebuild = new Abstractions.Models.IndexRebuild("people", IndexNames.NewRebuildTarget("people", RebuildStarted));
+
+        var result = await provider.CompleteRebuildAsync(rebuild, Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldContain("failed on 1 of 2 shards");
+        connection.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task CompleteRebuildAsync_PrefixReloadedDuringTheCall_UsesTheAliasItChecked()
+    {
+        var monitor = new ReloadingPrefixOptionsMonitor();
+        var settingsManager = new OpenSearchClientSettingsManager(monitor);
+        // Refresh, alias lookup (no alias), exists check (no index), a rejected alias update, then the alias read again.
+        var connection = new SequenceConnection(
+            Answer("""{"_shards":{"total":1,"successful":1,"failed":0}}""", 200),
+            Answer("""{"error":"alias [blue-people] missing","status":404}""", 404),
+            Answer("", 404),
+            Answer("""{"error":{"root_cause":[{"type":"illegal_argument_exception","reason":"rejected"}],"type":"illegal_argument_exception","reason":"rejected"},"status":400}""", 400),
+            Answer("""{"error":"alias [blue-people] missing","status":404}""", 404));
+        var provider = Provider(connection, settingsManager: settingsManager);
+        var rebuild = new Abstractions.Models.IndexRebuild("people", IndexNames.NewRebuildTarget("blue-people", RebuildStarted));
+        monitor.Arm();
+
+        var result = await provider.CompleteRebuildAsync(rebuild, Token);
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors[0].Message.ShouldContain("pointing alias blue-people at");
+        connection.Requests.ShouldBe(5);
     }
 }

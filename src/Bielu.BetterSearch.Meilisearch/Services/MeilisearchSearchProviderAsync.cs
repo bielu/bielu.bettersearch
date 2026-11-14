@@ -120,16 +120,17 @@ public sealed class MeilisearchSearchProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
+            var meilisearchIndex = client.Index(IndexNames.WithPrefix(options.Value.IndexPrefix, query.Index));
 
             // The index's own limit, which can be below the default, so a cut-off distribution isn't taken as complete.
             var maxValuesPerFacet = MeilisearchFacets.MaxValuesPerFacet;
             if (facetAttributes.Count > 0)
             {
-                var faceting = await client.Index(query.Index).GetFacetingAsync(cancellationToken).ConfigureAwait(false);
+                var faceting = await meilisearchIndex.GetFacetingAsync(cancellationToken).ConfigureAwait(false);
                 maxValuesPerFacet = faceting?.MaxValuesPerFacet ?? MeilisearchFacets.MaxValuesPerFacet;
             }
 
-            var response = await client.Index(query.Index).SearchAsync<MeilisearchDocument>(null, meilisearchQuery, cancellationToken).ConfigureAwait(false);
+            var response = await meilisearchIndex.SearchAsync<MeilisearchDocument>(null, meilisearchQuery, cancellationToken).ConfigureAwait(false);
             if (response is not PaginatedSearchResult paginated)
             {
                 return Result.Fail<ISearchResult>("Meilisearch returned an unpaginated result for a paginated search.");
@@ -138,7 +139,7 @@ public sealed class MeilisearchSearchProviderAsync(
             var distribution = paginated.FacetDistribution;
             if (facetQuery != null)
             {
-                var facetResponse = await client.Index(query.Index).SearchAsync<MeilisearchDocument>(null, facetQuery, cancellationToken).ConfigureAwait(false);
+                var facetResponse = await meilisearchIndex.SearchAsync<MeilisearchDocument>(null, facetQuery, cancellationToken).ConfigureAwait(false);
                 if (facetResponse is not PaginatedSearchResult facetPaginated)
                 {
                     return Result.Fail<ISearchResult>("Meilisearch returned an unpaginated result for a paginated search.");
@@ -195,7 +196,7 @@ public sealed class MeilisearchSearchProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
-            var stored = await client.Index(index).GetDocumentAsync<MeilisearchDocument>(id, ["id", "type", MeilisearchFieldNames.Fields], cancellationToken).ConfigureAwait(false);
+            var stored = await client.Index(Name(index)).GetDocumentAsync<MeilisearchDocument>(id, ["id", "type", MeilisearchFieldNames.Fields], cancellationToken).ConfigureAwait(false);
             return Result.Ok<SearchDocument?>(new SearchDocument
             {
                 Id = stored.Id,
@@ -223,6 +224,9 @@ public sealed class MeilisearchSearchProviderAsync(
         }
     }
 
+    /// <summary>The engine's name of <paramref name="index"/>, with <see cref="MeilisearchOptions.IndexPrefix"/> before it.</summary>
+    private string Name(string index) => IndexNames.WithPrefix(optionsMonitor.CurrentValue.IndexPrefix, index);
+
     /// <summary>
     /// Counts with a filtered document fetch rather than a search, so the count is exact and not capped at
     /// <c>maxTotalHits</c>. The filter is the one <see cref="SearchAsync"/> sends, post filter included.
@@ -245,7 +249,7 @@ public sealed class MeilisearchSearchProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
-            var documents = await client.Index(query.Index).GetDocumentsAsync<MeilisearchDocument>(
+            var documents = await client.Index(Name(query.Index)).GetDocumentsAsync<MeilisearchDocument>(
                 new DocumentsQuery { Filter = request.Value.Filter, Fields = ["id"], Limit = 1 }, cancellationToken).ConfigureAwait(false);
             return Result.Ok((long)documents.Total).WithSuccesses(request.Successes);
         }

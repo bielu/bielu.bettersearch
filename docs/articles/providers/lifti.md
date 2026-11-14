@@ -110,6 +110,12 @@ them is stored.
   `ILiftiIndexManager`. A delete therefore can't land between the lookup and the factory call, which would make
   the factory create the deleted index again. The lock does not cover calls made on the index manager directly.
 
+## Index prefix and rebuilds
+
+Lifti has no `IndexPrefix`, as its indexes live in the process and nothing else shares them. It has no index rebuilds
+either: the provider does not implement `IIndexLifecycleProviderAsync`, so every `IIndexLifecycleServiceAsync` call
+returns a failed `Result`.
+
 ## Getting, counting and updating documents
 
 Lifti keeps only the words of each document, not its fields, so `GetDocumentAsync` and `UpdateDocumentAsync`

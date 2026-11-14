@@ -44,6 +44,7 @@ public static class BetterSearchServiceCollectionExtensions
                 searchConfiguration.Providers.Select(provider => provider.Key).ToList()));
             services.TryAddScoped<IIndexingServiceAsync, RoutingIndexingServiceAsync>();
             services.TryAddScoped<ISearchServiceAsync, RoutingSearchServiceAsync>();
+            services.TryAddScoped<IIndexLifecycleServiceAsync, RoutingIndexLifecycleServiceAsync>();
         }
 
         if (defaultProvider is null && searchConfiguration.Providers.Count > 1)
@@ -53,6 +54,7 @@ public static class BetterSearchServiceCollectionExtensions
             services.TryAddScoped<ISearchProviderAsync>(_ => throw new InvalidOperationException(message));
             services.TryAddScoped<IIndexingProviderAsync>(_ => throw new InvalidOperationException(message));
             services.TryAddScoped<ISearchServiceAsync>(_ => throw new InvalidOperationException(message));
+            services.TryAddScoped<IIndexLifecycleServiceAsync>(_ => throw new InvalidOperationException(message));
         }
         else
         {
@@ -60,6 +62,7 @@ public static class BetterSearchServiceCollectionExtensions
             services.TryAddScoped(typeof(ISearchProviderAsync), searchConfiguration.SearchProviderType);
             services.TryAddScoped(typeof(IIndexingProviderAsync), searchConfiguration.IndexingProviderType);
             services.TryAddScoped(typeof(ISearchServiceAsync), searchConfiguration.SearchServiceType);
+            services.TryAddScoped<IIndexLifecycleServiceAsync, IndexLifecycleServiceAsync>();
         }
 
         if (searchConfiguration.UsesSearchCache)
@@ -126,7 +129,8 @@ public static class BetterSearchServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers the provider, and a validator, an indexing service and a search service built on it, under the provider's key.
+    /// Registers the provider, and a validator, an indexing service, a search service and an index lifecycle service built
+    /// on it, under the provider's key.
     /// A keyed service that is already registered, for example a validator for one key, is kept.
     /// </summary>
     private static void AddKeyedServices(IServiceCollection services, SearchApplicationConfiguration configuration, ProviderRegistration provider)
@@ -147,11 +151,15 @@ public static class BetterSearchServiceCollectionExtensions
             sp,
             searchServiceType,
             sp.GetRequiredKeyedService<ISearchProviderAsync>(key)));
+        services.TryAddKeyedScoped<IIndexLifecycleServiceAsync>(key, (sp, _) => new IndexLifecycleServiceAsync(
+            sp.GetRequiredKeyedService<IIndexingProviderAsync>(key),
+            sp.GetRequiredKeyedService<IDocumentValidatorAsync>(key)));
     }
 
     /// <summary>
-    /// Wraps every <see cref="ISearchServiceAsync"/> and <see cref="IIndexingServiceAsync"/> registered by now, keyed or
-    /// not, in the caching and the evicting decorator, keeping its lifetime. Whatever service type is registered gets the
+    /// Wraps every <see cref="ISearchServiceAsync"/>, <see cref="IIndexingServiceAsync"/> and
+    /// <see cref="IIndexLifecycleServiceAsync"/> registered by now, keyed or not, in the caching or an evicting decorator,
+    /// keeping its lifetime. Whatever service type is registered gets the
     /// cache, and a decorator added later, with Scrutor or otherwise, wraps these. The cache key of a keyed search service
     /// holds its provider key, and that of the unkeyed one <paramref name="unkeyedProviderKey"/>, the default provider's.
     /// </summary>
@@ -161,6 +169,8 @@ public static class BetterSearchServiceCollectionExtensions
             ActivatorUtilities.CreateInstance<CachingSearchServiceAsyncDecorator>(sp, inner, key ?? unkeyedProviderKey, sp.GetRequiredService<ISearchResultCache>())));
         services.Decorate(new AnyKeyDecoration(typeof(IIndexingServiceAsync), (inner, sp, _) =>
             ActivatorUtilities.CreateInstance<CachingIndexingServiceAsyncDecorator>(sp, inner, sp.GetRequiredService<ISearchResultCache>())));
+        services.Decorate(new AnyKeyDecoration(typeof(IIndexLifecycleServiceAsync), (inner, sp, _) =>
+            ActivatorUtilities.CreateInstance<CachingIndexLifecycleServiceAsyncDecorator>(sp, inner, sp.GetRequiredService<ISearchResultCache>())));
     }
 
     /// <summary>

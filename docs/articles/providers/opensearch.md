@@ -65,6 +65,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
 | `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
 | `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` sends in one bulk request, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails |
 | `WriteVisibility` | `Default` or `WaitUntilSearchable`, in `SharedIndexSettings` or an `Indexes` entry; see [When writes are searchable](#when-writes-are-searchable). An entry that leaves it out takes the shared value, and `"WriteVisibility": "Default"` there turns the shared one off |
+| `IndexPrefix` | Put before every index name sent to the server, so applications or environments can share a cluster: with `app-`, the index `people` is `app-people` on the server. Indexing, search, `GetDocumentAsync`, `CountAsync`, `UpdateDocumentAsync`, removal, the index checks, `DeleteIndexAsync` and rebuilds all add it, and you keep using `people`. Lower case only, without `\ / * ? " < > \| , # :` or spaces, and not starting with `-`, `_` or `+`; startup validation fails otherwise, naming `IndexPrefix` |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. It must be greater than 0, or startup validation fails |
 
 You can also set the options in code with `services.Configure<OpenSearchOptions>(...)`.
@@ -234,6 +235,59 @@ Delete by query removes only the documents that are searchable when it starts, s
 was acknowledged under `Default` but not refreshed yet would be left behind. Remove all is rare, so the extra
 request is a small cost. When the refresh fails, for example with a 403, a missing index or a failed shard, the call
 returns a failed `Result` and removes nothing.
+
+## Rebuilding an index without downtime
+
+The indexing provider also implements `IIndexLifecycleProviderAsync`, which `IIndexLifecycleServiceAsync`, registered
+by `AddBetterSearch` and by key like the other services, runs:
+
+```csharp
+var rebuild = await lifecycle.StartRebuildAsync("people");      // creates app-people-rebuild-<time>-<random>
+if (rebuild.IsFailed)
+{
+    return;
+}
+
+var indexed = await lifecycle.IndexRebuildDocumentsAsync(rebuild.Value, documents); // searches still read the old index
+if (indexed.IsFailed)
+{
+    await lifecycle.AbortRebuildAsync(rebuild.Value);           // deletes the new index; the old one stays live
+    return;
+}
+
+var deleted = await lifecycle.CompleteRebuildAsync(rebuild.Value); // swaps the alias and deletes the old indexes
+```
+
+Complete doesn't know whether every document reached the new index, so check the result of each
+`IndexRebuildDocumentsAsync` call and abort, rather than complete, when one fails.
+
+- **Start** creates a new index named after the index (with the prefix), `-rebuild-`, the UTC start time and a random
+  suffix, with the index's configured `Mappings`.
+- **Index** writes the documents to the new index only. Each document's `Index` must be the index being rebuilt;
+  the service checks the whole batch, as `IndexMultipleDocumentsAsync` does, before writing any of it.
+- **Complete** refreshes the new index, and fails without touching the alias when the refresh fails on any shard. It
+  then sends one update aliases request that points an alias named like the index at it and deletes, with
+  `remove_index`, every index the alias pointed at before. OpenSearch applies the request atomically, so searches switch
+  from the old documents to the new ones at once, and when OpenSearch rejects it, nothing changes and the alias stays on
+  the old index. When OpenSearch doesn't acknowledge it in time, the `Result` fails but the change may still apply, so
+  the old indexes may already be gone: call `CompleteRebuildAsync` again, which succeeds once the alias points at the
+  new index. It returns the names of the deleted indexes. The first rebuild
+  of an index created as a plain index replaces that index with the alias in the same request. Completing a rebuild
+  that is already complete succeeds and deletes nothing.
+- **Abort** deletes the new index and leaves the alias where it is. It fails, deleting nothing, once the rebuild is
+  complete. Start gives the new index a pending alias, `<new index>-pending`. Complete removes it in its update
+  aliases request, and Abort removes it before deleting the new index, each with `must_exist`, so when a complete and
+  an abort of the same rebuild overlap, even in different processes, only one takes effect: either the rebuild
+  completes and the abort fails, or the abort deletes the new index and the complete fails. Two overlapping completes
+  both succeed.
+- Each call reads `IndexPrefix` once, so a configuration reload during a call can't make it check one alias and change
+  another. A rebuild whose new index is gone, aborted or deleted elsewhere, fails to complete and leaves the alias
+  on the old index.
+- A rebuild that names an index `StartRebuildAsync` could not have created for it fails without touching anything.
+
+Writes to the index name while a rebuild runs go to the old index and are not copied to the new one, so pause them or
+write them again after the swap. After a rebuild the index name is an alias: searches and writes go through it, and
+`DeleteIndexAsync` deletes the index behind it, and so the alias.
 
 ## Removing documents
 

@@ -44,7 +44,6 @@ internal sealed class TypesenseClientSettingsManager(IOptionsMonitor<TypesenseOp
             IndexName = indexSpecific.IndexName,
             AliasName = indexSpecific.AliasName,
             TypeName = indexSpecific.TypeName,
-            AliasingEnabled = indexSpecific.AliasingEnabled,
             IndexingEnabled = indexSpecific.IndexingEnabled,
             DevMode = indexSpecific.DevMode,
             ConnectionString = shared.ConnectionString,

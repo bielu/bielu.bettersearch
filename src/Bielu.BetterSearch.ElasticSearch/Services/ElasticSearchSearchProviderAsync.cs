@@ -86,7 +86,7 @@ public class ElasticSearchSearchProviderAsync(
                 return aggregations.ToResult<ISearchResult>();
             }
 
-            var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
+            var request = CreateRequest(query, settingsManager.GetIndexName(query.Index), mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
             request.Highlight = highlight.Value;
             request.Aggregations = aggregations.Value;
             var response = await client.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
@@ -139,7 +139,7 @@ public class ElasticSearchSearchProviderAsync(
 
         return await clientFactoryAsync.TryWithClientAsync<SearchDocument?>(index, async client =>
         {
-            var response = await client.GetAsync<SearchDocument>(new GetRequest(index, id), cancellationToken).ConfigureAwait(false);
+            var response = await client.GetAsync<SearchDocument>(new GetRequest(settingsManager.GetIndexName(index), id), cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             // A 404 is an answer only when Elasticsearch gave it: index_not_found_exception, or a get response that
             // names the index and says found false. Any other 404, such as one from a proxy, is a failure.
@@ -198,7 +198,7 @@ public class ElasticSearchSearchProviderAsync(
             : new Elastic.Clients.Elasticsearch.QueryDsl.BoolQuery { Must = [mainQuery.Value], Filter = [postFilter.Value] };
         return await clientFactoryAsync.TryWithClientAsync(query.Index, async client =>
         {
-            var response = await client.CountAsync(new CountRequest(Indices.Index(query.Index)) { Query = countQuery }, cancellationToken).ConfigureAwait(false);
+            var response = await client.CountAsync(new CountRequest(Indices.Index(settingsManager.GetIndexName(query.Index))) { Query = countQuery }, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             if (!response.IsValidResponse)
             {
@@ -267,11 +267,11 @@ public class ElasticSearchSearchProviderAsync(
     /// <summary>The position of the page's last result, in <c>long</c> so a large page can't overflow.</summary>
     private static long LastResultOf(ISearchQuery query) => (long)PageOf(query) * PageSizeOf(query);
 
-    private static SearchRequest CreateRequest(ISearchQuery query, EsQuery mainQuery, EsQuery? postFilter, int maxResultWindow,
+    private static SearchRequest CreateRequest(ISearchQuery query, string indexName, EsQuery mainQuery, EsQuery? postFilter, int maxResultWindow,
         IReadOnlyList<ISortOrderField> sortOrder, IReadOnlyList<ElasticSearchFieldMapping> mappings)
     {
         var pageSize = PageSizeOf(query);
-        var request = new SearchRequest(query.Index)
+        var request = new SearchRequest(indexName)
         {
             Query = mainQuery,
             PostFilter = postFilter,

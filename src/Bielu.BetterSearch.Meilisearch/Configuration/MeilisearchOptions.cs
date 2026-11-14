@@ -6,6 +6,15 @@ public class MeilisearchOptions
 {
     public static string MeilisearchOptionsKey { get; } = "Bielu:BetterSearch:Meilisearch";
     public MeilisearchIndexSettings SharedIndexSettings { get; set; } = new();
+
+    /// <summary>
+    /// Put before every index uid this provider sends to the server, so several applications or environments can share
+    /// one server: with <c>app-</c>, the index <c>people</c> is <c>app-people</c> on the server. Indexing, search,
+    /// removal and the index checks all add it, and callers keep using the name without it. Meilisearch accepts only
+    /// letters, digits, <c>-</c> and <c>_</c> in a uid, and fails a request whose uid has anything else.
+    /// </summary>
+    public string? IndexPrefix { get; set; }
+
     private Dictionary<string, MeilisearchIndexSettings>? _indexes = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>

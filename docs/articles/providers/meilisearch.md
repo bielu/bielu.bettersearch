@@ -71,6 +71,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeil
 | `ConnectionString` | Server URL, such as `http://localhost:7700` |
 | `ApiKey` | The master key or an API key; leave it empty when the server has none |
 | `Indexes` | Per-index settings. An entry with its own `ConnectionString` uses only its own key; an entry without one uses the shared server, with its own `ApiKey` if set or the shared one. Keys match index names whatever their case, so `People` applies to the index `people` |
+| `IndexPrefix` | Put before every index uid sent to the server, so applications or environments can share a server: with `app-`, the index `people` is `app-people` on the server. Indexing, search, `GetDocumentAsync`, `CountAsync`, `UpdateDocumentAsync`, removal, the index checks and `DeleteIndexAsync` all add it, and you keep using `people`. Meilisearch accepts only letters, digits, `-` and `_` in a uid, and the provider does not check the prefix at startup |
 | `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` adds in one Meilisearch task, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails; a configuration reload that makes it invalid makes reads and writes return a failed `Result` naming the setting |
 | `TaskTimeout` | How long to wait for a write task to finish, 30 seconds by default. A timeout fails the `Result` but doesn't cancel the task, so the write may still be applied; the error's `taskUid` metadata holds the task's uid |
 | `MaxTotalHits` | Deepest result a search may page to, 10,000 by default; the provider sets it as each index's `pagination.maxTotalHits` |
@@ -90,6 +91,9 @@ failure `No Bielu:BetterSearch:Meilisearch settings were found.`, naming the sec
 no connection and every `Indexes` entry sets its own; an index not listed then fails when it is used. `MaxTotalHits` must be greater than 0, `TaskTimeout` and `SettingsCheckInterval` must not be negative, and `GeoField` and each `PhraseFields` entry can only contain letters, digits, `_`, `-` and `.`. The same
 checks run whenever the options are read, so after a configuration reload to invalid settings, every call returns a
 failed `Result` with the same messages.
+
+Meilisearch has no index rebuilds yet: the provider does not implement `IIndexLifecycleProviderAsync`, so every
+`IIndexLifecycleServiceAsync` call returns a failed `Result`.
 
 ## How documents are stored
 
