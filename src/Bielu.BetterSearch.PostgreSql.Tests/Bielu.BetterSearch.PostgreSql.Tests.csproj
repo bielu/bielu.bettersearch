@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+        <!-- BIELU008 (ConfigureAwait) conflicts with xUnit1030 in test code. -->
+        <NoWarn>$(NoWarn);BIELU008</NoWarn>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="coverlet.MTP" />
+        <PackageReference Include="Shouldly" />
+        <PackageReference Include="Aspire.Hosting.Testing" />
+        <PackageReference Include="xunit.v3" />
+        <PackageReference Include="Xunit.DependencyInjection" />
+        <PackageReference Include="Xunit.DependencyInjection.Logging" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="Xunit" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Bielu.BetterSearch.BaseTests\Bielu.BetterSearch.BaseTests.csproj" />
+      <ProjectReference Include="..\Bielu.BetterSearch.Core\Bielu.BetterSearch.Core.csproj" />
+      <ProjectReference Include="..\Bielu.BetterSearch.PostgreSql\Bielu.BetterSearch.PostgreSql.csproj" />
+      <ProjectReference Include="..\Bielu.BetterSearch.FluentApi\Bielu.BetterSearch.FluentApi.csproj" />
+      <ProjectReference Include="..\examples\Bielu.BetterSearch.Examples.AppHost\Bielu.BetterSearch.Examples.AppHost.csproj" />
+    </ItemGroup>
+
+</Project>

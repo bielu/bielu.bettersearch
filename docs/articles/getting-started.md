@@ -12,6 +12,7 @@ dotnet add package Bielu.BetterSearch.ElasticSearch --prerelease   # Elasticsear
 dotnet add package Bielu.BetterSearch.OpenSearch --prerelease      # OpenSearch
 dotnet add package Bielu.BetterSearch.Meilisearch --prerelease     # Meilisearch
 dotnet add package Bielu.BetterSearch.Typesense --prerelease       # Typesense
+dotnet add package Bielu.BetterSearch.PostgreSql --prerelease      # PostgreSQL full-text search
 dotnet add package Bielu.BetterSearch.Lifti --prerelease           # in-memory
 ```
 
@@ -25,6 +26,7 @@ dotnet add package Bielu.BetterSearch.Lifti --prerelease           # in-memory
 | `Bielu.BetterSearch.OpenSearch` | [OpenSearch provider](providers/opensearch.md) |
 | `Bielu.BetterSearch.Meilisearch` | [Meilisearch provider](providers/meilisearch.md) |
 | `Bielu.BetterSearch.Typesense` | [Typesense provider](providers/typesense.md) |
+| `Bielu.BetterSearch.PostgreSql` | [PostgreSQL provider](providers/postgresql.md) |
 | `Bielu.BetterSearch.Lifti` | [In-memory provider](providers/lifti.md) |
 
 ## Register a provider
@@ -38,7 +40,7 @@ using Bielu.BetterSearch.DepedencyInjection;
 builder.Services.AddBetterSearch(search => search.AddLiftiSearch());
 ```
 
-The Elasticsearch, OpenSearch, Meilisearch and Typesense providers read their settings from configuration, so use the
+The Elasticsearch, OpenSearch, Meilisearch, Typesense and PostgreSQL providers read their settings from configuration, so use the
 overload that takes it:
 
 ```csharp
@@ -70,12 +72,13 @@ Each provider has its own page with its settings and, importantly, **what it doe
 | [OpenSearch](providers/opensearch.md) | `AddOpenSearch()` | `Bielu:BetterSearch:OpenSearch` |
 | [Meilisearch](providers/meilisearch.md) | `AddMeilisearch()` | `Bielu:BetterSearch:Meilisearch` |
 | [Typesense](providers/typesense.md) | `AddTypesense()` | `Bielu:BetterSearch:Typesense` |
+| [PostgreSQL](providers/postgresql.md) | `AddPostgreSql()` | `Bielu:BetterSearch:PostgreSql` |
 | [Lifti](providers/lifti.md) | `AddLiftiSearch()` | none |
 
 ## Use more than one provider
 
 Each provider extension registers its provider under a key, its name by default (`ElasticSearch`,
-`OpenSearch`, `Meilisearch`, `Typesense`, `Lifti`, also in each extension class's `DefaultKey`), or the key you pass. For each
+`OpenSearch`, `Meilisearch`, `Typesense`, `PostgreSql`, `Lifti`, also in each extension class's `DefaultKey`), or the key you pass. For each
 key, `AddBetterSearch` registers keyed services: `ISearchProviderAsync`, `IIndexingProviderAsync`,
 `ISearchServiceAsync`, `IIndexingServiceAsync` and `IDocumentValidatorAsync`. So one container can hold several
 engines, and you pick one with `[FromKeyedServices]`:
