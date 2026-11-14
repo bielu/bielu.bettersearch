@@ -2,7 +2,7 @@
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
-using Microsoft.Extensions.Options;
+using Bielu.BetterSearch.Tests;
 using OpenSearch.Client;
 using OpenSearch.Net;
 using Shouldly;
@@ -19,18 +19,11 @@ public sealed class OpenSearchGetDocumentResponseTests
         public Task<IOpenSearchClient> GetOrCreateClientAsync(string indexName) => Task.FromResult(client);
     }
 
-    private sealed class FixedOptionsMonitor(OpenSearchOptions value) : IOptionsMonitor<OpenSearchOptions>
-    {
-        public OpenSearchOptions CurrentValue => value;
-        public OpenSearchOptions Get(string? name) => value;
-        public IDisposable? OnChange(Action<OpenSearchOptions, string?> listener) => null;
-    }
-
     private static OpenSearchSearchProviderAsync Provider(string body, string contentType = "application/json")
     {
         var connection = new InMemoryConnection(Encoding.UTF8.GetBytes(body), 404, null, contentType);
         var client = new OpenSearchClient(new ConnectionSettings(new SingleNodeConnectionPool(new Uri("http://localhost:9200")), connection));
-        var options = new FixedOptionsMonitor(new OpenSearchOptions { SharedIndexSettings = new() });
+        var options = new TestOptionsMonitor<OpenSearchOptions>(new OpenSearchOptions { SharedIndexSettings = new() });
         var translateService = new OpenSearchQueryTranslateService([]);
         return new OpenSearchSearchProviderAsync(translateService, translateService, new FixedClientFactory(client),
             new OpenSearchResultMapper(), options, new OpenSearchClientSettingsManager(options));

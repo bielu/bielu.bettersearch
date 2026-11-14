@@ -2,6 +2,7 @@
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
+using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
 using Shouldly;
@@ -23,7 +24,7 @@ public sealed class ElasticsearchGetDocumentResponseTests
         var invoker = new InMemoryRequestInvoker(Encoding.UTF8.GetBytes(body), 404, null, contentType,
             new Dictionary<string, IEnumerable<string>> { ["x-elastic-product"] = ["Elasticsearch"] });
         var client = new ElasticsearchClient(new ElasticsearchClientSettings(new SingleNodePool(new Uri("http://localhost:9200")), invoker));
-        var options = new FixedOptionsMonitor(new ElasticSearchOptions { SharedIndexSettings = new() });
+        var options = new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions { SharedIndexSettings = new() });
         var translateService = new ElasticSearchQueryTranslateService([]);
         return new ElasticSearchSearchProviderAsync(translateService, translateService, new FixedClientFactory(client),
             new ElasticSearchResultMapper(), options, new ElasticSearchClientSettingsManager(options));

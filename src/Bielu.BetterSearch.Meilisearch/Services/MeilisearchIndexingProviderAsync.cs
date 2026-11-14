@@ -45,9 +45,7 @@ public sealed class MeilisearchIndexingProviderAsync(
         var results = new List<Result>();
         foreach (var indexGroup in searchDocuments.GroupBy(x => x.Index))
         {
-            var group = indexGroup.ToList();
-            var (indexed, mayBeStored) = await AddDocumentsAsync(indexGroup.Key, group, cancellationToken).ConfigureAwait(false);
-            results.Add(indexed.IsSuccess ? indexed : Result.Fail(IndexFailedError(indexGroup.Key, group, indexed.Errors, mayBeStored)));
+            results.Add(await AddDocumentBatchesAsync(indexGroup.Key, indexGroup.ToList(), cancellationToken).ConfigureAwait(false));
         }
 
         var merged = results.Merge();
@@ -55,19 +53,73 @@ public sealed class MeilisearchIndexingProviderAsync(
     }
 
     /// <summary>
-    /// The error for one index of a bulk write. Meilisearch adds an index's documents in one task, which succeeds or
-    /// fails whole, so none of <paramref name="documents"/> is stored, unless <paramref name="mayBeStored"/> says the
-    /// add request was sent and its outcome is unknown.
+    /// Adds one index's documents in tasks of at most <c>BulkBatchSize</c> documents, one after another, waiting for
+    /// each. Every document is converted, and the index configured, before the first task, so an invalid document
+    /// stores none of them. The first task that fails stops this index's import, and the tasks before it stay stored.
     /// </summary>
-    private static Error IndexFailedError(string index, IReadOnlyCollection<SearchDocument> documents, IReadOnlyList<IError> errors, bool mayBeStored)
+    private async Task<Result> AddDocumentBatchesAsync(string index, IReadOnlyList<SearchDocument> documents,
+        CancellationToken cancellationToken)
     {
-        var ids = documents.Select(document => document.Id).ToList();
+        var options = optionsMonitor.Current();
+        if (options.IsFailed)
+        {
+            return options.ToResult();
+        }
+
+        var batchSize = BulkBatches.Size(index, options.Value.BulkBatchSizeFor(index), MeilisearchOptions.MeilisearchOptionsKey);
+        if (batchSize.IsFailed)
+        {
+            return batchSize.ToResult();
+        }
+
+        var prepared = await PrepareDocumentsAsync(index, documents, cancellationToken).ConfigureAwait(false);
+        if (prepared.IsFailed)
+        {
+            return Result.Fail(IndexFailedError(index, documents, prepared.Errors, 0, documents.Count, false));
+        }
+
+        var stored = 0;
+        foreach (var batch in prepared.Value.Chunk(batchSize.Value))
+        {
+            var (added, mayBeStored) = await AddDocumentsAsync(index, batch, cancellationToken).ConfigureAwait(false);
+            if (added.IsFailed)
+            {
+                return Result.Fail(IndexFailedError(index, documents, added.Errors, stored, batch.Length, mayBeStored));
+            }
+
+            stored += batch.Length;
+        }
+
+        return Result.Ok();
+    }
+
+    /// <summary>
+    /// The error for one index of a bulk write. The first <paramref name="stored"/> documents were stored by earlier
+    /// tasks. The failed task held the next <paramref name="batchLength"/>, and stored none of them, unless
+    /// <paramref name="mayBeStored"/> says the add request was sent and its outcome is unknown. The documents after
+    /// them were not sent. The <c>ids</c> metadata holds every document not confirmed as stored.
+    /// </summary>
+    private static Error IndexFailedError(string index, IReadOnlyList<SearchDocument> documents, IReadOnlyList<IError> errors,
+        int stored, int batchLength, bool mayBeStored)
+    {
+        var ids = documents.Skip(stored).Select(document => document.Id).ToList();
+        // One task that held every document: it stored all of them or none, as one task always does.
+        var whole = stored == 0 && batchLength == documents.Count;
+        var batch = $"documents {stored + 1} to {stored + batchLength}";
+        var rest = $"and the {documents.Count - stored - batchLength} documents after them were not sent";
+        var queued = errors[0].Metadata.TryGetValue(QueuedTaskUid, out var taskUid);
         var error = !mayBeStored
-            ? DocumentIds.IndexFailedError(index, 0, ids.Count, ids, string.Join("; ", errors.Select(e => e.Message)))
-            : errors[0].Metadata.TryGetValue(QueuedTaskUid, out var taskUid)
-                ? new Error($"Indexing documents into {index} did not finish: {errors[0].Message}. Meilisearch task {taskUid} was queued and may still index any or all of the {ids.Count} documents.")
+            ? DocumentIds.IndexFailedError(index, stored, documents.Count, ids, whole
+                ? string.Join("; ", errors.Select(e => e.Message))
+                : $"{string.Join("; ", errors.Select(e => e.Message))}. The Meilisearch task for {batch} failed and stored none of them, {rest}")
+            : whole
+                ? new Error(queued
+                        ? $"Indexing documents into {index} did not finish: {errors[0].Message}. Meilisearch task {taskUid} was queued and may still index any or all of the {ids.Count} documents."
+                        : $"Indexing documents into {index} did not finish: {errors[0].Message}. Meilisearch may have received the request before it failed, so it may still index any or all of the {ids.Count} documents.")
                     .WithMetadata("ids", ids)
-                : new Error($"Indexing documents into {index} did not finish: {errors[0].Message}. Meilisearch may have received the request before it failed, so it may still index any or all of the {ids.Count} documents.")
+                : new Error(queued
+                        ? $"Indexing documents into {index} did not finish: {errors[0].Message}. {stored} of {documents.Count} documents were indexed by earlier tasks. Meilisearch task {taskUid}, for {batch}, was queued and may still index any or all of them, {rest}."
+                        : $"Indexing documents into {index} did not finish: {errors[0].Message}. {stored} of {documents.Count} documents were indexed by earlier tasks. Meilisearch may have received the request for {batch} before it failed, so it may still index any or all of them, {rest}.")
                     .WithMetadata("ids", ids);
         // Keeps Meilisearch's code in the code metadata, as the other writes do. A taskUid is kept only for the
         // document task: one from the settings update would point at a task that indexes nothing.
@@ -133,7 +185,15 @@ public sealed class MeilisearchIndexingProviderAsync(
             return check.ToResult<bool>();
         }
 
-        var changes = Convert(new SearchDocument { Id = id, Index = index, Fields = fields });
+        var currentOptions = optionsMonitor.Current();
+        if (currentOptions.IsFailed)
+        {
+            return currentOptions.ToResult<bool>();
+        }
+
+        var options = currentOptions.Value;
+        var changes = MeilisearchDocument.From(new SearchDocument { Id = id, Index = index, Fields = fields }, options.GeoField,
+            options.PhraseFields?.ToHashSet(StringComparer.Ordinal));
         if (changes.IsFailed)
         {
             return changes.ToResult<bool>();
@@ -154,8 +214,15 @@ public sealed class MeilisearchIndexingProviderAsync(
             return Result.Fail<bool>(new Error(e.Message).CausedBy(e));
         }
 
-        current.Replace(changes.Value, fields.Keys, optionsMonitor.CurrentValue.GeoField);
-        var (stored, _) = await AddStoredDocumentsAsync(index, [current], cancellationToken).ConfigureAwait(false);
+        current.Replace(changes.Value, fields.Keys, options.GeoField);
+        // Configured only once the document was found, as updating a missing index's settings would create it.
+        var configured = await ConfigureIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        if (configured.IsFailed)
+        {
+            return Result.Fail<bool>(configured.Errors);
+        }
+
+        var (stored, _) = await AddDocumentsAsync(index, [current], cancellationToken).ConfigureAwait(false);
         return stored.IsSuccess ? Result.Ok(true) : Result.Fail<bool>(stored.Errors);
     }
 
@@ -229,52 +296,57 @@ public sealed class MeilisearchIndexingProviderAsync(
     }
 
     private async Task<Result> IndexDocumentsAsync(string index, IReadOnlyCollection<SearchDocument> documents,
-        CancellationToken cancellationToken) =>
-        (await AddDocumentsAsync(index, documents, cancellationToken).ConfigureAwait(false)).Result;
+        CancellationToken cancellationToken)
+    {
+        var prepared = await PrepareDocumentsAsync(index, documents, cancellationToken).ConfigureAwait(false);
+        return prepared.IsFailed
+            ? prepared.ToResult()
+            : (await AddDocumentsAsync(index, prepared.Value, cancellationToken).ConfigureAwait(false)).Result;
+    }
+
+    /// <summary>
+    /// Converts <paramref name="documents"/> to what Meilisearch stores, and makes sure the index has the settings the
+    /// queries need, before any of them is sent. An invalid document fails them all.
+    /// </summary>
+    private async Task<Result<List<MeilisearchDocument>>> PrepareDocumentsAsync(string index, IReadOnlyCollection<SearchDocument> documents,
+        CancellationToken cancellationToken)
+    {
+        var current = optionsMonitor.Current();
+        if (current.IsFailed)
+        {
+            return Result.Fail<List<MeilisearchDocument>>(current.Errors);
+        }
+
+        var options = current.Value;
+        var phraseFields = options.PhraseFields?.ToHashSet(StringComparer.Ordinal);
+        var converted = documents.Select(document => MeilisearchDocument.From(document, options.GeoField, phraseFields)).ToList();
+        var invalid = converted.Where(document => document.IsFailed).SelectMany(document => document.Errors).ToList();
+        if (invalid.Count > 0)
+        {
+            return Result.Fail<List<MeilisearchDocument>>(invalid);
+        }
+
+        // Meilisearch creates a missing index when documents are added to it, or when its settings are updated.
+        var configured = await ConfigureIndexAsync(index, cancellationToken).ConfigureAwait(false);
+        return configured.IsFailed
+            ? Result.Fail<List<MeilisearchDocument>>(configured.Errors)
+            : Result.Ok(converted.Select(document => document.Value).ToList());
+    }
 
     /// <summary>
     /// Adds <paramref name="documents"/> to <paramref name="index"/> in one task. <c>MayBeStored</c> is true when the
     /// add request was sent and failed without a definite answer: the task was queued but not seen to finish, or the
-    /// request failed without a Meilisearch response, so Meilisearch may still store the documents. A failure before
-    /// the request, a rejected request and a failed task store nothing.
+    /// request failed without a Meilisearch response, so Meilisearch may still store the documents. A rejected
+    /// request and a failed task store nothing.
     /// </summary>
-    private async Task<(Result Result, bool MayBeStored)> AddDocumentsAsync(string index, IReadOnlyCollection<SearchDocument> documents,
+    private async Task<(Result Result, bool MayBeStored)> AddDocumentsAsync(string index, IReadOnlyCollection<MeilisearchDocument> documents,
         CancellationToken cancellationToken)
     {
-        var converted = documents.Select(Convert).ToList();
-        var invalid = converted.Where(document => document.IsFailed).SelectMany(document => document.Errors).ToList();
-        if (invalid.Count > 0)
-        {
-            return (Result.Fail(invalid), false);
-        }
-
-        return await AddStoredDocumentsAsync(index, converted.Select(document => document.Value).ToList(), cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>The stored form of <paramref name="document"/> under the current options.</summary>
-    private Result<MeilisearchDocument> Convert(SearchDocument document)
-    {
-        var options = optionsMonitor.CurrentValue;
-        var phraseFields = options.PhraseFields?.ToHashSet(StringComparer.Ordinal);
-        return MeilisearchDocument.From(document, options.GeoField, phraseFields);
-    }
-
-    /// <inheritdoc cref="AddDocumentsAsync"/>
-    private async Task<(Result Result, bool MayBeStored)> AddStoredDocumentsAsync(string index, IReadOnlyCollection<MeilisearchDocument> stored,
-        CancellationToken cancellationToken)
-    {
-        // Meilisearch creates a missing index when documents are added to it, or when its settings are updated.
-        var configured = await ConfigureIndexAsync(index, cancellationToken).ConfigureAwait(false);
-        if (configured.IsFailed)
-        {
-            return (configured, false);
-        }
-
         var sent = false;
         var task = await RunTaskAsync(index, client =>
         {
             sent = true;
-            return client.Index(index).AddDocumentsAsync(stored, PrimaryKey, cancellationToken);
+            return client.Index(index).AddDocumentsAsync(documents, PrimaryKey, cancellationToken);
         }, cancellationToken).ConfigureAwait(false);
         // A MeilisearchApiError is Meilisearch's answer that it rejected the request; any other exception after the
         // request started, such as a dropped connection, leaves the outcome unknown.
@@ -294,7 +366,13 @@ public sealed class MeilisearchIndexingProviderAsync(
     /// </summary>
     private async Task<Result> ConfigureIndexAsync(string index, CancellationToken cancellationToken)
     {
-        var options = optionsMonitor.CurrentValue;
+        var currentOptions = optionsMonitor.Current();
+        if (currentOptions.IsFailed)
+        {
+            return currentOptions.ToResult();
+        }
+
+        var options = currentOptions.Value;
         var maxTotalHits = options.MaxTotalHits;
         MeilisearchClient client;
         try

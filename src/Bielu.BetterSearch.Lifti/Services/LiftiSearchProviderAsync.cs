@@ -19,12 +19,20 @@ public class LiftiSearchProviderAsync(
     internal const string UnsupportedGetDocument =
         "The Lifti provider does not support GetDocumentAsync: the index keeps only the words of each document, not its fields, so it cannot return them.";
 
+    internal const string UnsupportedFacets =
+        "The Lifti provider does not support facets: its index keeps the words of each field, not the field values to count.";
+
     public async Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (query.HighlightQueries is { Count: > 0 })
         {
             return Result.Fail<ISearchResult>(UnsupportedHighlighting);
+        }
+
+        if (query.FacetQueries is { Count: > 0 })
+        {
+            return Result.Fail<ISearchResult>(UnsupportedFacets);
         }
 
         // Hits stay in score order, but a malformed SortOrder fails as on the other providers.

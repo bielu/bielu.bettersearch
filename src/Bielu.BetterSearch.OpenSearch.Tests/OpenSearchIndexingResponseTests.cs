@@ -6,9 +6,9 @@ using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
+using Bielu.BetterSearch.Tests;
 using FluentResults;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using OpenSearch.Client;
 using OpenSearch.Net;
 using Shouldly;
@@ -18,7 +18,7 @@ namespace Bielu.BetterSearch.OpenSearch.Tests;
 /// <summary>
 /// Responses a healthy test cluster does not produce, served from an in-memory connection.
 /// </summary>
-public sealed class OpenSearchIndexingResponseTests
+public sealed class OpenSearchIndexingResponseTests : RemoveDocumentResponseTestBase
 {
     private sealed class FixedClientFactory(IOpenSearchClient client) : IClientFactoryAsync<IOpenSearchClient>
     {
@@ -36,21 +36,18 @@ public sealed class OpenSearchIndexingResponseTests
     }
 
     private static readonly IOpenSearchClientSettingsManager NoMappings =
-        new OpenSearchClientSettingsManager(new InvalidSettingsOptionsMonitor());
+        new OpenSearchClientSettingsManager(InvalidSettingsOptions());
 
-    private sealed class InvalidSettingsOptionsMonitor(int maxResultWindow = 10_000) : IOptionsMonitor<OpenSearchOptions>
-    {
-        public OpenSearchOptions CurrentValue { get; } = new() { SharedIndexSettings = new() { ConnectionString = "localhost:9200" }, MaxResultWindow = maxResultWindow };
-        public OpenSearchOptions Get(string? name) => CurrentValue;
-        public IDisposable? OnChange(Action<OpenSearchOptions, string?> listener) => null;
-    }
+    /// <summary>Options whose connection string has no scheme, new on every call so a test can change them.</summary>
+    private static TestOptionsMonitor<OpenSearchOptions> InvalidSettingsOptions(int maxResultWindow = 10_000) =>
+        new(new OpenSearchOptions { SharedIndexSettings = new() { ConnectionString = "localhost:9200" }, MaxResultWindow = maxResultWindow });
 
     private static IClientFactoryAsync<IOpenSearchClient> InvalidSettingsFactory() =>
-        new OpenSearchClientFactory(new OpenSearchClientSettingsManager(new InvalidSettingsOptionsMonitor()));
+        new OpenSearchClientFactory(new OpenSearchClientSettingsManager(InvalidSettingsOptions()));
 
     private static IOpenSearchClientSettingsManager WithMappings()
     {
-        var monitor = new InvalidSettingsOptionsMonitor();
+        var monitor = InvalidSettingsOptions();
         monitor.CurrentValue.SharedIndexSettings.Mappings = [new() { Field = "City", Type = OpenSearchFieldType.Keyword }];
         return new OpenSearchClientSettingsManager(monitor);
     }
@@ -92,6 +89,8 @@ public sealed class OpenSearchIndexingResponseTests
         {
         }
     }
+
+    protected override IIndexingProviderAsync ProviderAnswering(string json, int statusCode) => Provider(json, statusCode);
 
     private static OpenSearchIndexingProviderAsync Provider(string json, int statusCode, bool throwExceptions = false,
         IOpenSearchClientSettingsManager? settingsManager = null) =>
@@ -204,7 +203,7 @@ public sealed class OpenSearchIndexingResponseTests
 
     private static IOpenSearchClientSettingsManager WithBulkBatchSize(int? bulkBatchSize)
     {
-        var monitor = new InvalidSettingsOptionsMonitor();
+        var monitor = InvalidSettingsOptions();
         monitor.CurrentValue.SharedIndexSettings.BulkBatchSize = bulkBatchSize;
         return new OpenSearchClientSettingsManager(monitor);
     }
@@ -331,6 +330,53 @@ public sealed class OpenSearchIndexingResponseTests
         message.ShouldBe("OpenSearch bulk delete failed with HTTP 403 (security_exception): no permissions");
     }
 
+    private static InMemoryConnection Answer(string json, int statusCode) => new(Encoding.UTF8.GetBytes(json), statusCode);
+
+    private const string DeletedTwo = """{"took":5,"timed_out":false,"total":2,"deleted":2,"batches":1,"version_conflicts":0,"noops":0,"failures":[]}""";
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_RefreshForbidden_ReturnsTheRefreshFailureWithoutDeleting()
+    {
+        var connection = new SequenceConnection(
+            Answer("""{"error":{"type":"security_exception","reason":"no permissions for [indices:admin/refresh]"},"status":403}""", 403),
+            Answer(DeletedTwo, 200));
+        var provider = Provider(connection);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("OpenSearch refresh of index people before removing all documents failed with HTTP 403 (security_exception): no permissions for [indices:admin/refresh]");
+        connection.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_RefreshFailsOnAShard_ReturnsFailureWithoutDeleting()
+    {
+        var connection = new SequenceConnection(
+            Answer("""{"_shards":{"total":2,"successful":1,"failed":1}}""", 200),
+            Answer(DeletedTwo, 200));
+        var provider = Provider(connection);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("Refreshing index people before removing all documents failed on 1 of 2 shards, so no documents were removed.");
+        connection.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_Refreshed_ReturnsTheDeletedCount()
+    {
+        var connection = new SequenceConnection(
+            Answer("""{"_shards":{"total":2,"successful":1,"failed":0}}""", 200),
+            Answer(DeletedTwo, 200));
+        var provider = Provider(connection);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(2);
+        connection.Requests.ShouldBe(2);
+    }
+
     [Fact]
     public async Task RemoveAllDocumentsAsync_TimedOut_ReturnsFailureWithDeletedCount()
     {
@@ -351,26 +397,6 @@ public sealed class OpenSearchIndexingResponseTests
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("failures: 1");
-    }
-
-    [Fact]
-    public async Task RemoveDocumentAsync_DocumentNotFound_ReturnsSuccess()
-    {
-        var provider = Provider("""{"_index":"people","_id":"1","_version":1,"result":"not_found","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":0,"_primary_term":1}""", 404);
-
-        var result = await provider.RemoveDocumentAsync("1", "people", Token);
-
-        result.IsSuccess.ShouldBeTrue();
-    }
-
-    [Fact]
-    public async Task RemoveDocumentAsync_IndexNotFound_ReturnsFailure()
-    {
-        var provider = Provider("""{"error":{"root_cause":[{"type":"index_not_found_exception","reason":"no such index [people]"}],"type":"index_not_found_exception","reason":"no such index [people]"},"status":404}""", 404);
-
-        var result = await provider.RemoveDocumentAsync("1", "people", Token);
-
-        result.IsFailed.ShouldBeTrue();
     }
 
     [Fact]
@@ -571,9 +597,9 @@ public sealed class OpenSearchIndexingResponseTests
     public async Task SearchAsync_MaxResultWindowNotPositive_ReturnsConfigurationError(int maxResultWindow)
     {
         var translateService = new OpenSearchQueryTranslateService([]);
-        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), new InvalidSettingsOptionsMonitor(maxResultWindow), NoMappings);
+        var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), InvalidSettingsOptions(maxResultWindow), NoMappings);
 
-        var result = await provider.SearchAsync(new SearchQuery { Index = "people" });
+        var result = await provider.SearchAsync(new SearchQuery { Index = "people" }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldBe($"MaxResultWindow is {maxResultWindow}, but it must be greater than 0. Set Bielu:BetterSearch:OpenSearch:MaxResultWindow to the indexes' index.max_result_window.");
@@ -582,11 +608,11 @@ public sealed class OpenSearchIndexingResponseTests
     [Fact]
     public async Task SearchAsync_InvalidSettings_ReturnsFailureInsteadOfThrowing()
     {
-        var options = new InvalidSettingsOptionsMonitor();
+        var options = InvalidSettingsOptions();
         var translateService = new OpenSearchQueryTranslateService([]);
         var provider = new OpenSearchSearchProviderAsync(translateService, translateService, InvalidSettingsFactory(), new OpenSearchResultMapper(), options, NoMappings);
 
-        var result = await provider.SearchAsync(new SearchQuery { Index = "people" });
+        var result = await provider.SearchAsync(new SearchQuery { Index = "people" }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("people");
