@@ -69,10 +69,13 @@ public class IndexingServiceAsync(
         return result;
     }
 
-    /// <summary>The index every value names, or <c>null</c> when they name none or more than one.</summary>
+    /// <summary>
+    /// The index every value names, or <c>null</c> when they name none or more than one. Names that differ only in
+    /// case count as two, as a provider such as Lifti stores them as two indexes.
+    /// </summary>
     private static string? SingleIndex(IEnumerable<string?> indexes)
     {
-        var distinct = indexes.Distinct(StringComparer.OrdinalIgnoreCase).Take(2).ToList();
+        var distinct = indexes.Distinct(StringComparer.Ordinal).Take(2).ToList();
         return distinct.Count == 1 ? distinct[0] : null;
     }
 
@@ -174,19 +177,11 @@ public class IndexingServiceAsync(
         return Result.Ok();
     }
 
-    public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
-        CancellationToken cancellationToken = default)
-    {
-        var result = await BetterSearchTelemetry.RunAsync("remove", document?.Type, indexingProvider, logger, null,
-            () => RemoveDocumentCoreAsync(document!, cancellationToken)).ConfigureAwait(false);
-        if (result.IsSuccess)
-        {
-            // The provider does not say whether the document was there, so a removal is counted when it succeeds.
-            BetterSearchTelemetry.RecordRemoved(1, document?.Type, indexingProvider);
-        }
-
-        return result;
-    }
+    // Not counted in bettersearch.documents.removed: the provider does not say whether the document was there.
+    public Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
+        CancellationToken cancellationToken = default) =>
+        BetterSearchTelemetry.RunAsync("remove", document?.Type, indexingProvider, logger, null,
+            () => RemoveDocumentCoreAsync(document!, cancellationToken));
 
     private async Task<Result> RemoveDocumentCoreAsync(DeleteDocumentRequest document,
         CancellationToken cancellationToken)

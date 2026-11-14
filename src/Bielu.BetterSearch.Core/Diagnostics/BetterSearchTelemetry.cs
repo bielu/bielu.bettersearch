@@ -8,8 +8,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Bielu.BetterSearch.Diagnostics;
 
 /// <summary>
-/// The span, metrics and log line of one service call. Query values and document contents are never recorded: the
-/// tags hold the operation, the index, the provider and counts only.
+/// The span, metrics and log line of one service call. The tags hold the operation, the index, the provider and
+/// counts only, never query values or document contents. A failure is recorded with its message as the provider or
+/// engine wrote it, which can quote the query (a Lucene syntax error quotes the whole query).
 /// </summary>
 internal static partial class BetterSearchTelemetry
 {

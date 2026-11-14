@@ -16,8 +16,11 @@ public class SearchServiceAsync(ISearchProviderAsync providerAsync, ILogger<Sear
     public IDisposable Subscribe(IObserver<ISearchModel> observer) => _searchObservers.Subscribe(observer);
 
     /// <summary>Runs the search inside a <c>search</c> span; see <see cref="BetterSearchInstrumentation"/>.</summary>
-    public Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
-        BetterSearchTelemetry.RunAsync(
+    public Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
+    {
+        // Counted while the observers are notified, so the hits are enumerated once whether or not a span records them.
+        var hitCount = 0;
+        return BetterSearchTelemetry.RunAsync(
             "search",
             query?.Index,
             providerAsync,
@@ -27,14 +30,16 @@ public class SearchServiceAsync(ISearchProviderAsync providerAsync, ILogger<Sear
                 activity.SetTag(BetterSearchTelemetry.PageTag, query?.Page);
                 activity.SetTag(BetterSearchTelemetry.PageSizeTag, query?.PageSize);
             },
-            () => SearchCoreAsync(query!, cancellationToken),
+            () => SearchCoreAsync(query!, () => hitCount++, cancellationToken),
             (activity, result) =>
             {
-                activity.SetTag(BetterSearchTelemetry.HitCountTag, result.Value.Items?.Count());
+                activity.SetTag(BetterSearchTelemetry.HitCountTag, hitCount);
                 activity.SetTag(BetterSearchTelemetry.TotalCountTag, result.Value.Pagination?.TotalCount);
             });
+    }
 
-    private async Task<Result<ISearchResult>> SearchCoreAsync(ISearchQuery query, CancellationToken cancellationToken)
+    private async Task<Result<ISearchResult>> SearchCoreAsync(ISearchQuery query, Action onHit,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var result = await providerAsync.SearchAsync(query, cancellationToken).ConfigureAwait(false);
@@ -45,6 +50,7 @@ public class SearchServiceAsync(ISearchProviderAsync providerAsync, ILogger<Sear
 
         foreach (var hit in result.Value.Items)
         {
+            onHit();
             _searchObservers.Notify(hit.Document);
         }
 

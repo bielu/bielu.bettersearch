@@ -63,11 +63,13 @@ public class IndexingServiceTelemetryTests
         capture.Measurements("bettersearch.documents.indexed").ShouldHaveSingleItem().Value.ShouldBe(3);
     }
 
-    [Fact]
-    public async Task IndexMultipleDocumentsAsync_TwoIndexes_RecordsNoIndexTag()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task IndexMultipleDocumentsAsync_TwoIndexes_RecordsNoIndexTag(bool otherDiffersOnlyInCase)
     {
         var index = NewIndex();
-        var other = NewIndex();
+        var other = otherDiffersOnlyInCase ? index.ToUpperInvariant() : NewIndex();
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name == BetterSearchInstrumentation.ActivitySourceName,
@@ -111,16 +113,18 @@ public class IndexingServiceTelemetryTests
     }
 
     [Fact]
-    public async Task RemoveDocumentAsync_Succeeds_RecordsRemoveSpanAndOneRemovedDocument()
+    public async Task RemoveDocumentAsync_Succeeds_RecordsRemoveSpanButNoRemovedCount()
     {
         var index = NewIndex();
         using var capture = new TelemetryCapture(index);
         using var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator());
 
-        await service.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "1", Type = index }, Token);
+        (await service.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "1", Type = index }, Token)).IsSuccess.ShouldBeTrue();
 
-        capture.SingleActivity().OperationName.ShouldBe($"remove {index}");
-        capture.Measurements("bettersearch.documents.removed").ShouldHaveSingleItem().Value.ShouldBe(1);
+        var activity = capture.SingleActivity();
+        activity.OperationName.ShouldBe($"remove {index}");
+        activity.GetTagItem(BetterSearchTelemetry.OutcomeTag).ShouldBe(BetterSearchTelemetry.Success);
+        capture.Measurements("bettersearch.documents.removed").ShouldBeEmpty();
     }
 
     [Fact]

@@ -149,6 +149,28 @@ public class SearchServiceTelemetryTests
     }
 
     [Fact]
+    public async Task SearchAsync_SingleUseHits_EnumeratesHitsOnceAndTagsHitCount()
+    {
+        var index = NewIndex();
+        using var capture = new TelemetryCapture(index);
+        var hits = new SingleUseEnumerableDecorator(FakeSearchProvider.Results(3, 3).Items);
+        var provider = new FakeSearchProvider
+        {
+            Search = (_, _) => Task.FromResult(Result.Ok<ISearchResult>(new BaseSearchResults { Items = hits, Pagination = new Pagination { TotalCount = 3 } })),
+        };
+        using var service = new SearchServiceAsync(provider);
+        var notified = new List<ISearchModel>();
+        using var subscription = service.Subscribe(new RecordingObserver(notified));
+
+        var result = await service.SearchAsync(new SearchQuery { Index = index }, Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        hits.Enumerations.ShouldBe(1);
+        notified.Count.ShouldBe(3);
+        capture.SingleActivity().GetTagItem(BetterSearchTelemetry.HitCountTag).ShouldBe(3);
+    }
+
+    [Fact]
     public async Task SearchAsync_NoListener_StillReturnsProviderResult()
     {
         var provider = new FakeSearchProvider { Search = (_, _) => Task.FromResult(Result.Ok<ISearchResult>(FakeSearchProvider.Results(2, 2))) };
@@ -157,5 +179,33 @@ public class SearchServiceTelemetryTests
         var result = await service.SearchAsync(new SearchQuery { Index = NewIndex() }, Token);
 
         result.Value.Items.Count().ShouldBe(2);
+    }
+
+    /// <summary>Hits that throw when enumerated a second time, as a lazy provider sequence can.</summary>
+    private sealed class SingleUseEnumerableDecorator(IEnumerable<ISearchHit> hits) : IEnumerable<ISearchHit>
+    {
+        public int Enumerations { get; private set; }
+
+        public IEnumerator<ISearchHit> GetEnumerator()
+        {
+            Enumerations++;
+            Enumerations.ShouldBe(1, "the hits were enumerated more than once");
+            return hits.GetEnumerator();
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    private sealed class RecordingObserver(List<ISearchModel> notified) : IObserver<ISearchModel>
+    {
+        public void OnCompleted()
+        {
+        }
+
+        public void OnError(Exception error)
+        {
+        }
+
+        public void OnNext(ISearchModel value) => notified.Add(value);
     }
 }

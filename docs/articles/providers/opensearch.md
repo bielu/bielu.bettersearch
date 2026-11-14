@@ -220,8 +220,8 @@ refresh, about a second later unless `index.refresh_interval` is changed. Set `W
 
 As on Elasticsearch, `PingAsync` sends `HEAD /` with the client of the index it is given, or of
 `SharedIndexSettings` when it is given none, and any answer other than 200, an unreachable server or invalid
-settings is a failed `Result`. `AddBetterSearchHealthCheck()` from `Bielu.BetterSearch.HealthChecks` reports it
-through `/health`; see [observability](../feature-matrix.md#observability).
+settings is a failed `Result`. `AddBetterSearchHealthCheck()` from `Bielu.BetterSearch.HealthChecks` registers it as a health check,
+which the application maps to an endpoint such as `/health`; see [observability](../feature-matrix.md#observability).
 
 ## Checking an index exists
 
