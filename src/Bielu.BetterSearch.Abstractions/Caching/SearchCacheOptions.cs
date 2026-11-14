@@ -2,7 +2,7 @@
 
 namespace Bielu.BetterSearch.Abstractions.Caching;
 
-/// <summary>Which searches <c>SearchServiceAsync</c> caches, and for how long. Set through <c>AddSearchCache</c>.</summary>
+/// <summary>Which searches the search cache caches, and for how long. Set through <c>AddSearchCache</c>.</summary>
 public class SearchCacheOptions
 {
     /// <summary>The tag every entry of <paramref name="index"/> carries, and that writes to the index evict.</summary>

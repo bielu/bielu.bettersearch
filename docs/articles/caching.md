@@ -3,12 +3,14 @@
 Every `SearchAsync` call goes to the engine unless you register a search result cache. The cache is opt-in: without
 one, nothing is cached and no cache service is resolved.
 
-When a cache is registered, `AddBetterSearch` decorates every `ISearchProviderAsync` and `IIndexingProviderAsync`
-registration, keyed or not: the search decorator caches each successful search, and the indexing decorator evicts an
-index's cached searches after every write to it. The search and indexing services take their providers through those
-interfaces, so they get the cache without changing. It works the same for every provider, because the decorators sit
-in Core and no provider changes. Only the registrations that exist when `AddBetterSearch` runs are decorated, so
-register a provider of your own before calling it.
+When a cache is registered, `AddBetterSearch` decorates every `ISearchServiceAsync` and `IIndexingServiceAsync`
+registration, keyed or not, with [Scrutor](https://github.com/khellang/Scrutor): the search decorator caches each
+successful search, and the indexing decorator evicts an index's cached searches after every write to it. It wraps
+whatever service type is registered, including one set with `SetSearchServiceType<T>()` or
+`SetIndexingServiceType<T>()`, and it works the same for every provider, because the decorators sit in Core and no
+provider changes. Only the registrations that exist when `AddBetterSearch` runs are decorated, along with keyed
+registrations under a string key; a decorator you add afterwards, with Scrutor's `Decorate` or otherwise, wraps the
+cache decorators.
 
 ## Register a cache
 
@@ -79,9 +81,11 @@ An implementation must meet two rules:
 - **A factory that throws caches nothing**, and its exception reaches the caller. That is how a failed or cancelled
   search stays out of the cache.
 
-The cached value is a `CachedSearchResult`: plain data, with each field value's type kept beside its text, so it
-round-trips through a distributed cache's serializer. `SearchCacheEntryOptions` holds the entry's `Duration` and
-`Tags`.
+`SearchCacheEntryOptions` holds the entry's `Duration` and `Tags`. The cached value's type is internal to Core, so
+treat `T` as opaque: store it and return it. It is plain data, with public properties, a parameterless constructor and
+each field value's type kept beside its text, so a reflection-based serializer such as FusionCache's
+`FusionCacheSystemTextJsonSerializer` round-trips it; the tests pin that. A serializer that only handles types it was
+given ahead of time, such as a source-generated `System.Text.Json` context, can't serialize it.
 
 ### Why not `HybridCache`
 
@@ -93,7 +97,7 @@ the library ships no adapter for it.
 ## What is cached
 
 - Only successful results. A failed `Result` is never cached, and neither is a cancelled search.
-- The key is built from the provider type, the application's `KeyPart` and the whole query: the index, every
+- The key is built from the provider key, the application's `KeyPart` and the whole query: the index, every
   sub-query with its occurrence, boost and values, paging, sorting, post filters, highlighting, `Properties` and
   `PreviewAt`. Values are written the same way on every machine, whatever its culture, and a string `"1"` and a
   number `1` give different keys. A `JsonElement` or `JsonNode` value is keyed by its JSON text. A query holding
@@ -108,8 +112,12 @@ the library ships no adapter for it.
 - If the cache throws before the search runs, for example because its store is down, the search runs without it. If
   it throws while storing a successful search, that search is returned uncached and the engine is not called again.
   Both are logged as warnings.
-- Observers subscribed to `ISearchServiceAsync` are notified of a search's hits on a cache hit too: the service sits
-  above the decorator, so they observe searches, not engine calls.
+- Observers subscribed to `ISearchServiceAsync` are notified of a search's hits on a cache hit too. The decorator
+  has its own observers: `Subscribe` registers on it, and it notifies them from the result it returns, on a hit and on
+  a miss, so they observe searches, not engine calls. The decorated service's own observers are not used.
+- A keyed search service's entries are keyed by its provider key, so two providers that both have an index called
+  `products` never share an entry. The unkeyed service uses the default provider's key, so it shares entries with
+  that provider's keyed service.
 
 ## Options
 
@@ -138,19 +146,24 @@ search.AddMemorySearchCache(cache =>
 
 ## What evicts, and what doesn't
 
-Every write on the decorated `IIndexingProviderAsync` (`IndexDocumentAsync`, `IndexMultipleDocumentsAsync`,
-`RemoveDocumentAsync`, `RemoveDocumentsAsync`, `RemoveAllDocumentsAsync`, `CreateIndexAsync` and `DeleteIndexAsync`)
-evicts the tag `SearchCacheOptions.IndexTag(index)` once the provider returns. That covers the writes made through
-`IIndexingServiceAsync` and those made on a resolved provider directly. `EnsureIndexExistsAsync` doesn't evict. The
-index name is compared ignoring case. A write that fails still evicts, as it can have changed part of the index, and
-the eviction ignores the caller's cancellation, so a write that went through always evicts. A batch evicts each of its
-indexes once. The indexing service notifies its observers after the provider returns, so after the eviction, and an
-observer that searches the index doesn't read the evicted results. If the eviction itself throws, it is logged at
-`Error` and the write still returns its own `Result`.
+Every write on the decorated `IIndexingServiceAsync` (`IndexDocumentAsync`, `IndexMultipleDocumentsAsync`,
+`RemoveDocumentAsync`, `RemoveDocumentsAsync` and `RemoveAllDocumentsAsync`) evicts the tag
+`SearchCacheOptions.IndexTag(index)` once the decorated service returns. The index name is compared ignoring case.
+A write that fails still evicts, as it can have changed part of the index, and the eviction ignores the caller's
+cancellation, so a write that went through always evicts. A batch evicts each of its indexes once, after the one
+call to the decorated service. If the eviction itself throws, it is logged at `Error` and the write still returns its
+own `Result`.
+
+The indexing decorator has its own observers too: `Subscribe` registers on it, and it notifies them after the
+eviction, following the `IIndexingServiceAsync` contract (once for each document indexed, each distinct id removed,
+each index emptied, and nothing when the write fails). So an observer that searches the index from `OnNext` reads past
+the evicted result. The decorated service's own observers are not used.
 
 The cache can't see:
 
-- writes made on a provider instance that didn't come from the container, or that was registered after
+- writes made on an `IIndexingProviderAsync` directly, rather than through `IIndexingServiceAsync`, including
+  `CreateIndexAsync` and `DeleteIndexAsync`, which the service doesn't have;
+- writes through an indexing service that didn't come from the container, or that was registered after
   `AddBetterSearch` ran;
 - writes made by another process that doesn't share the cache;
 - on Elasticsearch and OpenSearch, the time until the index next refreshes: a search right after the eviction can

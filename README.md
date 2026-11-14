@@ -177,8 +177,8 @@ The [Getting Started](https://search.bielu.pl/articles/getting-started.html) gui
   Lifti also fail a query that asks for highlighting. Lifti ignores paging, sorting and post filters, so check the [feature matrix](docs/articles/feature-matrix.md) for what
   your provider applies
 - ✅ **Opt-in search result cache**: the built-in memory cache for one instance, FusionCache with a backplane for
-  several, or your own `ISearchResultCache`, as decorators over the providers; every write evicts the index's cached
-  searches. See [caching](docs/articles/caching.md)
+  several, or your own `ISearchResultCache`, as decorators over the search and indexing services; every write
+  through the indexing service evicts the index's cached searches. See [caching](docs/articles/caching.md)
 - ✅ **Shared provider tests**: provider-agnostic behavior tests in `BaseTests` run against every provider
 - ✅ **.NET Aspire AppHost** that starts Elasticsearch, OpenSearch and Meilisearch for local development and the
   integration tests, with [meilisearch-ui](https://github.com/riccox/meilisearch-ui) for browsing Meilisearch

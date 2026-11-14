@@ -4,15 +4,18 @@ using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Configuration;
 using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Tests;
+using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 
 namespace Bielu.BetterSearch.Caching.Tests;
 
 /// <summary>
-/// The search cache through the services, which reach it through the provider decorators, with a counting fake provider
-/// and the built-in <see cref="MemorySearchResultCache"/>; no provider changes, so every provider behaves this way.
+/// The search cache through the services, which <c>AddBetterSearch</c> wraps in the caching and evicting decorators, with
+/// a counting fake provider and the built-in <see cref="MemorySearchResultCache"/>; no provider changes, so every provider
+/// behaves this way.
 /// </summary>
 public class SearchServiceCachingTests
 {
@@ -444,79 +447,6 @@ public class SearchServiceCachingTests
         after.Items.Single().Document.Id.ShouldBe("products-2");
     }
 
-    [Theory]
-    [InlineData("create")]
-    [InlineData("delete")]
-    public async Task IndexingProvider_CreateOrDeleteIndex_EvictsCachedSearches(string write)
-    {
-        //Arrange
-        await using var services = Build();
-        await SearchAsync(services, Queries.Term("products"));
-        using var scope = services.CreateScope();
-        var provider = scope.ServiceProvider.GetRequiredService<IIndexingProviderAsync>();
-
-        //Act
-        var result = write == "create"
-            ? await provider.CreateIndexAsync("products", Token)
-            : await provider.DeleteIndexAsync("products", Token);
-        var after = await SearchAsync(services, Queries.Term("products"));
-
-        //Assert
-        result.Value.ShouldBeTrue();
-        after.Items.Single().Document.Id.ShouldBe("products-2");
-    }
-
-    [Fact]
-    public async Task IndexingProvider_EnsureIndexExists_KeepsCachedSearches()
-    {
-        //Arrange
-        await using var services = Build();
-        await SearchAsync(services, Queries.Term("products"));
-        using var scope = services.CreateScope();
-
-        //Act
-        var result = await scope.ServiceProvider.GetRequiredService<IIndexingProviderAsync>().EnsureIndexExistsAsync("products", Token);
-        var after = await SearchAsync(services, Queries.Term("products"));
-
-        //Assert
-        result.Value.ShouldBeTrue();
-        after.Items.Single().Document.Id.ShouldBe("products-1");
-    }
-
-    [Fact]
-    public async Task SearchProvider_ResolvedDirectly_CachesToo()
-    {
-        //Arrange
-        await using var services = Build();
-        using var scope = services.CreateScope();
-        var provider = scope.ServiceProvider.GetRequiredService<ISearchProviderAsync>();
-
-        //Act
-        var first = await provider.SearchAsync(Queries.Term("products"), Token);
-        var second = await provider.SearchAsync(Queries.Term("products"), Token);
-
-        //Assert
-        provider.ShouldBeOfType<CachingSearchProviderAsyncDecorator>();
-        _search.Calls.ShouldBe(1);
-        second.Value.Items.Single().Document.Id.ShouldBe(first.Value.Items.Single().Document.Id);
-    }
-
-    [Fact]
-    public async Task AddBetterSearch_NoCache_DoesNotDecorateProviders()
-    {
-        //Arrange
-        await using var services = Build(_ => { });
-        using var scope = services.CreateScope();
-
-        //Act
-        var search = scope.ServiceProvider.GetRequiredService<ISearchProviderAsync>();
-        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingProviderAsync>();
-
-        //Assert
-        search.ShouldBeSameAs(_search);
-        indexing.ShouldBeSameAs(_indexing);
-    }
-
     [Fact]
     public async Task SearchAsync_CacheThrowsAfterSearching_ReturnsTheSearchWithoutSearchingAgain()
     {
@@ -583,7 +513,7 @@ public class SearchServiceCachingTests
             .AddMemorySearchCache());
         await using var built = services.BuildServiceProvider();
         using var scope = built.CreateScope();
-        var second = (CountingSearchProvider)((CachingSearchProviderAsyncDecorator)scope.ServiceProvider.GetRequiredKeyedService<ISearchProviderAsync>("second")).Inner;
+        var second = (CountingSearchProvider)scope.ServiceProvider.GetRequiredKeyedService<ISearchProviderAsync>("second");
 
         //Act
         (await scope.ServiceProvider.GetRequiredKeyedService<ISearchServiceAsync>("first").SearchAsync(Queries.Term("products"), Token)).IsSuccess.ShouldBeTrue();
@@ -592,6 +522,145 @@ public class SearchServiceCachingTests
         //Assert
         result.IsSuccess.ShouldBeTrue();
         second.Calls.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AddBetterSearch_NoCache_DoesNotDecorateServices()
+    {
+        //Arrange
+        await using var services = Build(_ => { });
+        using var scope = services.CreateScope();
+
+        //Act
+        var search = scope.ServiceProvider.GetRequiredService<ISearchServiceAsync>();
+        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
+
+        //Assert
+        search.ShouldBeOfType<SearchServiceAsync>();
+        indexing.ShouldBeOfType<IndexingServiceAsync>();
+    }
+
+    [Fact]
+    public async Task SearchAsync_CustomServiceTypes_CachesAndEvicts()
+    {
+        //Arrange
+        await using var services = Build(c => c
+            .SetSearchServiceType<CustomSearchService>()
+            .SetIndexingServiceType<CustomIndexingService>()
+            .AddMemorySearchCache());
+        await SearchAsync(services, Queries.Term("products"));
+
+        //Act
+        var cached = await SearchAsync(services, Queries.Term("products"));
+        (await Indexing(services).RemoveDocumentsAsync("products", ["1"], Token)).IsSuccess.ShouldBeTrue();
+        var evicted = await SearchAsync(services, Queries.Term("products"));
+
+        //Assert
+        cached.Items.Single().Document.Id.ShouldBe("products-1");
+        evicted.Items.Single().Document.Id.ShouldBe("products-2");
+        _search.Calls.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ObserverOnDecorator_NotifiedOnMissAndHitOnce()
+    {
+        //Arrange
+        await using var services = Build();
+        using var scope = services.CreateScope();
+        var search = scope.ServiceProvider.GetRequiredService<ISearchServiceAsync>();
+        var observer = new RecordingObserver<ISearchModel>();
+        using var subscription = search.Subscribe(observer);
+
+        //Act
+        (await search.SearchAsync(Queries.Term("products"), Token)).IsSuccess.ShouldBeTrue();
+        (await search.SearchAsync(Queries.Term("products"), Token)).IsSuccess.ShouldBeTrue();
+
+        //Assert
+        _search.Calls.ShouldBe(1);
+        // Once for the miss and once for the hit: a notification from the decorated service as well would make it three.
+        observer.Values.Select(document => document.Id).ShouldBe(["products-1", "products-1"]);
+    }
+
+    [Theory]
+    [MemberData(nameof(Writes))]
+    public async Task IndexingWrite_ObserverOnDecorator_NotifiedOnce(string write)
+    {
+        //Arrange
+        await using var services = Build();
+        var indexing = Indexing(services);
+        var notifications = 0;
+        using var indexed = indexing.Subscribe(new CallbackObserver<SearchDocument>(_ => notifications++));
+        using var removed = indexing.Subscribe(new CallbackObserver<DeleteDocumentRequest>(_ => notifications++));
+        using var emptied = indexing.Subscribe(new CallbackObserver<DeleteAllDocumentsRequest>(_ => notifications++));
+
+        //Act
+        await WriteAsync(indexing, write, "products");
+
+        //Assert
+        notifications.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task IndexingProvider_WrittenDirectly_KeepsCachedSearches()
+    {
+        //Arrange
+        await using var services = Build();
+        await SearchAsync(services, Queries.Term("products"));
+        using var scope = services.CreateScope();
+
+        //Act
+        // The cache decorates the indexing service, so a write that goes straight to the provider doesn't evict.
+        (await scope.ServiceProvider.GetRequiredService<IIndexingProviderAsync>().DeleteIndexAsync("products", Token)).Value.ShouldBeTrue();
+        var after = await SearchAsync(services, Queries.Term("products"));
+
+        //Assert
+        after.Items.Single().Document.Id.ShouldBe("products-1");
+    }
+
+    [Fact]
+    public async Task SearchAsync_DecoratorAddedAfterAddBetterSearch_WrapsTheCachingDecorator()
+    {
+        //Arrange
+        var services = new ServiceCollection();
+        services.AddSingleton<ISearchProviderAsync>(_search);
+        services.AddSingleton<IIndexingProviderAsync>(_indexing);
+        services.AddBetterSearch(c => c.AddMemorySearchCache());
+        services.Decorate<ISearchServiceAsync, CountingSearchServiceAsyncDecorator>();
+        await using var built = services.BuildServiceProvider();
+        using var scope = built.CreateScope();
+        var search = scope.ServiceProvider.GetRequiredService<ISearchServiceAsync>();
+
+        //Act
+        var first = await search.SearchAsync(Queries.Term("products"), Token);
+        var second = await search.SearchAsync(Queries.Term("products"), Token);
+
+        //Assert
+        first.Value.Items.Single().Document.Id.ShouldBe("products-1");
+        second.Value.Items.Single().Document.Id.ShouldBe("products-1");
+        _search.Calls.ShouldBe(1);
+        search.ShouldBeOfType<CountingSearchServiceAsyncDecorator>().Calls.ShouldBe(2);
+    }
+
+    private sealed class CustomSearchService(ISearchProviderAsync provider) : SearchServiceAsync(provider);
+
+    private sealed class CustomIndexingService(IIndexingProviderAsync provider, IDocumentValidatorAsync validator)
+        : IndexingServiceAsync(provider, validator);
+
+    private sealed class CountingSearchServiceAsyncDecorator(ISearchServiceAsync inner) : ISearchServiceAsync
+    {
+        public int Calls { get; private set; }
+
+        public Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return inner.SearchAsync(query, cancellationToken);
+        }
+
+        public IDisposable Subscribe(IObserver<ISearchModel> observer) => inner.Subscribe(observer);
+
+        public void Dispose()
+        {
+        }
     }
 
     private sealed class CallbackObserver<T>(Action<T> onNext) : IObserver<T>

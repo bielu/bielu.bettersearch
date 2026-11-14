@@ -1,6 +1,5 @@
 ﻿using System.Globalization;
 using System.Text.Json;
-using Bielu.BetterSearch.Abstractions.Caching;
 using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using FluentResults;

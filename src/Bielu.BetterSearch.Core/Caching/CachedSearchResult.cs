@@ -1,10 +1,11 @@
-﻿namespace Bielu.BetterSearch.Abstractions.Caching;
+﻿namespace Bielu.BetterSearch.Caching;
 
 /// <summary>
-/// The shape a search result is cached in: plain data, so it round-trips through the serializer of a distributed (L2)
-/// cache. Each field value keeps its type in <see cref="CachedValue.Kind"/>.
+/// The shape the search cache decorator stores a result in: plain data, so it round-trips through the serializer of a
+/// distributed (L2) cache, such as System.Text.Json. Internal: an <c>ISearchResultCache</c> only sees it as the opaque
+/// <c>T</c> of <c>GetOrCreateAsync</c>. Each field value keeps its type in <see cref="CachedValue.Kind"/>.
 /// </summary>
-public sealed class CachedSearchResult
+internal sealed class CachedSearchResult
 {
     public List<CachedSearchHit> Items { get; set; } = [];
     public long TotalCount { get; set; }
@@ -17,7 +18,7 @@ public sealed class CachedSearchResult
 }
 
 /// <summary>One cached hit.</summary>
-public sealed class CachedSearchHit
+internal sealed class CachedSearchHit
 {
     public string? Id { get; set; }
     public string? ContentType { get; set; }
@@ -30,14 +31,14 @@ public sealed class CachedSearchHit
 }
 
 /// <summary>One field value, as round-trip text and the type to read it back as.</summary>
-public sealed class CachedValue
+internal sealed class CachedValue
 {
     public CachedValueKind Kind { get; set; }
     public string Text { get; set; } = string.Empty;
 }
 
 /// <summary>The types of field value a result can be cached with. A result holding any other type is not cached.</summary>
-public enum CachedValueKind
+internal enum CachedValueKind
 {
     String = 0,
     Boolean = 1,

@@ -26,7 +26,7 @@ public class SearchApplicationConfiguration
 
     internal List<ProviderRegistration> Providers { get; } = [];
 
-    /// <summary>Whether a search cache was added, so <c>AddBetterSearch</c> decorates the providers with it.</summary>
+    /// <summary>Whether a search cache was added, so <c>AddBetterSearch</c> decorates the search and indexing services with it.</summary>
     internal bool UsesSearchCache { get; set; }
 }
 

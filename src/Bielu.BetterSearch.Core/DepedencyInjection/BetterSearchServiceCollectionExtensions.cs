@@ -5,6 +5,7 @@ using Bielu.BetterSearch.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Scrutor;
 
 namespace Bielu.BetterSearch.DepedencyInjection;
 
@@ -48,12 +49,7 @@ public static class BetterSearchServiceCollectionExtensions
 
         if (searchConfiguration.UsesSearchCache)
         {
-            // The services take their providers through the interfaces, keyed or not, so decorating the provider
-            // registrations puts the cache under every search and indexing service without changing them.
-            Decorate<ISearchProviderAsync>(services, (sp, inner) => ActivatorUtilities.CreateInstance<CachingSearchProviderAsyncDecorator>(
-                sp, inner, sp.GetRequiredService<ISearchResultCache>()));
-            Decorate<IIndexingProviderAsync>(services, (sp, inner) => ActivatorUtilities.CreateInstance<CachingIndexingProviderAsyncDecorator>(
-                sp, inner, sp.GetRequiredService<ISearchResultCache>()));
+            AddSearchCacheDecorators(services, defaultProvider?.Key ?? string.Empty);
         }
 
         return services;
@@ -103,30 +99,33 @@ public static class BetterSearchServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Replaces every registration of <typeparamref name="TService"/>, keyed or not, with one that wraps the service it
-    /// used to resolve in <paramref name="decorate"/>, keeping its lifetime. Registrations added later are not decorated.
+    /// Wraps every <see cref="ISearchServiceAsync"/> and <see cref="IIndexingServiceAsync"/> registered by now, keyed or
+    /// not, in the caching and the evicting decorator, keeping its lifetime. Whatever service type is registered gets the
+    /// cache, and a decorator added later, with Scrutor or otherwise, wraps these. The cache key of a keyed search service
+    /// holds its provider key, and that of the unkeyed one <paramref name="unkeyedProviderKey"/>, the default provider's.
     /// </summary>
-    private static void Decorate<TService>(IServiceCollection services, Func<IServiceProvider, TService, TService> decorate)
-        where TService : class
+    private static void AddSearchCacheDecorators(IServiceCollection services, string unkeyedProviderKey)
     {
-        for (var i = 0; i < services.Count; i++)
-        {
-            var descriptor = services[i];
-            if (descriptor.ServiceType != typeof(TService))
-            {
-                continue;
-            }
+        services.Decorate(new AnyKeyDecoration(typeof(ISearchServiceAsync), (inner, sp, key) =>
+            ActivatorUtilities.CreateInstance<CachingSearchServiceAsyncDecorator>(sp, inner, key ?? unkeyedProviderKey, sp.GetRequiredService<ISearchResultCache>())));
+        services.Decorate(new AnyKeyDecoration(typeof(IIndexingServiceAsync), (inner, sp, _) =>
+            ActivatorUtilities.CreateInstance<CachingIndexingServiceAsyncDecorator>(sp, inner, sp.GetRequiredService<ISearchResultCache>())));
+    }
 
-            services[i] = descriptor.IsKeyedService
-                ? new ServiceDescriptor(typeof(TService), descriptor.ServiceKey, (sp, key) => decorate(sp, (TService)(
-                    descriptor.KeyedImplementationInstance
-                    ?? descriptor.KeyedImplementationFactory?.Invoke(sp, key)
-                    ?? ActivatorUtilities.CreateInstance(sp, descriptor.KeyedImplementationType!))), descriptor.Lifetime)
-                : new ServiceDescriptor(typeof(TService), sp => decorate(sp, (TService)(
-                    descriptor.ImplementationInstance
-                    ?? descriptor.ImplementationFactory?.Invoke(sp)
-                    ?? ActivatorUtilities.CreateInstance(sp, descriptor.ImplementationType!))), descriptor.Lifetime);
-        }
+    /// <summary>
+    /// A Scrutor decoration of every registration of a service type, unkeyed or under a string key, whose decorator is
+    /// given the key it was resolved with. Scrutor's own decorations match one key only.
+    /// </summary>
+    private sealed class AnyKeyDecoration(Type serviceType, Func<object, IServiceProvider, string?, object> decorate)
+        : DecorationStrategy(serviceType, serviceKey: null)
+    {
+        public override bool CanDecorate(ServiceDescriptor descriptor) =>
+            descriptor.ServiceType == ServiceType && descriptor.ServiceKey is null or string;
+
+        protected override bool CanDecorate(Type serviceType) => serviceType == ServiceType;
+
+        public override Func<IServiceProvider, object?, object> CreateDecorator(Type serviceType, string serviceKey) =>
+            (sp, key) => decorate(sp.GetRequiredKeyedService(serviceType, serviceKey), sp, key as string);
     }
 
     private static string NoDefaultProviderMessage(IReadOnlyList<ProviderRegistration> providers)

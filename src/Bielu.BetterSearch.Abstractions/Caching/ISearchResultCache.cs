@@ -1,8 +1,9 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Caching;
 
 /// <summary>
-/// The store <c>SearchServiceAsync</c> keeps search results in, when the application registers one with
-/// <c>AddSearchCache</c>. Implement it to plug in your own cache.
+/// The store the search cache decorator of <see cref="Services.ISearchServiceAsync"/> keeps search results in, when the
+/// application registers one with <c>AddSearchCache</c>. Implement it to plug in your own cache. The cached values are
+/// of a type internal to the library: store and return them as they are.
 /// </summary>
 /// <remarks>
 /// The eviction contract: after <see cref="RemoveByTagAsync"/> returns, no node may return an entry with that tag,
