@@ -5,7 +5,9 @@ using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Services;
+using Bielu.BetterSearch.Typesense.Configuration;
 using FluentResults;
+using Microsoft.Extensions.Options;
 using N = Bielu.BetterSearch.Typesense.Services.TypesenseFieldNames;
 using Result = FluentResults.Result;
 
@@ -18,7 +20,8 @@ namespace Bielu.BetterSearch.Typesense.Services;
 public sealed class TypesenseSearchProviderAsync(
     IQueryTranslateServiceAsync<TypesenseSearchRequest> queryTranslateService,
     IClientFactoryAsync<TypesenseHttpClientWrapper> clientFactory,
-    TypesenseSchema schema) : ISearchProviderAsync
+    TypesenseSchema schema,
+    IOptionsMonitor<TypesenseOptions> optionsMonitor) : ISearchProviderAsync
 {
     /// <summary>Used when <c>PageSize</c> is not set, as for Elasticsearch.</summary>
     public const int DefaultPageSize = 10;
@@ -45,6 +48,13 @@ public sealed class TypesenseSearchProviderAsync(
         if (string.IsNullOrWhiteSpace(query.Index))
         {
             return Result.Fail<ISearchResult>("The query needs an Index.");
+        }
+
+        // Invalid options fail with the validator's messages, each naming its setting, before anything is sent.
+        var options = optionsMonitor.TryCurrentValue();
+        if (options.IsFailed)
+        {
+            return options.ToResult<ISearchResult>();
         }
 
         if (query.FacetQueries is { Count: > 0 })

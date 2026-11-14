@@ -78,6 +78,14 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddType
 
 You can also set the options in code with `services.Configure<TypesenseOptions>(...)`.
 
+The options are validated at startup (`ValidateOnStart`), so a host with invalid settings fails to start with
+`OptionsValidationException`, listing every setting that is wrong, each by its configuration path: the connection
+string of the shared settings and of each `Indexes` entry after merging, and `SchemaCheckInterval`, which must not be
+negative. A missing section gives the single failure `No Bielu:BetterSearch:Typesense settings were found.`, naming the
+section. Each URL of `AdditionalNodes` is checked when a client is created. The same checks run whenever the options
+are read, so after a configuration reload to invalid settings, a search returns a failed `Result` with the same
+messages, and a write a failed `Result` that includes them.
+
 ## How documents are stored
 
 A Typesense collection has a schema, and an array field can't be sorted. The provider creates each collection

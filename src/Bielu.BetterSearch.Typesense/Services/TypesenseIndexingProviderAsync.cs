@@ -66,7 +66,13 @@ public sealed class TypesenseIndexingProviderAsync(
     /// </summary>
     private async Task<Result> ImportAsync(string index, IReadOnlyList<SearchDocument> documents, CancellationToken cancellationToken)
     {
-        var geoField = optionsMonitor.CurrentValue.GeoField;
+        var options = optionsMonitor.TryCurrentValue();
+        if (options.IsFailed)
+        {
+            return options.ToResult();
+        }
+
+        var geoField = options.Value.GeoField;
         // Each document is converted again when its request is built, so only one request's documents are held at once.
         var invalid = documents.Select(document => TypesenseDocument.From(document, geoField))
             .Where(document => document.IsFailed).SelectMany(document => document.Errors).ToList();

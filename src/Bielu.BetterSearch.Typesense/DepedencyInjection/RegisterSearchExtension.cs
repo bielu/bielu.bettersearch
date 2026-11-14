@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Configuration;
+using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Typesense.Configuration;
 using Bielu.BetterSearch.Typesense.Services;
 using Bielu.BetterSearch.Typesense.Services.Queries;
@@ -39,8 +40,8 @@ public static class RegisterSearchExtension
         configurator.Services.AddScoped<ISubQueryTranslator<TypesenseFilter>, DateRangeSubQueryTranslator>();
         configurator.Services.AddScoped<ISubQueryTranslator<TypesenseFilter>, StringRangeSubQueryTranslator>();
         configurator.Services.AddScoped<ISubQueryTranslator<TypesenseFilter>, SpatialSearchSubQueryTranslator>();
-        configurator.Services.Configure<TypesenseOptions>(
-            configurator.AppConfiguration.GetSection(TypesenseOptions.TypesenseOptionsKey));
+        OptionsRegistration.BindAndValidateOnStart<TypesenseOptions, TypesenseOptionsValidator>(
+            configurator.Services, configurator.AppConfiguration, TypesenseOptions.TypesenseOptionsKey);
         return configurator;
     }
 }

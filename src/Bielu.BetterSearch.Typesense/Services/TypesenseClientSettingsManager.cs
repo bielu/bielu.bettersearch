@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Typesense.Configuration;
+﻿using Bielu.BetterSearch.Services;
+using Bielu.BetterSearch.Typesense.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace Bielu.BetterSearch.Typesense.Services;
@@ -10,12 +11,26 @@ internal sealed class TypesenseClientSettingsManager(IOptionsMonitor<TypesenseOp
     {
         var options = optionsMonitor.CurrentValue;
         var shared = options.SharedIndexSettings;
-        return options.Indexes != null && options.Indexes.TryGetValue(indexName, out var indexSpecific)
+        var settings = options.Indexes != null && options.Indexes.TryGetValue(indexName, out var indexSpecific)
             ? MergeSettings(indexSpecific, shared)
             : shared;
+
+        // Checked here so a URL without a scheme fails with a message that names the setting.
+        ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, null));
+        return settings;
     }
 
-    private static TypesenseIndexSettings MergeSettings(TypesenseIndexSettings indexSpecific, TypesenseIndexSettings shared)
+    /// <summary>
+    /// The connection setting failures of <paramref name="settings"/>, already merged, each naming the setting to fix.
+    /// The options validator runs the same checks at startup. The API key is optional, as a node can run without one
+    /// in development; each node of <c>AdditionalNodes</c> is checked when a client is created.
+    /// </summary>
+    /// <remarks><c>index</c> is the <c>Indexes</c> entry the settings come from, or <c>null</c> when that is not known or they are the shared settings.</remarks>
+    internal static IEnumerable<string> ConnectionFailures(TypesenseIndexSettings settings, string? index) =>
+        new[] { ConnectionSettingsChecks.HttpUrlFailure(TypesenseOptions.TypesenseOptionsKey, index, settings.ConnectionString) }
+            .OfType<string>();
+
+    internal static TypesenseIndexSettings MergeSettings(TypesenseIndexSettings indexSpecific, TypesenseIndexSettings shared)
     {
         if (!string.IsNullOrWhiteSpace(indexSpecific.ConnectionString))
         {

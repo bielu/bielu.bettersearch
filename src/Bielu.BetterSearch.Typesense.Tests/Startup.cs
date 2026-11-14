@@ -13,8 +13,8 @@ public class Startup
         services.AddLogging(lb => lb.AddXunitOutput())
             .AddBetterSearch(x => x.AddTypesense());
 
-        // The host starts hosted services before any test runs, and options are bound on first use,
-        // so the endpoint is known by the time a test asks for a client.
+        // Startup validation reads the options before the host starts its hosted services, so the options
+        // start the server themselves when it is not running yet.
         services.AddSingleton<TypesenseResource>();
         services.AddHostedService(sp => sp.GetRequiredService<TypesenseResource>());
         services.AddOptions<TypesenseOptions>()
@@ -22,7 +22,7 @@ public class Startup
             {
                 options.SharedIndexSettings = new TypesenseIndexSettings
                 {
-                    ConnectionString = typesense.Endpoint!.ToString(),
+                    ConnectionString = typesense.EnsureStarted().ToString(),
                     ApiKey = typesense.ApiKey,
                 };
                 options.GeoField = "Location";
