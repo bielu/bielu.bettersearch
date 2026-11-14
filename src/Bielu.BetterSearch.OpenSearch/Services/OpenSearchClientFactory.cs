@@ -54,6 +54,8 @@ internal sealed class OpenSearchClientFactory(
         string? Username,
         string? Password,
         string? ApiKey,
+        string? CertificateFingerprint,
+        bool? DevelopmentOnlySkipCertificateValidation,
         TimeSpan? RequestTimeout,
         int? MaxRetries)
     {
@@ -67,6 +69,8 @@ internal sealed class OpenSearchClientFactory(
             settings.AuthenticationDetails?.Username,
             settings.AuthenticationDetails?.Password,
             settings.AuthenticationDetails?.ApiKey,
+            settings.CertificateFingerprint,
+            settings.DevelopmentOnlySkipCertificateValidation,
             settings.RequestTimeout,
             settings.MaxRetries);
 

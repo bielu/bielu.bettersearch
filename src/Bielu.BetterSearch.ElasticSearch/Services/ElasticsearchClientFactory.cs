@@ -60,6 +60,9 @@ public class ElasticsearchClientFactory : IClientFactoryAsync<ElasticsearchClien
         string? Username,
         string? Password,
         string? ApiKey,
+        string? Token,
+        string? CertificateFingerprint,
+        bool? DevelopmentOnlySkipCertificateValidation,
         TimeSpan? RequestTimeout,
         int? MaxRetries)
     {
@@ -74,6 +77,9 @@ public class ElasticsearchClientFactory : IClientFactoryAsync<ElasticsearchClien
             settings.AuthenticationDetails?.Username,
             settings.AuthenticationDetails?.Password,
             settings.AuthenticationDetails?.ApiKey,
+            settings.AuthenticationDetails?.Token,
+            settings.CertificateFingerprint,
+            settings.DevelopmentOnlySkipCertificateValidation,
             settings.RequestTimeout,
             settings.MaxRetries);
 

@@ -28,7 +28,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
     /// <summary>
     /// Builds a new settings object, leaving the live options untouched: the index's connection string,
     /// authentication and pool type win, and an index without its own takes the shared one. The additional nodes go with
-    /// the connection string: an index with its own connection string uses only its own nodes. Mappings are the shared ones with the
+    /// the connection string: an index with its own connection string uses only its own nodes. The TLS settings come from where the connection string does. Mappings are the shared ones with the
     /// index's own on top, the bulk batch size is the index's own or else the shared one, the index's write visibility wins over the shared one, and so do its request timeout and retry count.
     /// </summary>
     internal static OpenSearchIndexSettings MergeSettings(OpenSearchIndexSettings indexSpecific,
@@ -36,11 +36,15 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
     {
         var ownAuthentication = indexSpecific.AuthenticationType is not null;
         var ownConnection = !string.IsNullOrWhiteSpace(indexSpecific.ConnectionString);
+        // The TLS settings belong to the server, so they come with the connection string.
+        var tls = ownConnection ? indexSpecific : shared;
         return new OpenSearchIndexSettings
         {
             ConnectionString = ownConnection ? indexSpecific.ConnectionString : shared.ConnectionString,
             // A copy, so a change to the returned list leaves the options, and every other index's nodes, untouched.
             AdditionalNodes = (ownConnection ? indexSpecific.AdditionalNodes : indexSpecific.AdditionalNodes ?? shared.AdditionalNodes)?.ToList(),
+            CertificateFingerprint = tls.CertificateFingerprint,
+            DevelopmentOnlySkipCertificateValidation = tls.DevelopmentOnlySkipCertificateValidation ?? false,
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
                                  ?? OpenSearchAuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
@@ -82,7 +86,8 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
                 _ => ConnectionSettingsChecks.UnknownAuthenticationTypeFailure(key, authentication, settings.AuthenticationType),
             },
         ];
-        return failures.OfType<string>();
+        return failures.OfType<string>()
+            .Concat(ConnectionSettingsChecks.TlsFailures(key, connection, settings.CertificateFingerprint, settings.DevelopmentOnlySkipCertificateValidation));
     }
 
     public ConnectionSettings CreateClientSettings(OpenSearchIndexSettings settings)
@@ -109,6 +114,15 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
         if (settings.MaxRetries is { } maxRetries)
         {
             connectionSettings.MaximumRetries(maxRetries);
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.CertificateFingerprint))
+        {
+            connectionSettings.ServerCertificateValidationCallback(CertificateFingerprints.Validator(settings.CertificateFingerprint));
+        }
+        else if (settings.DevelopmentOnlySkipCertificateValidation == true)
+        {
+            connectionSettings.ServerCertificateValidationCallback(CertificateValidations.AllowAll);
         }
 
         return connectionSettings;

@@ -1,6 +1,9 @@
-﻿using Bielu.BetterSearch.Abstractions.Configuration;
+﻿using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
+using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;
+using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
@@ -9,7 +12,7 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
 
-public class ElasticSearchClientSettingsManagerTests
+public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTestBase
 {
     private static IElasticsearchClientSettings GetSettings(ElasticSearchOptions options, string index)
     {
@@ -432,5 +435,224 @@ public class ElasticSearchClientSettingsManagerTests
         options.SharedIndexSettings!.AdditionalNodes.ShouldBe(["http://second:9200"]);
         options.Indexes["orders"].AdditionalNodes.ShouldBe(["http://orders:9200"]);
         manager.GetConnectionSettings(index).AdditionalNodes.ShouldNotBeEmpty();
+    }
+
+    protected override Func<object, X509Certificate, X509Chain, SslPolicyErrors, bool> FingerprintCallback(string fingerprint) =>
+        GetSettings(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings { ConnectionString = "https://shared:9200", CertificateFingerprint = fingerprint },
+        }, "people").ServerCertificateValidationCallback.ShouldNotBeNull();
+
+    [Fact]
+    public void CreateClientSettings_ApiKey_SendsTheKeyToTheConnectionString()
+    {
+        var settings = GetSettings(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                AuthenticationType = AuthenticationType.APIKEY,
+                AuthenticationDetails = new AuthenticationDetails { ApiKey = "a2V5" },
+            },
+        }, "people");
+
+        settings.NodePool.Nodes.Single().Uri.ShouldBe(new Uri("https://shared:9200"));
+        settings.Authentication.ShouldNotBeNull().AuthScheme.ShouldBe("ApiKey");
+        settings.Authentication.TryGetAuthorizationParameters(out var parameter).ShouldBeTrue();
+        parameter.ShouldBe("a2V5");
+    }
+
+    [Theory]
+    [InlineData(AuthenticationType.APIKEY)]
+    [InlineData(AuthenticationType.BEARER)]
+    public void CreateClientSettings_KeyOrTokenWithAdditionalNodes_UsesEveryNodeInTheChosenPool(AuthenticationType authenticationType)
+    {
+        var settings = GetSettings(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://first:9200",
+                AdditionalNodes = ["https://second:9200", "https://third:9200"],
+                PoolType = NodePoolType.Sticky,
+                AuthenticationType = authenticationType,
+                AuthenticationDetails = new AuthenticationDetails { ApiKey = "a2V5", Token = "dG9rZW4" },
+            },
+        }, "people");
+
+        settings.NodePool.ShouldBeOfType<StickyNodePool>();
+        NodeUris(settings).ShouldBe([new Uri("https://first:9200"), new Uri("https://second:9200"), new Uri("https://third:9200")]);
+        settings.Authentication.ShouldNotBeNull().AuthScheme.ShouldBe(authenticationType == AuthenticationType.APIKEY ? "ApiKey" : "Bearer");
+    }
+
+    [Theory]
+    [InlineData(AuthenticationType.APIKEY)]
+    [InlineData(AuthenticationType.BEARER)]
+    public void ValidateOnStart_KeyOrTokenWithAnInvalidAdditionalNode_FailsNamingTheNode(AuthenticationType authenticationType)
+    {
+        var failures = ElasticSearchClientSettingsManager.ConnectionFailures(new ElasticSearchIndexSettings
+        {
+            ConnectionString = "https://first:9200",
+            AdditionalNodes = ["second:9200"],
+            AuthenticationType = authenticationType,
+            AuthenticationDetails = new AuthenticationDetails { ApiKey = "a2V5", Token = "dG9rZW4" },
+        }, SettingSource.Unknown, SettingSource.Unknown);
+
+        failures.ShouldHaveSingleItem().ShouldStartWith("AdditionalNodes:0 is not an http or https URL.");
+    }
+
+    [Fact]
+    public void CreateClientSettings_Bearer_SendsTheToken()
+    {
+        var settings = GetSettings(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                AuthenticationType = AuthenticationType.BEARER,
+                AuthenticationDetails = new AuthenticationDetails { Token = "AAEAAWVsYXN0aWM" },
+            },
+        }, "people");
+
+        settings.Authentication.ShouldNotBeNull().AuthScheme.ShouldBe("Bearer");
+        settings.Authentication.TryGetAuthorizationParameters(out var parameter).ShouldBeTrue();
+        parameter.ShouldBe("AAEAAWVsYXN0aWM");
+    }
+
+    [Fact]
+    public void CreateClientSettings_CertificateFingerprint_ValidatesWithItsOwnCallbackInsteadOfTheTransports()
+    {
+        var settings = GetSettings(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                CertificateFingerprint = string.Join(":", Enumerable.Repeat("ab", 32)),
+            },
+        }, "people");
+
+        // The transport's own fingerprint check accepts any chain listing the fingerprint, even one whose signatures fail.
+        settings.CertificateFingerprint.ShouldBeNull();
+        settings.ServerCertificateValidationCallback.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void CreateClientSettings_SkippedCertificateValidation_AcceptsAnyCertificate()
+    {
+        var settings = GetSettings(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                DevelopmentOnlySkipCertificateValidation = true,
+            },
+        }, "people");
+
+        settings.ServerCertificateValidationCallback.ShouldBe(CertificateValidations.AllowAll);
+    }
+
+    [Fact]
+    public void CreateClientSettings_NoTlsSettings_KeepsTheSystemsValidation()
+    {
+        var settings = GetSettings(new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings { ConnectionString = "https://shared:9200" },
+        }, "people");
+
+        settings.CertificateFingerprint.ShouldBeNull();
+        settings.ServerCertificateValidationCallback.ShouldBeNull();
+    }
+
+    [Fact]
+    public void GetConnectionSettings_TlsSettings_ComeWithTheConnectionString()
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                CertificateFingerprint = new string('A', 64),
+            },
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings>
+            {
+                ["own"] = new() { ConnectionString = "https://own:9200", DevelopmentOnlySkipCertificateValidation = true },
+                ["inherits"] = new() { BulkBatchSize = 10, DevelopmentOnlySkipCertificateValidation = true },
+            },
+        };
+
+        var own = GetConnectionSettings(options, "own");
+        own.CertificateFingerprint.ShouldBeNull();
+        own.DevelopmentOnlySkipCertificateValidation.ShouldBe(true);
+        var inherits = GetConnectionSettings(options, "inherits");
+        inherits.CertificateFingerprint.ShouldBe(new string('A', 64));
+        inherits.DevelopmentOnlySkipCertificateValidation.ShouldBe(false);
+    }
+
+    [Theory]
+    [InlineData(AuthenticationType.CLOUD)]
+    [InlineData(AuthenticationType.CLOUDAPI)]
+    public void GetConnectionSettings_IndexWithItsOwnCloudId_KeepsItsOwnTlsSettings(AuthenticationType authenticationType)
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                DevelopmentOnlySkipCertificateValidation = true,
+            },
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings>
+            {
+                ["cloud"] = new()
+                {
+                    AuthenticationType = authenticationType,
+                    AuthenticationDetails = new AuthenticationDetails { Id = "name:ZXhhbXBsZS5lcy5pbyRhYmMkZGVm", Username = "elastic", Password = "secret", ApiKey = "key" },
+                },
+            },
+        };
+
+        var cloud = GetConnectionSettings(options, "cloud");
+
+        cloud.DevelopmentOnlySkipCertificateValidation.ShouldBe(false);
+        GetSettings(options, "cloud").ServerCertificateValidationCallback.ShouldBeNull();
+        GetConnectionSettings(options, "people").DevelopmentOnlySkipCertificateValidation.ShouldBe(true);
+    }
+
+    [Fact]
+    public void ClientKey_ToString_LeavesOutTheTokenAndApiKey()
+    {
+        var key = ElasticsearchClientFactory.ClientKey.From(new ElasticSearchIndexSettings
+        {
+            ConnectionString = "https://shared:9200",
+            AuthenticationType = AuthenticationType.BEARER,
+            AuthenticationDetails = new AuthenticationDetails { Token = "s3cret-token", ApiKey = "s3cret-key" },
+        });
+
+        var text = key.ToString();
+
+        text.ShouldContain("BEARER");
+        text.ShouldNotContain("s3cret");
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_TokenChanges_UsesNewToken()
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                AuthenticationType = AuthenticationType.BEARER,
+                AuthenticationDetails = new AuthenticationDetails { Token = "old" },
+            },
+        };
+        var monitor = new TestOptionsMonitor<ElasticSearchOptions>(options);
+        var factory = new ElasticsearchClientFactory(new ElasticSearchClientSettingsManager(monitor));
+        var before = await factory.GetOrCreateClientAsync("people");
+
+        options.SharedIndexSettings.AuthenticationDetails = new AuthenticationDetails { Token = "new" };
+        var after = await factory.GetOrCreateClientAsync("people");
+
+        after.ShouldNotBeSameAs(before);
+        after.ElasticsearchClientSettings.Authentication!.TryGetAuthorizationParameters(out var parameter).ShouldBeTrue();
+        parameter.ShouldBe("new");
     }
 }

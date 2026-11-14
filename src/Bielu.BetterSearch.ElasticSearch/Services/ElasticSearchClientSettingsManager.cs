@@ -31,7 +31,7 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     /// <summary>
     /// Builds a new settings object, leaving the live options untouched: the index's connection string,
     /// authentication and pool type win, and an index without its own takes the shared one. The additional nodes go with
-    /// the connection string: an index with its own connection string uses only its own nodes. Mappings are the shared ones with the
+    /// the connection string: an index with its own connection string uses only its own nodes. The TLS settings come from where the endpoint does: the index's own when it sets a connection string or cloud authentication, else the shared ones. Mappings are the shared ones with the
     /// index's own on top, the bulk batch size is the index's own or else the shared one, the index's write visibility wins over the shared one, and so do its request timeout and retry count.
     /// </summary>
     internal static ElasticSearchIndexSettings MergeSettings(ElasticSearchIndexSettings indexSpecific,
@@ -39,12 +39,16 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     {
         var ownAuthentication = indexSpecific.AuthenticationType is not null;
         var ownConnection = !string.IsNullOrWhiteSpace(indexSpecific.ConnectionString);
+        // The TLS settings belong to the server, so they come with the endpoint: the connection string, or the cloud id.
+        var tls = HasOwnEndpoint(indexSpecific) ? indexSpecific : shared;
         return new ElasticSearchIndexSettings
         {
             ConnectionString = ownConnection ? indexSpecific.ConnectionString : shared.ConnectionString,
             // A copy, so a change to the returned list leaves the options, and every other index's nodes, untouched.
             AdditionalNodes = (ownConnection ? indexSpecific.AdditionalNodes : indexSpecific.AdditionalNodes ?? shared.AdditionalNodes)?.ToList(),
             PoolType = indexSpecific.PoolType ?? shared.PoolType,
+            CertificateFingerprint = tls.CertificateFingerprint,
+            DevelopmentOnlySkipCertificateValidation = tls.DevelopmentOnlySkipCertificateValidation ?? false,
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
                                  ?? AuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
@@ -55,6 +59,14 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
             MaxRetries = indexSpecific.MaxRetries ?? shared.MaxRetries,
         };
     }
+
+    /// <summary>
+    /// Whether <paramref name="settings"/> name a server of their own: a connection string, or <c>CLOUD</c> or
+    /// <c>CLOUDAPI</c> authentication, which connects by its cloud id. Only then do they use their own TLS settings.
+    /// </summary>
+    internal static bool HasOwnEndpoint(ElasticSearchIndexSettings settings) =>
+        !string.IsNullOrWhiteSpace(settings.ConnectionString) ||
+        settings.AuthenticationType is AuthenticationType.CLOUD or AuthenticationType.CLOUDAPI;
 
     /// <summary>
     /// The connection setting failures of <paramref name="settings"/>, already merged, each naming the setting to fix.
@@ -92,9 +104,27 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
                 ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(AuthenticationDetails.Id), details?.Id), (nameof(AuthenticationDetails.ApiKey), details?.ApiKey)),
             ],
+            AuthenticationType.APIKEY =>
+            [
+                .. NodeFailures(settings, connection, nodes ?? connection, pool ?? connection),
+                ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
+                    (nameof(AuthenticationDetails.ApiKey), details?.ApiKey)),
+            ],
+            AuthenticationType.BEARER =>
+            [
+                .. NodeFailures(settings, connection, nodes ?? connection, pool ?? connection),
+                ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
+                    (nameof(AuthenticationDetails.Token), details?.Token)),
+            ],
             _ => [ConnectionSettingsChecks.UnknownAuthenticationTypeFailure(key, authentication, settings.AuthenticationType)],
         };
-        return failures.OfType<string>();
+        // The TLS settings go with the endpoint, so an entry sets them itself when it has its own connection string or cloud id.
+        var tls = connection with
+        {
+            Inherited = connection.Inherited && (authentication.Inherited || authenticationType is not (AuthenticationType.CLOUD or AuthenticationType.CLOUDAPI)),
+        };
+        return failures.OfType<string>()
+            .Concat(ConnectionSettingsChecks.TlsFailures(key, tls, settings.CertificateFingerprint, settings.DevelopmentOnlySkipCertificateValidation));
     }
 
     private static IEnumerable<string> NodeFailures(ElasticSearchIndexSettings settings, SettingSource connection, SettingSource nodes, SettingSource pool) =>
@@ -125,14 +155,30 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     private static ElasticsearchClientSettings ConnectedSettings(ElasticSearchIndexSettings settings)
     {
         var details = settings.AuthenticationDetails!;
-        return (settings.AuthenticationType ?? AuthenticationType.NONE) switch
+        var clientSettings = (settings.AuthenticationType ?? AuthenticationType.NONE) switch
         {
             AuthenticationType.PASSWORD => new ElasticsearchClientSettings(CreateNodePool(settings))
                 .Authentication(new BasicAuthentication(details.Username, details.Password)),
             AuthenticationType.CLOUD => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new BasicAuthentication(details.Username, details.Password))),
             AuthenticationType.CLOUDAPI => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new ApiKey(details.ApiKey))),
+            AuthenticationType.APIKEY => new ElasticsearchClientSettings(CreateNodePool(settings))
+                .Authentication(new ApiKey(details.ApiKey)),
+            AuthenticationType.BEARER => new ElasticsearchClientSettings(CreateNodePool(settings))
+                .Authentication(new BearerToken(details.Token!)),
             _ => new ElasticsearchClientSettings(CreateNodePool(settings)),
         };
+        if (!string.IsNullOrWhiteSpace(settings.CertificateFingerprint))
+        {
+            // Not the transport's own CertificateFingerprint: it accepts any chain that lists the fingerprint, whatever the
+            // chain errors, so a forged leaf sent with the public CA certificate passes.
+            clientSettings.ServerCertificateValidationCallback(CertificateFingerprints.Validator(settings.CertificateFingerprint));
+        }
+        else if (settings.DevelopmentOnlySkipCertificateValidation == true)
+        {
+            clientSettings.ServerCertificateValidationCallback(CertificateValidations.AllowAll);
+        }
+
+        return clientSettings;
     }
 
     /// <summary>
@@ -150,5 +196,17 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
             NodePoolType.Sniffing => new SniffingNodePool(nodes),
             _ => throw new ArgumentOutOfRangeException(nameof(settings), settings.PoolType, "Unknown pool type."),
         };
+    }
+
+    /// <summary>Sends <c>Authorization: Bearer &lt;token&gt;</c>, which the transport has no type for.</summary>
+    private sealed class BearerToken(string token) : AuthorizationHeader
+    {
+        public override string AuthScheme => "Bearer";
+
+        public override bool TryGetAuthorizationParameters(out string parameter)
+        {
+            parameter = token;
+            return true;
+        }
     }
 }

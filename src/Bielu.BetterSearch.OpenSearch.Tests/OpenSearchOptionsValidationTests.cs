@@ -11,7 +11,7 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.OpenSearch.Tests;
 
-public class OpenSearchOptionsValidationTests : OptionsValidationTestBase
+public class OpenSearchOptionsValidationTests : TlsOptionsValidationTestBase
 {
     private const string Key = "Bielu:BetterSearch:OpenSearch";
 

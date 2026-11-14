@@ -18,6 +18,8 @@ public class Startup
         // start the server themselves when it is not running yet.
         services.AddSingleton<ElasticsearchResource>();
         services.AddHostedService(sp => sp.GetRequiredService<ElasticsearchResource>());
+        services.AddSingleton<SecuredElasticsearchResource>();
+        services.AddHostedService(sp => sp.GetRequiredService<SecuredElasticsearchResource>());
         services.AddOptions<ElasticSearchOptions>()
             .Configure<ElasticsearchResource>((options, elasticsearch) =>
                 options.SharedIndexSettings = new ElasticSearchIndexSettings
