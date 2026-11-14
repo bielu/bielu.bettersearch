@@ -58,13 +58,35 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddElas
 |---------|---------|
 | `SharedIndexSettings` | Connection used for every index without its own connection string |
 | `ConnectionString` | Cluster URL, an absolute `http` or `https` URL such as `http://localhost:9200`. `CLOUD` and `CLOUDAPI` connect by the cloud id and don't need it |
-| `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`), `CLOUD` (Elastic Cloud: the cloud id in `Id`, with `Username` and `Password`) or `CLOUDAPI` (the cloud id in `Id`, with an `ApiKey`) |
-| `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people` |
+| `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`), `APIKEY` (an API key in `ApiKey`, the `encoded` value that creating the key returns, sent as `Authorization: ApiKey <key>` to `ConnectionString`), `BEARER` (a token in `Token`, such as a service account token, sent as `Authorization: Bearer <token>` to `ConnectionString`), `CLOUD` (Elastic Cloud: the cloud id in `Id`, with `Username` and `Password`) or `CLOUDAPI` (the cloud id in `Id`, with an `ApiKey`) |
+| `CertificateFingerprint` | The SHA-256 fingerprint of the server's certificate or of the CA that signed it, 64 hex digits with or without colons, such as the fingerprint of the `http_ca.crt` Elasticsearch 8 and later generate on first start. A certificate the system does not trust is then accepted when it has this fingerprint, or chains through valid signatures to a CA that has it, whatever host name it names; one the system trusts is accepted as before. Can't be set together with `DevelopmentOnlySkipCertificateValidation` |
+| `DevelopmentOnlySkipCertificateValidation` | `true` accepts any server certificate, so anyone between the application and the cluster can read and change the traffic, credentials included. Only for a local development cluster. A certificate the system trusts needs neither TLS setting; set `CertificateFingerprint` only for one it does not, such as a self-signed CA |
+| `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people`. The TLS settings go with the endpoint: an entry with its own `ConnectionString`, or with its own `CLOUD` or `CLOUDAPI` authentication, which connects by its cloud id, uses only its own `CertificateFingerprint` and `DevelopmentOnlySkipCertificateValidation`, and one without takes the shared ones; setting either on an entry with neither fails validation |
 | `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
 | `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` sends in one bulk request, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails |
 | `WriteVisibility` | `Default` or `WaitUntilSearchable`, in `SharedIndexSettings` or an `Indexes` entry; see [When writes are searchable](#when-writes-are-searchable). An entry that leaves it out takes the shared value, and `"WriteVisibility": "Default"` there turns the shared one off |
 | `IndexPrefix` | Put before every index name sent to the server, so applications or environments can share a cluster: with `app-`, the index `people` is `app-people` on the server. Indexing, search, `GetDocumentAsync`, `CountAsync`, `UpdateDocumentAsync`, removal, the index checks, `DeleteIndexAsync` and rebuilds all add it, and you keep using `people`. Lower case only, without `\ / * ? " < > \| , # :` or spaces, and not starting with `-`, `_` or `+`; startup validation fails otherwise, naming `IndexPrefix` |
 | `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. A page past it returns a failed `Result`. It must be greater than 0, or startup validation fails |
+
+A self-managed cluster with security on, such as a default Elasticsearch 8 or later install, serves HTTPS with a
+certificate signed by a CA it generated. Give its fingerprint, which Elasticsearch prints on first start, with an API key:
+
+```json
+{
+  "Bielu": {
+    "BetterSearch": {
+      "ElasticSearch": {
+        "SharedIndexSettings": {
+          "ConnectionString": "https://localhost:9200",
+          "AuthenticationType": "APIKEY",
+          "AuthenticationDetails": { "ApiKey": "<the encoded value>" },
+          "CertificateFingerprint": "<the SHA-256 fingerprint of http_ca.crt>"
+        }
+      }
+    }
+  }
+}
+```
 
 You can also set the options in code with `services.Configure<ElasticSearchOptions>(...)`.
 
@@ -75,7 +97,7 @@ string and authentication are checked as each call checks them, after merging ea
 Bielu:BetterSearch:ElasticSearch:Indexes:people:ConnectionString.` A failure for an `Indexes` entry names only the setting that changes its value: the entry's own path when it sets the value, and the `SharedIndexSettings` path when it inherits it, as an entry takes the authentication details only with its own `AuthenticationType`.
 Connection messages never include the connection string or a credential; the other messages show the rejected value, such as `MaxResultWindow is 0`. A missing section, or one whose name is misspelled, gives the single
 failure `No Bielu:BetterSearch:ElasticSearch settings were found.`, naming the section. The shared settings are not checked on their own when they set
-no connection string and every `Indexes` entry sets its own connection: shared authentication is then checked with each index that inherits it, and an index not listed fails when it is used. `MaxResultWindow` must be greater than 0. The same
+no connection string and every `Indexes` entry sets its own connection: shared authentication is then checked with each index that inherits it, and an index not listed fails when it is used. `CertificateFingerprint` must be 64 hex digits, with or without colons, and can't be set together with `DevelopmentOnlySkipCertificateValidation`. `MaxResultWindow` must be greater than 0. The same
 checks run whenever the options are read, so after a configuration reload to invalid settings, every call returns a
 failed `Result` with the same messages.
 

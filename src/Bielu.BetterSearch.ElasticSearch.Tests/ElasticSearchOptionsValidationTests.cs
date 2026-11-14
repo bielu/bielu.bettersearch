@@ -11,7 +11,7 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
 
-public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
+public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
 {
     private const string Key = "Bielu:BetterSearch:ElasticSearch";
 
@@ -216,6 +216,22 @@ public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
         ]);
     }
 
+    [Theory]
+    [InlineData("APIKEY", "ApiKey")]
+    [InlineData("BEARER", "Token")]
+    public void ValidateOnStart_ApiKeyOrBearerWithoutConnectionString_FailsNamingConnectionString(string authenticationType, string detail)
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:AuthenticationType"] = authenticationType,
+            [$"SharedIndexSettings:AuthenticationDetails:{detail}"] = "s3cret",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"ConnectionString is missing. Set {Key}:SharedIndexSettings:ConnectionString, or {Key}:Indexes:<index>:ConnectionString for one index."
+        ]);
+    }
+
     [Fact]
     public void ValidateOnStart_CloudWithoutConnectionString_Passes()
     {
@@ -229,6 +245,37 @@ public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
     }
 
     [Fact]
+    public void ValidateOnStart_TlsSettingOnACloudIndexEntry_Passes()
+    {
+        ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "https://shared:9200",
+            ["SharedIndexSettings:DevelopmentOnlySkipCertificateValidation"] = "true",
+            ["Indexes:people:AuthenticationType"] = "CLOUDAPI",
+            ["Indexes:people:AuthenticationDetails:Id"] = "name:abc",
+            ["Indexes:people:AuthenticationDetails:ApiKey"] = "key",
+            ["Indexes:people:DevelopmentOnlySkipCertificateValidation"] = "false",
+        }).ShouldBeNull();
+    }
+
+    [Fact]
+    public void ValidateOnStart_CertificateFingerprintNotSha256OnACloudIndexEntry_FailsNamingTheIndexSetting()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "https://shared:9200",
+            ["Indexes:people:AuthenticationType"] = "CLOUDAPI",
+            ["Indexes:people:AuthenticationDetails:Id"] = "name:abc",
+            ["Indexes:people:AuthenticationDetails:ApiKey"] = "key",
+            ["Indexes:people:CertificateFingerprint"] = "8F:3A:0C",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"CertificateFingerprint is not a SHA-256 fingerprint: it needs 64 hex digits, with or without colons. Set {Key}:Indexes:people:CertificateFingerprint."
+        ]);
+    }
+
+    [Fact]
     public void ValidateOnStart_UnknownAuthenticationType_FailsListingTheTypes()
     {
         var failure = ValidateOnStart(new Dictionary<string, string?>
@@ -238,7 +285,7 @@ public class ElasticSearchOptionsValidationTests : OptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"AuthenticationType 7 is not one of NONE, CLOUD, CLOUDAPI, PASSWORD. Set {Key}:SharedIndexSettings:AuthenticationType, or {Key}:Indexes:<index>:AuthenticationType for one index."
+            $"AuthenticationType 7 is not one of NONE, CLOUD, CLOUDAPI, PASSWORD, APIKEY, BEARER. Set {Key}:SharedIndexSettings:AuthenticationType, or {Key}:Indexes:<index>:AuthenticationType for one index."
         ]);
     }
 

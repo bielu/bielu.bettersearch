@@ -19,6 +19,10 @@ public sealed class ElasticSearchInvalidSettingsSearchTests : InvalidSettingsSea
     [InlineData("CLOUD", "Id", "name:abc", "CLOUD authentication needs AuthenticationDetails:Username and AuthenticationDetails:Password.", "AuthenticationDetails:Username")]
     [InlineData("CLOUDAPI", null, null, "CLOUDAPI authentication needs AuthenticationDetails.", "AuthenticationDetails")]
     [InlineData("CLOUDAPI", "Id", "name:abc", "CLOUDAPI authentication needs AuthenticationDetails:ApiKey.", "AuthenticationDetails:ApiKey")]
+    [InlineData("APIKEY", null, null, "APIKEY authentication needs AuthenticationDetails.", "AuthenticationDetails")]
+    [InlineData("APIKEY", "Id", "abc", "APIKEY authentication needs AuthenticationDetails:ApiKey.", "AuthenticationDetails:ApiKey")]
+    [InlineData("BEARER", null, null, "BEARER authentication needs AuthenticationDetails.", "AuthenticationDetails")]
+    [InlineData("BEARER", "ApiKey", "abc", "BEARER authentication needs AuthenticationDetails:Token.", "AuthenticationDetails:Token")]
     public async Task SearchAsync_AuthenticationWithoutCredentials_ReturnsFailedResultNamingTheSetting(
         string authenticationType, string? detail, string? value, string expected, string setting)
     {

@@ -33,7 +33,10 @@ public class ElasticsearchClientFactory(IElasticSearchClientSettingsManager sear
         string? Id,
         string? Username,
         string? Password,
-        string? ApiKey)
+        string? ApiKey,
+        string? Token,
+        string? CertificateFingerprint,
+        bool? DevelopmentOnlySkipCertificateValidation)
     {
         public static ClientKey From(ElasticSearchIndexSettings settings) => new(
             settings.ConnectionString,
@@ -41,7 +44,10 @@ public class ElasticsearchClientFactory(IElasticSearchClientSettingsManager sear
             settings.AuthenticationDetails?.Id,
             settings.AuthenticationDetails?.Username,
             settings.AuthenticationDetails?.Password,
-            settings.AuthenticationDetails?.ApiKey);
+            settings.AuthenticationDetails?.ApiKey,
+            settings.AuthenticationDetails?.Token,
+            settings.CertificateFingerprint,
+            settings.DevelopmentOnlySkipCertificateValidation);
 
         // The generated ToString prints every member; keep the credentials out of logs and exception messages.
         public override string ToString() =>

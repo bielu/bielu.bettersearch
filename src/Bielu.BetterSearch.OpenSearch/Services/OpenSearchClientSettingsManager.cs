@@ -27,18 +27,21 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
 
     /// <summary>
     /// Builds a new settings object, leaving the live options untouched: the index's connection string and
-    /// authentication win, and an index without its own takes the shared one. Mappings are the shared ones with the
+    /// authentication win, and an index without its own takes the shared one. The TLS settings come from where the
+    /// connection string does. Mappings are the shared ones with the
     /// index's own on top, the bulk batch size is the index's own or else the shared one, and the index's write visibility wins over the shared one.
     /// </summary>
     internal static OpenSearchIndexSettings MergeSettings(OpenSearchIndexSettings indexSpecific,
         OpenSearchIndexSettings shared)
     {
         var ownAuthentication = indexSpecific.AuthenticationType is not null;
+        // The TLS settings belong to the server, so they come with the connection string.
+        var connection = string.IsNullOrWhiteSpace(indexSpecific.ConnectionString) ? shared : indexSpecific;
         return new OpenSearchIndexSettings
         {
-            ConnectionString = string.IsNullOrWhiteSpace(indexSpecific.ConnectionString)
-                ? shared.ConnectionString
-                : indexSpecific.ConnectionString,
+            ConnectionString = connection?.ConnectionString ?? string.Empty,
+            CertificateFingerprint = connection?.CertificateFingerprint,
+            DevelopmentOnlySkipCertificateValidation = connection?.DevelopmentOnlySkipCertificateValidation ?? false,
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
                                  ?? OpenSearchAuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
@@ -75,7 +78,8 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
                 _ => ConnectionSettingsChecks.UnknownAuthenticationTypeFailure(key, authentication, settings.AuthenticationType),
             },
         ];
-        return failures.OfType<string>();
+        return failures.OfType<string>()
+            .Concat(ConnectionSettingsChecks.TlsFailures(key, connection, settings.CertificateFingerprint, settings.DevelopmentOnlySkipCertificateValidation));
     }
 
     public ConnectionSettings CreateClientSettings(OpenSearchIndexSettings settings)
@@ -92,6 +96,15 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
                 // OpenSearch API keys are sent as they are, "Authorization: ApiKey <token>", not encoded with an id.
                 connectionSettings.ApiKeyAuthentication(new ApiKeyAuthenticationCredentials(details.ApiKey));
                 break;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.CertificateFingerprint))
+        {
+            connectionSettings.ServerCertificateValidationCallback(CertificateFingerprints.Validator(settings.CertificateFingerprint));
+        }
+        else if (settings.DevelopmentOnlySkipCertificateValidation == true)
+        {
+            connectionSettings.ServerCertificateValidationCallback(CertificateValidations.AllowAll);
         }
 
         return connectionSettings;

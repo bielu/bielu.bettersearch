@@ -1,4 +1,7 @@
-﻿using Bielu.BetterSearch.Abstractions.Configuration;
+﻿using System.Net.Security;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Services;
 using Bielu.BetterSearch.Tests;
@@ -8,8 +11,14 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.OpenSearch.Tests;
 
-public class OpenSearchClientSettingsManagerTests
+public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBase
 {
+    protected override Func<object, X509Certificate, X509Chain, SslPolicyErrors, bool> FingerprintCallback(string fingerprint) =>
+        GetSettings(new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings { ConnectionString = "https://shared:9200", CertificateFingerprint = fingerprint },
+        }).ServerCertificateValidationCallback.ShouldNotBeNull();
+
     private static OpenSearchClientSettingsManager CreateManager(OpenSearchOptions options) =>
         new(new TestOptionsMonitor<OpenSearchOptions>(options));
 
@@ -397,4 +406,54 @@ public class OpenSearchClientSettingsManagerTests
     [InlineData("app-", "people", "app-people")]
     public void GetIndexName_Prefix_IsPutBeforeTheName(string? prefix, string index, string expected) =>
         CreateManager(new OpenSearchOptions { IndexPrefix = prefix }).GetIndexName(index).ShouldBe(expected);
+
+    [Fact]
+    public void CreateClientSettings_SkippedCertificateValidation_AcceptsAnyCertificate()
+    {
+        var settings = GetSettings(new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                DevelopmentOnlySkipCertificateValidation = true,
+            },
+        });
+
+        settings.ServerCertificateValidationCallback.ShouldBe(CertificateValidations.AllowAll);
+    }
+
+    [Fact]
+    public void CreateClientSettings_NoTlsSettings_KeepsTheSystemsValidation()
+    {
+        GetSettings(new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings { ConnectionString = "https://shared:9200" },
+        }).ServerCertificateValidationCallback.ShouldBeNull();
+    }
+
+    [Fact]
+    public void GetConnectionSettings_TlsSettings_ComeWithTheConnectionString()
+    {
+        var options = new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings
+            {
+                ConnectionString = "https://shared:9200",
+                CertificateFingerprint = new string('A', 64),
+            },
+            Indexes = new Dictionary<string, OpenSearchIndexSettings>
+            {
+                ["own"] = new() { ConnectionString = "https://own:9200", DevelopmentOnlySkipCertificateValidation = true },
+                ["inherits"] = new() { BulkBatchSize = 10, DevelopmentOnlySkipCertificateValidation = true },
+            },
+        };
+        var manager = CreateManager(options);
+
+        var own = manager.GetConnectionSettings("own");
+        own.CertificateFingerprint.ShouldBeNull();
+        own.DevelopmentOnlySkipCertificateValidation.ShouldBe(true);
+        var inherits = manager.GetConnectionSettings("inherits");
+        inherits.CertificateFingerprint.ShouldBe(new string('A', 64));
+        inherits.DevelopmentOnlySkipCertificateValidation.ShouldBe(false);
+    }
 }

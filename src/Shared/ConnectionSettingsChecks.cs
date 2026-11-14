@@ -56,6 +56,55 @@ internal static class ConnectionSettingsChecks
     public static string UnknownAuthenticationTypeFailure<TEnum>(string optionsKey, SettingSource source, TEnum? authenticationType) where TEnum : struct, Enum =>
         $"AuthenticationType {authenticationType} is not one of {string.Join(", ", Enum.GetNames<TEnum>())}. {Where(optionsKey, source, "AuthenticationType")}";
 
+    /// <summary>
+    /// Failures in the TLS settings: a <paramref name="certificateFingerprint"/> that is not a SHA-256 fingerprint, 64 hex
+    /// digits with or without colons, or one set together with <paramref name="skipCertificateValidation"/>.
+    /// </summary>
+    public static IEnumerable<string> TlsFailures(string optionsKey, SettingSource source, string? certificateFingerprint, bool? skipCertificateValidation)
+    {
+        if (string.IsNullOrWhiteSpace(certificateFingerprint))
+        {
+            yield break;
+        }
+
+        if (NormalizeFingerprint(certificateFingerprint) is null)
+        {
+            yield return $"CertificateFingerprint is not a SHA-256 fingerprint: it needs 64 hex digits, with or without colons. {Where(optionsKey, source, "CertificateFingerprint")}";
+        }
+
+        if (skipCertificateValidation == true)
+        {
+            yield return $"CertificateFingerprint and DevelopmentOnlySkipCertificateValidation can't both be set: a skipped validation never checks the fingerprint. Remove one. {Where(optionsKey, source, "DevelopmentOnlySkipCertificateValidation")}";
+        }
+    }
+
+    /// <summary>
+    /// A failure when the <c>Indexes</c> entry <paramref name="index"/> sets a TLS setting without its own connection
+    /// string: the TLS settings go with the connection string, so the entry would use the shared ones and ignore its own.
+    /// </summary>
+    public static string? TlsWithoutConnectionStringFailure(string optionsKey, string index, string? connectionString,
+        string? certificateFingerprint, bool? skipCertificateValidation)
+    {
+        if (!string.IsNullOrWhiteSpace(connectionString))
+        {
+            return null;
+        }
+
+        var setting = !string.IsNullOrWhiteSpace(certificateFingerprint) ? "CertificateFingerprint"
+            : skipCertificateValidation is not null ? "DevelopmentOnlySkipCertificateValidation"
+            : null;
+        return setting is null
+            ? null
+            : $"{optionsKey}:Indexes:{index}:{setting} only applies with the index's own ConnectionString; without one, the index uses the shared server and its TLS settings. Set {optionsKey}:Indexes:{index}:ConnectionString, or set {setting} in {optionsKey}:SharedIndexSettings.";
+    }
+
+    /// <summary>The fingerprint as 64 upper case hex digits without colons, or <c>null</c> when it is not a SHA-256 fingerprint.</summary>
+    public static string? NormalizeFingerprint(string fingerprint)
+    {
+        var hex = fingerprint.Trim().Replace(":", string.Empty, StringComparison.Ordinal).ToUpperInvariant();
+        return hex.Length == 64 && hex.All(Uri.IsHexDigit) ? hex : null;
+    }
+
     /// <summary>A failure when the limit at <paramref name="path"/>, such as <c>Bielu:BetterSearch:OpenSearch:MaxResultWindow</c>, is not greater than 0.</summary>
     public static string? GreaterThanZeroFailure(string path, long value) =>
         value > 0 ? null : $"{path} is {value}, but it must be greater than 0.";
