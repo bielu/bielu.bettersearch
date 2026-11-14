@@ -24,7 +24,6 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Lifti query | `Field` is ignored: `Name=jane` also matches `City=Jane` | Only that field |
 | Lifti index | `CreateIndexAsync` on an existing index silently wipes its documents | An error or a no-op |
 | Lifti search | Searching a missing index creates it and returns no hits | A failed `Result`, as on the other providers, without creating the index |
-| Core | `RemoveAllDocumentsAsync` reports 0 removed, whatever the real count | The count |
 | Core | `IndexMultipleDocumentsAsync` indexes one at a time, so the provider bulk path is never used (*by inspection*) | Bulk indexing |
 | Core | `SearchApplicationConfiguration.CurrentInstance` is a process-wide mutable singleton shared by every `AddBetterSearch` call (*by inspection*) | Per-container configuration |
 | Core | Services are registered twice, once by the provider and once by `AddBetterSearch` | Once |

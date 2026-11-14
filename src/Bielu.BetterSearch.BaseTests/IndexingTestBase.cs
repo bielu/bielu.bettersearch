@@ -684,6 +684,29 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
     }
 
     [Fact]
+    public async Task RemoveAllDocumentsAsync_IndexWithDocuments_ReturnsTheRemovedCount()
+    {
+        //Arrange
+        var index = $"remove-all-{Guid.NewGuid():N}";
+        try
+        {
+            await IndexIdsAsync(index, "1", "2", "3");
+
+            //Act
+            var result = await serviceAsync.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = index, }, Token);
+
+            //Assert
+            result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+            result.Value.ShouldBe(3);
+            (await CountDocumentsAsync(index)).ShouldBe(0);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+
+    [Fact]
     public async Task RemoveAllDocumentsAsync_Subscribed_SendsOnNextAndKeepsStreamOpen()
     {
         //Arrange
