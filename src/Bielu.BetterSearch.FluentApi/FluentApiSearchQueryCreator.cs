@@ -7,7 +7,7 @@ public class FluentApiSearchQueryCreator(ISearchQuery baseQuery) : IFluentApiSea
 {
     public FluentApiSearchQueryCreator WithSearchQuery(Action<QueryCreatorConfigurator> configurator)
     {
-        var query = new QueryCreatorConfigurator(new SearchQuery());
+        var query = new QueryCreatorConfigurator(baseQuery);
         configurator.Invoke(query);
         baseQuery = query.Query;
         return this;

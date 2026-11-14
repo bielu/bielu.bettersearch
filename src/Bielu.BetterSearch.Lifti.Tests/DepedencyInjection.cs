@@ -13,6 +13,8 @@ public class DepedencyInjection(IServiceProvider collection) : DepedenyInjection
 {
     protected override void AddProvider(Configurator search) => search.AddLiftiSearch();
 
+    protected override void AddProvider(Configurator search, string key) => search.AddLiftiSearch(key);
+
     [Fact]
     public void LiftiIndexManagerShouldBeRegistered() => ServiceShouldBeRegistered(typeof(ILiftiIndexManager));
 
