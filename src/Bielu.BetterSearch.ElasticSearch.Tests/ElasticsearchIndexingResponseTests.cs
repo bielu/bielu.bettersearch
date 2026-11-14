@@ -172,6 +172,51 @@ public sealed class ElasticsearchIndexingResponseTests
         message.ShouldBe("Elasticsearch bulk delete failed with HTTP 403 (security_exception): no permissions");
     }
 
+    private const string DeletedTwo = """{"took":5,"timed_out":false,"total":2,"deleted":2,"batches":1,"version_conflicts":0,"noops":0,"failures":[]}""";
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_RefreshForbidden_ReturnsTheRefreshFailureWithoutDeleting()
+    {
+        var invoker = new SequenceRequestInvoker(
+            Invoker("""{"error":{"type":"security_exception","reason":"no permissions for [indices:admin/refresh]"},"status":403}""", 403),
+            Invoker(DeletedTwo, 200));
+        var provider = Provider(invoker);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("Elasticsearch refresh of index people before removing all documents failed with HTTP 403 (security_exception): no permissions for [indices:admin/refresh]");
+        invoker.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_RefreshFailsOnAShard_ReturnsFailureWithoutDeleting()
+    {
+        var invoker = new SequenceRequestInvoker(
+            Invoker("""{"_shards":{"total":2,"successful":1,"failed":1}}""", 200),
+            Invoker(DeletedTwo, 200));
+        var provider = Provider(invoker);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("Refreshing index people before removing all documents failed on 1 of 2 shards, so no documents were removed.");
+        invoker.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_Refreshed_ReturnsTheDeletedCount()
+    {
+        var invoker = new SequenceRequestInvoker(
+            Invoker("""{"_shards":{"total":2,"successful":1,"failed":0}}""", 200),
+            Invoker(DeletedTwo, 200));
+        var provider = Provider(invoker);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(2);
+        invoker.Requests.ShouldBe(2);
+    }
+
     [Theory]
     [InlineData(200, true)]
     [InlineData(404, false)]

@@ -96,6 +96,19 @@ public class ElasticSearchIndexingProviderAsync(
         CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync<long?>(index.IndexName, async client =>
         {
+            // Delete by query selects only the documents that are searchable when it starts, so refresh first to
+            // include every acknowledged write, whatever the write visibility.
+            var refreshed = await client.Indices.RefreshAsync(new RefreshRequest(Indices.Index(index.IndexName)), cancellationToken).ConfigureAwait(false);
+            if (!refreshed.IsSuccess())
+            {
+                return Result.Fail<long?>(RequestFailed(ElasticSearchFailures.Describe($"refresh of index {index.IndexName} before removing all documents", refreshed), refreshed.ApiCallDetails?.OriginalException));
+            }
+
+            if (refreshed.Shards?.Failed > 0)
+            {
+                return Result.Fail<long?>(RefreshShardsFailed(index.IndexName, refreshed.Shards.Failed, refreshed.Shards.Total));
+            }
+
             var request = new DeleteByQueryRequest(Indices.Index(index.IndexName));
             request.Query = new MatchAllQuery();
             // Delete by query can't wait for a refresh, so it refreshes the index itself.
@@ -222,6 +235,9 @@ public class ElasticSearchIndexingProviderAsync(
 
     private static string NotAcknowledged(string index) =>
         $"Adding the configured mappings to index {index} was not acknowledged in time. The mappings are not rolled back and may still apply; call EnsureIndexExistsAsync again to confirm them.";
+
+    private static string RefreshShardsFailed(string index, long failed, long total) =>
+        $"Refreshing index {index} before removing all documents failed on {failed} of {total} shards, so no documents were removed.";
 
     private static Error RequestFailed(string message, Exception? exception)
     {
