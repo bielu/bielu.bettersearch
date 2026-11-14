@@ -37,8 +37,9 @@ public class TypesenseOptions
 
     /// <summary>
     /// How long a collection's list of fields, read by a search, is trusted before a search reads it again. A query on
-    /// a field the list does not hold reads it again at once, so a field added by a recent write is never missed; this
-    /// only bounds how often an unchanged collection is read. <c>TimeSpan.Zero</c> reads it on every search.
+    /// a field the list does not hold reads it again once the list is a second old, and a write through this provider
+    /// makes the next search read it, so a field added by a write is missed for at most a second, and only when another
+    /// process wrote it. <c>TimeSpan.Zero</c> reads it on every search.
     /// </summary>
     public TimeSpan SchemaCheckInterval { get; set; } = TimeSpan.FromSeconds(5);
 

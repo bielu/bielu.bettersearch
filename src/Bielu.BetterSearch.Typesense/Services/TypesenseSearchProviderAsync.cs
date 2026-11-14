@@ -140,25 +140,15 @@ public sealed class TypesenseSearchProviderAsync(
                     search["filter_by"] = filterBy;
                 }
 
-                var sortBy = new List<string>();
-                foreach (var (name, desc) in sortFields)
+                var sortBy = SortBy(sortFields, known);
+                if (sortBy.IsFailed)
                 {
-                    if (N.SortPrefixes.FirstOrDefault(prefix => known.Contains(prefix + name)) is { } prefix)
-                    {
-                        sortBy.Add($"{prefix}{name}:{(desc ? "desc" : "asc")}");
-                    }
-                    else if (N.ValuePrefixes.Any(valuePrefix => known.Contains(valuePrefix + name)))
-                    {
-                        return Result.Fail<ISearchResult>(
-                            $"SortOrder field '{name}' holds several values, or booleans, in every document: Typesense sorts only on a field holding one number, date or string.");
-                    }
-
-                    // No document has the field, so it orders nothing.
+                    return sortBy.ToResult<ISearchResult>();
                 }
 
-                if (sortBy.Count > 0)
+                if (sortBy.Value is { } sortExpression)
                 {
-                    search["sort_by"] = string.Join(',', sortBy);
+                    search["sort_by"] = sortExpression;
                 }
 
                 var body = new JsonObject { ["searches"] = new JsonArray(search) };
@@ -176,6 +166,7 @@ public sealed class TypesenseSearchProviderAsync(
                     // The collection was recreated without a field the cached schema still held: read it again once.
                     if (attempt == 0 && message.StartsWith("Could not find a ", StringComparison.Ordinal))
                     {
+                        schema.Forget(client, query.Index);
                         refresh = true;
                         continue;
                     }
@@ -198,6 +189,39 @@ public sealed class TypesenseSearchProviderAsync(
         {
             return Result.Fail<ISearchResult>(new Error($"Typesense search failed: {e.Message}").CausedBy(e));
         }
+    }
+
+    /// <summary>
+    /// The <c>sort_by</c> for <paramref name="sortFields"/>, given the collection's <paramref name="known"/> fields, or
+    /// <c>null</c> when no document has any of them. Integers and dates are kept apart from other numbers, so a field
+    /// holding both can't be ordered as one and fails.
+    /// </summary>
+    internal static Result<string?> SortBy(IEnumerable<(string Name, bool Desc)> sortFields, IReadOnlySet<string> known)
+    {
+        var sortBy = new List<string>();
+        foreach (var (name, desc) in sortFields)
+        {
+            if (known.Contains(N.SortInteger + name) && known.Contains(N.SortNumber + name))
+            {
+                return Result.Fail<string?>(
+                    $"SortOrder field '{name}' holds an integer or date in some documents and a fractional number type (double, float or decimal) in others: " +
+                    "Typesense stores them in separate fields, so it can't order them together. Index the field with one numeric type.");
+            }
+
+            if (N.SortPrefixes.FirstOrDefault(prefix => known.Contains(prefix + name)) is { } prefix)
+            {
+                sortBy.Add($"{prefix}{name}:{(desc ? "desc" : "asc")}");
+            }
+            else if (N.ValuePrefixes.Any(valuePrefix => known.Contains(valuePrefix + name)))
+            {
+                return Result.Fail<string?>(
+                    $"SortOrder field '{name}' holds several values, or booleans, in every document: Typesense sorts only on a field holding one number, date or string.");
+            }
+
+            // No document has the field, so it orders nothing.
+        }
+
+        return Result.Ok<string?>(sortBy.Count > 0 ? string.Join(',', sortBy) : null);
     }
 
     private static ISearchResult Results(List<ISearchHit> hits, long found, int page, int pageSize) => new BaseSearchResults

@@ -106,7 +106,8 @@ internal static class RangeFilter
         if (max is { } high)
         {
             var floor = Math.Floor(high);
-            if (floor <= long.MinValue)
+            // (double)long.MinValue is long.MinValue exactly, so a maximum equal to it still includes that integer.
+            if (floor < long.MinValue)
             {
                 return Result.Ok(Floats(N.Numbers + name, min, query.IncludeMinEdge, max, query.IncludeMaxEdge));
             }

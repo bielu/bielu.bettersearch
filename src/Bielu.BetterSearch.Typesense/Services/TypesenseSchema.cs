@@ -62,13 +62,21 @@ public sealed class TypesenseSchema
     }
 
     /// <summary>
-    /// The fields of <paramref name="index"/>, read again when <paramref name="refresh"/> is set or the last read is older
-    /// than <c>TypesenseOptions.SchemaCheckInterval</c>; <c>null</c> when the collection does not exist.
+    /// How soon after a read a <c>refresh</c> reads the fields again. A query that names a field no document has, such
+    /// as <c>n_</c> beside <c>i_</c> for a whole number on an integer-only field, would otherwise read them on every
+    /// search. A write through this process forgets the fields, so its new fields are seen at once.
+    /// </summary>
+    internal static readonly TimeSpan MinRefreshInterval = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// The fields of <paramref name="index"/>, read again when the last read is older than
+    /// <c>TypesenseOptions.SchemaCheckInterval</c>, or, when <paramref name="refresh"/> is set, older than
+    /// <see cref="MinRefreshInterval"/>; <c>null</c> when the collection does not exist.
     /// </summary>
     internal async Task<Result<HashSet<string>?>> FieldsAsync(TypesenseHttpClientWrapper client, string index, bool refresh, CancellationToken cancellationToken)
     {
-        if (!refresh && _fields.TryGetValue((client, index), out var cached)
-                     && Stopwatch.GetElapsedTime(cached.CheckedAt) < optionsMonitor.CurrentValue.SchemaCheckInterval)
+        if (_fields.TryGetValue((client, index), out var cached)
+            && Stopwatch.GetElapsedTime(cached.CheckedAt) < (refresh ? MinRefreshInterval : optionsMonitor.CurrentValue.SchemaCheckInterval))
         {
             return Result.Ok<HashSet<string>?>(cached.Fields);
         }
@@ -94,6 +102,6 @@ public sealed class TypesenseSchema
         return Result.Ok<HashSet<string>?>(fields);
     }
 
-    /// <summary>Forgets the fields of <paramref name="index"/>, after it was created or deleted.</summary>
+    /// <summary>Forgets the fields of <paramref name="index"/>, after it was created, deleted or written to.</summary>
     internal void Forget(TypesenseHttpClientWrapper client, string index) => _fields.TryRemove((client, index), out _);
 }

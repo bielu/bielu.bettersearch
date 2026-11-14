@@ -32,6 +32,15 @@ public sealed class TypesenseFilterTranslationTests(IServiceProvider services)
         => await ShouldRenderAsync(new TermSubQuery { Field = "Big", Value = 9007199254740993L }, "(i_Big:=[9007199254740993]) || (n_Big:=[9007199254740992])");
 
     [Fact]
+    public async Task TermSubQuery_IntegerStringAbove2To53_KeepsItsPrecisionOnIntegers()
+        => await ShouldRenderAsync(new TermSubQuery { Field = "Big", Value = "9007199254740993" },
+            "(t_Big:=[`9007199254740993`]) || (i_Big:=[9007199254740993]) || (n_Big:=[9007199254740992])");
+
+    [Fact]
+    public async Task TermsSubQuery_RepeatedValues_ListsEachLiteralOnce()
+        => await ShouldRenderAsync(new TermsSubQuery { Field = "Age", Value = [35, 35L, 36, 35.0] }, "(i_Age:=[35, 36]) || (n_Age:=[35, 36])");
+
+    [Fact]
     public async Task TermSubQuery_Backtick_ReturnsFailedResult()
     {
         var result = await TranslateAsync(new TermSubQuery { Field = "Name", Value = "a`b" });
@@ -63,6 +72,11 @@ public sealed class TypesenseFilterTranslationTests(IServiceProvider services)
     public async Task NumericRange_ExcludedWholeEdges_StepInward()
         => await ShouldRenderAsync(new NumericRange { Field = "Age", MinValue = 2, MaxValue = 7, IncludeMinEdge = false, IncludeMaxEdge = false },
             $"(i_Age:[3..6]) || (n_Age:[{(double)MathF.BitIncrement(2f)}..{(double)MathF.BitDecrement(7f)}])");
+
+    [Fact]
+    public async Task NumericRange_IncludedMaximumAtLongMinValue_StillMatchesThatInteger()
+        => await ShouldRenderAsync(new NumericRange { Field = "Age", MaxValue = long.MinValue },
+            $"(i_Age:<=-9223372036854775808) || (n_Age:<={(double)(float)long.MinValue:R})");
 
     [Fact]
     public async Task LongRange_MinimumOnly_ComparesFromTheMinimum()

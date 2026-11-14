@@ -26,7 +26,6 @@ internal static partial class TypesenseDocument
             ["id"] = document.Id,
             [TypesenseFieldNames.Type] = document.Type,
             [TypesenseFieldNames.Index] = document.Index,
-            [TypesenseFieldNames.Source] = Source(StoredFields.WithDatesAsText(fields)),
         };
 
         foreach (var (name, values) in fields)
@@ -123,6 +122,16 @@ internal static partial class TypesenseDocument
                         break;
                 }
             }
+        }
+
+        // Written after the values are checked, so a value that can't be stored fails the Result rather than the serializer.
+        try
+        {
+            stored[TypesenseFieldNames.Source] = Source(StoredFields.WithDatesAsText(fields));
+        }
+        catch (Exception e) when (e is JsonException or NotSupportedException or ArgumentException or InvalidOperationException)
+        {
+            return Result.Fail<JsonObject>(new Error($"Document {document.Id} fields can't be written as JSON for Typesense: {e.Message}").CausedBy(e));
         }
 
         return Result.Ok(stored);

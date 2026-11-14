@@ -37,6 +37,7 @@ internal static class TermValues
         }
 
         var byField = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        var seen = new HashSet<(string Field, string Literal)>();
         foreach (var value in values)
         {
             var matches = Matches(field.Value, value, queryName);
@@ -47,16 +48,18 @@ internal static class TermValues
 
             foreach (var (typesenseField, literal) in matches.Value)
             {
+                if (!seen.Add((typesenseField, literal)))
+                {
+                    continue;
+                }
+
                 if (!byField.TryGetValue(typesenseField, out var literals))
                 {
                     literals = [];
                     byField[typesenseField] = literals;
                 }
 
-                if (!literals.Contains(literal, StringComparer.Ordinal))
-                {
-                    literals.Add(literal);
-                }
+                literals.Add(literal);
             }
         }
 
@@ -91,9 +94,14 @@ internal static class TermValues
                 {
                     matches.Add((N.Booleans + name, parsedFlag ? "true" : "false"));
                 }
+                // Not a conditional of long and double: it would turn the long into a double, losing precision past 2^53.
+                else if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer))
+                {
+                    matches.AddRange(Numbers(name, integer));
+                }
                 else if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number))
                 {
-                    matches.AddRange(Numbers(name, long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer) ? integer : number));
+                    matches.AddRange(Numbers(name, number));
                 }
 
                 return Result.Ok(matches);

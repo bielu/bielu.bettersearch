@@ -26,7 +26,8 @@ for `truncate`; the AppHost and the integration tests run 29.0.
 > - **`PageSize`** above 250, the most Typesense returns in one page, returns a failed `Result`.
 > - **`SortOrder`** takes at most 3 fields, as Typesense does, and only fields holding one number, date or
 >   string in a document. A sort on a field that holds several values, or a boolean, in every document returns a
->   failed `Result`.
+>   failed `Result`, as does a sort on a field holding an integer or date in some documents and a `double`,
+>   `float` or `decimal` in others, which Typesense stores in separate fields.
 >
 > A missing connection string, or one that isn't an absolute `http` or `https` URL, makes each search and write
 > for that index return a failed `Result` whose message names the setting to fix.
@@ -67,11 +68,11 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddType
 |---------|---------|
 | `SharedIndexSettings` | Server used for every index without its own connection string |
 | `ConnectionString` | URL of a Typesense node, such as `http://localhost:8108` |
-| `AdditionalNodes` | URLs of the cluster's other nodes. A request that can't reach a node, times out, or gets a 5xx answer is sent to the next one, in order, starting from `ConnectionString` |
+| `AdditionalNodes` | URLs of the cluster's other nodes. A request that can't reach a node, times out, or gets a 5xx answer is sent to the next one, in order, starting from `ConnectionString`. A delete moves on only when it can't connect: a node that timed out or answered 5xx may have applied it, so its timeout or answer is the result |
 | `ApiKey` | The admin key, or a key allowed to manage the collections the provider uses |
 | `Indexes` | Per-index settings. An entry with its own `ConnectionString` uses only its own nodes and key; an entry without one uses the shared server, with its own `AdditionalNodes` and `ApiKey` if set or the shared ones. Keys match index names whatever their case, so `People` applies to the index `people` |
 | `RequestTimeout` | How long one request to one node may take, 30 seconds by default |
-| `SchemaCheckInterval` | How long a search trusts the list of a collection's fields before reading it again, 5 seconds by default; a query on a field the list doesn't hold reads it again at once |
+| `SchemaCheckInterval` | How long a search trusts the list of a collection's fields before reading it again, 5 seconds by default; a query on a field the list doesn't hold reads it again once the list is a second old, and a write through this provider makes the next search read it again |
 | `GeoField` | The field holding each document's location, a `"lat,lon"` string or a dictionary with `lat` and `lon`. Indexing a document whose point isn't valid returns a failed `Result` |
 
 You can also set the options in code with `services.Configure<TypesenseOptions>(...)`.
@@ -119,14 +120,17 @@ creates its collection.
 
 ## Indexing several documents
 
-`IndexMultipleDocumentsAsync` sends each index's documents in one import request (`action=upsert`). Typesense
-applies each document on its own, so when it rejects one, the `Result` fails naming its id, in the error's `ids`
-metadata too, and the others are already stored. If the request fails without an answer, the `Result` says
-Typesense may have stored any or all of the documents. The shared test of a document the engine rejects is
+`IndexMultipleDocumentsAsync` checks every document first, so an invalid one stores none of them, then sends each
+index's documents in import requests (`action=upsert`) of up to 1000 documents and 4 million characters of JSON,
+one after another. Typesense applies each document on its own, so when it rejects one, the `Result` fails naming
+its id, in the error's `ids` metadata too, and the others are already stored. If a request fails, the `Result`
+says how many documents the earlier requests stored and names the rest; if it fails without an answer, Typesense
+may have stored any or all of that request's documents. The shared test of a document the engine rejects is
 skipped on Typesense: the provider converts every value to the type its schema declares, and Typesense accepted
 every malformed document tried.
 
-`RemoveDocumentsAsync` deletes by `id` filter, 100 ids per request, and returns how many were removed; if a
+`RemoveDocumentsAsync` deletes by `id` filter, up to 100 ids and 4096 escaped characters of filter per request (an
+id longer than that is sent alone), and returns how many were removed; if a
 request fails, the error names the ids not yet sent or not confirmed, and the earlier requests' documents are
 already removed. A missing index is a failed `Result`. `RemoveAllDocumentsAsync` truncates the collection and
 returns the removed count.
