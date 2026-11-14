@@ -6,6 +6,7 @@ using Bielu.BetterSearch.Configuration;
 using Bielu.BetterSearch.DepedencyInjection;
 using Bielu.BetterSearch.Services;
 using FluentResults;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 
@@ -317,6 +318,216 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
         ImplementationType<ISearchProviderAsync>(services).ShouldBe(providerType);
     }
 
+    [Fact]
+    public async Task RouteIndex_TwoIndexes_UnkeyedServicesReachTheRoutedProvider()
+    {
+        using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var token = TestContext.Current.CancellationToken;
+        var search = scope.ServiceProvider.GetRequiredService<ISearchServiceAsync>();
+        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
+
+        var people = await search.SearchAsync(new SearchQuery { Index = "PEOPLE" }, token);
+        var products = await search.SearchAsync(new SearchQuery { Index = "products" }, token);
+        var remove = await indexing.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "1", Type = "products" }, token);
+        var removeMany = await indexing.RemoveDocumentsAsync("people", ["1"], token);
+        var removeAll = await indexing.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "products" }, token);
+
+        people.Errors.ShouldHaveSingleItem().Message.ShouldBe("first provider searched");
+        products.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider searched");
+        remove.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider removed 1");
+        removeMany.Errors.ShouldHaveSingleItem().Message.ShouldBe("first provider removed many");
+        removeAll.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider removed all");
+    }
+
+    [Fact]
+    public async Task RouteIndex_UnroutedIndexWithDefault_UsesTheDefault()
+    {
+        using var provider = TwoFakeProviders(search => RouteTwoIndexes(search.SetDefaultProvider(SecondKey))).BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var token = TestContext.Current.CancellationToken;
+        var search = scope.ServiceProvider.GetRequiredService<ISearchServiceAsync>();
+
+        var unrouted = await search.SearchAsync(new SearchQuery { Index = "other" }, token);
+        var routed = await search.SearchAsync(new SearchQuery { Index = "people" }, token);
+        var remove = await scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>()
+            .RemoveDocumentAsync(new DeleteDocumentRequest { Id = "2", Type = "other" }, token);
+
+        unrouted.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider searched");
+        routed.Errors.ShouldHaveSingleItem().Message.ShouldBe("first provider searched");
+        remove.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider removed 2");
+    }
+
+    [Fact]
+    public async Task RouteIndex_UnroutedIndexWithoutDefault_ReturnsFailedResultNamingTheIndex()
+    {
+        using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var token = TestContext.Current.CancellationToken;
+        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
+
+        var search = await scope.ServiceProvider.GetRequiredService<ISearchServiceAsync>().SearchAsync(new SearchQuery { Index = "other" }, token);
+        var index = await indexing.IndexDocumentAsync(new SearchDocument { Id = "1", Type = "TestDocument", Index = "other" }, token);
+        var removeAll = await indexing.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "other" }, token);
+
+        foreach (var result in new ResultBase[] { search, index, removeAll })
+        {
+            var message = result.Errors.ShouldHaveSingleItem().Message;
+            message.ShouldStartWith("No provider is routed for the index 'other', and there is no default provider.");
+            message.ShouldContain("Registered keys: 'first', 'second'.");
+        }
+
+        // The unkeyed providers aren't routed, so with no default they still can't be resolved.
+        Should.Throw<InvalidOperationException>(() => scope.ServiceProvider.GetService<ISearchProviderAsync>());
+    }
+
+    [Fact]
+    public async Task RouteIndex_MixedBatch_EachProviderIndexesItsOwnDocuments()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var first = new RecordingObserver<SearchDocument>();
+        var second = new RecordingObserver<SearchDocument>();
+        var unkeyed = new RecordingObserver<SearchDocument>();
+        using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        using var firstSubscription = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(FirstKey).Subscribe(first);
+        using var secondSubscription = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(SecondKey).Subscribe(second);
+        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
+        using var unkeyedSubscription = indexing.Subscribe(unkeyed);
+
+        var result = await indexing.IndexMultipleDocumentsAsync(
+        [
+            new SearchDocument { Id = "1", Type = "TestDocument", Index = "people" },
+            new SearchDocument { Id = "2", Type = "TestDocument", Index = "products" },
+            new SearchDocument { Id = "3", Type = "TestDocument", Index = "People" },
+        ], token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(3);
+        first.Values.Select(document => document.Id).ShouldBe(["1", "3"]);
+        second.Values.Select(document => document.Id).ShouldBe(["2"]);
+        unkeyed.Values.Select(document => document.Id).ShouldBe(["1", "3", "2"]);
+    }
+
+    [Fact]
+    public async Task RouteIndex_MixedBatchOneProviderFails_ErrorSaysWhatEachProviderStored()
+    {
+        var services = new ServiceCollection();
+        services.AddKeyedScoped<IDocumentValidatorAsync, RejectIdValidator>(SecondKey);
+        TwoFakeProviders(RouteTwoIndexes, services);
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var token = TestContext.Current.CancellationToken;
+
+        var result = await scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>().IndexMultipleDocumentsAsync(
+        [
+            new SearchDocument { Id = "1", Type = "TestDocument", Index = "people" },
+            new SearchDocument { Id = "2", Type = "TestDocument", Index = "products" },
+            new SearchDocument { Id = "reject", Type = "TestDocument", Index = "products" },
+            new SearchDocument { Id = "3", Type = "TestDocument", Index = "people" },
+        ], token);
+
+        var error = result.Errors.ShouldHaveSingleItem();
+        error.Message.ShouldBe("Indexing the documents failed on 1 of 2 providers: 'first' stored 2 of 2 documents; 'second' stored 1 of 2 documents and failed: Document is not valid.");
+        error.Metadata["ids"].ShouldBe(new List<string> { "1", "3", "2" });
+        error.Reasons.Count.ShouldBe(2);
+        error.Reasons[0].Metadata["key"].ShouldBe(FirstKey);
+        error.Reasons[0].Metadata["ids"].ShouldBe(new List<string> { "1", "3" });
+        error.Reasons[1].Metadata["key"].ShouldBe(SecondKey);
+        error.Reasons[1].Metadata["ids"].ShouldBe(new List<string> { "2" });
+    }
+
+    [Fact]
+    public async Task RouteIndex_BatchWithUnroutedIndex_IndexesNothing()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var unkeyed = new RecordingObserver<SearchDocument>();
+        using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
+        using var subscription = indexing.Subscribe(unkeyed);
+
+        var result = await indexing.IndexMultipleDocumentsAsync(
+        [
+            new SearchDocument { Id = "1", Type = "TestDocument", Index = "people" },
+            new SearchDocument { Id = "2", Type = "TestDocument", Index = "other" },
+        ], token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldStartWith("No provider is routed for the index 'other'");
+        unkeyed.Values.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task RouteIndex_UnkeyedObservers_HearRoutedCallsOnly()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var unkeyed = new RecordingObserver<SearchDocument>();
+        var removed = new RecordingObserver<DeleteDocumentRequest>();
+        using var provider = TwoFakeProviders(RouteTwoIndexes).BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var indexing = scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
+        using var subscription = indexing.Subscribe(unkeyed);
+        using var removedSubscription = indexing.Subscribe(removed);
+        var keyed = scope.ServiceProvider.GetRequiredKeyedService<IIndexingServiceAsync>(FirstKey);
+
+        (await indexing.IndexDocumentAsync(new SearchDocument { Id = "routed", Type = "TestDocument", Index = "people" }, token)).IsSuccess.ShouldBeTrue();
+        (await keyed.IndexDocumentAsync(new SearchDocument { Id = "direct", Type = "TestDocument", Index = "people" }, token)).IsSuccess.ShouldBeTrue();
+        (await indexing.RemoveDocumentsAsync("people", [], token)).Value.ShouldBe(0);
+
+        unkeyed.Values.ShouldHaveSingleItem().Id.ShouldBe("routed");
+        removed.Values.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void RouteIndex_UnknownKey_AddBetterSearchThrows()
+    {
+        var exception = Should.Throw<InvalidOperationException>(() => TwoFakeProviders(search => search.RouteIndex("people", "third")));
+
+        exception.Message.ShouldBe("The index 'people' is routed to 'third', but no provider is registered under that key. Registered keys: 'first', 'second'.");
+    }
+
+    [Fact]
+    public async Task AddBetterSearch_RoutesInConfiguration_AreUsedAndRouteIndexWins()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [$"{SearchApplicationConfiguration.RoutesSectionKey}:people"] = "SECOND",
+            [$"{SearchApplicationConfiguration.RoutesSectionKey}:products"] = SecondKey,
+        }).Build();
+        using var provider = new ServiceCollection().AddBetterSearch(configuration, search => search
+                .AddProvider<FirstFakeProvider, FirstFakeProvider>(FirstKey)
+                .AddProvider<SecondFakeProvider, SecondFakeProvider>(SecondKey)
+                .RouteIndex("products", FirstKey))
+            .BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var token = TestContext.Current.CancellationToken;
+        var search = scope.ServiceProvider.GetRequiredService<ISearchServiceAsync>();
+
+        var people = await search.SearchAsync(new SearchQuery { Index = "people" }, token);
+        var products = await search.SearchAsync(new SearchQuery { Index = "products" }, token);
+
+        people.Errors.ShouldHaveSingleItem().Message.ShouldBe("second provider searched");
+        products.Errors.ShouldHaveSingleItem().Message.ShouldBe("first provider searched");
+        provider.GetRequiredService<SearchApplicationConfiguration>().Routes["PEOPLE"].ShouldBe(SecondKey);
+    }
+
+    [Fact]
+    public void AddBetterSearch_RouteInConfigurationWithNoKey_Throws()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [$"{SearchApplicationConfiguration.RoutesSectionKey}:people"] = "",
+        }).Build();
+
+        var exception = Should.Throw<InvalidOperationException>(() => new ServiceCollection().AddBetterSearch(configuration, search => search
+            .AddProvider<FirstFakeProvider, FirstFakeProvider>(FirstKey)));
+
+        exception.Message.ShouldBe("Bielu:BetterSearch:Routes:people has no provider key. Set it to the key of a registered provider.");
+    }
+
+    private static void RouteTwoIndexes(Configurator search) =>
+        search.RouteIndex("people", FirstKey).RouteIndex("Products", "SECOND");
+
     private const string FirstKey = "first";
     private const string SecondKey = "second";
 
@@ -377,6 +588,13 @@ public abstract class DepedenyInjectionTestBase<TSearchServiceType, TSearchClien
     {
         public Task<Result<bool>> ValidateDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
             Task.FromResult<Result<bool>>(false);
+    }
+
+    /// <summary>Rejects the document with the id <c>reject</c>.</summary>
+    private sealed class RejectIdValidator : IDocumentValidatorAsync
+    {
+        public Task<Result<bool>> ValidateDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
+            Task.FromResult<Result<bool>>(document.Id != "reject");
     }
 
     private sealed class CustomIndexingService(IIndexingProviderAsync indexingProvider, IDocumentValidatorAsync documentValidator)

@@ -1,0 +1,5 @@
+---
+"bielu-bettersearch": minor
+---
+
+Route an index to a keyed provider by its name (#122). `Configurator.RouteIndex(index, key)` and the `Bielu:BetterSearch:Routes` configuration section map index names (ignoring case) to provider keys. With at least one route, the unkeyed `ISearchServiceAsync` and `IIndexingServiceAsync` run each call on the keyed service for its index (`DeleteDocumentRequest.Type` for `RemoveDocumentAsync`). An index with no route uses the default provider; with no default the call returns a failed `Result` naming the index and the registered keys. A route to an unregistered key, or an empty configured route, makes `AddBetterSearch` throw. A batch for several indexes is split by provider, each provider is called once, and a partial failure returns an error saying what each provider stored, with the stored ids in its `ids` metadata. The unkeyed observers hear the calls routed through the unkeyed service. Behavior change: with two or more providers and a route, resolving the unkeyed search and indexing services no longer throws. New public API: `Configurator.RouteIndex`, `SearchApplicationConfiguration.Routes` and `RoutesSectionKey`.

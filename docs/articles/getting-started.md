@@ -81,7 +81,8 @@ public class ProductSearch([FromKeyedServices("products")] ISearchServiceAsync s
 - With one provider, the unkeyed services use it, as before.
 - With two or more, resolving an unkeyed `ISearchServiceAsync`, `IIndexingServiceAsync`, `ISearchProviderAsync`
   or `IIndexingProviderAsync` throws an `InvalidOperationException` that lists the registered keys, unless you
-  choose a default with `SetDefaultProvider("products")`. A default that names no registered key makes
+  choose a default with `SetDefaultProvider("products")`, or [route indexes](#route-indexes-to-providers), which
+  stops the unkeyed search and indexing services from throwing. A default that names no registered key makes
   `AddBetterSearch` throw.
 - A key can be used once, and two keys that differ only in case are rejected; resolving by key is
   case-sensitive, as in `Microsoft.Extensions.DependencyInjection`. Each provider can be added once per
@@ -92,7 +93,47 @@ public class ProductSearch([FromKeyedServices("products")] ISearchServiceAsync s
 - Observers are per key: each keyed service is its own instance, so an observer subscribed to the `products`
   indexing service hears nothing indexed through `site`. The unkeyed service is a separate instance too, even
   when it uses the same provider, so it doesn't hear operations run through the keyed one.
-- Routing an index to an engine by its name is not supported yet ([#122](https://github.com/bielu/bielu.bettersearch/issues/122)); resolve the service for the engine you want.
+
+### Route indexes to providers
+
+To keep injecting the unkeyed `ISearchServiceAsync` and `IIndexingServiceAsync` with two or more providers, route
+each index to a provider key, in code or in the `Bielu:BetterSearch:Routes` configuration section:
+
+```csharp
+builder.Services.AddBetterSearch(builder.Configuration, search => search
+    .AddElasticSearch(key: "products")
+    .AddMeilisearch(key: "site")
+    .RouteIndex("products", "products")
+    .SetDefaultProvider("site"));
+```
+
+```json
+{ "Bielu": { "BetterSearch": { "Routes": { "products": "products", "pages": "site" } } } }
+```
+
+- With at least one route, the unkeyed services send each call to the keyed service of the provider routed for
+  its index: `SearchQuery.Index`, `SearchDocument.Index`, `DeleteDocumentRequest.Type` (which holds the index
+  name), the `index` of `RemoveDocumentsAsync` and `DeleteAllDocumentsRequest.IndexName`. Index names compare
+  ignoring case, and so do the keys a route names.
+- An index with no route goes to the default provider: the one `SetDefaultProvider` names, or the only one. With
+  no default, the call returns a failed `Result` that names the index and the registered keys; resolving the
+  unkeyed services doesn't throw.
+- A route that names a key no provider is registered under, or a configured route with an empty value, makes
+  `AddBetterSearch` throw. A `RouteIndex` call replaces a configured route for the same index, and a later
+  `RouteIndex` call for an index replaces an earlier one.
+- `IndexMultipleDocumentsAsync` checks every document for null values and routes before indexing any of them, so
+  a document with no route fails the whole batch with nothing stored. It then splits the documents by provider
+  and calls each provider's indexing service once. When one fails, the others are still called, and the failed
+  `Result` has one error saying what each provider stored. Its `ids` metadata holds the ids of every stored
+  document, and its reasons have one error for each provider, with the key in `key` and that provider's stored
+  ids in `ids`.
+- Routing applies to the unkeyed `ISearchServiceAsync` and `IIndexingServiceAsync` only. The unkeyed
+  `ISearchProviderAsync` and `IIndexingProviderAsync` still use the default provider, or throw on resolution
+  when there is none.
+- Observers: the routing services run each call on the keyed service of the same DI scope, so that keyed
+  service's observers hear routed calls too. The unkeyed observers hear what the keyed service reported for each
+  call made through the unkeyed service, whichever provider it went to, and nothing for calls made on a keyed
+  service directly.
 
 ## Index and search
 
