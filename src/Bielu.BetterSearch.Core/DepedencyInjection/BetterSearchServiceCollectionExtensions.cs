@@ -2,6 +2,7 @@
 using Bielu.BetterSearch.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Bielu.BetterSearch.DepedencyInjection;
 
@@ -11,12 +12,13 @@ public static class BetterSearchServiceCollectionExtensions
     {
         var configurator = new Configurator(services, configuration);
         configure(configurator);
-        services.AddSingleton(configurator.Configuration);
-        services.AddScoped(typeof(IDocumentValidatorAsync), configurator.Configuration.DocumentValidatorType);
-        services.AddScoped(typeof(IIndexingServiceAsync), configurator.Configuration.IndexingServiceType);
-        services.AddScoped(typeof(ISearchProviderAsync), configurator.Configuration.SearchProviderType);
-        services.AddScoped(typeof(IIndexingProviderAsync), configurator.Configuration.IndexingProviderType);
-        services.AddScoped(typeof(ISearchServiceAsync), configurator.Configuration.SearchServiceType);
+        // Providers register only their own services; the shared ones are registered here, once, after configure has run.
+        services.TryAddSingleton(configurator.Configuration);
+        services.TryAddScoped(typeof(IDocumentValidatorAsync), configurator.Configuration.DocumentValidatorType);
+        services.TryAddScoped(typeof(IIndexingServiceAsync), configurator.Configuration.IndexingServiceType);
+        services.TryAddScoped(typeof(ISearchProviderAsync), configurator.Configuration.SearchProviderType);
+        services.TryAddScoped(typeof(IIndexingProviderAsync), configurator.Configuration.IndexingProviderType);
+        services.TryAddScoped(typeof(ISearchServiceAsync), configurator.Configuration.SearchServiceType);
         return services;
     }
 

@@ -9,7 +9,15 @@ public class Configurator(IServiceCollection services, IConfiguration configurat
     public IServiceCollection Services => services;
     public IConfiguration AppConfiguration => configuration;
 
-    public SearchApplicationConfiguration Configuration { get; } = SearchApplicationConfiguration.CurrentInstance;
+    // Each AddBetterSearch call gets its own configuration, so two containers in one process don't share provider types.
+    public SearchApplicationConfiguration Configuration { get; } = new();
+
+    public Configurator SetDocumentValidatorType<T>() where T : class, IDocumentValidatorAsync
+    {
+        Configuration.DocumentValidatorType = typeof(T);
+        return this;
+    }
+
     public Configurator SetSearchServiceType<T>() where T : class, ISearchServiceAsync
     {
         Configuration.SearchServiceType = typeof(T);

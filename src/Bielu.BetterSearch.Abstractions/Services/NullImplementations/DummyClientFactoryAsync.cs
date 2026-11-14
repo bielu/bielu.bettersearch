@@ -2,9 +2,8 @@
 
 public class DummyClientFactoryAsync<TClient> : IClientFactoryAsync<TClient>
 {
-    public Task<TClient> GetOrCreateClientAsync(string indexName)
-    {
-        // Implement your logic here
-        throw new NotImplementedException();
-    }
+    // IClientFactoryAsync has no Result to fail with, so this throws with a message that says what is missing.
+    public Task<TClient> GetOrCreateClientAsync(string indexName) =>
+        throw new InvalidOperationException(
+            $"No client factory is registered for {typeof(TClient).Name}. Call the provider extension inside AddBetterSearch.");
 }

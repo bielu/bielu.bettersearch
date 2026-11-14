@@ -1,0 +1,5 @@
+---
+"bielu-bettersearch": patch
+---
+
+Each `AddBetterSearch` call now has its own `SearchApplicationConfiguration` (#89). `SearchApplicationConfiguration.CurrentInstance` is removed: it was a process-wide object every call wrote to, so two containers in one process shared provider types and the last registration won. The Elasticsearch, Meilisearch and Lifti extensions no longer register `IDocumentValidatorAsync`, `IIndexingServiceAsync` and `ISearchServiceAsync`; `AddBetterSearch` registers them, and the providers, once with `TryAdd` after the callback has run, so a `Set...Type<T>()` call placed after the provider extension now takes effect, and a service registered before `AddBetterSearch` is kept. A second `AddBetterSearch` call on the same collection no longer replaces the shared services of the first. `Configurator.SetDocumentValidatorType<T>()` is new. `DummySearchProviderAsync` and `DummyIndexingProviderAsync`, used when no provider is registered, return a failed `Result` saying so instead of throwing `NotImplementedException`, and `DummyClientFactoryAsync` throws `InvalidOperationException` with a message.

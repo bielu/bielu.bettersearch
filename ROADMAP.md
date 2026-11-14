@@ -25,8 +25,6 @@ Each of these was reproduced by running the code against the Lifti provider, exc
 | Lifti index | `CreateIndexAsync` on an existing index silently wipes its documents | An error or a no-op |
 | Lifti search | Searching a missing index creates it and returns no hits | A failed `Result`, as on the other providers, without creating the index |
 | Core | `IndexMultipleDocumentsAsync` indexes one at a time, so the provider bulk path is never used (*by inspection*) | Bulk indexing |
-| Core | `SearchApplicationConfiguration.CurrentInstance` is a process-wide mutable singleton shared by every `AddBetterSearch` call (*by inspection*) | Per-container configuration |
-| Core | Services are registered twice, once by the provider and once by `AddBetterSearch` | Once |
 | Core | Indexing observers live on a scoped service, so a subscription only sees the operations of its own scope (*by inspection*) | See phase 1 |
 | Models | `new TermSubQuery().Occurance` is `0`, which is not a defined enum value | A defined default |
 | Lifti search | `Page` and `PageSize` are ignored; hits contain only an id | Paged hits with fields |
@@ -65,7 +63,7 @@ Breaking, and cheapest now.
 - Reshape the model: merge `Bielu.BetterSearch.Models` into Abstractions. Return typed field values on hits from explicit mappings; Elasticsearch hits keep their JSON types until then. Rename `DeleteDocumentRequest.Type`, which actually holds the index name, to `IndexName` to match `DeleteAllDocumentsRequest.IndexName`; renaming it after the stable release would break the public API. (Done in #17: the unused generics are gone, `IEntity<T>` has its `Id`, `Score` is on the hit, ids come back unchanged, the CMS leftovers are dropped and `FilterByCulture` filters on a plain culture field.)
 - Resolve the nullable warnings by making the model honest about what is required.
 - Stop catching `OperationCanceledException` in the indexing providers, and keep exceptions through `ExceptionalError`. (Done in #17: `SearchAsync` and the validator take a `CancellationToken`, and a cancelled search throws.)
-- Remove the global configuration singleton and the duplicate registrations. Add the missing `SetDocumentValidatorType`.
+- Remove the global configuration singleton and the duplicate registrations. Add the missing `SetDocumentValidatorType`. (Done in #89: each `AddBetterSearch` call has its own configuration, the shared services are registered once, and without a provider every call that reaches the provider returns a failed `Result`.)
 - Replace the `IObservable` surface with something that fits its use, such as an indexing pipeline or events, or remove it. (The `IObserver` contract is fixed in #56: `OnNext` after each successful operation, nothing for a rejection or failure, `OnCompleted` only when the service is disposed.)
 - Pass bulk through to the provider from `IndexMultipleDocumentsAsync`.
 - Deduplicate the fluent API and fix the lost occurrence, with its first tests.
