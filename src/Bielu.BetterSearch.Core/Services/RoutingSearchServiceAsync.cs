@@ -21,14 +21,8 @@ internal sealed class RoutingSearchServiceAsync : ISearchServiceAsync
     {
         _routes = routes;
         _searchObservers = new ObserverList<ISearchModel>(logger);
-        _services = new RoutedServices<ISearchServiceAsync>(serviceProvider, (service, routed) =>
-            [service.Subscribe(new ForwardingObserver<ISearchModel>(hit =>
-            {
-                if (routed())
-                {
-                    _searchObservers.Notify(hit);
-                }
-            }))]);
+        _services = new RoutedServices<ISearchServiceAsync>(serviceProvider, service =>
+            [service.Subscribe(_services.ForwardTo(_searchObservers))]);
     }
 
     public IDisposable Subscribe(IObserver<ISearchModel> observer) => _searchObservers.Subscribe(observer);

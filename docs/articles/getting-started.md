@@ -121,20 +121,25 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search
 - A route that names a key no provider is registered under, or a configured route with an empty value, makes
   `AddBetterSearch` throw. A `RouteIndex` call replaces a configured route for the same index, and a later
   `RouteIndex` call for an index replaces an earlier one.
-- `IndexMultipleDocumentsAsync` checks every document for null values and routes before indexing any of them, so
-  a document with no route fails the whole batch with nothing stored. It then splits the documents by provider
-  and calls each provider's indexing service once. When one fails, the others are still called, and the failed
-  `Result` has one error saying how many documents each provider indexed. As for a single provider, its `ids`
-  metadata holds the ids not confirmed as stored, and its reasons have one error for each provider that failed,
-  with the key in `key` and that provider's ids not confirmed as stored in `ids`. A provider whose error has no
-  `ids` metadata, as when a document fails validation, counts as having stored none of its documents.
+- `IndexMultipleDocumentsAsync` checks every document for null values and a provider, and validates each one with
+  the validator of its provider, before indexing any of them. So a document whose index has no route when there is
+  no default provider, or that its provider's validator rejects, fails the whole batch with nothing stored, as
+  with one provider. It then splits the documents by provider and calls each provider's indexing service once.
+  When one fails or throws, the others are still called, and the failed `Result` has one error saying how many
+  documents each provider indexed. As for a single provider, its `ids` metadata holds the ids not confirmed as
+  stored, and its reasons have one error for each provider that failed, with the key in `key` and that
+  provider's ids not confirmed as stored in `ids`. A provider whose error has no `ids` metadata, as when it threw,
+  counts as having stored none of its documents. Cancellation is not caught: it stops the batch, and the
+  providers already called keep what they stored.
 - Routing applies to the unkeyed `ISearchServiceAsync` and `IIndexingServiceAsync` only. The unkeyed
   `ISearchProviderAsync` and `IIndexingProviderAsync` still use the default provider, or throw on resolution
   when there is none.
 - Observers: the routing services run each call on the keyed service of the same DI scope, so that keyed
   service's observers hear routed calls too. The unkeyed observers hear what the keyed service reported for each
   call made through the unkeyed service, whichever provider it went to, and nothing for calls made on a keyed
-  service directly.
+  service directly, including writes an observer makes while it is being notified. For a batch they hear the
+  documents only when every provider succeeded; when the batch fails they hear nothing, even for documents a
+  provider stored, while each keyed service's own observers hear what that service stored.
 
 ## Index and search
 

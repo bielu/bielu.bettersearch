@@ -87,13 +87,19 @@ public static class BetterSearchServiceCollectionExtensions
     {
         foreach (var route in configuration.GetSection(SearchApplicationConfiguration.RoutesSectionKey).GetChildren())
         {
+            if (searchConfiguration.RouteMap.ContainsKey(route.Key))
+            {
+                // RouteIndex set this index, so the configured value is unused and isn't checked.
+                continue;
+            }
+
             if (string.IsNullOrWhiteSpace(route.Value))
             {
                 throw new InvalidOperationException(
                     $"{SearchApplicationConfiguration.RoutesSectionKey}:{route.Key} has no provider key. Set it to the key of a registered provider.");
             }
 
-            searchConfiguration.RouteMap.TryAdd(route.Key, route.Value);
+            searchConfiguration.RouteMap.Add(route.Key, route.Value);
         }
     }
 
