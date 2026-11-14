@@ -25,6 +25,7 @@
       <Compile Include="..\Shared\QueryValueText.cs" Link="Services\QueryValueText.cs" />
       <Compile Include="..\Shared\RangeBounds.cs" Link="Services\RangeBounds.cs" />
       <Compile Include="..\Shared\SortOrders.cs" Link="Services\SortOrders.cs" />
+      <Compile Include="..\Shared\IndexNames.cs" Link="Services\IndexNames.cs" />
       <Compile Include="..\Shared\LuceneQueryParser.cs" Link="Services\LuceneQueryParser.cs" />
     </ItemGroup>
 

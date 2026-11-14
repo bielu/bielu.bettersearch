@@ -1,59 +1,25 @@
 ﻿using Bielu.BetterSearch.Abstractions.Models;
-using Bielu.BetterSearch.Abstractions.Query;
-using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
-using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 
 namespace Bielu.BetterSearch.Tests;
 
 /// <summary>
-/// The index prefix and zero-downtime rebuilds through <see cref="IIndexLifecycleServiceAsync"/>, inherited by the
-/// tests of every provider that implements <see cref="IIndexLifecycleProviderAsync"/>. Each test checks what the engine
-/// holds by name, so a step that drops the prefix or deletes the wrong index fails.
+/// Zero-downtime rebuilds through <see cref="IIndexLifecycleServiceAsync"/>, with the index prefix tests of
+/// <see cref="IndexPrefixTestBase"/>, inherited by the tests of every provider that implements
+/// <see cref="IIndexLifecycleProviderAsync"/>. Each test checks what the engine holds by name, so a step that drops the
+/// prefix or deletes the wrong index fails.
 /// </summary>
 /// <param name="services">
-/// Services whose provider has <see cref="Prefix"/> as its index prefix and waits until writes are searchable.
+/// Services whose provider has <see cref="IndexPrefixTestBase.Prefix"/> as its index prefix and waits until writes are searchable.
 /// </param>
-public abstract class IndexLifecycleTestBase(IServiceProvider services) : IDisposable
+public abstract class IndexLifecycleTestBase(IServiceProvider services) : IndexPrefixTestBase(services)
 {
-    private readonly IServiceScope _scope = services.CreateScope();
-
-    /// <summary>The services the tests run on.</summary>
-    protected IServiceProvider Services { get; } = services;
-
-    /// <summary>The index prefix the services are configured with.</summary>
-    protected abstract string Prefix { get; }
-
-    /// <summary>Whether the engine has an index, not an alias, named exactly <paramref name="engineName"/>.</summary>
-    protected abstract Task<bool> EngineIndexExistsAsync(string engineName);
-
     /// <summary>The indexes the alias <paramref name="alias"/> points at on the engine, in ordinal order; empty when there is no such alias.</summary>
     protected abstract Task<IReadOnlyList<string>> AliasTargetsAsync(string alias);
 
-    private static CancellationToken Token => TestContext.Current.CancellationToken;
-
-    private IIndexingServiceAsync Indexing => _scope.ServiceProvider.GetRequiredService<IIndexingServiceAsync>();
-    private IIndexingProviderAsync Provider => _scope.ServiceProvider.GetRequiredService<IIndexingProviderAsync>();
-    private ISearchServiceAsync Search => _scope.ServiceProvider.GetRequiredService<ISearchServiceAsync>();
-    private IIndexLifecycleServiceAsync Lifecycle => _scope.ServiceProvider.GetRequiredService<IIndexLifecycleServiceAsync>();
-
-    private static SearchDocument Document(string index, string id) => new()
-    {
-        Id = id,
-        Type = "TestDocument",
-        Index = index,
-        Fields = new Dictionary<string, IList<object>> { { "Name", [$"item {id}"] } }
-    };
-
-    private Task<List<string>> IdsAsync(string index) =>
-        Search.SearchIdsAsync(SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "item" }), Token);
-
-    private static void ShouldSucceed(ResultBase result) =>
-        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
-
-    private static string Errors(ResultBase result) => string.Join("; ", result.Errors.Select(error => error.Message));
+    private IIndexLifecycleServiceAsync Lifecycle => ScopedServices.GetRequiredService<IIndexLifecycleServiceAsync>();
 
     /// <summary>An index with documents <paramref name="ids"/>, created as a plain index, not an alias.</summary>
     private async Task<string> IndexWithDocumentsAsync(params string[] ids)
@@ -88,53 +54,6 @@ public abstract class IndexLifecycleTestBase(IServiceProvider services) : IDispo
         catch (Exception)
         {
             // Cleanup must not hide the test's own failure.
-        }
-    }
-
-    [Fact]
-    public async Task IndexPrefix_EveryOperation_UsesThePrefixedIndex()
-    {
-        var index = $"prefixed-{Guid.NewGuid():N}";
-        try
-        {
-            var ensured = await Provider.EnsureIndexExistsAsync(index, Token);
-            ShouldSucceed(ensured);
-            ensured.Value.ShouldBeTrue();
-            (await EngineIndexExistsAsync(Prefix + index)).ShouldBeTrue();
-            (await EngineIndexExistsAsync(index)).ShouldBeFalse();
-
-            var exists = await Provider.IndexExistsAsync(index, Token);
-            ShouldSucceed(exists);
-            exists.Value.ShouldBeTrue();
-
-            ShouldSucceed(await Indexing.IndexDocumentAsync(Document(index, "a"), Token));
-            ShouldSucceed(await Indexing.IndexMultipleDocumentsAsync([Document(index, "b"), Document(index, "c"), Document(index, "d")], Token));
-            (await IdsAsync(index)).ShouldBe(["a", "b", "c", "d"]);
-            // Nothing was written under the unprefixed name.
-            (await EngineIndexExistsAsync(index)).ShouldBeFalse();
-
-            ShouldSucceed(await Indexing.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "a", Type = index }, Token));
-            var removed = await Indexing.RemoveDocumentsAsync(index, ["b"], Token);
-            ShouldSucceed(removed);
-            removed.Value.ShouldBe(1);
-            (await IdsAsync(index)).ShouldBe(["c", "d"]);
-
-            var removedAll = await Indexing.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = index }, Token);
-            ShouldSucceed(removedAll);
-            removedAll.Value.ShouldBe(2);
-            (await IdsAsync(index)).ShouldBeEmpty();
-
-            var deleted = await Provider.DeleteIndexAsync(index, Token);
-            ShouldSucceed(deleted);
-            deleted.Value.ShouldBeTrue();
-            (await EngineIndexExistsAsync(Prefix + index)).ShouldBeFalse();
-            var existsAfterDelete = await Provider.IndexExistsAsync(index, Token);
-            ShouldSucceed(existsAfterDelete);
-            existsAfterDelete.Value.ShouldBeFalse();
-        }
-        finally
-        {
-            await DeleteAsync(index);
         }
     }
 
@@ -398,17 +317,5 @@ public abstract class IndexLifecycleTestBase(IServiceProvider services) : IDispo
         {
             await DeleteAsync(index);
         }
-    }
-
-    public void Dispose()
-    {
-        _scope.Dispose();
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>Disposes what the derived class created, such as a service provider of its own.</summary>
-    protected virtual void Dispose(bool disposing)
-    {
     }
 }

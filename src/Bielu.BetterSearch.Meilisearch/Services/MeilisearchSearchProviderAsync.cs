@@ -82,7 +82,7 @@ public sealed class MeilisearchSearchProviderAsync(
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
-            var response = await client.Index(query.Index).SearchAsync<MeilisearchDocument>(null, meilisearchQuery, cancellationToken).ConfigureAwait(false);
+            var response = await client.Index(IndexNames.WithPrefix(optionsMonitor.CurrentValue.IndexPrefix, query.Index)).SearchAsync<MeilisearchDocument>(null, meilisearchQuery, cancellationToken).ConfigureAwait(false);
             if (response is not PaginatedSearchResult paginated)
             {
                 return Result.Fail<ISearchResult>("Meilisearch returned an unpaginated result for a paginated search.");
