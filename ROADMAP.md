@@ -65,7 +65,7 @@ Breaking, and cheapest now.
 - Remove the global configuration singleton and the duplicate registrations. Add the missing `SetDocumentValidatorType`. (Done in #89: each `AddBetterSearch` call has its own configuration, the shared services are registered once, and without a provider every call that reaches the provider returns a failed `Result`.)
 - Replace the `IObservable` surface with something that fits its use, such as an indexing pipeline or events, or remove it. (The `IObserver` contract is fixed in #56: `OnNext` after each successful operation, nothing for a rejection or failure, `OnCompleted` only when the service is disposed.)
 - Pass bulk through to the provider from `IndexMultipleDocumentsAsync`.
-- Deduplicate the fluent API and fix the lost occurrence, with its first tests. (The occurrence is fixed in #85: a sub-query's own `Must()`, `Should()`, `MustNot()` or `Filter()` wins over its parent's, and `Bielu.BetterSearch.FluentApi.Tests` checks it for every query type.)
+- Deduplicate the fluent API and fix the lost occurrence, with its first tests. (The occurrence is fixed in #85: a sub-query's own `Must()`, `Should()`, `MustNot()` or `Filter()` wins over its parent's, and `Bielu.BetterSearch.FluentApi.Tests` checks it for every query type. #86 shares one implementation between the top-level and nested `Create…Query` methods and covers the rest of the query model: spatial centre, fuzzy options, raw Lucene, boost, sorting, properties, post filters and highlighting.)
 - Decide the `SHOULD` semantics: follow Lucene, and write them down.
 
 ### Phase 2: Lucene.NET provider

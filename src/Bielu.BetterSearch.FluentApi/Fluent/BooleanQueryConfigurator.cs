@@ -25,6 +25,12 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
             Occurance = Occurance.FILTER;
             return this;
         }
+        /// <summary>Sets the <see cref="ISearchSubQuery.BoostValue"/> of the bool query.</summary>
+        public BooleanQueryConfigurator WithBoost(int boost)
+        {
+            Query.BoostValue = boost;
+            return this;
+        }
         public INestableQuery Query { get; set; } = new BoolSearchSubQuery();
         public Occurance Occurance { get; set; } = Occurance.MUST;
     }

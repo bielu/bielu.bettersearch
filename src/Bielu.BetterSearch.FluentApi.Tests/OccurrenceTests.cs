@@ -70,6 +70,66 @@ public class OccurrenceTests
             .CreateGoeDistanceQuery(s => s.WithField("Location").WithDistance(10)));
 
     [Fact]
+    public void CreateLuceneQuery_NestedWithAndWithoutOwnOccurrence_OwnWinsElseParent() =>
+        AssertNested(b => b
+            .CreateLuceneQuery(l => l.WithQuery("City:Warsaw").Should())
+            .CreateLuceneQuery(l => l.WithQuery("City:Krakow")));
+
+    [Fact]
+    public void CreateFuzzyQuery_TopLevelWithAndWithoutOwnOccurrence_OwnWinsElseParent() =>
+        AssertTopLevel<FuzzyQuery>(q => q
+            .CreateFuzzyQuery(f => f.WithField("City").WithValue("Warsaw").Should())
+            .CreateFuzzyQuery(f => f.WithField("City").WithValue("Krakow")));
+
+    [Fact]
+    public void CreatePrefixQuery_TopLevelWithAndWithoutOwnOccurrence_OwnWinsElseParent() =>
+        AssertTopLevel<PrefixSubQuery>(q => q
+            .CreatePrefixQuery(p => p.WithField("City").WithValue("War").Should())
+            .CreatePrefixQuery(p => p.WithField("City").WithValue("Kra")));
+
+    [Fact]
+    public void CreatePrefixPhraseQuery_TopLevelWithAndWithoutOwnOccurrence_OwnWinsElseParent() =>
+        AssertTopLevel<PrefixPhraseSubQuery>(q => q
+            .CreatePrefixPhraseQuery(p => p.WithField("City").WithValue("War").Should())
+            .CreatePrefixPhraseQuery(p => p.WithField("City").WithValue("Kra")));
+
+    [Fact]
+    public void CreateNumericRangeQuery_TopLevelWithAndWithoutOwnOccurrence_OwnWinsElseParent() =>
+        AssertTopLevel<NumericRange>(q => q
+            .CreateNumericRangeQuery(r => r.WithField("Age").WithMinValue(18).Should())
+            .CreateNumericRangeQuery(r => r.WithField("Age").WithMinValue(30)));
+
+    [Fact]
+    public void CreateLongRangeQuery_TopLevelWithAndWithoutOwnOccurrence_OwnWinsElseParent() =>
+        AssertTopLevel<LongRange>(q => q
+            .CreateLongRangeQuery(r => r.WithField("Views").WithMinValue(18L).Should())
+            .CreateLongRangeQuery(r => r.WithField("Views").WithMinValue(30L)));
+
+    [Fact]
+    public void CreateStringRangeQuery_TopLevelWithAndWithoutOwnOccurrence_OwnWinsElseParent() =>
+        AssertTopLevel<StringRange>(q => q
+            .CreateStringRangeQuery(r => r.WithField("Name").WithMinValue("a").Should())
+            .CreateStringRangeQuery(r => r.WithField("Name").WithMinValue("m")));
+
+    [Fact]
+    public void CreateDateRangeQuery_TopLevelWithAndWithoutOwnOccurrence_OwnWinsElseParent() =>
+        AssertTopLevel<DateRangeQuery>(q => q
+            .CreateDateRangeQuery(r => r.WithField("Born").WithMinValue(new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc)).Should())
+            .CreateDateRangeQuery(r => r.WithField("Born").WithMinValue(new DateTime(2010, 1, 1, 0, 0, 0, DateTimeKind.Utc))));
+
+    [Fact]
+    public void CreateGoeDistanceQuery_TopLevelWithAndWithoutOwnOccurrence_OwnWinsElseParent() =>
+        AssertTopLevel<SpatialSearchQuery>(q => q
+            .CreateGoeDistanceQuery(s => s.WithField("Location").WithDistance(5).Should())
+            .CreateGoeDistanceQuery(s => s.WithField("Location").WithDistance(10)));
+
+    [Fact]
+    public void CreateLuceneQuery_TopLevelWithAndWithoutOwnOccurrence_OwnWinsElseParent() =>
+        AssertTopLevel<LuceneSubQuery>(q => q
+            .CreateLuceneQuery(l => l.WithQuery("City:Warsaw").Should())
+            .CreateLuceneQuery(l => l.WithQuery("City:Krakow")));
+
+    [Fact]
     public void CreateTermQuery_TopLevelWithAndWithoutOwnOccurrence_OwnWinsElseParent()
     {
         var query = Build(q => q
@@ -183,6 +243,16 @@ public class OccurrenceTests
         var must = query.Query[Occurance.MUST].ShouldHaveSingleItem().ShouldBeOfType<TermSubQuery>();
         must.Value.ShouldBe(mustValue);
         must.Occurance.ShouldBe(Occurance.MUST);
+    }
+
+    // The top-level query is MUST; the first clause chose SHOULD and the second chose nothing.
+    private static void AssertTopLevel<T>(Action<IBaseQueryConfigurator> configure) where T : ISearchSubQuery
+    {
+        var query = Build(configure);
+
+        query.Query.Keys.ShouldBe([Occurance.SHOULD, Occurance.MUST], ignoreOrder: true);
+        query.Query[Occurance.SHOULD].ShouldHaveSingleItem().ShouldBeOfType<T>().Occurance.ShouldBe(Occurance.SHOULD);
+        query.Query[Occurance.MUST].ShouldHaveSingleItem().ShouldBeOfType<T>().Occurance.ShouldBe(Occurance.MUST);
     }
 
     private static ISearchQuery Build(Action<IBaseQueryConfigurator> configure) =>

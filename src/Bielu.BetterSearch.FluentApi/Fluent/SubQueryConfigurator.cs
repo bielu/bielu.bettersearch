@@ -26,10 +26,19 @@
         /// <summary>The query this configurator builds.</summary>
         protected abstract ISearchSubQuery SubQuery { get; }
 
+        internal ISearchSubQuery Built => SubQuery;
+
         public TSelf Must() => With(Abstractions.Query.Occurance.MUST);
         public TSelf MustNot() => With(Abstractions.Query.Occurance.MUSTNOT);
         public TSelf Should() => With(Abstractions.Query.Occurance.SHOULD);
         public TSelf Filter() => With(Abstractions.Query.Occurance.FILTER);
+
+        /// <summary>Sets the <see cref="ISearchSubQuery.BoostValue"/> of the sub-query.</summary>
+        public TSelf WithBoost(int boost)
+        {
+            SubQuery.BoostValue = boost;
+            return (TSelf)this;
+        }
 
         private TSelf With(Occurance occurance)
         {
