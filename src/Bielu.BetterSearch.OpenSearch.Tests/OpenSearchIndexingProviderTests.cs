@@ -65,6 +65,37 @@ public sealed class OpenSearchIndexingProviderTests(IIndexingProviderAsync provi
     }
 
     [Fact]
+    public async Task RemoveAllDocumentsAsync_WritesNotRefreshedYet_RemovesThemToo()
+    {
+        var index = UniqueIndex();
+        var client = await clientFactory.GetOrCreateClientAsync(index);
+        try
+        {
+            // With no periodic refresh, the writes below stay unsearchable until something refreshes the index.
+            var created = await client.Indices.CreateAsync(index, c => c.Settings(s => s.RefreshInterval(-1)), Token);
+            created.IsValid.ShouldBeTrue(created.DebugInformation);
+            (await provider.IndexMultipleDocumentsAsync(CreateDocuments(index, 3), Token)).IsSuccess.ShouldBeTrue();
+
+            var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = index }, Token);
+
+            result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+            result.Value.ShouldBe(3);
+            (await CountAsync(index)).ShouldBe(0);
+        }
+        finally
+        {
+            try
+            {
+                await client.Indices.DeleteAsync(index, ct: CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // Cleanup must not hide the test's own failure.
+            }
+        }
+    }
+
+    [Fact]
     public async Task RemoveAllDocumentsAsync_MissingIndex_ReturnsFailure()
     {
         var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = UniqueIndex() }, Token);

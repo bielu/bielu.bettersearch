@@ -330,6 +330,53 @@ public sealed class OpenSearchIndexingResponseTests : RemoveDocumentResponseTest
         message.ShouldBe("OpenSearch bulk delete failed with HTTP 403 (security_exception): no permissions");
     }
 
+    private static InMemoryConnection Answer(string json, int statusCode) => new(Encoding.UTF8.GetBytes(json), statusCode);
+
+    private const string DeletedTwo = """{"took":5,"timed_out":false,"total":2,"deleted":2,"batches":1,"version_conflicts":0,"noops":0,"failures":[]}""";
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_RefreshForbidden_ReturnsTheRefreshFailureWithoutDeleting()
+    {
+        var connection = new SequenceConnection(
+            Answer("""{"error":{"type":"security_exception","reason":"no permissions for [indices:admin/refresh]"},"status":403}""", 403),
+            Answer(DeletedTwo, 200));
+        var provider = Provider(connection);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("OpenSearch refresh of index people before removing all documents failed with HTTP 403 (security_exception): no permissions for [indices:admin/refresh]");
+        connection.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_RefreshFailsOnAShard_ReturnsFailureWithoutDeleting()
+    {
+        var connection = new SequenceConnection(
+            Answer("""{"_shards":{"total":2,"successful":1,"failed":1}}""", 200),
+            Answer(DeletedTwo, 200));
+        var provider = Provider(connection);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("Refreshing index people before removing all documents failed on 1 of 2 shards, so no documents were removed.");
+        connection.Requests.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task RemoveAllDocumentsAsync_Refreshed_ReturnsTheDeletedCount()
+    {
+        var connection = new SequenceConnection(
+            Answer("""{"_shards":{"total":2,"successful":1,"failed":0}}""", 200),
+            Answer(DeletedTwo, 200));
+        var provider = Provider(connection);
+
+        var result = await provider.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = "people" }, Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(2);
+        connection.Requests.ShouldBe(2);
+    }
+
     [Fact]
     public async Task RemoveAllDocumentsAsync_TimedOut_ReturnsFailureWithDeletedCount()
     {

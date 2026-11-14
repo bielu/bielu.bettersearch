@@ -204,6 +204,12 @@ refresh, about a second later unless `index.refresh_interval` is changed. Set `W
   for bulk loads and turn it on where a write must be visible straight away, such as tests and small sites.
 - Waiting doesn't change what a failure means: a failed or cancelled call may still have stored the write.
 
+Whatever `WriteVisibility` is, `RemoveAllDocumentsAsync` first refreshes the index, then sends the delete by query.
+Delete by query removes only the documents that are searchable when it starts, so without the refresh a write that
+was acknowledged under `Default` but not refreshed yet would be left behind. Remove all is rare, so the extra
+request is a small cost. When the refresh fails, for example with a 403, a missing index or a failed shard, the call
+returns a failed `Result` and removes nothing.
+
 ## Removing documents
 
 `DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.
