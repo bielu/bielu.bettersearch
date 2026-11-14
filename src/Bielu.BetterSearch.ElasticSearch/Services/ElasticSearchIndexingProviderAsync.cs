@@ -236,7 +236,9 @@ public class ElasticSearchIndexingProviderAsync(
     /// <summary>
     /// Sends the fields as a partial <c>_update</c>, which Elasticsearch merges into <c>fields</c>, replacing each
     /// field named and keeping the others; it retries on a version conflict, so two updates of different fields both
-    /// apply. <c>false</c> when the document or the index is missing, which creates neither.
+    /// apply. <c>false</c> when the document or the index is missing, which creates neither. Elasticsearch creates a
+    /// missing index on an update, without the configured mappings, so the index is checked first; an index deleted
+    /// between the check and the update is still created again.
     /// </summary>
     public async Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
         CancellationToken cancellationToken = default)
@@ -245,6 +247,12 @@ public class ElasticSearchIndexingProviderAsync(
         if (check.IsFailed)
         {
             return check.ToResult<bool>();
+        }
+
+        var exists = await IndexExistsAsync(index, cancellationToken).ConfigureAwait(false);
+        if (exists.IsFailed || !exists.Value)
+        {
+            return exists;
         }
 
         return await clientFactory.TryWithClientAsync(index, async client =>
