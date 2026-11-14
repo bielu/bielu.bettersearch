@@ -67,42 +67,161 @@ public sealed class TypesenseIndexLifecycleTests(TypesenseResource typesense) : 
         return [JsonDocument.Parse(response.Body).RootElement.GetProperty("collection_name").GetString()!];
     }
 
-    // An abort first records its decision by creating the rebuild's decision collection.
-    protected override async Task BeginAbortAsync(IndexRebuild rebuild)
+    protected override string? OverlappingCallsSkipReason =>
+        "Typesense rebuilds have a single-writer contract (see the Typesense provider page): calls for one index must not overlap.";
+
+    // Only the overlapping-call tests use it, and they are skipped.
+    protected override Task BeginAbortAsync(IndexRebuild rebuild) => throw new NotSupportedException(OverlappingCallsSkipReason);
+
+    /// <summary>A rebuild of <paramref name="index"/> filled with the document <paramref name="id"/>.</summary>
+    private async Task<IndexRebuild> FilledRebuildAsync(IIndexLifecycleServiceAsync lifecycle, string index, string id)
     {
-        var response = await SendAsync(HttpMethod.Post, "collections",
-            $$"""{"name":"{{TypesenseIndexingProviderAsync.DecisionCollection(rebuild.TargetIndex)}}","fields":[{"name":"abort","type":"string","optional":true}]}""");
-        response.StatusCode.ShouldBe(HttpStatusCode.Created, response.Body);
+        var rebuild = await lifecycle.StartRebuildAsync(index, Token);
+        ShouldSucceed(rebuild);
+        ShouldSucceed(await lifecycle.IndexRebuildDocumentsAsync(rebuild.Value, [Document(index, id)], Token));
+        return rebuild.Value;
+    }
+
+    private async Task CleanUpAsync(IReadOnlyList<string> indexes, IReadOnlyList<IndexRebuild> rebuilds)
+    {
+        try
+        {
+            foreach (var index in indexes)
+            {
+                await DeleteIndexAsync(index);
+            }
+
+            foreach (var rebuild in rebuilds)
+            {
+                await SendAsync(HttpMethod.Delete, $"collections/{Uri.EscapeDataString(rebuild.TargetIndex)}");
+            }
+        }
+        catch (Exception)
+        {
+            // Cleanup must not hide the test's own failure.
+        }
     }
 
     [Fact]
-    public async Task CompleteRebuild_EarlierCompleteStoppedBeforeMovingTheAlias_MovesItAfterWaiting()
+    public async Task CompleteRebuild_CalledAgainAfterTheAliasMoved_DeletesTheCollectionLeftBehind()
     {
         var lifecycle = ScopedServices.GetRequiredService<IIndexLifecycleServiceAsync>();
-        var index = $"stopped-{Guid.NewGuid():N}";
+        var index = $"leftover-{Guid.NewGuid():N}";
+        var rebuilds = new List<IndexRebuild>();
         ShouldSucceed(await Provider.EnsureIndexExistsAsync(index, Token));
         try
         {
-            var rebuild = await lifecycle.StartRebuildAsync(index, Token);
-            ShouldSucceed(rebuild);
-            ShouldSucceed(await lifecycle.IndexRebuildDocumentsAsync(rebuild.Value, [Document(index, "new")], Token));
-            // A complete that recorded its decision and then stopped.
-            var decided = await SendAsync(HttpMethod.Post, "collections",
-                $$"""{"name":"{{TypesenseIndexingProviderAsync.DecisionCollection(rebuild.Value.TargetIndex)}}","fields":[{"name":"complete","type":"string","optional":true}]}""");
-            decided.StatusCode.ShouldBe(HttpStatusCode.Created, decided.Body);
+            var first = await FilledRebuildAsync(lifecycle, index, "first");
+            rebuilds.Add(first);
+            ShouldSucceed(await lifecycle.CompleteRebuildAsync(first, Token));
+            var second = await FilledRebuildAsync(lifecycle, index, "second");
+            rebuilds.Add(second);
+            // A complete that moved the alias and stopped before deleting the collection it pointed at before.
+            var aliased = await SendAsync(HttpMethod.Put, $"aliases/{Uri.EscapeDataString(Prefix + index)}", $$"""{"collection_name":"{{second.TargetIndex}}"}""");
+            aliased.IsSuccess.ShouldBeTrue(aliased.Body);
 
-            var completed = await lifecycle.CompleteRebuildAsync(rebuild.Value, Token);
+            var again = await lifecycle.CompleteRebuildAsync(second, Token);
 
-            ShouldSucceed(completed);
-            completed.Value.ShouldBe([Prefix + index]);
-            (await AliasTargetsAsync(Prefix + index)).ShouldBe([rebuild.Value.TargetIndex]);
-            (await IdsAsync(index)).ShouldBe(["new"]);
-            var aborted = await lifecycle.AbortRebuildAsync(rebuild.Value, Token);
-            Errors(aborted).ShouldContain("already complete");
+            ShouldSucceed(again);
+            again.Value.ShouldBe([first.TargetIndex]);
+            (await EngineIndexExistsAsync(first.TargetIndex)).ShouldBeFalse();
+            (await AliasTargetsAsync(Prefix + index)).ShouldBe([second.TargetIndex]);
+            (await IdsAsync(index)).ShouldBe(["second"]);
         }
         finally
         {
-            await DeleteIndexAsync(index);
+            await CleanUpAsync([index], rebuilds);
+        }
+    }
+
+    [Fact]
+    public async Task CompleteRebuild_EarlierRebuildNeverCompletedOrAborted_DeletesItsCollection()
+    {
+        var lifecycle = ScopedServices.GetRequiredService<IIndexLifecycleServiceAsync>();
+        var index = $"abandoned-{Guid.NewGuid():N}";
+        var rebuilds = new List<IndexRebuild>();
+        ShouldSucceed(await Provider.EnsureIndexExistsAsync(index, Token));
+        try
+        {
+            var abandoned = await FilledRebuildAsync(lifecycle, index, "abandoned");
+            rebuilds.Add(abandoned);
+            var rebuild = await FilledRebuildAsync(lifecycle, index, "new");
+            rebuilds.Add(rebuild);
+
+            var completed = await lifecycle.CompleteRebuildAsync(rebuild, Token);
+
+            ShouldSucceed(completed);
+            completed.Value.ShouldBe([Prefix + index, abandoned.TargetIndex]);
+            (await EngineIndexExistsAsync(abandoned.TargetIndex)).ShouldBeFalse();
+            (await AliasTargetsAsync(Prefix + index)).ShouldBe([rebuild.TargetIndex]);
+            (await IdsAsync(index)).ShouldBe(["new"]);
+        }
+        finally
+        {
+            await CleanUpAsync([index], rebuilds);
+        }
+    }
+
+    [Fact]
+    public async Task CompleteRebuild_OtherIndexWhoseNameStartsTheSame_LeavesItsCollectionsAlone()
+    {
+        var lifecycle = ScopedServices.GetRequiredService<IIndexLifecycleServiceAsync>();
+        var index = $"same-start-{Guid.NewGuid():N}";
+        // Names that start with the index's name, and with its rebuild collections' name.
+        var longer = index + "-more";
+        var lookalike = index + "-rebuild-later";
+        var rebuilds = new List<IndexRebuild>();
+        ShouldSucceed(await Provider.EnsureIndexExistsAsync(index, Token));
+        ShouldSucceed(await Provider.EnsureIndexExistsAsync(lookalike, Token));
+        try
+        {
+            var other = await FilledRebuildAsync(lifecycle, longer, "other");
+            rebuilds.Add(other);
+            var rebuild = await FilledRebuildAsync(lifecycle, index, "new");
+            rebuilds.Add(rebuild);
+
+            var completed = await lifecycle.CompleteRebuildAsync(rebuild, Token);
+
+            ShouldSucceed(completed);
+            completed.Value.ShouldBe([Prefix + index]);
+            (await EngineIndexExistsAsync(other.TargetIndex)).ShouldBeTrue();
+            (await EngineIndexExistsAsync(Prefix + lookalike)).ShouldBeTrue();
+        }
+        finally
+        {
+            await CleanUpAsync([index, lookalike], rebuilds);
+        }
+    }
+
+    [Fact]
+    public async Task AbortRebuild_AfterANewerRebuildCompleted_ReturnsFalseAndKeepsTheNewerOne()
+    {
+        var lifecycle = ScopedServices.GetRequiredService<IIndexLifecycleServiceAsync>();
+        var index = $"abort-late-{Guid.NewGuid():N}";
+        var rebuilds = new List<IndexRebuild>();
+        ShouldSucceed(await Provider.EnsureIndexExistsAsync(index, Token));
+        try
+        {
+            var first = await FilledRebuildAsync(lifecycle, index, "first");
+            rebuilds.Add(first);
+            ShouldSucceed(await lifecycle.CompleteRebuildAsync(first, Token));
+            var second = await FilledRebuildAsync(lifecycle, index, "second");
+            rebuilds.Add(second);
+            ShouldSucceed(await lifecycle.CompleteRebuildAsync(second, Token));
+
+            var aborted = await lifecycle.AbortRebuildAsync(first, Token);
+
+            ShouldSucceed(aborted);
+            aborted.Value.ShouldBeFalse();
+            (await AliasTargetsAsync(Prefix + index)).ShouldBe([second.TargetIndex]);
+            (await IdsAsync(index)).ShouldBe(["second"]);
+            var abortedLive = await lifecycle.AbortRebuildAsync(second, Token);
+            Errors(abortedLive).ShouldContain("already complete");
+            (await EngineIndexExistsAsync(second.TargetIndex)).ShouldBeTrue();
+        }
+        finally
+        {
+            await CleanUpAsync([index], rebuilds);
         }
     }
 
@@ -120,7 +239,6 @@ public sealed class TypesenseIndexLifecycleTests(TypesenseResource typesense) : 
         indexed.IsFailed.ShouldBeTrue();
         Errors(indexed).ShouldContain($"rebuild index {rebuild.Value.TargetIndex}");
         (await EngineIndexExistsAsync(rebuild.Value.TargetIndex)).ShouldBeFalse();
-        (await EngineIndexExistsAsync(TypesenseIndexingProviderAsync.DecisionCollection(rebuild.Value.TargetIndex))).ShouldBeFalse();
     }
 
     protected override void Dispose(bool disposing) => (Services as IDisposable)?.Dispose();

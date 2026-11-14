@@ -25,6 +25,12 @@ public abstract class IndexLifecycleTestBase(IServiceProvider services) : IndexP
     /// </summary>
     protected abstract Task BeginAbortAsync(IndexRebuild rebuild);
 
+    /// <summary>
+    /// Why the tests of rebuild calls that overlap are skipped, or <c>null</c> to run them: for an engine whose rebuilds
+    /// have a single-writer contract, which leaves overlapping calls unsupported.
+    /// </summary>
+    protected virtual string? OverlappingCallsSkipReason => null;
+
     private IIndexLifecycleServiceAsync Lifecycle => ScopedServices.GetRequiredService<IIndexLifecycleServiceAsync>();
 
     /// <summary>An index with documents <paramref name="ids"/>, created as a plain index, not an alias.</summary>
@@ -234,6 +240,7 @@ public abstract class IndexLifecycleTestBase(IServiceProvider services) : IndexP
     [Fact]
     public async Task CompleteRebuild_AbortStartedFirst_FailsAndLeavesTheAliasOnTheOldIndex()
     {
+        Assert.SkipWhen(OverlappingCallsSkipReason is not null, OverlappingCallsSkipReason ?? "");
         var index = await IndexWithDocumentsAsync("old");
         try
         {
@@ -266,6 +273,7 @@ public abstract class IndexLifecycleTestBase(IServiceProvider services) : IndexP
     [Fact]
     public async Task AbortRebuild_AtTheSameTimeAsComplete_OneWinsAndTheAliasPointsAtAnIndexThatExists()
     {
+        Assert.SkipWhen(OverlappingCallsSkipReason is not null, OverlappingCallsSkipReason ?? "");
         var index = await IndexWithDocumentsAsync("old");
         try
         {
@@ -302,6 +310,7 @@ public abstract class IndexLifecycleTestBase(IServiceProvider services) : IndexP
     [Fact]
     public async Task CompleteRebuild_TwoCallsAtOnce_BothSucceedAndTheNewIndexIsLive()
     {
+        Assert.SkipWhen(OverlappingCallsSkipReason is not null, OverlappingCallsSkipReason ?? "");
         var index = await IndexWithDocumentsAsync("old");
         try
         {

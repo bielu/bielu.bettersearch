@@ -10,20 +10,16 @@ using Result = FluentResults.Result;
 namespace Bielu.BetterSearch.Typesense.Services;
 
 /// <summary>
-/// Rebuilds through a collection alias named like the index. Typesense has no atomic multi-step alias request, so a
-/// rebuild is decided once by creating its decision collection (<see cref="DecisionCollection"/>), which only one
-/// call can create: its one field records whether a complete or an abort created it, and every later complete or abort
-/// of the rebuild reads it and follows it. Completing then points the alias at the rebuild collection and deletes the
-/// collection it pointed at before, in separate requests.
+/// Rebuilds through a collection alias named like the index. Typesense has no atomic or conditional alias update, so
+/// completing points the alias at the rebuild collection and deletes the collections it replaced in separate requests.
 /// </summary>
+/// <remarks>
+/// Rebuilds have a single-writer contract: at most one rebuild of an index is in progress at a time, and its start,
+/// fill, complete and abort do not run at the same time as another rebuild call for the same index. Running them at
+/// the same time is not supported and can leave a collection behind or the alias pointing at a deleted collection.
+/// </remarks>
 public sealed partial class TypesenseIndexingProviderAsync
 {
-    private const string CompleteDecision = "complete";
-    private const string AbortDecision = "abort";
-
-    /// <summary>How long a complete that lost the decision to another complete waits for it to move the alias before moving it itself.</summary>
-    internal static TimeSpan CompletionWait { get; set; } = TimeSpan.FromSeconds(5);
-
     public async Task<Result<IndexRebuild>> StartRebuildAsync(string index, CancellationToken cancellationToken = default)
     {
         try
@@ -90,57 +86,25 @@ public sealed partial class TypesenseIndexingProviderAsync
                 return previous.ToResult<IReadOnlyList<string>>();
             }
 
-            if (previous.Value.Collection == rebuild.TargetIndex)
+            if (previous.Value.Collection != rebuild.TargetIndex)
             {
-                // The alias points at the rebuild collection: an earlier call completed it.
-                return Result.Ok<IReadOnlyList<string>>([]);
-            }
-
-            // Checked before deciding, so a rebuild whose collection is gone is never decided complete.
-            var exists = await CollectionExistsAsync(client, rebuild.TargetIndex, cancellationToken).ConfigureAwait(false);
-            if (exists.IsFailed || !exists.Value)
-            {
-                return exists.IsFailed ? exists.ToResult<IReadOnlyList<string>>() : Result.Fail<IReadOnlyList<string>>(RebuildIndexGone(rebuild, name));
-            }
-
-            var decision = await DecideAsync(client, rebuild.TargetIndex, CompleteDecision, cancellationToken).ConfigureAwait(false);
-            if (decision.IsFailed)
-            {
-                return decision.ToResult<IReadOnlyList<string>>();
-            }
-
-            if (decision.Value.Decision != CompleteDecision)
-            {
-                return Result.Fail<IReadOnlyList<string>>($"The rebuild of {rebuild.Index} was aborted, so alias {name} was not pointed at rebuild index {rebuild.TargetIndex}.");
-            }
-
-            if (decision.Value.Won)
-            {
-                // An abort that finished after the check above deleted the rebuild collection and its decision.
-                exists = await CollectionExistsAsync(client, rebuild.TargetIndex, cancellationToken).ConfigureAwait(false);
-                if (exists.IsFailed)
+                var exists = await CollectionExistsAsync(client, rebuild.TargetIndex, cancellationToken).ConfigureAwait(false);
+                if (exists.IsFailed || !exists.Value)
                 {
-                    return exists.ToResult<IReadOnlyList<string>>();
+                    return exists.IsFailed ? exists.ToResult<IReadOnlyList<string>>() : Result.Fail<IReadOnlyList<string>>(RebuildIndexGone(rebuild, name));
                 }
 
-                if (!exists.Value)
+                var moved = await MoveAliasAsync(client, name, rebuild.TargetIndex, previous.Value, cancellationToken).ConfigureAwait(false);
+                if (moved.IsFailed)
                 {
-                    await DeleteDecisionAsync(client, rebuild.TargetIndex, cancellationToken).ConfigureAwait(false);
-                    return Result.Fail<IReadOnlyList<string>>(RebuildIndexGone(rebuild, name));
+                    return moved;
                 }
-            }
-            else
-            {
-                // Another complete decided first, or an earlier one stopped before moving the alias: wait for it, then
-                // finish the move here.
-                previous = await WaitForAliasAsync(client, name, rebuild.TargetIndex, cancellationToken).ConfigureAwait(false);
-                if (previous.IsFailed || previous.Value.Collection == rebuild.TargetIndex)
-                {
-                    return previous.IsFailed ? previous.ToResult<IReadOnlyList<string>>() : Result.Ok<IReadOnlyList<string>>([]);
-                }
+
+                return await DeleteLeftoverRebuildsAsync(client, name, rebuild.TargetIndex, moved.Value, cancellationToken).ConfigureAwait(false);
             }
 
-            return await MoveAliasAsync(client, name, rebuild.TargetIndex, previous.Value, cancellationToken).ConfigureAwait(false);
+            // An earlier call moved the alias, and may have stopped before deleting the collection it replaced.
+            return await DeleteLeftoverRebuildsAsync(client, name, rebuild.TargetIndex, [], cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -159,15 +123,15 @@ public sealed partial class TypesenseIndexingProviderAsync
         try
         {
             var client = await clientFactory.GetOrCreateClientAsync(rebuild.Index).ConfigureAwait(false);
-            var decision = await DecideAsync(client, rebuild.TargetIndex, AbortDecision, cancellationToken).ConfigureAwait(false);
-            if (decision.IsFailed)
+            var live = await AliasTargetAsync(client, name, cancellationToken).ConfigureAwait(false);
+            if (live.IsFailed)
             {
-                return decision.ToResult<bool>();
+                return live.ToResult<bool>();
             }
 
-            if (decision.Value.Decision != AbortDecision)
+            if (live.Value == rebuild.TargetIndex)
             {
-                return Result.Fail<bool>($"The rebuild of {rebuild.Index} is already complete: alias {name} points, or is being pointed, at {rebuild.TargetIndex}, so it was not deleted.");
+                return Result.Fail<bool>($"The rebuild of {rebuild.Index} is already complete: alias {name} points at {rebuild.TargetIndex}, so it was not deleted.");
             }
 
             schema.Forget(client, rebuild.TargetIndex);
@@ -177,77 +141,12 @@ public sealed partial class TypesenseIndexingProviderAsync
                 return Result.Fail<bool>($"Deleting rebuild index {rebuild.TargetIndex} failed: {response.Describe()}");
             }
 
-            // The rebuild collection is gone, so a later complete fails on that before it decides anything.
-            await DeleteDecisionAsync(client, rebuild.TargetIndex, cancellationToken).ConfigureAwait(false);
             return Result.Ok(response.IsSuccess);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             return Result.Fail<bool>(new Error(e.Message).CausedBy(e));
         }
-    }
-
-    /// <summary>
-    /// The collection whose creation decides the rebuild of <paramref name="target"/>: the first complete or abort
-    /// creates it, with one field named after what it decided, and every later one reads that field.
-    /// </summary>
-    internal static string DecisionCollection(string target) => target + "-decision";
-
-    /// <summary>
-    /// Decides the rebuild of <paramref name="target"/> as <paramref name="decision"/> unless another call decided it
-    /// first: what was decided, and whether this call decided it.
-    /// </summary>
-    private static async Task<Result<(string Decision, bool Won)>> DecideAsync(TypesenseHttpClientWrapper client, string target, string decision,
-        CancellationToken cancellationToken)
-    {
-        var name = DecisionCollection(target);
-        var body = new JsonObject
-        {
-            ["name"] = name,
-            ["fields"] = new JsonArray(new JsonObject { ["name"] = decision, ["type"] = "string", ["optional"] = true }),
-        }.ToJsonString();
-        // A decision collection can be deleted between a failed create and the read, by an abort that finished.
-        for (var attempt = 0; attempt < 3; attempt++)
-        {
-            var created = await client.SendAsync(HttpMethod.Post, "collections", () => new StringContent(body, Encoding.UTF8, "application/json"), cancellationToken).ConfigureAwait(false);
-            if (created.IsSuccess)
-            {
-                return Result.Ok((decision, true));
-            }
-
-            if (created.StatusCode != HttpStatusCode.Conflict)
-            {
-                return Result.Fail<(string, bool)>($"Recording the decision for rebuild index {target} failed: {created.Describe()}");
-            }
-
-            var existing = await client.SendAsync(HttpMethod.Get, $"collections/{TypesenseHttpClientWrapper.Escape(name)}", null, cancellationToken).ConfigureAwait(false);
-            if (existing.StatusCode == HttpStatusCode.NotFound)
-            {
-                continue;
-            }
-
-            if (!existing.IsSuccess)
-            {
-                return Result.Fail<(string, bool)>($"Reading the decision for rebuild index {target} failed: {existing.Describe()}");
-            }
-
-            using var json = JsonDocument.Parse(existing.Body);
-            var decided = json.RootElement.GetProperty("fields").EnumerateArray()
-                .Select(field => field.GetProperty("name").GetString())
-                .FirstOrDefault(field => field is CompleteDecision or AbortDecision);
-            return decided is null
-                ? Result.Fail<(string, bool)>($"Collection {name} exists but does not record a rebuild decision; delete it and call again.")
-                // A replayed create can find the collection this call created.
-                : Result.Ok((decided, false));
-        }
-
-        return Result.Fail<(string, bool)>($"The decision for rebuild index {target} kept changing; call again.");
-    }
-
-    private static async Task DeleteDecisionAsync(TypesenseHttpClientWrapper client, string target, CancellationToken cancellationToken)
-    {
-        // Only an empty marker is left behind when this fails, so the failure is not reported.
-        await client.SendAsync(HttpMethod.Delete, $"collections/{TypesenseHttpClientWrapper.Escape(DecisionCollection(target))}", null, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -266,29 +165,14 @@ public sealed partial class TypesenseIndexingProviderAsync
             // so it is deleted again, and that write is lost, as any write made during a rebuild is.
             for (var attempt = 0; ; attempt++)
             {
-                // Read again, as another complete may have replaced the collection with the alias, and deleting the
-                // collection by the alias's name would delete the collection behind it.
-                var current = await PreviousCollectionAsync(client, name, cancellationToken).ConfigureAwait(false);
-                if (current.IsFailed)
+                var dropped = await client.SendAsync(HttpMethod.Delete, $"collections/{TypesenseHttpClientWrapper.Escape(name)}", null, cancellationToken).ConfigureAwait(false);
+                if (!dropped.IsSuccess && dropped.StatusCode != HttpStatusCode.NotFound)
                 {
-                    return current.ToResult<IReadOnlyList<string>>();
+                    return Result.Fail<IReadOnlyList<string>>($"Deleting collection {name} to replace it with an alias failed: {dropped.Describe()}");
                 }
 
-                if (current.Value.IsAlias)
+                if (dropped.IsSuccess)
                 {
-                    return current.Value.Collection == target
-                        ? Result.Ok(deleted)
-                        : await MoveAliasAsync(client, name, target, current.Value, cancellationToken).ConfigureAwait(false);
-                }
-
-                if (current.Value.Collection is not null)
-                {
-                    var dropped = await client.SendAsync(HttpMethod.Delete, $"collections/{TypesenseHttpClientWrapper.Escape(name)}", null, cancellationToken).ConfigureAwait(false);
-                    if (!dropped.IsSuccess && dropped.StatusCode != HttpStatusCode.NotFound)
-                    {
-                        return Result.Fail<IReadOnlyList<string>>($"Deleting collection {name} to replace it with an alias failed: {dropped.Describe()}");
-                    }
-
                     deleted = [name];
                 }
 
@@ -320,10 +204,9 @@ public sealed partial class TypesenseIndexingProviderAsync
                 var dropped = await client.SendAsync(HttpMethod.Delete, $"collections/{TypesenseHttpClientWrapper.Escape(old)}", null, cancellationToken).ConfigureAwait(false);
                 if (!dropped.IsSuccess && dropped.StatusCode != HttpStatusCode.NotFound)
                 {
-                    return Result.Fail<IReadOnlyList<string>>($"Alias {name} now points at rebuild index {target}, but deleting the collection it pointed at before, {old}, failed: {dropped.Describe()}. Delete {old} yourself.");
+                    return Result.Fail<IReadOnlyList<string>>($"Alias {name} now points at rebuild index {target}, but deleting the collection it pointed at before, {old}, failed: {dropped.Describe()}. Call CompleteRebuildAsync again or delete {old} yourself.");
                 }
 
-                await DeleteDecisionAsync(client, old, cancellationToken).ConfigureAwait(false);
                 deleted = dropped.IsSuccess ? [old] : [];
             }
         }
@@ -334,23 +217,48 @@ public sealed partial class TypesenseIndexingProviderAsync
     }
 
     /// <summary>
-    /// Waits up to <see cref="CompletionWait"/> for the alias <paramref name="name"/> to point at <paramref name="target"/>,
-    /// and returns what it points at then.
+    /// Deletes every rebuild collection of <paramref name="name"/> other than the live <paramref name="live"/>: one a
+    /// complete that stopped after moving the alias did not delete, or one never completed or aborted. Returns
+    /// <paramref name="deleted"/> and their names.
     /// </summary>
-    private static async Task<Result<(string? Collection, bool IsAlias)>> WaitForAliasAsync(TypesenseHttpClientWrapper client, string name, string target,
-        CancellationToken cancellationToken)
+    private async Task<Result<IReadOnlyList<string>>> DeleteLeftoverRebuildsAsync(TypesenseHttpClientWrapper client, string name, string live,
+        IReadOnlyList<string> deleted, CancellationToken cancellationToken)
     {
-        var until = DateTimeOffset.UtcNow + CompletionWait;
-        while (true)
+        var listed = await client.SendAsync(HttpMethod.Get, "collections", null, cancellationToken).ConfigureAwait(false);
+        if (!listed.IsSuccess)
         {
-            var current = await PreviousCollectionAsync(client, name, cancellationToken).ConfigureAwait(false);
-            if (current.IsFailed || current.Value.Collection == target || DateTimeOffset.UtcNow >= until)
+            return Result.Fail<IReadOnlyList<string>>($"Alias {name} points at rebuild index {live}, but listing collections to delete earlier rebuild collections of it failed: {listed.Describe()}. Call CompleteRebuildAsync again.");
+        }
+
+        List<string> leftovers;
+        using (var json = JsonDocument.Parse(listed.Body))
+        {
+            // Only names NewRebuildTarget gives this index, so an index whose name starts with the same text is not touched.
+            leftovers = json.RootElement.EnumerateArray()
+                .Select(collection => collection.GetProperty("name").GetString())
+                .Where(collection => collection != live && IndexNames.IsRebuildTargetOf(name, collection))
+                .Select(collection => collection!)
+                .Order(StringComparer.Ordinal)
+                .ToList();
+        }
+
+        var all = deleted.ToList();
+        foreach (var leftover in leftovers)
+        {
+            schema.Forget(client, leftover);
+            var dropped = await client.SendAsync(HttpMethod.Delete, $"collections/{TypesenseHttpClientWrapper.Escape(leftover)}", null, cancellationToken).ConfigureAwait(false);
+            if (!dropped.IsSuccess && dropped.StatusCode != HttpStatusCode.NotFound)
             {
-                return current;
+                return Result.Fail<IReadOnlyList<string>>($"Alias {name} points at rebuild index {live}, but deleting {leftover}, an earlier rebuild collection of it, failed: {dropped.Describe()}. Call CompleteRebuildAsync again or delete {leftover} yourself.");
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
+            if (dropped.IsSuccess)
+            {
+                all.Add(leftover);
+            }
         }
+
+        return Result.Ok<IReadOnlyList<string>>(all);
     }
 
     /// <summary>
@@ -403,7 +311,7 @@ public sealed partial class TypesenseIndexingProviderAsync
     }
 
     /// <summary>
-    /// Deletes the collection the alias <paramref name="name"/> points at, its decision collection and the alias:
+    /// Deletes the collection the alias <paramref name="name"/> points at and the alias:
     /// deleting by the alias's name would delete the collection and leave the alias pointing at nothing.
     /// </summary>
     private async Task<Result<bool>> DeleteAliasedAsync(TypesenseHttpClientWrapper client, string index, string name, string live, CancellationToken cancellationToken)
@@ -415,7 +323,6 @@ public sealed partial class TypesenseIndexingProviderAsync
             return Result.Fail<bool>($"Deleting index {index} failed: {dropped.Describe()}");
         }
 
-        await DeleteDecisionAsync(client, live, cancellationToken).ConfigureAwait(false);
         var unaliased = await client.SendAsync(HttpMethod.Delete, $"aliases/{TypesenseHttpClientWrapper.Escape(name)}", null, cancellationToken).ConfigureAwait(false);
         return unaliased.IsSuccess || unaliased.StatusCode == HttpStatusCode.NotFound
             ? Result.Ok(true)

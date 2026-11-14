@@ -24,7 +24,8 @@ for `truncate`; the AppHost and the integration tests run 29.0.
 > - **Facets** and **highlighting** return a failed `Result`.
 > - **`GetDocumentAsync`, `CountAsync` and `UpdateDocumentAsync`** are not implemented yet and return a failed `Result`.
 > - **Index rebuilds** are not atomic, as Typesense has no request that moves an alias and deletes a collection
->   together: see [Rebuilding an index](#rebuilding-an-index). The first rebuild of an index created as a plain
+>   together: see [Rebuilding an index](#rebuilding-an-index). They have a single-writer contract: one rebuild of
+>   an index at a time, with no two of its calls running at once. The first rebuild of an index created as a plain
 >   collection deletes it before creating the alias, so searches in between fail.
 > - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
 > - **`PageSize`** above 250, the most Typesense returns in one page, returns a failed `Result`.
@@ -165,23 +166,29 @@ var deleted = await lifecycle.CompleteRebuildAsync(rebuild.Value); // points the
   a random suffix, with the provider's schema.
 - **Fill** imports into the new collection as `IndexMultipleDocumentsAsync` does. A new collection that is gone,
   because the rebuild was aborted, fails the call and is not created again.
-- **Complete** points the alias at the new collection, then deletes the collection it pointed at before, and returns
-  its name. These are separate requests: when the delete fails, the alias already points at the new collection and
-  the error names the old one to delete. Typesense refuses an alias named like a collection, so the first rebuild of
-  an index created as a plain collection deletes that collection and then creates the alias: searches and writes in
-  that moment fail, and a write that recreates the collection is lost when it is deleted again. Completing a rebuild
-  that is already complete succeeds and deletes nothing. A new collection that is gone fails to complete and leaves
-  the alias where it was.
+- **Complete** points the alias at the new collection, then deletes the collection it pointed at before, then
+  deletes every other rebuild collection of the index, and returns the names it deleted. These are separate
+  requests: when a delete fails, the alias already points at the new collection and the error names the collection
+  left behind; calling `CompleteRebuildAsync` again deletes it. Completing a rebuild that is already complete
+  succeeds and deletes, and returns, any rebuild collection of the index other than the live one, which cleans up
+  after a complete that stopped after moving the alias, and after a rebuild that was never completed or aborted.
+  Rebuild collections are found by name, `<prefix><index>-rebuild-<17 digits>-<8 hex digits>`, so another index whose
+  name starts with the same text is not touched. A new collection that is gone fails to complete and leaves the
+  alias where it was.
+- **The first rebuild of a plain collection** has a short gap: Typesense refuses an alias named like a collection,
+  so complete deletes that collection and then creates the alias. Searches and writes in that moment fail, and a
+  write that recreates the collection is lost when it is deleted again. For zero downtime from the start, create the
+  index through a rebuild (start, fill and complete it before anything else writes to the index name), or accept
+  the gap once.
 - **Abort** deletes the new collection and leaves the alias where it is; `false` when it is already gone. It fails,
-  deleting nothing, once the rebuild is complete.
-- **A complete and an abort** of the same rebuild never both take effect, even in different processes: the first
-  one creates the collection `<new collection>-decision`, whose one field records which it was, and every later
-  call follows it. A complete that finds another complete's decision waits up to 5 seconds for it to move the alias,
-  then moves it itself, so calling `CompleteRebuildAsync` again finishes a complete that stopped part way. The
-  decision collection is deleted with its rebuild collection, by an abort, a later rebuild's complete or
-  `DeleteIndexAsync`.
+  deleting nothing, when the alias points at it, as the rebuild is already complete.
+- **One rebuild at a time.** Typesense has no atomic or conditional alias update, so rebuilds have a single-writer
+  contract: at most one rebuild of an index is in progress at a time, and its start, fill, complete and abort don't
+  run at the same time as another rebuild call for the same index, in this process or another. Running them at the
+  same time is not supported and can leave an orphaned collection or the alias pointing at a deleted collection.
+  Elasticsearch and OpenSearch have no such limit.
 - After a rebuild the index name is an alias. Searches and writes go through it, `IndexExistsAsync` reads it as the
-  collection behind it, and `DeleteIndexAsync` deletes that collection, its decision collection and the alias:
+  collection behind it, and `DeleteIndexAsync` deletes that collection and the alias:
   deleting a collection by the alias's name would delete the collection and leave the alias pointing at nothing.
   A search reads the fields of the collection behind the alias again after a complete in this process, and within
   `SchemaCheckInterval` in other processes.
