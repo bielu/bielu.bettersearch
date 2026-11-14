@@ -138,8 +138,18 @@ Reviews catch more overstated claims than anything else. Read every sentence you
 ### Housekeeping
 
 - Save Markdown, the changeset and `.csproj` files **without a UTF-8 BOM**. Only `*.cs`/`*.vb` use a BOM. Don't commit changes that only touch encoding or whitespace.
-- Merge `main` into your branch before review, and check other open PRs that touch the same docs or methods. Two PRs can merge without a textual conflict and still contradict each other.
+- Merge `main` (or, for a stacked PR, its base branch) into your branch before review, and check other open PRs that touch the same docs or methods. Two PRs can merge without a textual conflict and still contradict each other.
 - Keep the PR to its issue. Open a follow-up issue for a valid finding that's out of scope, and link it from the thread.
+
+### Stacked pull requests
+
+We prefer stacked PRs on GitHub. When a change builds on another PR that is still open, don't wait for it, copy its code, or fold both into one PR. Branch from that PR's branch, and open your PR with its **base set to that branch**.
+
+- **Split large work into a stack.** Put a shared refactor or new interface member first and each feature or provider on top. Every PR in the stack covers one issue, stays reviewable on its own, and has its own changeset.
+- **Say where the PR sits.** Start the description with `Stacked on #N`, list the whole stack in order, and keep the list current in each PR as the stack changes.
+- **Keep the stack up to date by merging, not rebasing.** When a lower PR changes, merge its branch into the one above, and pass the change up the stack one PR at a time.
+- **Merge from the bottom up.** Merge the lowest PR into `main` first, and never merge an upper PR into its base branch. A squash merge gives `main` a new commit, so the next PR shows the lower PR's changes again. Once GitHub retargets it to `main`, or you do, merge `main` into its branch so its diff shows only its own change.
+- **Review in the context of the stack.** Review each PR against its base, and check that the top of the stack builds and passes the tests on its own. A fix found in a lower PR belongs in that PR, not in the one above it.
 
 ## Versioning and releases
 
@@ -153,5 +163,5 @@ Releases are driven by [changesets](https://github.com/changesets/changesets) in
 4. A changeset is included.
 5. `README.md`, `docs/articles/feature-matrix.md` and the provider pages in `docs/articles/providers/` are updated when behavior or public APIs change, and every claim in them has been checked against the code.
 6. You have gone through [Common review findings](#common-review-findings). You have worked through each logic scenario that applies, every provider has been checked and either has the change or the PR explains why not (an engine that can't support it returns a failed `Result` that the feature matrix records), each new test fails when the code it covers is broken, and the integration tests of every engine you touched pass.
-7. The branch is up to date with `main`, and the PR description lists every behavior change.
-8. Target the `main` branch.
+7. The branch is up to date with its base (`main`, or the branch of the PR it is stacked on), and the PR description lists every behavior change.
+8. Target the `main` branch, or, for a [stacked PR](#stacked-pull-requests), the branch of the PR below it.
