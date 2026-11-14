@@ -3,11 +3,11 @@ using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.DepedencyInjection;
 using Bielu.BetterSearch.Meilisearch.Configuration;
 using Bielu.BetterSearch.Meilisearch.DepedencyInjection;
+using Microsoft.Extensions.DependencyInjection;
+using Shouldly;
 using MeilisearchClient = Meilisearch.MeilisearchClient;
 using Pagination = Meilisearch.Pagination;
 using TaskInfoStatus = Meilisearch.TaskInfoStatus;
-using Microsoft.Extensions.DependencyInjection;
-using Shouldly;
 
 namespace Bielu.BetterSearch.Meilisearch.Tests;
 

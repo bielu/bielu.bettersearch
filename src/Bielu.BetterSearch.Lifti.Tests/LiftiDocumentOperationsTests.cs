@@ -12,6 +12,8 @@ public sealed class LiftiDocumentOperationsTests(
 {
     protected override bool StoresFields => false;
 
+    protected override bool CountOnMissingIndexFails => false;
+
     protected override string UnsupportedGetMessage => LiftiSearchProviderAsync.UnsupportedGetDocument;
 
     protected override string UnsupportedUpdateMessage => LiftiIndexingProviderAsync.UnsupportedUpdateDocument;

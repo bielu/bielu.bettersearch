@@ -161,6 +161,20 @@ split the import into several `IndexMultipleDocumentsAsync` calls.
   times out (`TaskTimeout`), the `Result` fails saying the task was queued and may still remove any or all of the
   ids, with the task's uid in the error's `taskUid` metadata.
 
+## Getting, counting and updating documents
+
+- **`GetDocumentAsync(index, id)`** returns the document's fields as hits return them. Meilisearch's
+  `document_not_found` and `index_not_found` are success with `null`; any other error is a failed `Result` with
+  Meilisearch's code.
+- **`CountAsync(query)`** fetches documents with the filter a search would send, post filter included, and
+  reads the total, so the count is exact and not capped at the index's `maxTotalHits`. A missing index is a
+  failed `Result` with Meilisearch's code.
+- **`UpdateDocumentAsync(index, id, fields)`** reads the stored document, replaces each named field and the
+  filter copies made from it (`tokens`, `phrases`, `dates` and `_geo`), and stores the document again whole,
+  waiting for the task. It returns `false` for a missing document or index and creates neither. Meilisearch has
+  no conditional partial update, so this is a read and then a write: an update another caller makes in between
+  is lost, and a document removed in between is stored again with the merged fields.
+
 ## Checking an index exists
 
 `IndexExistsAsync` is success with `false` when Meilisearch answers `index_not_found`. Any other error, such as a

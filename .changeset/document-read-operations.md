@@ -1,0 +1,5 @@
+---
+"bielu-bettersearch": minor
+---
+
+Add `GetDocumentAsync(index, id)` and `CountAsync(query)` to `ISearchProviderAsync` and `ISearchServiceAsync`, and `UpdateDocumentAsync(index, id, fields)` to `IIndexingProviderAsync` and `IIndexingServiceAsync`, as default interface members (#99), so existing implementers still compile and return a failed `Result` naming themselves. `GetDocumentAsync` returns `null` for a missing document or index. `CountAsync` is exact: `_count` on Elasticsearch and OpenSearch, a filtered document fetch on Meilisearch, and every match on Lifti. `UpdateDocumentAsync` replaces the named fields and keeps the others, returning `false` for a missing document or index: a partial `_update` on Elasticsearch and OpenSearch, after checking the index exists, and a read and a whole write on Meilisearch. Lifti keeps no stored fields, so its get and update return a failed `Result`.

@@ -109,6 +109,13 @@ them is stored.
   `ILiftiIndexManager`. A delete therefore can't land between the lookup and the factory call, which would make
   the factory create the deleted index again. The lock does not cover calls made on the index manager directly.
 
+## Getting, counting and updating documents
+
+Lifti keeps only the words of each document, not its fields, so `GetDocumentAsync` and `UpdateDocumentAsync`
+return a failed `Result` saying so; index the whole document again to change it. `CountAsync` runs the query as
+a search does and counts every match, which is exact; on a missing index it creates the index and counts 0, as
+a search there does.
+
 ## Errors
 
 When a custom `ILiftiIndexManager` or `IClientFactoryAsync<IFullTextIndex<string>>` throws, every indexing method

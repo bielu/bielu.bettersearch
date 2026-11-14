@@ -27,6 +27,9 @@ public abstract class DocumentOperationsTestBase(
     /// <summary>The message a provider that does not store fields fails an update with.</summary>
     protected virtual string UnsupportedUpdateMessage => string.Empty;
 
+    /// <summary>Whether counting on a missing index fails, as a search there does; Lifti creates the index instead.</summary>
+    protected virtual bool CountOnMissingIndexFails => true;
+
     /// <summary>Makes the documents indexed so far searchable; nothing to do where indexing already is.</summary>
     protected virtual Task RefreshAsync(string index) => Task.CompletedTask;
 
@@ -170,6 +173,31 @@ public abstract class DocumentOperationsTestBase(
             news.Value.ShouldBe(3);
             none.IsSuccess.ShouldBeTrue(string.Join("; ", none.Errors.Select(error => error.Message)));
             none.Value.ShouldBe(0);
+        }
+        finally
+        {
+            await DeleteIndexAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task CountAsync_MissingIndex_FailsAsSearchDoes()
+    {
+        var index = $"count-missing-{Guid.NewGuid():N}";
+        try
+        {
+            var result = await searchService.CountAsync(CategoryQuery(index, "news"), Token);
+
+            if (CountOnMissingIndexFails)
+            {
+                result.IsFailed.ShouldBeTrue();
+                result.Errors.Single().Message.ShouldContain("index");
+            }
+            else
+            {
+                result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+                result.Value.ShouldBe(0);
+            }
         }
         finally
         {
