@@ -78,6 +78,12 @@ internal static class RangeFilter
         {
             min = query.IncludeMinEdge ? min : Math.BitIncrement(min.Value);
             max = query.IncludeMaxEdge ? max : Math.BitDecrement(max.Value);
+            if (double.IsInfinity(min.Value) || double.IsInfinity(max.Value))
+            {
+                // Nothing lies above an excluded double.MaxValue or below an excluded double.MinValue.
+                var field = MeilisearchFieldNames.Require(query.Field, queryName);
+                return field.IsFailed ? field.ToResult<MeilisearchFilter>() : Result.Ok(new MeilisearchFilter(MeilisearchFieldNames.MatchNone));
+            }
         }
 
         return Create(query, queryName, map, MeilisearchFieldNames.Number(min), MeilisearchFieldNames.Number(max));
