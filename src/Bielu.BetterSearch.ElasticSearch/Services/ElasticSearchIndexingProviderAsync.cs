@@ -69,8 +69,6 @@ public class ElasticSearchIndexingProviderAsync(
                 Operations = new BulkOperationsCollection(distinctIds.Value.Select(id => new BulkDeleteOperation(id))),
             };
             var response = await client.BulkAsync(request, cancellationToken).ConfigureAwait(false);
-            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
-            cancellationToken.ThrowIfCancellationRequested();
             // A request rejected as a whole, such as a 403, has no items.
             if (response.Items is null || response.Items.Count != distinctIds.Value.Count)
             {
@@ -103,7 +101,8 @@ public class ElasticSearchIndexingProviderAsync(
 
     /// <summary>
     /// Creates the index with its configured mappings when it is missing. When it exists, adds the configured mappings
-    /// to it, which fails when one conflicts with how the field is already mapped. <c>true</c> when this call created it.
+    /// to it, which fails when one conflicts with how the field is already mapped. <c>true</c> whenever the index exists
+    /// afterwards, whether it already existed, this call created it, or another caller created it first.
     /// </summary>
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {
@@ -117,15 +116,22 @@ public class ElasticSearchIndexingProviderAsync(
         if (!exist.Value)
         {
             var created = await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
-            // Not created and not failed means another caller created it in between, perhaps without the mappings.
-            if (created.IsFailed || created.Value)
+            if (created.IsFailed)
             {
                 return created;
             }
+
+            // Ok(true) means this call created the index with the mappings. Ok(false) means another caller
+            // created it in between, perhaps without them, so they still have to be added.
+            if (created.Value)
+            {
+                return Result.Ok(true);
+            }
         }
 
+        // The index exists either way; only a failure to add the mappings is a failure.
         var mapped = await PutMappingsAsync(index, cancellationToken).ConfigureAwait(false);
-        return mapped.IsFailed ? mapped : Result.Ok(false);
+        return mapped.IsFailed ? mapped : Result.Ok(true);
     }
 
     private Task<Result<bool>> PutMappingsAsync(string index, CancellationToken cancellationToken) =>
@@ -138,7 +144,6 @@ public class ElasticSearchIndexingProviderAsync(
             }
 
             var response = await client.Indices.PutMappingAsync(new PutMappingRequest(Indices.Index(index)) { Properties = properties }, cancellationToken).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
             if (!response.IsSuccess())
             {
                 return Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe($"adding the configured mappings to index {index}", response), response.ApiCallDetails?.OriginalException));
@@ -151,18 +156,18 @@ public class ElasticSearchIndexingProviderAsync(
         }, cancellationToken);
 
     public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) =>
-        clientFactory.TryWithClientAsync<bool>(index, async client =>
+        clientFactory.TryWithClientAsync(index, async client =>
         {
             var indexResult = await client.Indices.DeleteAsync(new DeleteIndexRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
-            return indexResult.IsSuccess() ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
+            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
+            cancellationToken.ThrowIfCancellationRequested();
+            return indexResult.IsSuccess() ? Result.Ok(true) : Result.Fail<bool>(new Error(indexResult.DebugInformation));
         }, cancellationToken);
 
     public Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(index, async client =>
         {
             var result = await client.Indices.ExistsAsync(new ExistsRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
-            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
-            cancellationToken.ThrowIfCancellationRequested();
             // Only 200 and 404 answer the question; anything else, such as no answer, a 401, 403 or 5xx, is a failure.
             return result.ApiCallDetails?.HttpStatusCode switch
             {
@@ -187,6 +192,7 @@ public class ElasticSearchIndexingProviderAsync(
             }
 
             var result = await client.Indices.CreateAsync(request, cancellationToken).ConfigureAwait(false);
+            // The client reports a cancelled request as a failed response; check before logging it as an error.
             cancellationToken.ThrowIfCancellationRequested();
             if (result.IsSuccess())
             {
@@ -200,7 +206,7 @@ public class ElasticSearchIndexingProviderAsync(
             }
 
             logger.LogError("Creating index {Index} failed: {Error}", index, result.DebugInformation);
-            return Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe($"creating index {index}", result), result.ApiCallDetails?.OriginalException));
+            return Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe("create index", result), result.ApiCallDetails?.OriginalException));
         }, cancellationToken);
 
     private static string NotAcknowledged(string index) =>

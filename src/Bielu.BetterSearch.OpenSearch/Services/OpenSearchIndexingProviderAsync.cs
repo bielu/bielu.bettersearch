@@ -21,7 +21,7 @@ internal sealed class OpenSearchIndexingProviderAsync(
         {
             var response = await client.IndexAsync(document, i => i.Index(document.Index).Id(document.Id), cancellationToken).ConfigureAwait(false);
             return IsSuccess(response) ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
-        });
+        }, cancellationToken);
 
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents,
         CancellationToken cancellationToken = default)
@@ -34,7 +34,7 @@ internal sealed class OpenSearchIndexingProviderAsync(
             {
                 var response = await client.BulkAsync(b => b.Index(indexGroup.Key).IndexMany(indexGroup, (descriptor, document) => descriptor.Id(document.Id)), cancellationToken).ConfigureAwait(false);
                 return IsSuccess(response) ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
-            }).ConfigureAwait(false));
+            }, cancellationToken).ConfigureAwait(false));
         }
 
         var merged = results.Merge();
@@ -50,7 +50,7 @@ internal sealed class OpenSearchIndexingProviderAsync(
             var removed = response.ServerError is null
                 && (response.IsValid || response.Result == global::OpenSearch.Client.Result.NotFound);
             return removed ? Result.Ok() : Result.Fail(new Error(response.DebugInformation));
-        });
+        }, cancellationToken);
 
     public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,
         CancellationToken cancellationToken = default)
@@ -64,8 +64,6 @@ internal sealed class OpenSearchIndexingProviderAsync(
         return await clientFactory.TryWithClientAsync(index, async client =>
         {
             var response = await client.BulkAsync(b => b.Index(index).DeleteMany<SearchDocument>(distinctIds.Value, (descriptor, id) => descriptor.Id(id)), cancellationToken).ConfigureAwait(false);
-            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
-            cancellationToken.ThrowIfCancellationRequested();
             // A request rejected as a whole, such as a 403, has no items.
             if (response.Items is null || response.Items.Count != distinctIds.Value.Count)
             {
@@ -83,7 +81,7 @@ internal sealed class OpenSearchIndexingProviderAsync(
             }
 
             return Result.Ok(removed);
-        }).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     public Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
@@ -104,11 +102,12 @@ internal sealed class OpenSearchIndexingProviderAsync(
             }
 
             return Result.Ok<long?>(response.Deleted);
-        });
+        }, cancellationToken);
 
     /// <summary>
     /// Creates the index with its configured mappings when it is missing. When it exists, adds the configured mappings
-    /// to it, which fails when one conflicts with how the field is already mapped.
+    /// to it, which fails when one conflicts with how the field is already mapped. <c>true</c> whenever the index exists
+    /// afterwards, whether it already existed, this call created it, or another caller created it first.
     /// </summary>
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {
@@ -119,21 +118,25 @@ internal sealed class OpenSearchIndexingProviderAsync(
             return exist;
         }
 
-        var answer = true;
         if (!exist.Value)
         {
             var created = await CreateIndexAsync(index, cancellationToken).ConfigureAwait(false);
-            // Not created and not failed means another caller created it in between, perhaps without the mappings.
-            if (created.IsFailed || created.Value)
+            if (created.IsFailed)
             {
                 return created;
             }
 
-            answer = false;
+            // Ok(true) means this call created the index with the mappings. Ok(false) means another caller
+            // created it in between, perhaps without them, so they still have to be added.
+            if (created.Value)
+            {
+                return Result.Ok(true);
+            }
         }
 
+        // The index exists either way; only a failure to add the mappings is a failure.
         var mapped = await PutMappingsAsync(index, cancellationToken).ConfigureAwait(false);
-        return mapped.IsFailed ? mapped : Result.Ok(answer);
+        return mapped.IsFailed ? mapped : Result.Ok(true);
     }
 
     private Task<Result<bool>> PutMappingsAsync(string index, CancellationToken cancellationToken) =>
@@ -146,7 +149,6 @@ internal sealed class OpenSearchIndexingProviderAsync(
             }
 
             var response = await client.Indices.PutMappingAsync(new PutMappingRequest(index) { Properties = properties }, cancellationToken).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
             // A 200 with acknowledged false means the cluster took the mappings but did not confirm them in time. The client
             // calls that response invalid, so it is told apart before the generic failure.
             if (response.ApiCall is { Success: true } && response.OriginalException is null && response.ServerError is null && !response.Acknowledged)
@@ -157,21 +159,19 @@ internal sealed class OpenSearchIndexingProviderAsync(
             return IsSuccess(response)
                 ? Result.Ok(true)
                 : Result.Fail<bool>(RequestFailed(OpenSearchFailures.Describe($"adding the configured mappings to index {index}", response), response.OriginalException));
-        });
+        }, cancellationToken);
 
     public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(index, async client =>
         {
             var response = await client.Indices.DeleteAsync(index, ct: cancellationToken).ConfigureAwait(false);
             return IsSuccess(response) ? Result.Ok(true) : Result.Fail<bool>(new Error(response.DebugInformation));
-        });
+        }, cancellationToken);
 
     public Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(index, async client =>
         {
             var response = await client.Indices.ExistsAsync(index, ct: cancellationToken).ConfigureAwait(false);
-            // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
-            cancellationToken.ThrowIfCancellationRequested();
             // Only 200 and 404 answer the question; anything else, such as no answer, a 401, 403 or 5xx, is a failure.
             return response.ApiCall?.HttpStatusCode switch
             {
@@ -179,7 +179,7 @@ internal sealed class OpenSearchIndexingProviderAsync(
                 404 => Result.Ok(false),
                 _ => Result.Fail<bool>(RequestFailed(OpenSearchFailures.Describe("index exists check", response), response.OriginalException)),
             };
-        });
+        }, cancellationToken);
 
     private static string NotAcknowledged(string index) =>
         $"Adding the configured mappings to index {index} was not acknowledged in time. The mappings are not rolled back and may still apply; call EnsureIndexExistsAsync again to confirm them.";
@@ -205,6 +205,7 @@ internal sealed class OpenSearchIndexingProviderAsync(
             }
 
             var response = await client.Indices.CreateAsync(request, cancellationToken).ConfigureAwait(false);
+            // The client reports a cancelled request as a failed response; check before logging it as an error.
             cancellationToken.ThrowIfCancellationRequested();
             if (IsSuccess(response))
             {
@@ -218,6 +219,6 @@ internal sealed class OpenSearchIndexingProviderAsync(
             }
 
             logger.LogError("Creating index {Index} failed: {Error}", index, response.DebugInformation);
-            return Result.Fail<bool>(RequestFailed(OpenSearchFailures.Describe($"creating index {index}", response), response.OriginalException));
-        });
+            return Result.Fail<bool>(RequestFailed(OpenSearchFailures.Describe("create index", response), response.OriginalException));
+        }, cancellationToken);
 }

@@ -326,6 +326,35 @@ public sealed class ElasticsearchMappingTests(
         }
     }
 
+    private static SearchQuery Between(string field, DateTime min, DateTime max)
+    {
+        var query = new SearchQuery();
+        query.Add(Occurance.MUST, new DateRangeQuery { Field = field, MinValue = min, MaxValue = max, IncludeMinEdge = true, IncludeMaxEdge = false });
+        return query;
+    }
+
+    [Fact]
+    public async Task DateRangeQuery_DateFieldWithCustomFormatAcceptingIso8601_FindsDateTimeAndDateOnlyValues()
+    {
+        // The format the provider pages recommend: ISO 8601 text, as the provider writes dates, or a plain day.
+        var providers = For(new ElasticSearchFieldMapping { Field = "Published", Type = ElasticSearchFieldType.Date, Format = "strict_date_optional_time||yyyy-MM-dd" });
+        try
+        {
+            // Indexing fails when the format rejects the value, so IndexAsync also checks that each one is accepted.
+            await IndexAsync(providers,
+                Document(providers.Index, "1", "Published", new DateTime(2026, 3, 15, 10, 30, 0, DateTimeKind.Utc)),
+                Document(providers.Index, "2", "Published", new DateOnly(2026, 6, 1)),
+                Document(providers.Index, "3", "Published", new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
+
+            (await SearchIdsAsync(providers, Between("Published", new DateTime(2026, 3, 15, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 3, 16, 0, 0, 0, DateTimeKind.Utc)))).ShouldBe(["1"]);
+            (await SearchIdsAsync(providers, Between("Published", new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 6, 2, 0, 0, 0, DateTimeKind.Utc)))).ShouldBe(["2"]);
+        }
+        finally
+        {
+            await DeleteAsync(providers);
+        }
+    }
+
     [Fact]
     public async Task CreateIndexAsync_Mappings_AppliesTypeAnalyzerFormatAndKeywordSubField()
     {
@@ -404,7 +433,7 @@ public sealed class ElasticsearchMappingTests(
             var ensured = await providers.Indexing.EnsureIndexExistsAsync(providers.Index, TestContext.Current.CancellationToken);
 
             ensured.IsSuccess.ShouldBeTrue(string.Join("; ", ensured.Errors.Select(e => e.Message)));
-            ensured.Value.ShouldBeFalse();
+            ensured.Value.ShouldBeTrue();
             (await MappedFieldsAsync(providers.Index)).GetProperty("City").GetProperty("type").GetString().ShouldBe("keyword");
         }
         finally

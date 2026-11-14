@@ -13,9 +13,10 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         try
         {
             //Act
-            (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
+            var created = await indexingProviderAsync.CreateIndexAsync(index);
 
             //Assert
+            ShouldSucceedWith(created, true);
             await IndexShouldExistAsync(index, true);
         }
         finally
@@ -33,9 +34,10 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
             (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
 
             //Act
-            (await indexingProviderAsync.DeleteIndexAsync(index)).IsSuccess.ShouldBeTrue();
+            var deleted = await indexingProviderAsync.DeleteIndexAsync(index);
 
             //Assert
+            ShouldSucceedWith(deleted, true);
             await IndexShouldExistAsync(index, false);
         }
         finally
@@ -76,11 +78,13 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         var index = UniqueIndex();
         try
         {
-            //Act
             (await indexingProviderAsync.CreateIndexAsync(index)).IsSuccess.ShouldBeTrue();
-            (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
+
+            //Act
+            var ensured = await indexingProviderAsync.EnsureIndexExistsAsync(index);
 
             //Assert
+            ShouldSucceedWith(ensured, true);
             await IndexShouldExistAsync(index, true);
         }
         finally
@@ -96,9 +100,34 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         try
         {
             //Act
-            (await indexingProviderAsync.EnsureIndexExistsAsync(index)).IsSuccess.ShouldBeTrue();
+            var ensured = await indexingProviderAsync.EnsureIndexExistsAsync(index);
 
             //Assert
+            ShouldSucceedWith(ensured, true);
+            await IndexShouldExistAsync(index, true);
+        }
+        finally
+        {
+            await DeleteIndexQuietlyAsync(index);
+        }
+    }
+    [Fact]
+    public async Task EnsureIndexExistsAsync_ConcurrentCallers_AllSucceedWithTrue()
+    {
+        //Arrange
+        var index = UniqueIndex();
+        try
+        {
+            //Act: callers that all see the index missing race to create it, and all but one find it already there.
+            var results = await Task.WhenAll(Enumerable.Range(0, 8)
+                .Select(_ => indexingProviderAsync.EnsureIndexExistsAsync(index, Token)));
+
+            //Assert
+            foreach (var result in results)
+            {
+                ShouldSucceedWith(result, true);
+            }
+
             await IndexShouldExistAsync(index, true);
         }
         finally
@@ -109,6 +138,13 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
 
     /// <summary>An index name no other test uses, so tests sharing an engine can't change what it holds.</summary>
     private static string UniqueIndex() => $"test-index-{Guid.NewGuid():N}";
+
+    /// <summary>Checks <paramref name="result"/> succeeded, showing its errors when it did not, with <paramref name="expected"/> as its value.</summary>
+    private static void ShouldSucceedWith(FluentResults.Result<bool> result, bool expected)
+    {
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+        result.Value.ShouldBe(expected);
+    }
 
     /// <summary>Checks <c>IndexExistsAsync</c> succeeds, showing the provider's errors when it does not, and that it reads <paramref name="expected"/>.</summary>
     private async Task IndexShouldExistAsync(string index, bool expected)

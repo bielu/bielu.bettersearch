@@ -16,6 +16,9 @@ filters, highlighting and scores.
 > Invalid or missing connection settings throw from searching; every indexing method turns them into a
 > failed `Result`. A request that throws, as it does when `ThrowExceptions()` is on in the client settings, is
 > also a failed `Result` from every indexing method, with the exception as its cause.
+> A request cancelled through the `CancellationToken`, before or during the request, throws
+> `OperationCanceledException` from every indexing method. A write cancelled after the server received it may
+> still have been applied.
 
 ## Install
 
@@ -124,12 +127,15 @@ unless the first value it sees looks like a date (`2026-11-13`), which date dete
   value longer than 256 characters isn't in the sub-field, so it sorts as if the field were missing.
 - **`GeoPoint`** makes `SpatialSearchQuery` work. A point is a `"lat,lon"` string or a dictionary with `lat`
   and `lon`.
-- **`Date`** with a `Format` must accept the values documents hold, or indexing them fails.
+- **`Date`** with a `Format` must accept the values documents hold, or indexing them fails. The provider writes a
+  `DateTime` or `DateTimeOffset` as ISO 8601 text and a `DateOnly` as `yyyy-MM-dd`, so a custom format has to
+  accept ISO 8601 as well, for example `strict_date_optional_time||yyyy-MM-dd`. `yyyy-MM-dd` alone rejects every
+  `DateTime` document.
 
 `CreateIndexAsync` creates the index with its mappings. It returns `false` when the index already exists,
 leaving its mappings as they are, and a failed `Result` for any other rejection, such as an unknown analyzer.
 `EnsureIndexExistsAsync` creates a missing index the same way. When the index exists, or another caller created
-it in between, it adds the mappings to it. A mapping that conflicts with how the field is already mapped, such as
+it in between, it adds the mappings to it. It returns `true` whenever the index exists afterwards. A mapping that conflicts with how the field is already mapped, such as
 `Keyword` on a field dynamic mapping already made `text`, returns a failed `Result` naming the field. Re-index
 into a new index to change a field's type. When the cluster takes the mappings but doesn't acknowledge them in
 time, the result is failed too: the mappings aren't rolled back, and calling `EnsureIndexExistsAsync` again
@@ -179,5 +185,10 @@ the server's error, or the transport's exception when the server sent none, and 
 its cause. A request
 cancelled through the `CancellationToken` throws `OperationCanceledException`. `EnsureIndexExistsAsync` returns
 a failed check as it is rather than trying to create the index.
+
+Index operations report what happened: creating an existing index is success with `false`, and any other
+rejection, such as a 403, is a failed `Result` whose message names the HTTP status and the server's error.
+`EnsureIndexExistsAsync` and `DeleteIndexAsync` succeed with `true`, and `EnsureIndexExistsAsync` is `true` too
+when another caller created the index between its check and its create.
 
 The [feature matrix](../feature-matrix.md) has the full detail.
