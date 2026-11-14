@@ -1,5 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
-using Bielu.BetterSearch.Abstractions.Models;
+﻿using Bielu.BetterSearch.Abstractions.Models;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Configuration;
 using Bielu.BetterSearch.DepedencyInjection;
@@ -45,9 +45,9 @@ public abstract class InvalidSettingsSearchTestBase
 
     [Theory]
     [InlineData("  ", "ConnectionString is missing")]
-    [InlineData("localhost:9200", "ConnectionString is not an absolute http or https URL")]
-    [InlineData("not a url", "ConnectionString is not an absolute http or https URL")]
-    [InlineData("ftp://localhost:9200", "ConnectionString is not an absolute http or https URL")]
+    [InlineData("localhost:9200", "ConnectionString is not an http or https URL")]
+    [InlineData("not a url", "ConnectionString is not an http or https URL")]
+    [InlineData("ftp://localhost:9200", "ConnectionString is not an http or https URL")]
     public async Task SearchAsync_InvalidSharedConnectionString_ReturnsFailedResultNamingTheSetting(string connectionString, string expected)
     {
         var result = await SearchWithSettingsAsync(new Dictionary<string, string?>
@@ -70,7 +70,7 @@ public abstract class InvalidSettingsSearchTestBase
         });
 
         result.IsFailed.ShouldBeTrue();
-        result.Errors.Single().Message.ShouldContain("ConnectionString is not an absolute http or https URL");
+        result.Errors.Single().Message.ShouldContain("ConnectionString is not an http or https URL");
         result.Errors.Single().Message.ShouldContain($"{OptionsKey}:Indexes:<index>:ConnectionString");
     }
 }

@@ -20,7 +20,7 @@ internal static class ConnectionSettingsChecks
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
             throw new ArgumentException(
-                $"ConnectionString is not an absolute http or https URL. {Where(optionsKey, "ConnectionString")}");
+                $"ConnectionString is not an http or https URL. {Where(optionsKey, "ConnectionString")}");
         }
 
         return uri;
