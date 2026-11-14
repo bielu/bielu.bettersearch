@@ -9,9 +9,10 @@ filters, highlighting and scores.
 >
 > - **Facets** can be expressed, but a query that asks for them returns a failed `Result`.
 >
-> Invalid or missing connection settings throw from searching; every indexing method turns them into a
-> failed `Result`. A request that throws, as it does when `ThrowExceptions()` is on in the client settings, is
-> also a failed `Result` from every indexing method, with the exception as its cause.
+> Invalid or missing connection settings make searching and every indexing method return a failed `Result`
+> whose message names the setting to fix, such as `Bielu:BetterSearch:ElasticSearch:SharedIndexSettings:ConnectionString`.
+> A request that throws, as it does when `ThrowExceptions()` is on in the client settings, is also a failed
+> `Result` from searching and every indexing method, with the exception as its cause.
 > A request cancelled through the `CancellationToken`, before or during the request, throws
 > `OperationCanceledException` from every indexing method. A write cancelled after the server received it may
 > still have been applied.
@@ -60,13 +61,13 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddElas
 | Setting | Meaning |
 |---------|---------|
 | `SharedIndexSettings` | Connection used for every index without its own connection string |
-| `ConnectionString` | Cluster URL |
+| `ConnectionString` | Cluster URL, an absolute `http` or `https` URL such as `http://localhost:9200`. `CLOUD` and `CLOUDAPI` connect by the cloud id and don't need it |
 | `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`), `CLOUD` (Elastic Cloud: the cloud id in `Id`, with `Username` and `Password`) or `CLOUDAPI` (the cloud id in `Id`, with an `ApiKey`) |
 | `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same connection and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people` |
 | `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
 | `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` sends in one bulk request, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails |
 | `WriteVisibility` | `Default` or `WaitUntilSearchable`, in `SharedIndexSettings` or an `Indexes` entry; see [When writes are searchable](#when-writes-are-searchable). An entry that leaves it out takes the shared value, and `"WriteVisibility": "Default"` there turns the shared one off |
-| `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. A page past it returns a failed `Result` |
+| `MaxResultWindow` | Deepest result a search may page to, 10,000 by default; match it to the indexes' `index.max_result_window`. A page past it returns a failed `Result`. It must be greater than 0, or every search fails with a configuration error |
 
 You can also set the options in code with `services.Configure<ElasticSearchOptions>(...)`.
 
