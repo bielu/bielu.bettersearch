@@ -16,6 +16,9 @@ filters, highlighting and scores.
 > Invalid or missing connection settings throw from searching; every indexing method turns them into a
 > failed `Result`. A request that throws, as it does when `ThrowExceptions()` is on in the client settings, is
 > also a failed `Result` from every indexing method, with the exception as its cause.
+> A request cancelled through the `CancellationToken`, before or during the request, throws
+> `OperationCanceledException` from every indexing method. A write cancelled after the server received it may
+> still have been applied.
 
 ## Install
 

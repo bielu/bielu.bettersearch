@@ -109,26 +109,6 @@ public sealed class ElasticsearchIndexingResponseTests
         message.ShouldBe("Elasticsearch bulk delete failed with HTTP 403 (security_exception): no permissions");
     }
 
-    [Fact]
-    public async Task RemoveDocumentsAsync_CancelledMidRequest_ThrowsOperationCanceledException()
-    {
-        // The server accepts the connection and never answers, so the request is still in flight when it is cancelled.
-        var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        try
-        {
-            var provider = LocalProvider(((IPEndPoint)listener.LocalEndpoint).Port);
-            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
-            cancellation.CancelAfter(TimeSpan.FromMilliseconds(500));
-
-            await Should.ThrowAsync<OperationCanceledException>(() => provider.RemoveDocumentsAsync("people", ["1", "2"], cancellation.Token));
-        }
-        finally
-        {
-            listener.Stop();
-        }
-    }
-
     [Theory]
     [InlineData(200, true)]
     [InlineData(404, false)]
@@ -169,26 +149,6 @@ public sealed class ElasticsearchIndexingResponseTests
         result.IsFailed.ShouldBeTrue();
         result.Errors[0].Message.ShouldStartWith("Elasticsearch index exists check failed");
         result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<HttpRequestException>();
-    }
-
-    [Fact]
-    public async Task IndexExistsAsync_CancelledMidRequest_ThrowsOperationCanceledException()
-    {
-        // The server accepts the connection and never answers, so the request is still in flight when it is cancelled.
-        var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        try
-        {
-            var provider = LocalProvider(((IPEndPoint)listener.LocalEndpoint).Port);
-            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
-            cancellation.CancelAfter(TimeSpan.FromMilliseconds(500));
-
-            await Should.ThrowAsync<OperationCanceledException>(() => provider.IndexExistsAsync("people", cancellation.Token));
-        }
-        finally
-        {
-            listener.Stop();
-        }
     }
 
     [Fact]
@@ -259,6 +219,28 @@ public sealed class ElasticsearchIndexingResponseTests
         result.IsFailed.ShouldBeTrue();
         var exception = result.Errors[0].Reasons.OfType<ExceptionalError>().Single().Exception.ShouldBeOfType<TransportException>();
         result.Errors.Select(e => e.Message).ShouldBe([exception.Message]);
+    }
+
+    [Theory]
+    [MemberData(nameof(IndexingMethods))]
+    public async Task IndexingMethod_CancelledMidRequest_ThrowsOperationCanceledException(string method)
+    {
+        // The server accepts the connection and never answers, so the request is still in flight when it is cancelled.
+        // With ThrowExceptions off, the client reports that as a response with no status code rather than throwing.
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            var provider = LocalProvider(((IPEndPoint)listener.LocalEndpoint).Port);
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+            cancellation.CancelAfter(TimeSpan.FromMilliseconds(500));
+
+            await Should.ThrowAsync<OperationCanceledException>(() => InvokeAsync(provider, method, cancellation.Token));
+        }
+        finally
+        {
+            listener.Stop();
+        }
     }
 
     [Theory]
