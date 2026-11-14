@@ -77,7 +77,7 @@ public class IndexingServiceAsync(
     /// Fails when the document, a field or a value in a field is <c>null</c>. <c>null</c> fields can't reach here,
     /// as <see cref="SearchDocument.Fields"/> turns them into an empty dictionary.
     /// </summary>
-    private static Result CheckNullFields(SearchDocument document)
+    internal static Result CheckNullFields(SearchDocument document)
     {
         if (document is null)
         {

@@ -13,15 +13,15 @@ using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.ElasticSearch.Services;
 
-public class ElasticSearchIndexingProviderAsync(
+public partial class ElasticSearchIndexingProviderAsync(
     IClientFactoryAsync<ElasticsearchClient> clientFactory,
     ILogger<ElasticSearchIndexingProviderAsync> logger,
-    IElasticSearchClientSettingsManager settingsManager) : IIndexingProviderAsync
+    IElasticSearchClientSettingsManager settingsManager) : IIndexingProviderAsync, IIndexLifecycleProviderAsync
 {
     public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(document.Index, async client =>
         {
-            var request = new IndexRequest<SearchDocument>(StoredFields.WithDatesAsText(document), document.Index, document.Id) { Refresh = WaitFor(document.Index) };
+            var request = new IndexRequest<SearchDocument>(StoredFields.WithDatesAsText(document), Name(document.Index), document.Id) { Refresh = WaitFor(document.Index) };
             var indexResult = await client.IndexAsync(request, cancellationToken).ConfigureAwait(false);
             return indexResult.IsSuccess() ? Result.Ok() : Result.Fail(new Error(indexResult.DebugInformation));
         }, cancellationToken);
@@ -36,7 +36,7 @@ public class ElasticSearchIndexingProviderAsync(
         {
             results.Add(await clientFactory.TryWithClientAsync(indexGroup.Key, async client =>
             {
-                var bulkResponse = await client.BulkAsync(b => b.IndexMany(indexGroup.Select(StoredFields.WithDatesAsText), (descriptor, _) => descriptor.Index(indexGroup.Key)).Refresh(WaitFor(indexGroup.Key)), cancellationToken).ConfigureAwait(false);
+                var bulkResponse = await client.BulkAsync(b => b.IndexMany(indexGroup.Select(StoredFields.WithDatesAsText), (descriptor, _) => descriptor.Index(Name(indexGroup.Key))).Refresh(WaitFor(indexGroup.Key)), cancellationToken).ConfigureAwait(false);
                 return bulkResponse.IsSuccess() ? Result.Ok() : Result.Fail(new Error(bulkResponse.DebugInformation));
             }, cancellationToken).ConfigureAwait(false));
         }
@@ -47,7 +47,7 @@ public class ElasticSearchIndexingProviderAsync(
     public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(type, async client =>
         {
-            var indexResult = await client.DeleteAsync(new DeleteRequest(type, id) { Refresh = WaitFor(type) }, cancellationToken).ConfigureAwait(false);
+            var indexResult = await client.DeleteAsync(new DeleteRequest(Name(type), id) { Refresh = WaitFor(type) }, cancellationToken).ConfigureAwait(false);
             // Deletes are idempotent: a document that is not there is already gone. A missing index is still a failure,
             // and Elasticsearch reports it with an error rather than a not_found result.
             var removed = indexResult.ElasticsearchServerError is null
@@ -66,7 +66,7 @@ public class ElasticSearchIndexingProviderAsync(
 
         return await clientFactory.TryWithClientAsync(index, async client =>
         {
-            var request = new BulkRequest(index)
+            var request = new BulkRequest(Name(index))
             {
                 Operations = new BulkOperationsCollection(distinctIds.Value.Select(id => new BulkDeleteOperation(id))),
                 Refresh = WaitFor(index),
@@ -96,7 +96,7 @@ public class ElasticSearchIndexingProviderAsync(
         CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync<long?>(index.IndexName, async client =>
         {
-            var request = new DeleteByQueryRequest(Indices.Index(index.IndexName));
+            var request = new DeleteByQueryRequest(Indices.Index(Name(index.IndexName)));
             request.Query = new MatchAllQuery();
             // Delete by query can't wait for a refresh, so it refreshes the index itself.
             request.Refresh = WaitsUntilSearchable(index.IndexName) ? true : null;
@@ -148,7 +148,7 @@ public class ElasticSearchIndexingProviderAsync(
                 return Result.Ok(false);
             }
 
-            var response = await client.Indices.PutMappingAsync(new PutMappingRequest(Indices.Index(index)) { Properties = properties }, cancellationToken).ConfigureAwait(false);
+            var response = await client.Indices.PutMappingAsync(new PutMappingRequest(Indices.Index(Name(index))) { Properties = properties }, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccess())
             {
                 return Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe($"adding the configured mappings to index {index}", response), response.ApiCallDetails?.OriginalException));
@@ -160,10 +160,22 @@ public class ElasticSearchIndexingProviderAsync(
                 : Result.Fail<bool>(NotAcknowledged(index));
         }, cancellationToken);
 
+    /// <summary>
+    /// Deletes the index. When the name is an alias, such as after a rebuild, deletes the indexes it points at, and so
+    /// the alias with them.
+    /// </summary>
     public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(index, async client =>
         {
-            var indexResult = await client.Indices.DeleteAsync(new DeleteIndexRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
+            var name = Name(index);
+            var aliased = await AliasedIndexesAsync(client, name, cancellationToken).ConfigureAwait(false);
+            if (aliased.IsFailed)
+            {
+                return aliased.ToResult<bool>();
+            }
+
+            var targets = aliased.Value.Count > 0 ? Indices.Parse(string.Join(",", aliased.Value)) : Indices.Index(name);
+            var indexResult = await client.Indices.DeleteAsync(new DeleteIndexRequest(targets), cancellationToken).ConfigureAwait(false);
             // The client reports a cancelled request as a response with no status code; the caller cancelled, so say that instead.
             cancellationToken.ThrowIfCancellationRequested();
             return indexResult.IsSuccess() ? Result.Ok(true) : Result.Fail<bool>(new Error(indexResult.DebugInformation));
@@ -172,7 +184,7 @@ public class ElasticSearchIndexingProviderAsync(
     public Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(index, async client =>
         {
-            var result = await client.Indices.ExistsAsync(new ExistsRequest(Indices.Index(index)), cancellationToken).ConfigureAwait(false);
+            var result = await client.Indices.ExistsAsync(new ExistsRequest(Indices.Index(Name(index))), cancellationToken).ConfigureAwait(false);
             // Only 200 and 404 answer the question; anything else, such as no answer, a 401, 403 or 5xx, is a failure.
             return result.ApiCallDetails?.HttpStatusCode switch
             {
@@ -187,32 +199,38 @@ public class ElasticSearchIndexingProviderAsync(
     /// they are; any other refusal, such as an unknown analyzer, is a failure.
     /// </summary>
     public Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default) =>
-        clientFactory.TryWithClientAsync(index, async client =>
+        clientFactory.TryWithClientAsync(index, client => CreateIndexAsync(client, index, Name(index), cancellationToken), cancellationToken);
+
+    /// <summary>Creates <paramref name="name"/> on the server with the configured mappings of <paramref name="index"/>.</summary>
+    private async Task<Result<bool>> CreateIndexAsync(ElasticsearchClient client, string index, string name, CancellationToken cancellationToken)
+    {
+        var request = new CreateIndexRequest(Indices.Index(name));
+        var properties = ElasticSearchMappings.Create(settingsManager.GetConnectionSettings(index).Mappings);
+        if (properties is not null)
         {
-            var request = new CreateIndexRequest(Indices.Index(index));
-            var properties = ElasticSearchMappings.Create(settingsManager.GetConnectionSettings(index).Mappings);
-            if (properties is not null)
-            {
-                request.Mappings = new TypeMapping { Properties = properties };
-            }
+            request.Mappings = new TypeMapping { Properties = properties };
+        }
 
-            var result = await client.Indices.CreateAsync(request, cancellationToken).ConfigureAwait(false);
-            // The client reports a cancelled request as a failed response; check before logging it as an error.
-            cancellationToken.ThrowIfCancellationRequested();
-            if (result.IsSuccess())
-            {
-                return Result.Ok(true);
-            }
+        var result = await client.Indices.CreateAsync(request, cancellationToken).ConfigureAwait(false);
+        // The client reports a cancelled request as a failed response; check before logging it as an error.
+        cancellationToken.ThrowIfCancellationRequested();
+        if (result.IsSuccess())
+        {
+            return Result.Ok(true);
+        }
 
-            // An index that already exists was not created, but nothing went wrong.
-            if (result.ElasticsearchServerError?.Error?.Type == "resource_already_exists_exception")
-            {
-                return Result.Ok(false);
-            }
+        // An index that already exists was not created, but nothing went wrong.
+        if (result.ElasticsearchServerError?.Error?.Type == "resource_already_exists_exception")
+        {
+            return Result.Ok(false);
+        }
 
-            logger.LogError("Creating index {Index} failed: {Error}", index, result.DebugInformation);
-            return Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe("create index", result), result.ApiCallDetails?.OriginalException));
-        }, cancellationToken);
+        logger.LogError("Creating index {Index} failed: {Error}", name, result.DebugInformation);
+        return Result.Fail<bool>(RequestFailed(ElasticSearchFailures.Describe("create index", result), result.ApiCallDetails?.OriginalException));
+    }
+
+    /// <summary>The name Elasticsearch knows <paramref name="index"/> by, with the configured prefix.</summary>
+    private string Name(string index) => settingsManager.GetIndexName(index);
 
     private bool WaitsUntilSearchable(string index) =>
         settingsManager.GetConnectionSettings(index).WriteVisibility == WriteVisibility.WaitUntilSearchable;

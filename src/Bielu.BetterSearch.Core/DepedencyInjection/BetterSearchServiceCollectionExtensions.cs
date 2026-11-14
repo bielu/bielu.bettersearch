@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Configuration;
+using Bielu.BetterSearch.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -35,6 +36,7 @@ public static class BetterSearchServiceCollectionExtensions
             services.TryAddScoped<ISearchProviderAsync>(_ => throw new InvalidOperationException(message));
             services.TryAddScoped<IIndexingProviderAsync>(_ => throw new InvalidOperationException(message));
             services.TryAddScoped<ISearchServiceAsync>(_ => throw new InvalidOperationException(message));
+            services.TryAddScoped<IIndexLifecycleServiceAsync>(_ => throw new InvalidOperationException(message));
             return services;
         }
 
@@ -42,6 +44,7 @@ public static class BetterSearchServiceCollectionExtensions
         services.TryAddScoped(typeof(ISearchProviderAsync), searchConfiguration.SearchProviderType);
         services.TryAddScoped(typeof(IIndexingProviderAsync), searchConfiguration.IndexingProviderType);
         services.TryAddScoped(typeof(ISearchServiceAsync), searchConfiguration.SearchServiceType);
+        services.TryAddScoped<IIndexLifecycleServiceAsync, IndexLifecycleServiceAsync>();
         return services;
     }
 
@@ -65,7 +68,8 @@ public static class BetterSearchServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers the provider, and a validator, an indexing service and a search service built on it, under the provider's key.
+    /// Registers the provider, and a validator, an indexing service, a search service and an index lifecycle service built
+    /// on it, under the provider's key.
     /// A keyed service that is already registered, for example a validator for one key, is kept.
     /// </summary>
     private static void AddKeyedServices(IServiceCollection services, SearchApplicationConfiguration configuration, ProviderRegistration provider)
@@ -86,6 +90,9 @@ public static class BetterSearchServiceCollectionExtensions
             sp,
             searchServiceType,
             sp.GetRequiredKeyedService<ISearchProviderAsync>(key)));
+        services.TryAddKeyedScoped<IIndexLifecycleServiceAsync>(key, (sp, _) => new IndexLifecycleServiceAsync(
+            sp.GetRequiredKeyedService<IIndexingProviderAsync>(key),
+            sp.GetRequiredKeyedService<IDocumentValidatorAsync>(key)));
     }
 
     private static string NoDefaultProviderMessage(IReadOnlyList<ProviderRegistration> providers)

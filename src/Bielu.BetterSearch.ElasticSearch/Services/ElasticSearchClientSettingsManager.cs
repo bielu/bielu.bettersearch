@@ -25,6 +25,9 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
     public ElasticsearchClientSettings CreateClientSettings(ElasticSearchIndexSettings settings) =>
         ParseMergedSettings(settings);
 
+    public string GetIndexName(string indexName) =>
+        IndexNames.WithPrefix(optionsMonitor.CurrentValue.IndexPrefix, indexName);
+
     /// <summary>
     /// Builds a new settings object, leaving the live options untouched: the index's connection string and
     /// authentication win, and an index without its own takes the shared one. Mappings are the shared ones with the

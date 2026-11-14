@@ -10,4 +10,10 @@ internal interface IOpenSearchClientSettingsManager
 
     /// <summary>Builds client settings, throwing <see cref="ArgumentException"/> when the settings are invalid.</summary>
     ConnectionSettings CreateClientSettings(OpenSearchIndexSettings settings);
+
+    /// <summary>
+    /// The name OpenSearch knows <paramref name="indexName"/> by, which every request uses: the configured
+    /// <see cref="OpenSearchOptions.IndexPrefix"/> followed by the name.
+    /// </summary>
+    string GetIndexName(string indexName);
 }

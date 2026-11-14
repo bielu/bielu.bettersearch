@@ -69,7 +69,7 @@ public class ElasticSearchSearchProviderAsync(
         }
 
         var mappings = settingsManager.GetConnectionSettings(query.Index).Mappings ?? [];
-        var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
+        var request = CreateRequest(query, settingsManager.GetIndexName(query.Index), mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
         request.Highlight = highlight.Value;
         var client = await clientFactoryAsync.GetOrCreateClientAsync(query.Index).ConfigureAwait(false);
         var response = await client.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
@@ -150,11 +150,11 @@ public class ElasticSearchSearchProviderAsync(
     /// <summary>The position of the page's last result, in <c>long</c> so a large page can't overflow.</summary>
     private static long LastResultOf(ISearchQuery query) => (long)PageOf(query) * PageSizeOf(query);
 
-    private static SearchRequest CreateRequest(ISearchQuery query, EsQuery mainQuery, EsQuery? postFilter, int maxResultWindow,
+    private static SearchRequest CreateRequest(ISearchQuery query, string indexName, EsQuery mainQuery, EsQuery? postFilter, int maxResultWindow,
         IReadOnlyList<ISortOrderField> sortOrder, IReadOnlyList<ElasticSearchFieldMapping> mappings)
     {
         var pageSize = PageSizeOf(query);
-        var request = new SearchRequest(query.Index)
+        var request = new SearchRequest(indexName)
         {
             Query = mainQuery,
             PostFilter = postFilter,

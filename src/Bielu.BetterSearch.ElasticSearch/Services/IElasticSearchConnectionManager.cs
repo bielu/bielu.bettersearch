@@ -13,4 +13,10 @@ public interface IElasticSearchClientSettingsManager
 
     /// <summary>Builds client settings, throwing when the settings are invalid.</summary>
     public ElasticsearchClientSettings CreateClientSettings(ElasticSearchIndexSettings settings);
+
+    /// <summary>
+    /// The name Elasticsearch knows <paramref name="indexName"/> by, which every request uses: the configured
+    /// <see cref="ElasticSearchOptions.IndexPrefix"/> followed by the name. The default implementation adds no prefix.
+    /// </summary>
+    public string GetIndexName(string indexName) => indexName;
 }

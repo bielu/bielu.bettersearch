@@ -37,7 +37,6 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
             IndexName = indexSpecific.IndexName,
             AliasName = indexSpecific.AliasName,
             TypeName = indexSpecific.TypeName,
-            AliasingEnabled = indexSpecific.AliasingEnabled,
             IndexingEnabled = indexSpecific.IndexingEnabled,
             DevMode = indexSpecific.DevMode,
             ConnectionString = shared.ConnectionString,

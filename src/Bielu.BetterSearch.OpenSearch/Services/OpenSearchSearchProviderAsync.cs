@@ -80,7 +80,7 @@ internal sealed class OpenSearchSearchProviderAsync(
         }
 
         var mappings = settingsManager.GetConnectionSettings(query.Index).Mappings ?? [];
-        var request = CreateRequest(query, mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
+        var request = CreateRequest(query, settingsManager.GetIndexName(query.Index), mainQuery.Value, postFilter.Value, maxResultWindow, sortOrder.Value, mappings);
         request.Highlight = highlight.Value;
         var response = await client.Value.SearchAsync<SearchDocument>(request, cancellationToken).ConfigureAwait(false);
         // The client reports a cancelled request as an invalid response; the caller cancelled, so say that instead.
@@ -161,11 +161,11 @@ internal sealed class OpenSearchSearchProviderAsync(
     /// <summary>The position of the page's last result, in <c>long</c> so a large page can't overflow.</summary>
     private static long LastResultOf(ISearchQuery query) => (long)PageOf(query) * PageSizeOf(query);
 
-    private static SearchRequest<SearchDocument> CreateRequest(ISearchQuery query, QueryContainer mainQuery, QueryContainer? postFilter, int maxResultWindow,
+    private static SearchRequest<SearchDocument> CreateRequest(ISearchQuery query, string indexName, QueryContainer mainQuery, QueryContainer? postFilter, int maxResultWindow,
         IReadOnlyList<ISortOrderField> sortOrder, IReadOnlyList<OpenSearchFieldMapping> mappings)
     {
         var pageSize = PageSizeOf(query);
-        var request = new SearchRequest<SearchDocument>(query.Index)
+        var request = new SearchRequest<SearchDocument>(indexName)
         {
             Query = mainQuery,
             PostFilter = postFilter,
