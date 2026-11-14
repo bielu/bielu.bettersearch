@@ -416,4 +416,21 @@ public class ElasticSearchClientSettingsManagerTests
 
         settings.NodePool.ShouldBeOfType<CloudNodePool>();
     }
+
+    [Theory]
+    [InlineData("people")]
+    [InlineData("orders")]
+    public void GetConnectionSettings_ReturnedNodesChanged_LeavesOptionsUnchanged(string index)
+    {
+        var options = NodeOptions(NodePoolType.Sticky);
+        options.SharedIndexSettings!.AdditionalNodes = ["http://second:9200"];
+        options.Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["orders"] = new() { AdditionalNodes = ["http://orders:9200"] } };
+        var manager = new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options));
+
+        manager.GetConnectionSettings(index).AdditionalNodes!.Clear();
+
+        options.SharedIndexSettings!.AdditionalNodes.ShouldBe(["http://second:9200"]);
+        options.Indexes["orders"].AdditionalNodes.ShouldBe(["http://orders:9200"]);
+        manager.GetConnectionSettings(index).AdditionalNodes.ShouldNotBeEmpty();
+    }
 }

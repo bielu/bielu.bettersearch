@@ -39,8 +39,9 @@ internal sealed class OpenSearchClientFactory(IOpenSearchClientSettingsManager s
     {
         public static ClientKey From(OpenSearchIndexSettings settings) => new(
             settings.ConnectionString,
-            // A record compares a list by reference, so the nodes are compared as one string; a valid URL has no spaces.
-            string.Join(' ', settings.AdditionalNodes ?? []),
+            // A record compares a list by reference, so the nodes are compared as one string. Each node is prefixed with its
+            // length, because a URL that passes validation can hold any separator, a space included.
+            string.Concat((settings.AdditionalNodes ?? []).Select(node => $"{node?.Length}:{node};")),
             settings.PoolType,
             settings.AuthenticationType,
             settings.AuthenticationDetails?.Username,

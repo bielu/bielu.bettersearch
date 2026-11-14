@@ -573,4 +573,43 @@ public class OpenSearchClientSettingsManagerTests
         otherPool.ShouldNotBeSameAs(otherNodes);
         otherPool.ConnectionSettings.ConnectionPool.ShouldBeOfType<StickyConnectionPool>();
     }
+
+    [Theory]
+    [InlineData("people")]
+    [InlineData("orders")]
+    public void GetConnectionSettings_ReturnedNodesChanged_LeavesOptionsUnchanged(string index)
+    {
+        var options = NodeOptions(NodePoolType.Sticky);
+        options.SharedIndexSettings!.AdditionalNodes = ["http://second:9200"];
+        options.Indexes = new Dictionary<string, OpenSearchIndexSettings> { ["orders"] = new() { AdditionalNodes = ["http://orders:9200"] } };
+        var manager = new OpenSearchClientSettingsManager(new TestOptionsMonitor<OpenSearchOptions>(options));
+
+        manager.GetConnectionSettings(index).AdditionalNodes!.Clear();
+
+        options.SharedIndexSettings!.AdditionalNodes.ShouldBe(["http://second:9200"]);
+        options.Indexes["orders"].AdditionalNodes.ShouldBe(["http://orders:9200"]);
+        manager.GetConnectionSettings(index).AdditionalNodes.ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_NodeListsJoinToSameText_GetsSeparateClients()
+    {
+        var options = new OpenSearchOptions
+        {
+            SharedIndexSettings = new OpenSearchIndexSettings { ConnectionString = "http://first:9200" },
+            Indexes = new Dictionary<string, OpenSearchIndexSettings>
+            {
+                ["one"] = new() { AdditionalNodes = ["http://second:9200/a http://third:9200/b"] },
+                ["two"] = new() { AdditionalNodes = ["http://second:9200/a", "http://third:9200/b"] },
+            },
+        };
+        var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(new TestOptionsMonitor<OpenSearchOptions>(options)));
+
+        var one = await factory.GetOrCreateClientAsync("one");
+        var two = await factory.GetOrCreateClientAsync("two");
+
+        two.ShouldNotBeSameAs(one);
+        one.ConnectionSettings.ConnectionPool.Nodes.Count().ShouldBe(2);
+        two.ConnectionSettings.ConnectionPool.Nodes.Count().ShouldBe(3);
+    }
 }

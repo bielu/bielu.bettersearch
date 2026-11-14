@@ -273,4 +273,26 @@ public class ElasticsearchClientFactoryTests
         otherPool.ShouldNotBeSameAs(otherNodes);
         otherPool.ElasticsearchClientSettings.NodePool.ShouldBeOfType<StickyNodePool>();
     }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_NodeListsJoinToSameText_GetsSeparateClients()
+    {
+        var options = new ElasticSearchOptions
+        {
+            SharedIndexSettings = new ElasticSearchIndexSettings { ConnectionString = "http://first:9200" },
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings>
+            {
+                ["one"] = new() { AdditionalNodes = ["http://second:9200/a http://third:9200/b"] },
+                ["two"] = new() { AdditionalNodes = ["http://second:9200/a", "http://third:9200/b"] },
+            },
+        };
+        var factory = new ElasticsearchClientFactory(new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options)));
+
+        var one = await factory.GetOrCreateClientAsync("one");
+        var two = await factory.GetOrCreateClientAsync("two");
+
+        two.ShouldNotBeSameAs(one);
+        one.ElasticsearchClientSettings.NodePool.Nodes.Count().ShouldBe(2);
+        two.ElasticsearchClientSettings.NodePool.Nodes.Count().ShouldBe(3);
+    }
 }

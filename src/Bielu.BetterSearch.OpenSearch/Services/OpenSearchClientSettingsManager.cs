@@ -39,7 +39,8 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
         return new OpenSearchIndexSettings
         {
             ConnectionString = ownConnection ? indexSpecific.ConnectionString : shared.ConnectionString,
-            AdditionalNodes = ownConnection ? indexSpecific.AdditionalNodes : indexSpecific.AdditionalNodes ?? shared.AdditionalNodes,
+            // A copy, so a change to the returned list leaves the options, and every other index's nodes, untouched.
+            AdditionalNodes = (ownConnection ? indexSpecific.AdditionalNodes : indexSpecific.AdditionalNodes ?? shared.AdditionalNodes)?.ToList(),
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
                                  ?? OpenSearchAuthenticationType.NONE,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,

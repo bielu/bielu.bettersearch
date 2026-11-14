@@ -42,7 +42,8 @@ public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOpt
         return new ElasticSearchIndexSettings
         {
             ConnectionString = ownConnection ? indexSpecific.ConnectionString : shared.ConnectionString,
-            AdditionalNodes = ownConnection ? indexSpecific.AdditionalNodes : indexSpecific.AdditionalNodes ?? shared.AdditionalNodes,
+            // A copy, so a change to the returned list leaves the options, and every other index's nodes, untouched.
+            AdditionalNodes = (ownConnection ? indexSpecific.AdditionalNodes : indexSpecific.AdditionalNodes ?? shared.AdditionalNodes)?.ToList(),
             PoolType = indexSpecific.PoolType ?? shared.PoolType,
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
                                  ?? AuthenticationType.NONE,
