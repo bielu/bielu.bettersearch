@@ -2,7 +2,7 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent.RangeQueries;
 
-public class DateRangeQueryConfigurator
+public class DateRangeQueryConfigurator : SubQueryConfigurator<DateRangeQueryConfigurator>
 {
     public DateRangeQueryConfigurator()
     {
@@ -10,6 +10,7 @@ public class DateRangeQueryConfigurator
     }
 
     public DateRangeQuery Query { get; set; }
+    protected override ISearchSubQuery SubQuery => Query;
     public DateRangeQueryConfigurator WithField(string fieldName)
     {
         Query.Field = fieldName;

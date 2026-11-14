@@ -165,6 +165,15 @@ var query = FluentApiSearchQueryCreator.Create()
 
 On Lifti the field is ignored, so a document holding the culture value in another field matches too.
 
+Each clause takes the occurrence of the query or bool it is created on, `MUST` unless you choose another. Call
+`Must()`, `Should()`, `MustNot()` or `Filter()` on the sub-query itself to choose its own:
+
+```csharp
+.CreateBoolQuery(cities => cities
+    .CreateTermQuery(term => term.WithField("City").WithValue("Warsaw").Should())
+    .CreateTermQuery(term => term.WithField("City").WithValue("Krakow").Should()))
+```
+
 > [!NOTE]
 > Returning a failed `Result` instead of throwing is the contract every provider is moving to, but in this
 > beta some paths still throw, such as invalid or missing connection settings. The

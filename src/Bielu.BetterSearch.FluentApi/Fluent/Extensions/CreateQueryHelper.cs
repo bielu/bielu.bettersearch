@@ -7,14 +7,23 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
 {
     public static class CreateQueryHelper
     {
+        /// <summary>
+        /// Adds <paramref name="subQuery"/> with its own occurrence when one was chosen, else with the parent's.
+        /// </summary>
+        private static void Add(this ICreatableSearchQuery<Occurance, ISearchSubQuery> target, Occurance parent,
+            Occurance? own, ISearchSubQuery subQuery)
+        {
+            var occurance = own ?? parent;
+            subQuery.Occurance = occurance;
+            target.Add(occurance, subQuery);
+        }
 
         public static IQueryConfigurator CreateTermQuery(this IQueryConfigurator configurator,
             Action<TermQueryConfigurator> query)
         {
             var booleanQuery = new TermQueryConfigurator();
             query.Invoke(booleanQuery);
-            booleanQuery.Query.Occurance = configurator.Occurance;
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, booleanQuery.Occurance, booleanQuery.Query);
             return configurator;
         }
         public static IQueryConfigurator CreateTermsQuery(this IQueryConfigurator configurator,
@@ -22,8 +31,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         {
             var booleanQuery = new TermsQueryConfigurator();
             query.Invoke(booleanQuery);
-            booleanQuery.Query.Occurance = configurator.Occurance;
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, booleanQuery.Occurance, booleanQuery.Query);
             return configurator;
         }
 
@@ -31,21 +39,21 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         {
             var booleanQuery = new FuzzyQueryConfigurator();
             query.Invoke(booleanQuery);
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, booleanQuery.Occurance, booleanQuery.Query);
             return configurator;
         }
         public static IQueryConfigurator CreatePrefixQuery(this IQueryConfigurator configurator, Action<PrefixQueryConfigurator> query)
         {
             var booleanQuery = new PrefixQueryConfigurator();
             query.Invoke(booleanQuery);
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, booleanQuery.Occurance, booleanQuery.Query);
             return configurator;
         }
         public static IQueryConfigurator CreatePrefixPhraseQuery(this IQueryConfigurator configurator, Action<PrefixPhraseQueryConfigurator> query)
         {
             var booleanQuery = new PrefixPhraseQueryConfigurator();
             query.Invoke(booleanQuery);
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, booleanQuery.Occurance, booleanQuery.Query);
             return configurator;
         }
         public static IQueryConfigurator CreateNumericRangeQuery(this IQueryConfigurator configurator,
@@ -53,7 +61,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         {
             var booleanQuery = new NumericRangeQueryConfigurator();
             query.Invoke(booleanQuery);
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, booleanQuery.Occurance, booleanQuery.Query);
             return configurator;
         }
         public static IQueryConfigurator CreateLongRangeQuery(this IQueryConfigurator configurator,
@@ -61,7 +69,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         {
             var booleanQuery = new LongRangeQueryConfigurator();
             query.Invoke(booleanQuery);
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, booleanQuery.Occurance, booleanQuery.Query);
             return configurator;
         }
         public static IQueryConfigurator CreateStringRangeQuery(this IQueryConfigurator configurator,
@@ -69,7 +77,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         {
             var booleanQuery = new StringRangeQueryConfigurator();
             query.Invoke(booleanQuery);
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, booleanQuery.Occurance, booleanQuery.Query);
             return configurator;
         }
         public static IQueryConfigurator CreateDateRangeQuery(this IQueryConfigurator configurator,
@@ -77,7 +85,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         {
             var booleanQuery = new DateRangeQueryConfigurator();
             query.Invoke(booleanQuery);
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, booleanQuery.Occurance, booleanQuery.Query);
             return configurator;
         }
         public static IQueryConfigurator CreateBoolQuery(this IQueryConfigurator configurator,
@@ -85,7 +93,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         {
             var booleanQuery = new BooleanQueryConfigurator();
             query.Invoke(booleanQuery);
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, null, booleanQuery.Query);
             return configurator;
         }
         public static IQueryConfigurator CreateGoeDistanceQuery(this IQueryConfigurator configurator,
@@ -93,7 +101,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         {
             var booleanQuery = new SpatialQueryConfigurator();
             query.Invoke(booleanQuery);
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, booleanQuery.Occurance, booleanQuery.Query);
             return configurator;
         }
         public static IBaseQueryConfigurator CreateTermQuery(this IBaseQueryConfigurator configurator,
@@ -101,8 +109,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         {
             var booleanQuery = new TermQueryConfigurator();
             query.Invoke(booleanQuery);
-            booleanQuery.Occurance = configurator.Occurance;
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, booleanQuery.Occurance, booleanQuery.Query);
             return configurator;
         }
         public static IBaseQueryConfigurator CreateTermsQuery(this IBaseQueryConfigurator configurator,
@@ -110,8 +117,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         {
             var booleanQuery = new TermsQueryConfigurator();
             query.Invoke(booleanQuery);
-            booleanQuery.Occurance = configurator.Occurance;
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, booleanQuery.Occurance, booleanQuery.Query);
             return configurator;
         }
         /// <summary>
@@ -139,7 +145,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
             var booleanQuery = new BooleanQueryConfigurator();
             booleanQuery.Occurance = configurator.Occurance;
             query.Invoke(booleanQuery);
-            configurator.Query.Add(configurator.Occurance, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurance, null, booleanQuery.Query);
             return configurator;
         }
     }

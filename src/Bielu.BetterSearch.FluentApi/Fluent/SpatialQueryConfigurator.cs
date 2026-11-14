@@ -2,33 +2,11 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
-    public class SpatialQueryConfigurator
+    public class SpatialQueryConfigurator : SubQueryConfigurator<SpatialQueryConfigurator>
     {
         public SpatialQueryConfigurator()
         {
             _query = new SpatialSearchQuery();
-        }
-
-        public SpatialQueryConfigurator Must()
-        {
-            Occurance = Occurance.MUST;
-            return this;
-        }
-        public SpatialQueryConfigurator MustNot()
-        {
-            Occurance = Occurance.MUSTNOT;
-            return this;
-        }
-        public SpatialQueryConfigurator Should()
-        {
-            Occurance = Occurance.SHOULD;
-            return this;
-        }
-
-        public SpatialQueryConfigurator Filter()
-        {
-            Occurance = Occurance.FILTER;
-            return this;
         }
 
         public SpatialQueryConfigurator WithField(string fieldName)
@@ -49,6 +27,6 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
 
         private SpatialSearchQuery _query;
         public ISearchSubQuery Query => _query;
-        public Occurance Occurance { get; set; }
+        protected override ISearchSubQuery SubQuery => _query;
     }
 }

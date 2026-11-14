@@ -2,7 +2,7 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent.RangeQueries;
 
-public class StringRangeQueryConfigurator
+public class StringRangeQueryConfigurator : SubQueryConfigurator<StringRangeQueryConfigurator>
 {
     public StringRangeQueryConfigurator()
     {
@@ -10,6 +10,7 @@ public class StringRangeQueryConfigurator
     }
 
     public StringRange Query { get; set; }
+    protected override ISearchSubQuery SubQuery => Query;
     public StringRangeQueryConfigurator WithField(string fieldName)
     {
         Query.Field = fieldName;
