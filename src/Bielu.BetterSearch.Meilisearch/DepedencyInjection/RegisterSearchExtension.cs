@@ -11,13 +11,19 @@ namespace Bielu.BetterSearch.Meilisearch.DepedencyInjection;
 
 public static class RegisterSearchExtension
 {
-    public static Configurator AddMeilisearch(this Configurator configurator)
+    /// <summary>The key AddMeilisearch registers its provider under when no key is given.</summary>
+    public const string DefaultKey = "Meilisearch";
+
+    /// <summary>
+    /// Adds the Meilisearch provider under <paramref name="key"/>, so its services can be resolved with
+    /// <c>[FromKeyedServices(key)]</c>; the unkeyed services use it when it is the only provider or the default.
+    /// </summary>
+    public static Configurator AddMeilisearch(this Configurator configurator, string key = DefaultKey)
     {
+        // AddBetterSearch registers the validator and the indexing and search services after this runs.
+        configurator.AddProvider<MeilisearchSearchProviderAsync, MeilisearchIndexingProviderAsync>(key);
         configurator.Services.AddSingleton<IMeilisearchClientSettingsManager, MeilisearchClientSettingsManager>();
         configurator.Services.AddSingleton<IClientFactoryAsync<MeilisearchClient>, MeilisearchClientFactory>();
-        // AddBetterSearch registers the validator and the indexing and search services after this runs.
-        configurator.SetSearchProviderType<MeilisearchSearchProviderAsync>()
-            .SetIndexingProviderType<MeilisearchIndexingProviderAsync>();
         configurator.Services
             .AddScoped<IQueryTranslateServiceAsync<MeilisearchQuery>, MeilisearchQueryTranslateService>();
         configurator.Services.AddScoped<ISubQueryTranslator<MeilisearchFilter>, BooleanSubQueryTranslator>();
