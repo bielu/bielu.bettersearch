@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using Bielu.BetterSearch.Abstractions.Configuration;
+﻿using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.Services;
@@ -13,14 +12,15 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 /// Creates one long-lived client per distinct connection, as Elastic recommends. Clients are keyed on the
 /// settings an index connects with, not its name: indexes with the same nodes, pool type and authentication
 /// share a client, and a changed setting, such as a rotated password, gets a new client on the next call.
-/// The client for the old setting stays cached until the application restarts, which suits settings that rarely change.
+/// The client for the old setting is dropped from the cache once no index resolves to it, without being disposed, so
+/// requests already running on it finish.
 /// The request timeout and retry count are part of the key, so indexes that set different ones get different clients.
 /// The <c>configureClient</c> callbacks given to <c>AddElasticSearch</c> run on each client's settings once, when the
 /// client is created; two calls racing to create the same client can each run them, and only one client is kept.
 /// </summary>
 internal sealed class ElasticsearchClientFactory : IClientFactoryAsync<ElasticsearchClient>
 {
-    private readonly ConcurrentDictionary<ClientKey, Lazy<ElasticsearchClient>> _clients = new();
+    private readonly ClientCache<ClientKey, ElasticsearchClient> _clients = new();
     private readonly IElasticSearchClientSettingsManager searchClientSettingsManager;
     private readonly IReadOnlyList<ClientConfiguration<ElasticsearchClientSettings>> clientConfigurations;
 
@@ -39,17 +39,17 @@ internal sealed class ElasticsearchClientFactory : IClientFactoryAsync<Elasticse
     public Task<ElasticsearchClient> GetOrCreateClientAsync(string indexName)
     {
         var settings = searchClientSettingsManager.GetConnectionSettings(indexName);
-        // PublicationOnly does not cache an exception, so invalid settings fail each call until they are fixed.
-        var client = _clients.GetOrAdd(ClientKey.From(settings), _ => new Lazy<ElasticsearchClient>(
-            () =>
-            {
-                var clientSettings = searchClientSettingsManager.CreateClientSettings(settings);
-                ClientConfiguration<ElasticsearchClientSettings>.Apply(clientConfigurations, clientSettings);
-                return new ElasticsearchClient(clientSettings);
-            },
-            LazyThreadSafetyMode.PublicationOnly));
-        return Task.FromResult(client.Value);
+        var client = _clients.GetOrCreate(indexName, ClientKey.From(settings), _ =>
+        {
+            var clientSettings = searchClientSettingsManager.CreateClientSettings(settings);
+            ClientConfiguration<ElasticsearchClientSettings>.Apply(clientConfigurations, clientSettings);
+            return new ElasticsearchClient(clientSettings);
+        });
+        return Task.FromResult(client);
     }
+
+    /// <summary>The number of clients cached, for tests.</summary>
+    internal int CachedClientCount => _clients.Count;
 
     internal readonly record struct ClientKey(
         string ConnectionString,
