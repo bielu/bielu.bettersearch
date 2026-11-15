@@ -21,7 +21,7 @@ internal sealed class BooleanSubQueryTranslator : ISubQueryTranslator<IQuery>
         }
 
         var combined = await LiftiBoolQueryBuilder.BuildAsync(
-            boolQuery.NestedQueries.Select(nested => (nested.Occurance, nested)),
+            boolQuery.NestedQueries.Select(nested => (nested.Occurrence, nested)),
             subQueryTranslators).ConfigureAwait(false);
         if (combined.IsFailed)
         {

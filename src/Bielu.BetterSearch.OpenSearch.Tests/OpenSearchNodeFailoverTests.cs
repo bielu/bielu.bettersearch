@@ -1,7 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Configuration;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.OpenSearch.Configuration;
-using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+using Bielu.BetterSearch.OpenSearch.DependencyInjection;
 using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -23,7 +23,7 @@ public sealed class OpenSearchNodeFailoverTests(OpenSearchResource openSearch) :
                 AdditionalNodes = additionalNodes,
                 // Sticky tries the nodes in the order listed, so every request starts at the unreachable one.
                 PoolType = NodePoolType.Sticky,
-                AuthenticationType = OpenSearchAuthenticationType.NONE,
+                AuthenticationType = OpenSearchAuthenticationType.None,
                 WriteVisibility = WriteVisibility.WaitUntilSearchable,
             });
         return services.BuildServiceProvider();

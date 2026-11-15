@@ -2,8 +2,8 @@
 using System.Text.RegularExpressions;
 using Amazon.Runtime;
 using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.DepedencyInjection;
-using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
+using Bielu.BetterSearch.OpenSearch.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenSearch.Client;

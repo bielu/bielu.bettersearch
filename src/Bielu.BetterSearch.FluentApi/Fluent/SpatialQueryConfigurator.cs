@@ -6,7 +6,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
     {
         public SpatialQueryConfigurator()
         {
-            _query = new SpatialSearchQuery();
+            _query = new SpatialSearchSubQuery();
         }
 
         public SpatialQueryConfigurator WithField(string fieldName)
@@ -32,7 +32,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
             return this;
         }
 
-        private SpatialSearchQuery _query;
+        private SpatialSearchSubQuery _query;
         public ISearchSubQuery Query => _query;
         protected override ISearchSubQuery SubQuery => _query;
     }

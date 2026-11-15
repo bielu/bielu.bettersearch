@@ -11,7 +11,7 @@ namespace Bielu.BetterSearch.PostgreSql.Services.Queries;
 /// <c>lon</c> (or <c>lng</c>). The unit is an Elasticsearch distance unit, kilometres by default. No index serves
 /// the distance, so every document holding the field is checked.
 /// </summary>
-internal sealed class SpatialSearchSubQueryTranslator : PostgreSqlSubQueryTranslator<SpatialSearchQuery>
+internal sealed class SpatialSearchSubQueryTranslator : PostgreSqlSubQueryTranslator<SpatialSearchSubQuery>
 {
     private const string DefaultUnit = "km";
 
@@ -42,9 +42,9 @@ internal sealed class SpatialSearchSubQueryTranslator : PostgreSqlSubQueryTransl
         ["nauticalmiles"] = 1852,
     };
 
-    protected override Result<PostgreSqlFilter> Translate(SpatialSearchQuery query)
+    protected override Result<PostgreSqlFilter> Translate(SpatialSearchSubQuery query)
     {
-        var field = RequireField(query.Field, nameof(SpatialSearchQuery));
+        var field = RequireField(query.Field, nameof(SpatialSearchSubQuery));
         if (field.IsFailed)
         {
             return field.ToResult<PostgreSqlFilter>();
@@ -52,28 +52,28 @@ internal sealed class SpatialSearchSubQueryTranslator : PostgreSqlSubQueryTransl
 
         if (query.Distance <= 0 || !double.IsFinite(query.Distance))
         {
-            return Result.Fail<PostgreSqlFilter>($"{nameof(SpatialSearchQuery)} needs a Distance greater than 0.");
+            return Result.Fail<PostgreSqlFilter>($"{nameof(SpatialSearchSubQuery)} needs a Distance greater than 0.");
         }
 
         if (query.Lat is < -90 or > 90 || double.IsNaN(query.Lat))
         {
-            return Result.Fail<PostgreSqlFilter>($"{nameof(SpatialSearchQuery)} has an invalid Lat {query.Lat}: it must be between -90 and 90.");
+            return Result.Fail<PostgreSqlFilter>($"{nameof(SpatialSearchSubQuery)} has an invalid Lat {query.Lat}: it must be between -90 and 90.");
         }
 
         if (query.Lng is < -180 or > 180 || double.IsNaN(query.Lng))
         {
-            return Result.Fail<PostgreSqlFilter>($"{nameof(SpatialSearchQuery)} has an invalid Lng {query.Lng}: it must be between -180 and 180.");
+            return Result.Fail<PostgreSqlFilter>($"{nameof(SpatialSearchSubQuery)} has an invalid Lng {query.Lng}: it must be between -180 and 180.");
         }
 
         var unit = string.IsNullOrWhiteSpace(query.UnitOfDistance) ? DefaultUnit : query.UnitOfDistance;
         if (!MetresPerUnit.TryGetValue(unit, out var metresPerUnit))
         {
-            return Result.Fail<PostgreSqlFilter>($"{nameof(SpatialSearchQuery)} has an invalid UnitOfDistance {unit}.");
+            return Result.Fail<PostgreSqlFilter>($"{nameof(SpatialSearchSubQuery)} has an invalid UnitOfDistance {unit}.");
         }
 
         var name = field.Value;
         var metres = query.Distance * metresPerUnit;
-        return Result.Ok<PostgreSqlFilter>(new PostgreSqlFilter.Condition($"{nameof(SpatialSearchQuery)} on {name}", p =>
+        return Result.Ok<PostgreSqlFilter>(new PostgreSqlFilter.Condition($"{nameof(SpatialSearchSubQuery)} on {name}", p =>
         {
             var lat = p.Add(query.Lat, NpgsqlDbType.Double);
             var lng = p.Add(query.Lng, NpgsqlDbType.Double);

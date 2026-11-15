@@ -4,5 +4,5 @@ public interface IHighlightQuery
 {
     string Field { get; set; }
     bool IsAllField { get; set; }
-    Dictionary<Occurance, ISearchSubQuery> Queries { get; set; }
+    Dictionary<Occurrence, ISearchSubQuery> Queries { get; set; }
 }

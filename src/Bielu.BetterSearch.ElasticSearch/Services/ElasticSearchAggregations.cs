@@ -60,7 +60,7 @@ internal static class ElasticSearchAggregations
                         Size = Facets.SizeOf(term.Size)
                     };
                     break;
-                case MultiTermAggreation multiTerm:
+                case MultiTermAggregation multiTerm:
                     aggregation.MultiTerms = new MultiTermsAggregation
                     {
                         Terms = multiTerm.Terms.Select(term => new MultiTermLookup { Field = Field(term.TermFieldName, mappings) }).ToList(),
@@ -69,9 +69,9 @@ internal static class ElasticSearchAggregations
                     break;
                 case FilterAggregationQuery filter:
                     var filterQuery = new SearchQuery { Index = index };
-                    foreach (var (occurance, subQuery) in filter.Queries ?? [])
+                    foreach (var (occurrence, subQuery) in filter.Queries ?? [])
                     {
-                        filterQuery.Add(occurance, subQuery);
+                        filterQuery.Add(occurrence, subQuery);
                     }
 
                     var translated = await queryTranslateService.TranslateMainQueryAsync(filterQuery).ConfigureAwait(false);
@@ -137,8 +137,8 @@ internal static class ElasticSearchAggregations
                 (TermAggregation, LongTermsAggregate terms) => Buckets(facet, terms.Buckets.Select(bucket => (bucket.KeyAsString ?? Facets.Key(bucket.Key), bucket.DocCount, bucket.Aggregations)), nestedFacets),
                 (TermAggregation, DoubleTermsAggregate terms) => Buckets(facet, terms.Buckets.Select(bucket => (bucket.KeyAsString ?? Facets.Key(bucket.Key), bucket.DocCount, bucket.Aggregations)), nestedFacets),
                 // A field no document has yet.
-                (TermAggregation or MultiTermAggreation, UnmappedTermsAggregate) => Result.Ok<IAggregation>(new BucketAggregation { AggregationName = facet.AggregationName }),
-                (MultiTermAggreation, MultiTermsAggregate multiTerms) => MultiTermBuckets(facet, multiTerms, nestedFacets),
+                (TermAggregation or MultiTermAggregation, UnmappedTermsAggregate) => Result.Ok<IAggregation>(new BucketAggregation { AggregationName = facet.AggregationName }),
+                (MultiTermAggregation, MultiTermsAggregate multiTerms) => MultiTermBuckets(facet, multiTerms, nestedFacets),
                 (FilterAggregationQuery, FilterAggregate filter) => Map(nestedFacets, filter.Aggregations)
                     .Map(nested => (IAggregation)Facets.Filter(facet.AggregationName, filter.DocCount, nested)),
                 _ => Result.Fail<IAggregation>($"Elasticsearch returned a {aggregate.GetType().Name} for facet {facet.AggregationName}, which is a {facet.GetType().Name}.")

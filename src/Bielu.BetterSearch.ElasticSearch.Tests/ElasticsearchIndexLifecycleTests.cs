@@ -2,9 +2,9 @@
 using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
-using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
+using Bielu.BetterSearch.ElasticSearch.DependencyInjection;
 using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
@@ -34,7 +34,7 @@ public sealed class ElasticsearchIndexLifecycleTests(ElasticsearchResource elast
             options.SharedIndexSettings = new ElasticSearchIndexSettings
             {
                 ConnectionString = elasticsearch.EnsureStarted().ToString(),
-                AuthenticationType = AuthenticationType.NONE,
+                AuthenticationType = AuthenticationType.None,
                 WriteVisibility = WriteVisibility.WaitUntilSearchable,
                 Mappings = [new ElasticSearchFieldMapping { Field = "City", Type = ElasticSearchFieldType.Keyword }],
             };

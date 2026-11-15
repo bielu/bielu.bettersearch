@@ -2,7 +2,7 @@
 {
     public class TermsSubQuery : ISearchSubQuery
     {
-        public Occurance Occurance { get; set; } = Occurance.MUST;
+        public Occurrence Occurrence { get; set; } = Occurrence.Must;
         public int BoostValue { get; set; } = 1;
         public string? Field { get; set; }
         public List<object>? Value { get; set; }

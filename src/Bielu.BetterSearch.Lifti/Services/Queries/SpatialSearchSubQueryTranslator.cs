@@ -12,7 +12,7 @@ namespace Bielu.BetterSearch.Lifti.Services.Queries;
 /// </summary>
 internal sealed class SpatialSearchSubQueryTranslator : ISubQueryTranslator<IQuery>
 {
-    public bool CanTranslate(ISearchSubQuery query) => query is SpatialSearchQuery;
+    public bool CanTranslate(ISearchSubQuery query) => query is SpatialSearchSubQuery;
 
     public Task<Result<IQuery>> TranslateAsync(ISearchSubQuery query, IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators)
         => Task.FromResult(Result.Fail<IQuery>("Lifti does not support spatial/geo search queries."));

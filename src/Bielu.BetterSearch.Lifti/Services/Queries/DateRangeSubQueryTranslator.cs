@@ -14,13 +14,13 @@ namespace Bielu.BetterSearch.Lifti.Services.Queries;
 /// </summary>
 internal sealed class DateRangeSubQueryTranslator : ISubQueryTranslator<IQuery>
 {
-    public bool CanTranslate(ISearchSubQuery query) => query is DateRangeQuery;
+    public bool CanTranslate(ISearchSubQuery query) => query is DateRangeSubQuery;
 
     public Task<Result<IQuery>> TranslateAsync(ISearchSubQuery query, IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators)
     {
         // A range with no bounds fails as it does in every provider, so a forgotten bound reads the same everywhere.
-        var range = (DateRangeQuery)query;
-        var bounds = RangeBounds.Require(nameof(DateRangeQuery), range.MinValue, range.MaxValue);
+        var range = (DateRangeSubQuery)query;
+        var bounds = RangeBounds.Require(nameof(DateRangeSubQuery), range.MinValue, range.MaxValue);
         return Task.FromResult(bounds.IsFailed
             ? bounds.ToResult<IQuery>()
             : Result.Fail<IQuery>("Lifti does not support date range queries."));

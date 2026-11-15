@@ -1,7 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Configuration;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.OpenSearch.Configuration;
-using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+using Bielu.BetterSearch.OpenSearch.DependencyInjection;
 using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,7 +18,7 @@ public sealed class OpenSearchSearchableWritesTests(OpenSearchResource openSearc
             options.SharedIndexSettings = new OpenSearchIndexSettings
             {
                 ConnectionString = openSearch.EnsureStarted().ToString(),
-                AuthenticationType = OpenSearchAuthenticationType.NONE,
+                AuthenticationType = OpenSearchAuthenticationType.None,
                 WriteVisibility = WriteVisibility.WaitUntilSearchable,
             });
         return services.BuildServiceProvider();

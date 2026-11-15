@@ -26,7 +26,7 @@ public sealed class LiftiIndexingProviderTests(IIndexingProviderAsync indexingPr
     };
 
     private Task<List<string>> SearchIdsAsync(string index, string term) =>
-        searchService.SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = term }), Token);
+        searchService.SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = term }), Token);
 
     [Fact]
     public async Task IndexMultipleDocumentsAsync_ManyIndexes_IndexesEachIntoItsOwn()

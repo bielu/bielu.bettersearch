@@ -35,7 +35,7 @@ dotnet add package Bielu.BetterSearch.Lifti --prerelease           # in-memory
 pick. The quickest start is the in-memory provider, which needs no server:
 
 ```csharp
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 
 builder.Services.AddBetterSearch(search => search.AddLiftiSearch());
 ```
@@ -122,8 +122,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search
 ```
 
 - With at least one route, the unkeyed services send each call to the keyed service of the provider routed for
-  its index: `SearchQuery.Index`, `SearchDocument.Index`, `DeleteDocumentRequest.Type` (which holds the index
-  name), the `index` of `RemoveDocumentsAsync`, `DeleteAllDocumentsRequest.IndexName`, and for
+  its index: `SearchQuery.Index`, `SearchDocument.Index`, `DeleteDocumentRequest.Index`, the `index` of `RemoveDocumentsAsync`, `DeleteAllDocumentsRequest.IndexName`, and for
   `IIndexLifecycleServiceAsync` the index being rebuilt (`IndexRebuild.Index`). Index names compare
   ignoring case, and so do the keys a route names.
 - An index with no route goes to the default provider: the one `SetDefaultProvider` names, or the only one. With
@@ -168,7 +167,7 @@ public class PeopleSearch(IIndexingServiceAsync indexing, ISearchServiceAsync se
         }, cancellationToken);
 
         var query = new SearchQuery { Index = "people", Page = 1, PageSize = 20 };
-        query.Add(Occurance.MUST, new PrefixSubQuery { Field = "Name", Value = "ja" });
+        query.Add(Occurrence.Must, new PrefixSubQuery { Field = "Name", Value = "ja" });
 
         var result = await search.SearchAsync(query, cancellationToken);
         if (result.IsSuccess)
@@ -259,7 +258,7 @@ var query = FluentApiSearchQueryCreator.Create()
 
 On Lifti the field is ignored, so a document holding the culture value in another field matches too.
 
-Each clause takes the occurrence of the query or bool it is created on, `MUST` unless you choose another. Call
+Each clause takes the occurrence of the query or bool it is created on, `Must` unless you choose another. Call
 `Must()`, `Should()`, `MustNot()` or `Filter()` on the sub-query itself to choose its own:
 
 ```csharp

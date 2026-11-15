@@ -1,7 +1,7 @@
 ﻿using Bielu.BetterSearch.Configuration;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
-using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
+using Bielu.BetterSearch.ElasticSearch.DependencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Services;
 using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.Configuration;
@@ -190,13 +190,29 @@ public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
         var failure = ValidateOnStart(new Dictionary<string, string?>
         {
             ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            ["Indexes:people:AuthenticationType"] = "Password",
+            ["Indexes:people:AuthenticationDetails:Username"] = "elastic",
+            ["Indexes:people:AuthenticationDetails:Password"] = "",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"Password authentication needs AuthenticationDetails:Password. Set {Key}:Indexes:people:AuthenticationDetails:Password."
+        ]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_UpperCaseAuthenticationTypeFromBeforeTheRename_BindsToTheRenamedMember()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
             ["Indexes:people:AuthenticationType"] = "PASSWORD",
             ["Indexes:people:AuthenticationDetails:Username"] = "elastic",
             ["Indexes:people:AuthenticationDetails:Password"] = "",
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:Indexes:people:AuthenticationDetails:Password."
+            $"Password authentication needs AuthenticationDetails:Password. Set {Key}:Indexes:people:AuthenticationDetails:Password."
         ]);
     }
 
@@ -205,20 +221,20 @@ public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
     {
         var failure = ValidateOnStart(new Dictionary<string, string?>
         {
-            ["SharedIndexSettings:AuthenticationType"] = "CLOUDAPI",
+            ["SharedIndexSettings:AuthenticationType"] = "CloudApi",
             ["SharedIndexSettings:AuthenticationDetails:Id"] = "name:abc",
             ["MaxResultWindow"] = "0",
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"CLOUDAPI authentication needs AuthenticationDetails:ApiKey. Set {Key}:SharedIndexSettings:AuthenticationDetails:ApiKey, or {Key}:Indexes:<index>:AuthenticationType with {Key}:Indexes:<index>:AuthenticationDetails for one index.",
+            $"CloudApi authentication needs AuthenticationDetails:ApiKey. Set {Key}:SharedIndexSettings:AuthenticationDetails:ApiKey, or {Key}:Indexes:<index>:AuthenticationType with {Key}:Indexes:<index>:AuthenticationDetails for one index.",
             $"{Key}:MaxResultWindow is 0, but it must be greater than 0.",
         ]);
     }
 
     [Theory]
-    [InlineData("APIKEY", "ApiKey")]
-    [InlineData("BEARER", "Token")]
+    [InlineData("ApiKey", "ApiKey")]
+    [InlineData("Bearer", "Token")]
     public void ValidateOnStart_ApiKeyOrBearerWithoutConnectionString_FailsNamingConnectionString(string authenticationType, string detail)
     {
         var failure = ValidateOnStart(new Dictionary<string, string?>
@@ -237,7 +253,7 @@ public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
     {
         ValidateOnStart(new Dictionary<string, string?>
         {
-            ["SharedIndexSettings:AuthenticationType"] = "CLOUD",
+            ["SharedIndexSettings:AuthenticationType"] = "Cloud",
             ["SharedIndexSettings:AuthenticationDetails:Id"] = "name:abc",
             ["SharedIndexSettings:AuthenticationDetails:Username"] = "elastic",
             ["SharedIndexSettings:AuthenticationDetails:Password"] = "secret",
@@ -251,7 +267,7 @@ public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
         {
             ["SharedIndexSettings:ConnectionString"] = "https://shared:9200",
             ["SharedIndexSettings:DevelopmentOnlySkipCertificateValidation"] = "true",
-            ["Indexes:people:AuthenticationType"] = "CLOUDAPI",
+            ["Indexes:people:AuthenticationType"] = "CloudApi",
             ["Indexes:people:AuthenticationDetails:Id"] = "name:abc",
             ["Indexes:people:AuthenticationDetails:ApiKey"] = "key",
             ["Indexes:people:DevelopmentOnlySkipCertificateValidation"] = "false",
@@ -264,7 +280,7 @@ public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
         var failure = ValidateOnStart(new Dictionary<string, string?>
         {
             ["SharedIndexSettings:ConnectionString"] = "https://shared:9200",
-            ["Indexes:people:AuthenticationType"] = "CLOUDAPI",
+            ["Indexes:people:AuthenticationType"] = "CloudApi",
             ["Indexes:people:AuthenticationDetails:Id"] = "name:abc",
             ["Indexes:people:AuthenticationDetails:ApiKey"] = "key",
             ["Indexes:people:CertificateFingerprint"] = "8F:3A:0C",
@@ -285,7 +301,7 @@ public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"AuthenticationType 7 is not one of NONE, CLOUD, CLOUDAPI, PASSWORD, APIKEY, BEARER. Set {Key}:SharedIndexSettings:AuthenticationType, or {Key}:Indexes:<index>:AuthenticationType for one index."
+            $"AuthenticationType 7 is not one of None, Cloud, CloudApi, Password, ApiKey, Bearer. Set {Key}:SharedIndexSettings:AuthenticationType, or {Key}:Indexes:<index>:AuthenticationType for one index."
         ]);
     }
 
@@ -294,7 +310,7 @@ public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
     {
         ValidateOnStart(new Dictionary<string, string?>
         {
-            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationType"] = "Password",
             ["SharedIndexSettings:AuthenticationDetails:Username"] = "elastic",
             ["SharedIndexSettings:AuthenticationDetails:Password"] = "secret",
             ["Indexes:people:ConnectionString"] = "http://people:9200",
@@ -307,13 +323,13 @@ public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
     {
         var failure = ValidateOnStart(new Dictionary<string, string?>
         {
-            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationType"] = "Password",
             ["SharedIndexSettings:AuthenticationDetails:Username"] = "elastic",
             ["Indexes:people:ConnectionString"] = "http://people:9200",
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:SharedIndexSettings:AuthenticationDetails:Password, which {Key}:Indexes:people inherits."
+            $"Password authentication needs AuthenticationDetails:Password. Set {Key}:SharedIndexSettings:AuthenticationDetails:Password, which {Key}:Indexes:people inherits."
         ]);
     }
 
@@ -356,7 +372,7 @@ public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
     {
         var failure = ValidateOnStart(new Dictionary<string, string?>
         {
-            ["Indexes:people:AuthenticationType"] = "PASSWORD",
+            ["Indexes:people:AuthenticationType"] = "Password",
             ["Indexes:people:AuthenticationDetails:Username"] = "elastic",
             ["Indexes:people:AuthenticationDetails:Password"] = "secret",
         });
@@ -371,7 +387,7 @@ public class ElasticSearchOptionsValidationTests : TlsOptionsValidationTestBase
     {
         var failure = ValidateOnStart(new Dictionary<string, string?>
         {
-            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationType"] = "Password",
             ["SharedIndexSettings:AuthenticationDetails:Username"] = "elastic",
             ["SharedIndexSettings:AuthenticationDetails:Password"] = "secret",
             ["Indexes:people:ConnectionString"] = "http://people:9200",

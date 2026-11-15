@@ -163,17 +163,17 @@ internal static class PrefixFilter
 /// <summary>
 /// Matches when every word of the value is within the edit distance of a word of the field, using
 /// <c>levenshtein</c> from the <c>fuzzystrmatch</c> extension, which must be installed in the database. The edit
-/// distance is the larger number of <c>Fuziness</c>, at most 2, or by word length as Elasticsearch's <c>AUTO</c>
+/// distance is <c>MaxEdits</c>, at most 2, or by word length as Elasticsearch's <c>AUTO</c>
 /// (0 edits up to 2 characters, 1 up to 5, else 2). A transposition counts as two edits, as Levenshtein distance
 /// does, where Elasticsearch counts it as one by default.
 /// </summary>
-internal sealed class FuzzySubQueryTranslator : PostgreSqlSubQueryTranslator<FuzzyQuery>
+internal sealed class FuzzySubQueryTranslator : PostgreSqlSubQueryTranslator<FuzzySubQuery>
 {
     private const int MaxEdits = 2;
 
-    protected override Result<PostgreSqlFilter> Translate(FuzzyQuery query)
+    protected override Result<PostgreSqlFilter> Translate(FuzzySubQuery query)
     {
-        var field = RequireField(query.Field, nameof(FuzzyQuery));
+        var field = RequireField(query.Field, nameof(FuzzySubQuery));
         if (field.IsFailed)
         {
             return field.ToResult<PostgreSqlFilter>();
@@ -181,21 +181,21 @@ internal sealed class FuzzySubQueryTranslator : PostgreSqlSubQueryTranslator<Fuz
 
         if (query.Value is null)
         {
-            return Result.Fail<PostgreSqlFilter>($"{nameof(FuzzyQuery)} needs a Value.");
+            return Result.Fail<PostgreSqlFilter>($"{nameof(FuzzySubQuery)} needs a Value.");
         }
 
         // A date or boolean is not text to match within a few edits.
         if (query.Value is not string && !QueryValueText.IsNumber(query.Value))
         {
             return Result.Fail<PostgreSqlFilter>(
-                $"{nameof(FuzzyQuery)} value '{QueryValueText.From(query.Value)}' is a {query.Value.GetType().Name}; a fuzzy match needs a string or a number.");
+                $"{nameof(FuzzySubQuery)} value '{QueryValueText.From(query.Value)}' is a {query.Value.GetType().Name}; a fuzzy match needs a string or a number.");
         }
 
         var text = QueryValueText.From(query.Value);
-        int? edits = query.Fuziness == null ? null : Math.Clamp(Math.Max(query.Fuziness.Item1, query.Fuziness.Item2), 0, MaxEdits);
-        var prefixLength = Math.Max(query.PrefixLenght, 0);
+        int? edits = query.MaxEdits == null ? null : Math.Clamp(query.MaxEdits.Value, 0, MaxEdits);
+        var prefixLength = Math.Max(query.PrefixLength, 0);
         var name = field.Value;
-        return Result.Ok<PostgreSqlFilter>(new PostgreSqlFilter.Condition($"{nameof(FuzzyQuery)} on {name}", p =>
+        return Result.Ok<PostgreSqlFilter>(new PostgreSqlFilter.Condition($"{nameof(FuzzySubQuery)} on {name}", p =>
         {
             var distance = edits is { } fixedEdits
                 ? p.Add(fixedEdits, NpgsqlDbType.Integer)

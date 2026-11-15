@@ -80,7 +80,7 @@ public abstract class QueryResultBaseTests(
         //Arrange
         var query = new SearchQuery();
         query.Index = index;
-        query.Add(Occurance.MUST, new PrefixSubQuery()
+        query.Add(Occurrence.Must, new PrefixSubQuery()
         {
             Field = "Name",
             Value = "John"
@@ -161,7 +161,7 @@ public abstract class QueryResultBaseTests(
     public async Task SearchAsync_Hits_CarryAScore()
     {
         var query = await CreateQueryAsync();
-        query.Add(Occurance.MUST, Name("john"));
+        query.Add(Occurrence.Must, Name("john"));
 
         var result = await serviceAsync.SearchAsync(query);
 
@@ -175,7 +175,7 @@ public abstract class QueryResultBaseTests(
     public async Task SearchAsync_CancelledToken_ThrowsOperationCanceledException()
     {
         var query = await CreateQueryAsync();
-        query.Add(Occurance.MUST, Name("john"));
+        query.Add(Occurrence.Must, Name("john"));
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
@@ -197,7 +197,7 @@ public abstract class QueryResultBaseTests(
     {
         var index = $"missing-{Guid.NewGuid():N}";
         var query = new SearchQuery { Index = index };
-        query.Add(Occurance.MUST, Name("john"));
+        query.Add(Occurrence.Must, Name("john"));
 
         var result = await serviceAsync.SearchAsync(query);
 
@@ -218,7 +218,7 @@ public abstract class QueryResultBaseTests(
         })).IsSuccess.ShouldBeTrue();
         await DocumentsIndexedAsync(index);
         var query = new SearchQuery { Index = index };
-        query.Add(Occurance.MUST, Name("mixed"));
+        query.Add(Occurrence.Must, Name("mixed"));
 
         var ids = await SearchIdsAsync(query);
 
@@ -241,7 +241,7 @@ public abstract class QueryResultBaseTests(
         })).IsSuccess.ShouldBeTrue();
         await DocumentsIndexedAsync(index);
         var query = new SearchQuery { Index = index };
-        query.Add(Occurance.MUST, Name("null"));
+        query.Add(Occurrence.Must, Name("null"));
 
         var result = await serviceAsync.SearchAsync(query);
 
@@ -306,7 +306,7 @@ public abstract class QueryResultBaseTests(
         })).IsSuccess.ShouldBeTrue();
         await DocumentsIndexedAsync(index);
         var query = new SearchQuery { Index = index };
-        query.Add(Occurance.MUST, Name("typed"));
+        query.Add(Occurrence.Must, Name("typed"));
 
         var result = await serviceAsync.SearchAsync(query);
 
@@ -348,7 +348,7 @@ public abstract class QueryResultBaseTests(
         }, TestContext.Current.CancellationToken)).IsSuccess.ShouldBeTrue();
         await DocumentsIndexedAsync(index);
         var query = new SearchQuery { Index = index };
-        query.Add(Occurance.MUST, Name("dated"));
+        query.Add(Occurrence.Must, Name("dated"));
 
         var result = await serviceAsync.SearchAsync(query, TestContext.Current.CancellationToken);
 
@@ -415,8 +415,8 @@ public abstract class QueryResultBaseTests(
     public async Task SearchAsync_MustAndShould_ReturnsOnlyTheMustMatches()
     {
         var query = await CreateQueryAsync();
-        query.Add(Occurance.SHOULD, Name("jane"));
-        query.Add(Occurance.MUST, Name("john"));
+        query.Add(Occurrence.Should, Name("jane"));
+        query.Add(Occurrence.Must, Name("john"));
 
         var ids = await SearchIdsAsync(query);
 
@@ -427,24 +427,24 @@ public abstract class QueryResultBaseTests(
     public async Task SearchAsync_ShouldOnly_ReturnsAnyMatch()
     {
         var query = await CreateQueryAsync();
-        query.Add(Occurance.SHOULD, Name("jane"));
-        query.Add(Occurance.SHOULD, Name("3"));
+        query.Add(Occurrence.Should, Name("jane"));
+        query.Add(Occurrence.Should, Name("3"));
 
         var ids = await SearchIdsAsync(query);
 
         ids.ShouldBe(["1", "3"]);
     }
 
-    /// <summary>A sub-query put in <c>NestedQueries</c> without <c>Add</c> keeps its default occurrence, <c>MUST</c>.</summary>
+    /// <summary>A sub-query put in <c>NestedQueries</c> without <c>Add</c> keeps its default occurrence, <c>Must</c>.</summary>
     [Fact]
     public async Task SearchAsync_SubQueryAddedToNestedQueriesDirectly_IsAMust()
     {
         var query = await CreateQueryAsync();
         var nested = new BoolSearchSubQuery
         {
-            NestedQueries = [Name("john"), new TermSubQuery { Field = "Name", Value = "jane", Occurance = Occurance.SHOULD }]
+            NestedQueries = [Name("john"), new TermSubQuery { Field = "Name", Value = "jane", Occurrence = Occurrence.Should }]
         };
-        query.Add(Occurance.MUST, nested);
+        query.Add(Occurrence.Must, nested);
 
         var ids = await SearchIdsAsync(query);
 
@@ -456,7 +456,7 @@ public abstract class QueryResultBaseTests(
     public virtual async Task SearchAsync_RangeWithDefaultEdges_IncludesBothBounds()
     {
         var query = await CreateQueryAsync();
-        query.Add(Occurance.MUST, new NumericRange { Field = "Age", MinValue = 25, MaxValue = 30 });
+        query.Add(Occurrence.Must, new NumericRangeSubQuery { Field = "Age", MinValue = 25, MaxValue = 30 });
 
         var ids = await SearchIdsAsync(query);
 
@@ -473,7 +473,7 @@ public abstract class QueryResultBaseTests(
     public Task SearchAsync_FractionalRange_MatchesOnlyValuesInsideTheBounds(bool includeEdges, string[] expected) =>
         WithRangeQueryAsync("Price", [9.98, 9.99, 20.25, 49.5, 49.51], async query =>
         {
-            query.Add(Occurance.MUST, new NumericRange
+            query.Add(Occurrence.Must, new NumericRangeSubQuery
             {
                 Field = "Price",
                 MinValue = 9.99,
@@ -492,7 +492,7 @@ public abstract class QueryResultBaseTests(
     public Task SearchAsync_FractionalBoundOnWholeNumbers_IsNotRounded(double? min, double? max, string expected) =>
         WithRangeQueryAsync("Rating", [4, 5], async query =>
         {
-            query.Add(Occurance.MUST, new NumericRange { Field = "Rating", MinValue = min, MaxValue = max });
+            query.Add(Occurrence.Must, new NumericRangeSubQuery { Field = "Rating", MinValue = min, MaxValue = max });
 
             (await SearchRangeIdsAsync(query))?.ShouldBe([expected]);
         });
@@ -513,7 +513,7 @@ public abstract class QueryResultBaseTests(
             new DateTimeOffset(2026, 11, 8, 7, 0, 0, TimeSpan.FromHours(-5))
         ], async query =>
         {
-            query.Add(Occurance.MUST, new DateRangeQuery
+            query.Add(Occurrence.Must, new DateRangeSubQuery
             {
                 Field = "Born",
                 MinValue = new DateTimeOffset(2026, 11, 8, 6, 30, 0, TimeSpan.FromHours(-4)),
@@ -533,7 +533,7 @@ public abstract class QueryResultBaseTests(
             new DateTime(2026, 11, 8, 11, 0, 0, DateTimeKind.Utc)
         ], async query =>
         {
-            query.Add(Occurance.MUST, new DateRangeQuery
+            query.Add(Occurrence.Must, new DateRangeSubQuery
             {
                 Field = "Born",
                 MinValue = new DateTime(2026, 11, 8, 10, 30, 0, DateTimeKind.Unspecified),
@@ -548,25 +548,25 @@ public abstract class QueryResultBaseTests(
     {
         var query = await CreateQueryAsync();
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.SHOULD, Name("jane"));
-        nested.Add(Occurance.MUST, Name("john"));
-        nested.Add(Occurance.MUSTNOT, Name("3"));
-        query.Add(Occurance.MUST, nested);
+        nested.Add(Occurrence.Should, Name("jane"));
+        nested.Add(Occurrence.Must, Name("john"));
+        nested.Add(Occurrence.MustNot, Name("3"));
+        query.Add(Occurrence.Must, nested);
 
         var ids = await SearchIdsAsync(query);
 
         ids.ShouldBe(["2"]);
     }
 
-    /// <summary>The usual way to write an exclusion: a nested bool with only <c>MUSTNOT</c>, beside a positive clause.</summary>
+    /// <summary>The usual way to write an exclusion: a nested bool with only <c>MustNot</c>, beside a positive clause.</summary>
     [Fact]
     public async Task SearchAsync_NestedMustNotOnlyBesideMust_ExcludesFromTheParentMatches()
     {
         var query = await CreateQueryAsync();
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.MUSTNOT, Name("3"));
-        query.Add(Occurance.MUST, Name("doe"));
-        query.Add(Occurance.MUST, nested);
+        nested.Add(Occurrence.MustNot, Name("3"));
+        query.Add(Occurrence.Must, Name("doe"));
+        query.Add(Occurrence.Must, nested);
 
         var ids = await SearchIdsAsync(query);
 
@@ -578,9 +578,9 @@ public abstract class QueryResultBaseTests(
     {
         var query = await CreateQueryAsync();
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.MUSTNOT, Name("john"));
-        query.Add(Occurance.MUST, Name("doe"));
-        query.Add(Occurance.MUSTNOT, nested);
+        nested.Add(Occurrence.MustNot, Name("john"));
+        query.Add(Occurrence.Must, Name("doe"));
+        query.Add(Occurrence.MustNot, nested);
 
         var ids = await SearchIdsAsync(query);
 
@@ -593,8 +593,8 @@ public abstract class QueryResultBaseTests(
     {
         var query = await CreateQueryAsync();
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.MUSTNOT, Name("3"));
-        query.Add(Occurance.MUSTNOT, nested);
+        nested.Add(Occurrence.MustNot, Name("3"));
+        query.Add(Occurrence.MustNot, nested);
 
         var ids = await SearchIdsAsync(query);
 
@@ -602,8 +602,8 @@ public abstract class QueryResultBaseTests(
     }
 
     /// <summary>
-    /// Lucene semantics: a <c>MUSTNOT</c> does not make <c>SHOULD</c> optional, so both must match. The
-    /// <c>SHOULD</c> matches 2 and 3 and the double negation matches 1 and 3, so ignoring either one returns
+    /// Lucene semantics: a <c>MustNot</c> does not make <c>Should</c> optional, so both must match. The
+    /// <c>Should</c> matches 2 and 3 and the double negation matches 1 and 3, so ignoring either one returns
     /// two documents instead of 3.
     /// </summary>
     [Fact]
@@ -611,10 +611,10 @@ public abstract class QueryResultBaseTests(
     {
         var query = await CreateQueryAsync();
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.MUSTNOT, Name("jane"));
-        nested.Add(Occurance.MUSTNOT, Name("3"));
-        query.Add(Occurance.SHOULD, Name("john"));
-        query.Add(Occurance.MUSTNOT, nested);
+        nested.Add(Occurrence.MustNot, Name("jane"));
+        nested.Add(Occurrence.MustNot, Name("3"));
+        query.Add(Occurrence.Should, Name("john"));
+        query.Add(Occurrence.MustNot, nested);
 
         var ids = await SearchIdsAsync(query);
 
@@ -622,20 +622,20 @@ public abstract class QueryResultBaseTests(
     }
 
     /// <summary>
-    /// With nothing required, a <c>SHOULD</c> that only excludes still has to match: not jane (2 and 3) and
-    /// the double negation (1 and 3) leave 3. Ignoring the <c>SHOULD</c> would return 1 and 3.
+    /// With nothing required, a <c>Should</c> that only excludes still has to match: not jane (2 and 3) and
+    /// the double negation (1 and 3) leave 3. Ignoring the <c>Should</c> would return 1 and 3.
     /// </summary>
     [Fact]
     public async Task SearchAsync_ShouldOfNestedMustNotOnlyBesideDoubleNegation_ReturnsBothMatches()
     {
         var query = await CreateQueryAsync();
         var notJane = new BoolSearchSubQuery();
-        notJane.Add(Occurance.MUSTNOT, Name("jane"));
+        notJane.Add(Occurrence.MustNot, Name("jane"));
         var doubleNegated = new BoolSearchSubQuery();
-        doubleNegated.Add(Occurance.MUSTNOT, Name("jane"));
-        doubleNegated.Add(Occurance.MUSTNOT, Name("3"));
-        query.Add(Occurance.SHOULD, notJane);
-        query.Add(Occurance.MUSTNOT, doubleNegated);
+        doubleNegated.Add(Occurrence.MustNot, Name("jane"));
+        doubleNegated.Add(Occurrence.MustNot, Name("3"));
+        query.Add(Occurrence.Should, notJane);
+        query.Add(Occurrence.MustNot, doubleNegated);
 
         var ids = await SearchIdsAsync(query);
 
@@ -643,7 +643,7 @@ public abstract class QueryResultBaseTests(
     }
 
     /// <summary>
-    /// A nested bool of <c>SHOULD</c> clauses where one only excludes: not john (1) or 3 gives 1 and 3,
+    /// A nested bool of <c>Should</c> clauses where one only excludes: not john (1) or 3 gives 1 and 3,
     /// within the parent's doe.
     /// </summary>
     [Fact]
@@ -651,19 +651,19 @@ public abstract class QueryResultBaseTests(
     {
         var query = await CreateQueryAsync();
         var notJohn = new BoolSearchSubQuery();
-        notJohn.Add(Occurance.MUSTNOT, Name("john"));
+        notJohn.Add(Occurrence.MustNot, Name("john"));
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.SHOULD, notJohn);
-        nested.Add(Occurance.SHOULD, Name("3"));
-        query.Add(Occurance.MUST, Name("doe"));
-        query.Add(Occurance.MUST, nested);
+        nested.Add(Occurrence.Should, notJohn);
+        nested.Add(Occurrence.Should, Name("3"));
+        query.Add(Occurrence.Must, Name("doe"));
+        query.Add(Occurrence.Must, nested);
 
         var ids = await SearchIdsAsync(query);
 
         ids.ShouldBe(["1", "3"]);
     }
 
-    /// <summary>Lucene semantics: a <c>MUST</c> makes <c>SHOULD</c> optional, even when the <c>MUST</c> only excludes.</summary>
+    /// <summary>Lucene semantics: a <c>Must</c> makes <c>Should</c> optional, even when the <c>Must</c> only excludes.</summary>
     [Fact]
     public virtual async Task SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ReturnsEveryDocumentExceptTheExclusions()
     {
@@ -674,7 +674,7 @@ public abstract class QueryResultBaseTests(
         ids.ShouldBe(["1", "2"]);
     }
 
-    /// <summary>For providers that cannot return the complement: a failed <c>Result</c>, never the <c>SHOULD</c> matches.</summary>
+    /// <summary>For providers that cannot return the complement: a failed <c>Result</c>, never the <c>Should</c> matches.</summary>
     protected async Task SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ShouldFailAsync()
     {
         var query = await CreateShouldBesideMustOfNestedMustNotOnlyQueryAsync();
@@ -690,12 +690,12 @@ public abstract class QueryResultBaseTests(
     {
         var query = await CreateQueryAsync();
         var exclusion = new BoolSearchSubQuery();
-        exclusion.Add(Occurance.MUSTNOT, Name("3"));
+        exclusion.Add(Occurrence.MustNot, Name("3"));
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.SHOULD, Name("jane"));
-        nested.Add(Occurance.MUST, exclusion);
-        query.Add(Occurance.MUST, Name("doe"));
-        query.Add(Occurance.MUST, nested);
+        nested.Add(Occurrence.Should, Name("jane"));
+        nested.Add(Occurrence.Must, exclusion);
+        query.Add(Occurrence.Must, Name("doe"));
+        query.Add(Occurrence.Must, nested);
 
         var ids = await SearchIdsAsync(query);
 
@@ -706,18 +706,18 @@ public abstract class QueryResultBaseTests(
     {
         var query = await CreateQueryAsync();
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.MUSTNOT, Name("3"));
-        query.Add(Occurance.SHOULD, Name("jane"));
-        query.Add(Occurance.MUST, nested);
+        nested.Add(Occurrence.MustNot, Name("3"));
+        query.Add(Occurrence.Should, Name("jane"));
+        query.Add(Occurrence.Must, nested);
         return query;
     }
 
-    /// <summary>Lucene semantics: <c>MUSTNOT</c> on its own returns every other document.</summary>
+    /// <summary>Lucene semantics: <c>MustNot</c> on its own returns every other document.</summary>
     [Fact]
     public virtual async Task SearchAsync_MustNotOnly_ReturnsTheComplement()
     {
         var query = await CreateQueryAsync();
-        query.Add(Occurance.MUSTNOT, Name("jane"));
+        query.Add(Occurrence.MustNot, Name("jane"));
 
         var ids = await SearchIdsAsync(query);
 
@@ -728,7 +728,7 @@ public abstract class QueryResultBaseTests(
     protected async Task SearchAsync_RangeWithDefaultEdges_ShouldFailAsync()
     {
         var query = await CreateQueryAsync();
-        query.Add(Occurance.MUST, new NumericRange { Field = "Age", MinValue = 25, MaxValue = 30 });
+        query.Add(Occurrence.Must, new NumericRangeSubQuery { Field = "Age", MinValue = 25, MaxValue = 30 });
 
         var result = await serviceAsync.SearchAsync(query);
 
@@ -740,7 +740,7 @@ public abstract class QueryResultBaseTests(
     protected async Task SearchAsync_MustNotOnly_ShouldFailAsync()
     {
         var query = await CreateQueryAsync();
-        query.Add(Occurance.MUSTNOT, Name("jane"));
+        query.Add(Occurrence.MustNot, Name("jane"));
 
         var result = await serviceAsync.SearchAsync(query);
 

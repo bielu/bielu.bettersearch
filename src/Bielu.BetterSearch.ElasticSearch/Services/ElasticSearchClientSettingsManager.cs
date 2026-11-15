@@ -50,7 +50,7 @@ internal sealed class ElasticSearchClientSettingsManager(IOptionsMonitor<Elastic
             CertificateFingerprint = tls.CertificateFingerprint,
             DevelopmentOnlySkipCertificateValidation = tls.DevelopmentOnlySkipCertificateValidation ?? false,
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
-                                 ?? AuthenticationType.NONE,
+                                 ?? AuthenticationType.None,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
             Mappings = FieldMappings.Merge(shared.Mappings, indexSpecific.Mappings),
             BulkBatchSize = indexSpecific.BulkBatchSize ?? shared.BulkBatchSize,
@@ -61,17 +61,17 @@ internal sealed class ElasticSearchClientSettingsManager(IOptionsMonitor<Elastic
     }
 
     /// <summary>
-    /// Whether <paramref name="settings"/> name a server of their own: a connection string, or <c>CLOUD</c> or
-    /// <c>CLOUDAPI</c> authentication, which connects by its cloud id. Only then do they use their own TLS settings.
+    /// Whether <paramref name="settings"/> name a server of their own: a connection string, or <c>Cloud</c> or
+    /// <c>CloudApi</c> authentication, which connects by its cloud id. Only then do they use their own TLS settings.
     /// </summary>
     internal static bool HasOwnEndpoint(ElasticSearchIndexSettings settings) =>
         !string.IsNullOrWhiteSpace(settings.ConnectionString) ||
-        settings.AuthenticationType is AuthenticationType.CLOUD or AuthenticationType.CLOUDAPI;
+        settings.AuthenticationType is AuthenticationType.Cloud or AuthenticationType.CloudApi;
 
     /// <summary>
     /// The connection setting failures of <paramref name="settings"/>, already merged, each naming the setting to fix.
-    /// Checked as OpenSearch does, except that Elastic Cloud connects by its cloud id, so <c>CLOUD</c> and
-    /// <c>CLOUDAPI</c> don't need a connection string, and don't use the additional nodes or the pool type. The options validator runs the same checks at startup.
+    /// Checked as OpenSearch does, except that Elastic Cloud connects by its cloud id, so <c>Cloud</c> and
+    /// <c>CloudApi</c> don't need a connection string, and don't use the additional nodes or the pool type. The options validator runs the same checks at startup.
     /// </summary>
     /// <remarks>
     /// <c>connection</c> is where the connection string comes from, and <c>authentication</c> where the authentication
@@ -82,35 +82,35 @@ internal sealed class ElasticSearchClientSettingsManager(IOptionsMonitor<Elastic
         SettingSource? nodes = null, SettingSource? pool = null)
     {
         var key = ElasticSearchOptions.ElasticSearchOptionsKey;
-        var authenticationType = settings.AuthenticationType ?? AuthenticationType.NONE;
+        var authenticationType = settings.AuthenticationType ?? AuthenticationType.None;
         var details = settings.AuthenticationDetails;
         string?[] failures = authenticationType switch
         {
-            AuthenticationType.NONE => [.. NodeFailures(settings, connection, nodes ?? connection, pool ?? connection)],
-            AuthenticationType.PASSWORD =>
+            AuthenticationType.None => [.. NodeFailures(settings, connection, nodes ?? connection, pool ?? connection)],
+            AuthenticationType.Password =>
             [
                 .. NodeFailures(settings, connection, nodes ?? connection, pool ?? connection),
                 ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(AuthenticationDetails.Username), details?.Username), (nameof(AuthenticationDetails.Password), details?.Password)),
             ],
-            AuthenticationType.CLOUD =>
+            AuthenticationType.Cloud =>
             [
                 ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(AuthenticationDetails.Id), details?.Id), (nameof(AuthenticationDetails.Username), details?.Username),
                     (nameof(AuthenticationDetails.Password), details?.Password)),
             ],
-            AuthenticationType.CLOUDAPI =>
+            AuthenticationType.CloudApi =>
             [
                 ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(AuthenticationDetails.Id), details?.Id), (nameof(AuthenticationDetails.ApiKey), details?.ApiKey)),
             ],
-            AuthenticationType.APIKEY =>
+            AuthenticationType.ApiKey =>
             [
                 .. NodeFailures(settings, connection, nodes ?? connection, pool ?? connection),
                 ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(AuthenticationDetails.ApiKey), details?.ApiKey)),
             ],
-            AuthenticationType.BEARER =>
+            AuthenticationType.Bearer =>
             [
                 .. NodeFailures(settings, connection, nodes ?? connection, pool ?? connection),
                 ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
@@ -121,7 +121,7 @@ internal sealed class ElasticSearchClientSettingsManager(IOptionsMonitor<Elastic
         // The TLS settings go with the endpoint, so an entry sets them itself when it has its own connection string or cloud id.
         var tls = connection with
         {
-            Inherited = connection.Inherited && (authentication.Inherited || authenticationType is not (AuthenticationType.CLOUD or AuthenticationType.CLOUDAPI)),
+            Inherited = connection.Inherited && (authentication.Inherited || authenticationType is not (AuthenticationType.Cloud or AuthenticationType.CloudApi)),
         };
         return failures.OfType<string>()
             .Concat(ConnectionSettingsChecks.TlsFailures(key, tls, settings.CertificateFingerprint, settings.DevelopmentOnlySkipCertificateValidation));
@@ -155,15 +155,15 @@ internal sealed class ElasticSearchClientSettingsManager(IOptionsMonitor<Elastic
     private static ElasticsearchClientSettings ConnectedSettings(ElasticSearchIndexSettings settings)
     {
         var details = settings.AuthenticationDetails!;
-        var clientSettings = (settings.AuthenticationType ?? AuthenticationType.NONE) switch
+        var clientSettings = (settings.AuthenticationType ?? AuthenticationType.None) switch
         {
-            AuthenticationType.PASSWORD => new ElasticsearchClientSettings(CreateNodePool(settings))
+            AuthenticationType.Password => new ElasticsearchClientSettings(CreateNodePool(settings))
                 .Authentication(new BasicAuthentication(details.Username, details.Password)),
-            AuthenticationType.CLOUD => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new BasicAuthentication(details.Username, details.Password))),
-            AuthenticationType.CLOUDAPI => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new ApiKey(details.ApiKey))),
-            AuthenticationType.APIKEY => new ElasticsearchClientSettings(CreateNodePool(settings))
+            AuthenticationType.Cloud => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new BasicAuthentication(details.Username, details.Password))),
+            AuthenticationType.CloudApi => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new ApiKey(details.ApiKey))),
+            AuthenticationType.ApiKey => new ElasticsearchClientSettings(CreateNodePool(settings))
                 .Authentication(new ApiKey(details.ApiKey)),
-            AuthenticationType.BEARER => new ElasticsearchClientSettings(CreateNodePool(settings))
+            AuthenticationType.Bearer => new ElasticsearchClientSettings(CreateNodePool(settings))
                 .Authentication(new BearerToken(details.Token!)),
             _ => new ElasticsearchClientSettings(CreateNodePool(settings)),
         };

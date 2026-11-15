@@ -65,7 +65,7 @@ internal sealed class PrefixPhraseSubQueryTranslator : TypesenseSubQueryTranslat
 
 internal static class PrefixFilter
 {
-    private const string NotNegatable = "Typesense filters cannot negate a prefix, so a prefix can't be a MUSTNOT clause.";
+    private const string NotNegatable = "Typesense filters cannot negate a prefix, so a prefix can't be a MustNot clause.";
 
     public static Result<TypesenseFilter> Create(string field, string prefix, string queryName)
     {

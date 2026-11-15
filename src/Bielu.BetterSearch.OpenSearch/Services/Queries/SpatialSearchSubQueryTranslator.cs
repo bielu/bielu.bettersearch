@@ -10,13 +10,13 @@ namespace Bielu.BetterSearch.OpenSearch.Services.Queries;
 /// A <c>geo_distance</c> query. The field must be mapped as <c>geo_point</c> in the index; dynamic
 /// mapping does not create one. The unit is an OpenSearch distance unit, kilometres by default.
 /// </summary>
-internal sealed class SpatialSearchSubQueryTranslator : OpenSearchSubQueryTranslator<SpatialSearchQuery>
+internal sealed class SpatialSearchSubQueryTranslator : OpenSearchSubQueryTranslator<SpatialSearchSubQuery>
 {
     private const string DefaultUnit = "km";
 
-    protected override Task<Result<QueryContainer>> TranslateAsync(SpatialSearchQuery query, IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators)
+    protected override Task<Result<QueryContainer>> TranslateAsync(SpatialSearchSubQuery query, IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators)
     {
-        var field = OpenSearchFieldNames.Require(query.Field, nameof(SpatialSearchQuery));
+        var field = OpenSearchFieldNames.Require(query.Field, nameof(SpatialSearchSubQuery));
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<QueryContainer>());
@@ -24,18 +24,18 @@ internal sealed class SpatialSearchSubQueryTranslator : OpenSearchSubQueryTransl
 
         if (query.Distance <= 0)
         {
-            return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchQuery)} needs a Distance greater than 0."));
+            return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchSubQuery)} needs a Distance greater than 0."));
         }
 
         // OpenSearch.Client does not check coordinates, so an out-of-range one would only fail on the server.
         if (query.Lat is < -90 or > 90 || double.IsNaN(query.Lat))
         {
-            return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchQuery)} has an invalid Lat {query.Lat}: it must be between -90 and 90."));
+            return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchSubQuery)} has an invalid Lat {query.Lat}: it must be between -90 and 90."));
         }
 
         if (query.Lng is < -180 or > 180 || double.IsNaN(query.Lng))
         {
-            return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchQuery)} has an invalid Lng {query.Lng}: it must be between -180 and 180."));
+            return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchSubQuery)} has an invalid Lng {query.Lng}: it must be between -180 and 180."));
         }
 
         var unit = string.IsNullOrWhiteSpace(query.UnitOfDistance) ? DefaultUnit : query.UnitOfDistance;
@@ -47,7 +47,7 @@ internal sealed class SpatialSearchSubQueryTranslator : OpenSearchSubQueryTransl
         }
         catch (Exception e) when (e is ArgumentException or InvalidCastException)
         {
-            return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchQuery)} has an invalid UnitOfDistance {unit}: {e.Message}"));
+            return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchSubQuery)} has an invalid UnitOfDistance {unit}: {e.Message}"));
         }
 
         return Task.FromResult(Result.Ok<QueryContainer>(new GeoDistanceQuery

@@ -3,6 +3,6 @@
     public interface IQueryConfigurator
     {
         public INestableQuery Query { get; set; }
-        Occurance Occurance { get; set; }
+        Occurrence Occurrence { get; set; }
     }
 }

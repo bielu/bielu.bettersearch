@@ -1,6 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.DepedencyInjection;
-using Bielu.BetterSearch.PostgreSql.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
+using Bielu.BetterSearch.PostgreSql.DependencyInjection;
 using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

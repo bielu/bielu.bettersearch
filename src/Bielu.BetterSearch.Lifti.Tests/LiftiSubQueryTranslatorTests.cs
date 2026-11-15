@@ -13,7 +13,7 @@ public sealed class LiftiSubQueryTranslatorTests(IEnumerable<ISubQueryTranslator
 {
     private sealed class UnknownSubQuery : ISearchSubQuery
     {
-        public Occurance Occurance { get; set; }
+        public Occurrence Occurrence { get; set; }
         public int BoostValue { get; set; }
     }
 
@@ -54,20 +54,20 @@ public sealed class LiftiSubQueryTranslatorTests(IEnumerable<ISubQueryTranslator
     public async Task TranslateAsync_BoolWithOnlyMustNot_ReturnsFailedResult()
     {
         var query = new BoolSearchSubQuery();
-        query.Add(Occurance.MUSTNOT, new TermSubQuery { Field = "Name", Value = "jane" });
+        query.Add(Occurrence.MustNot, new TermSubQuery { Field = "Name", Value = "jane" });
 
         var result = await new BooleanSubQueryTranslator().TranslateAsync(query, translators);
 
         result.IsFailed.ShouldBeTrue();
-        result.Errors.Single().Message.ShouldContain("MUSTNOT");
+        result.Errors.Single().Message.ShouldContain("MustNot");
     }
 
     [Fact]
     public async Task TranslateAsync_BoolWithUnsupportedClause_ReturnsFailedResult()
     {
         var query = new BoolSearchSubQuery();
-        query.Add(Occurance.MUST, new TermSubQuery { Field = "Name", Value = "jane" });
-        query.Add(Occurance.MUST, new LuceneSubQuery { LuceneQuery = "Name:jane" });
+        query.Add(Occurrence.Must, new TermSubQuery { Field = "Name", Value = "jane" });
+        query.Add(Occurrence.Must, new LuceneSubQuery { LuceneQuery = "Name:jane" });
 
         var result = await new BooleanSubQueryTranslator().TranslateAsync(query, translators);
 
@@ -88,7 +88,7 @@ public sealed class LiftiSubQueryTranslatorTests(IEnumerable<ISubQueryTranslator
     {
         { new TermSubQuery { Field = "Name", Value = "-" }, new TermSubQueryTranslator() },
         { new TermsSubQuery { Field = "Name", Value = ["jane", "--"] }, new TermsSubQueryTranslator() },
-        { new FuzzyQuery { Field = "Name", Value = "." }, new FuzzySubQueryTranslator() },
+        { new FuzzySubQuery { Field = "Name", Value = "." }, new FuzzySubQueryTranslator() },
         { new PrefixSubQuery { Field = "Name", Value = "/" }, new PrefixSubQueryTranslator() },
         { new PrefixPhraseSubQuery { Field = "Name", Value = " " }, new PrefixPhraseSubQueryTranslator() }
     };

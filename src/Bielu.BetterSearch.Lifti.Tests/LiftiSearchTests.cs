@@ -12,7 +12,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
 {
     private sealed class UnknownSubQuery : ISearchSubQuery
     {
-        public Occurance Occurance { get; set; }
+        public Occurrence Occurrence { get; set; }
         public int BoostValue { get; set; }
     }
 
@@ -66,7 +66,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
         var query = new SearchQuery { Index = index };
-        query.Query[Occurance.MUST] = [];
+        query.Query[Occurrence.Must] = [];
 
         var ids = await SearchIdsAsync(query);
 
@@ -79,7 +79,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = $"missing-{Guid.NewGuid():N}";
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "jane" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "jane" }));
 
         ids.ShouldBeEmpty();
         (await indexingProvider.IndexExistsAsync(index, Token)).Value.ShouldBeTrue();
@@ -90,7 +90,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "DOE" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "DOE" }));
 
         ids.ShouldBe(["2", "Up-1"]);
     }
@@ -101,7 +101,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "Jane" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "Jane" }));
 
         ids.ShouldBe(["5", "Up-1"]);
     }
@@ -111,7 +111,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Age", Value = 30 }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Age", Value = 30 }));
 
         ids.ShouldBe(["2"]);
     }
@@ -121,7 +121,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "jan" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "jan" }));
 
         ids.ShouldBeEmpty();
     }
@@ -138,7 +138,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
             Fields = new Dictionary<string, IList<object>> { { "Name", ["Żółw Café"] } }
         }, Token)).IsSuccess.ShouldBeTrue();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "żółw" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "żółw" }));
 
         ids.ShouldBe(["1"]);
     }
@@ -148,7 +148,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "Name", Value = ["anna", "smith"] }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermsSubQuery { Field = "Name", Value = ["anna", "smith"] }));
 
         ids.ShouldBe(["3", "4"]);
     }
@@ -158,7 +158,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "Name", Value = [] }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermsSubQuery { Field = "Name", Value = [] }));
 
         ids.ShouldBeEmpty();
     }
@@ -168,7 +168,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "Name", Value = null }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermsSubQuery { Field = "Name", Value = null }));
 
         ids.ShouldBeEmpty();
     }
@@ -178,17 +178,17 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new FuzzyQuery { Field = "Name", Value = "smiht" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new FuzzySubQuery { Field = "Name", Value = "smiht" }));
 
         ids.ShouldBe(["3"]);
     }
 
     [Fact]
-    public async Task SearchAsync_FuzzyQueryWithFuziness_UsesTheLargerBound()
+    public async Task SearchAsync_FuzzyQueryWithOneEdit_MatchesTheTypo()
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new FuzzyQuery { Field = "Name", Value = "nowek", Fuziness = Tuple.Create(0, 1) }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new FuzzySubQuery { Field = "Name", Value = "nowek", MaxEdits = 1 }));
 
         ids.ShouldBe(["4"]);
     }
@@ -198,8 +198,8 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var exact = await SearchIdsAsync(Query(index, Occurance.MUST, new FuzzyQuery { Field = "Name", Value = "nowak", Fuziness = Tuple.Create(0, 0) }));
-        var typo = await SearchIdsAsync(Query(index, Occurance.MUST, new FuzzyQuery { Field = "Name", Value = "nowek", Fuziness = Tuple.Create(0, 0) }));
+        var exact = await SearchIdsAsync(Query(index, Occurrence.Must, new FuzzySubQuery { Field = "Name", Value = "nowak", MaxEdits = 0 }));
+        var typo = await SearchIdsAsync(Query(index, Occurrence.Must, new FuzzySubQuery { Field = "Name", Value = "nowek", MaxEdits = 0 }));
 
         exact.ShouldBe(["4"]);
         typo.ShouldBeEmpty();
@@ -210,7 +210,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new PrefixSubQuery { Field = "Name", Value = "Jo" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new PrefixSubQuery { Field = "Name", Value = "Jo" }));
 
         ids.ShouldBe(["2", "3"]);
     }
@@ -220,7 +220,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new PrefixPhraseSubQuery { Field = "Name", Value = "kowa" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new PrefixPhraseSubQuery { Field = "Name", Value = "kowa" }));
 
         ids.ShouldBe(["5"]);
     }
@@ -231,7 +231,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
         // "Jane" is also a city, and "John Doe" has the "d" word, but only "Jane Doe" has them next to each other.
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new PrefixPhraseSubQuery { Field = "Name", Value = "jane d" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new PrefixPhraseSubQuery { Field = "Name", Value = "jane d" }));
 
         ids.ShouldBe(["Up-1"]);
     }
@@ -241,8 +241,8 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var inOrder = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "john smith" }));
-        var reversed = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "smith john" }));
+        var inOrder = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "john smith" }));
+        var reversed = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "smith john" }));
 
         inOrder.ShouldBe(["3"]);
         reversed.ShouldBeEmpty();
@@ -254,7 +254,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, subQuery), Token);
+        var result = await searchService.SearchAsync(Query(index, Occurrence.Must, subQuery), Token);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain(message);
@@ -262,11 +262,11 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
 
     public static TheoryData<ISearchSubQuery, string> UnsupportedSubQueries() => new()
     {
-        { new DateRangeQuery { Field = "Born", MinValue = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc) }, "date range" },
-        { new LongRange { Field = "Age", MinValue = 1, MaxValue = 100 }, "range" },
-        { new NumericRange { Field = "Age", MinValue = 1, MaxValue = 100 }, "range" },
-        { new StringRange { Field = "Name", MinValue = "a", MaxValue = "m" }, "range" },
-        { new SpatialSearchQuery { Field = "Location", Distance = 10, Lat = 52.23, Lng = 21.01 }, "spatial" },
+        { new DateRangeSubQuery { Field = "Born", MinValue = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc) }, "date range" },
+        { new LongRangeSubQuery { Field = "Age", MinValue = 1, MaxValue = 100 }, "range" },
+        { new NumericRangeSubQuery { Field = "Age", MinValue = 1, MaxValue = 100 }, "range" },
+        { new StringRangeSubQuery { Field = "Name", MinValue = "a", MaxValue = "m" }, "range" },
+        { new SpatialSearchSubQuery { Field = "Location", Distance = 10, Lat = 52.23, Lng = 21.01 }, "spatial" },
         { new LuceneSubQuery { LuceneQuery = "Name:jane" }, "Lucene" }
     };
 
@@ -275,10 +275,10 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.MUST, new TermSubQuery { Field = "Name", Value = "john" });
-        nested.Add(Occurance.SHOULD, new NumericRange { Field = "Age", MinValue = 1 });
+        nested.Add(Occurrence.Must, new TermSubQuery { Field = "Name", Value = "john" });
+        nested.Add(Occurrence.Should, new NumericRangeSubQuery { Field = "Age", MinValue = 1 });
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, nested), Token);
+        var result = await searchService.SearchAsync(Query(index, Occurrence.Must, nested), Token);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("does not support numeric range");
@@ -289,7 +289,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new UnknownSubQuery()), Token);
+        var result = await searchService.SearchAsync(Query(index, Occurrence.Must, new UnknownSubQuery()), Token);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain(nameof(UnknownSubQuery));
@@ -299,8 +299,8 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     public async Task SearchAsync_MustClauses_ReturnTheIntersection()
     {
         var index = await CreatePeopleAsync();
-        var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "john" });
-        query.Add(Occurance.MUST, new TermSubQuery { Field = "City", Value = "warsaw" });
+        var query = Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "john" });
+        query.Add(Occurrence.Must, new TermSubQuery { Field = "City", Value = "warsaw" });
 
         var ids = await SearchIdsAsync(query);
 
@@ -311,8 +311,8 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     public async Task SearchAsync_FilterClause_IsRequiredAsMust()
     {
         var index = await CreatePeopleAsync();
-        var query = Query(index, Occurance.FILTER, new TermSubQuery { Field = "City", Value = "warsaw" });
-        query.Add(Occurance.SHOULD, new TermSubQuery { Field = "Name", Value = "anna" });
+        var query = Query(index, Occurrence.Filter, new TermSubQuery { Field = "City", Value = "warsaw" });
+        query.Add(Occurrence.Should, new TermSubQuery { Field = "Name", Value = "anna" });
 
         var ids = await SearchIdsAsync(query);
 
@@ -323,8 +323,8 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     public async Task SearchAsync_MustAndMustNot_ExcludesTheMatches()
     {
         var index = await CreatePeopleAsync();
-        var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "City", Value = "warsaw" });
-        query.Add(Occurance.MUSTNOT, new TermSubQuery { Field = "Name", Value = "doe" });
+        var query = Query(index, Occurrence.Must, new TermSubQuery { Field = "City", Value = "warsaw" });
+        query.Add(Occurrence.MustNot, new TermSubQuery { Field = "Name", Value = "doe" });
 
         var ids = await SearchIdsAsync(query);
 
@@ -335,9 +335,9 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     public async Task SearchAsync_ShouldAndMustNot_ExcludesFromTheShouldMatches()
     {
         var index = await CreatePeopleAsync();
-        var query = Query(index, Occurance.SHOULD, new TermSubQuery { Field = "Name", Value = "john" });
-        query.Add(Occurance.SHOULD, new TermSubQuery { Field = "Name", Value = "anna" });
-        query.Add(Occurance.MUSTNOT, new TermSubQuery { Field = "Name", Value = "smith" });
+        var query = Query(index, Occurrence.Should, new TermSubQuery { Field = "Name", Value = "john" });
+        query.Add(Occurrence.Should, new TermSubQuery { Field = "Name", Value = "anna" });
+        query.Add(Occurrence.MustNot, new TermSubQuery { Field = "Name", Value = "smith" });
 
         var ids = await SearchIdsAsync(query);
 
@@ -349,10 +349,10 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.SHOULD, new TermSubQuery { Field = "Name", Value = "anna" });
-        nested.Add(Occurance.SHOULD, new TermSubQuery { Field = "Name", Value = "smith" });
-        var query = Query(index, Occurance.MUST, nested);
-        query.Add(Occurance.MUST, new TermSubQuery { Field = "City", Value = "warsaw" });
+        nested.Add(Occurrence.Should, new TermSubQuery { Field = "Name", Value = "anna" });
+        nested.Add(Occurrence.Should, new TermSubQuery { Field = "Name", Value = "smith" });
+        var query = Query(index, Occurrence.Must, nested);
+        query.Add(Occurrence.Must, new TermSubQuery { Field = "City", Value = "warsaw" });
 
         var ids = await SearchIdsAsync(query);
 
@@ -363,8 +363,8 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     public async Task SearchAsync_EmptyNestedBool_IsIgnored()
     {
         var index = await CreatePeopleAsync();
-        var query = Query(index, Occurance.MUST, new BoolSearchSubQuery());
-        query.Add(Occurance.MUST, new TermSubQuery { Field = "Name", Value = "john" });
+        var query = Query(index, Occurrence.Must, new BoolSearchSubQuery());
+        query.Add(Occurrence.Must, new TermSubQuery { Field = "Name", Value = "john" });
 
         var ids = await SearchIdsAsync(query);
 
@@ -376,12 +376,12 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
         var inner = new BoolSearchSubQuery();
-        inner.Add(Occurance.SHOULD, new TermSubQuery { Field = "City", Value = "krakow" });
-        inner.Add(Occurance.SHOULD, new TermSubQuery { Field = "City", Value = "gdansk" });
+        inner.Add(Occurrence.Should, new TermSubQuery { Field = "City", Value = "krakow" });
+        inner.Add(Occurrence.Should, new TermSubQuery { Field = "City", Value = "gdansk" });
         var outer = new BoolSearchSubQuery();
-        outer.Add(Occurance.MUST, inner);
-        outer.Add(Occurance.MUSTNOT, new TermSubQuery { Field = "Name", Value = "anna" });
-        var query = Query(index, Occurance.MUST, outer);
+        outer.Add(Occurrence.Must, inner);
+        outer.Add(Occurrence.MustNot, new TermSubQuery { Field = "Name", Value = "anna" });
+        var query = Query(index, Occurrence.Must, outer);
 
         var ids = await SearchIdsAsync(query);
 
@@ -392,11 +392,11 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     public async Task SearchAsync_TermsInsideNestedMustNot_ExcludesEveryTerm()
     {
         var index = await CreatePeopleAsync();
-        var query = Query(index, Occurance.MUST, new PrefixSubQuery { Field = "Name", Value = "j" });
+        var query = Query(index, Occurrence.Must, new PrefixSubQuery { Field = "Name", Value = "j" });
         // A nested bool holding only the exclusion, the exclusion-only branch of the bool builder.
         var exclusion = new BoolSearchSubQuery();
-        exclusion.Add(Occurance.MUSTNOT, new TermsSubQuery { Field = "Name", Value = ["smith", "jane"] });
-        query.Add(Occurance.MUST, exclusion);
+        exclusion.Add(Occurrence.MustNot, new TermsSubQuery { Field = "Name", Value = ["smith", "jane"] });
+        query.Add(Occurrence.Must, exclusion);
 
         var ids = await SearchIdsAsync(query);
 
@@ -407,7 +407,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     public async Task SearchAsync_PageAndPageSize_AreIgnored()
     {
         var index = await CreatePeopleAsync();
-        var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "City", Value = "warsaw" });
+        var query = Query(index, Occurrence.Must, new TermSubQuery { Field = "City", Value = "warsaw" });
         query.Page = 2;
         query.PageSize = 1;
 
@@ -430,7 +430,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
             new SearchDocument { Id = "older", Index = index, Fields = new Dictionary<string, IList<object>> { { "Name", ["doe and some other words here"] }, { "Age", [60] } } },
             new SearchDocument { Id = "younger", Index = index, Fields = new Dictionary<string, IList<object>> { { "Name", ["doe doe doe"] }, { "Age", [20] } } }
         ], Token)).IsSuccess.ShouldBeTrue();
-        var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" });
+        var query = Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "doe" });
         query.SortOrder = [new SortOrderField { FieldName = "Age", Desc = true }];
 
         var result = await searchService.SearchAsync(query, Token);
@@ -448,11 +448,11 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     public async Task SearchAsync_PostFilter_IsIgnored()
     {
         var index = await CreatePeopleAsync();
-        var plain = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" }), Token);
-        var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" });
+        var plain = await searchService.SearchAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "doe" }), Token);
+        var query = Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "doe" });
         var krakow = new BoolSearchSubQuery();
-        krakow.Add(Occurance.MUST, new TermSubQuery { Field = "City", Value = "krakow" });
-        query.PostFilterQuery[Occurance.MUST] = [krakow];
+        krakow.Add(Occurrence.Must, new TermSubQuery { Field = "City", Value = "krakow" });
+        query.PostFilterQuery[Occurrence.Must] = [krakow];
 
         var result = await searchService.SearchAsync(query, Token);
 
@@ -474,7 +474,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
             new SearchDocument { Id = "thrice", Index = index, Fields = new Dictionary<string, IList<object>> { { "Name", ["doe doe doe"] } } }
         ], Token)).IsSuccess.ShouldBeTrue();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" }), Token);
+        var result = await searchService.SearchAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "doe" }), Token);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Items.Select(item => item.Document.Id).ShouldBe(["thrice", "once"]);
@@ -487,7 +487,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "jane" }), Token);
+        var result = await searchService.SearchAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "jane" }), Token);
 
         result.IsSuccess.ShouldBeTrue();
         var hit = result.Value.Items.Single(item => item.Document.Id == "Up-1");
@@ -502,7 +502,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "nobody" }), Token);
+        var result = await searchService.SearchAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "nobody" }), Token);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Items.ShouldBeEmpty();
@@ -516,7 +516,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
 
         (await indexingProvider.RemoveDocumentAsync("Up-1", index, Token)).IsSuccess.ShouldBeTrue();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "doe" }));
         ids.ShouldBe(["2"]);
     }
 
@@ -527,8 +527,8 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
 
         (await indexingProvider.IndexDocumentAsync(Person(index, "Up-1", "Jane Nowak", 25, "Warsaw"), Token)).IsSuccess.ShouldBeTrue();
 
-        (await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" }))).ShouldBe(["2"]);
-        (await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "nowak" }))).ShouldBe(["4", "Up-1"]);
+        (await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "doe" }))).ShouldBe(["2"]);
+        (await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "nowak" }))).ShouldBe(["4", "Up-1"]);
     }
 
     [Fact]
@@ -542,8 +542,8 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
             Fields = new Dictionary<string, IList<object>> { { "Tags", ["red", "green"] } }
         }, Token)).IsSuccess.ShouldBeTrue();
 
-        (await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Tags", Value = "green" }))).ShouldBe(["1"]);
-        (await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Tags", Value = "red" }))).ShouldBe(["1"]);
+        (await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Tags", Value = "green" }))).ShouldBe(["1"]);
+        (await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Tags", Value = "red" }))).ShouldBe(["1"]);
     }
 
     [Fact]
@@ -553,7 +553,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
         var second = $"search-{Guid.NewGuid():N}";
         (await indexingProvider.IndexDocumentAsync(Person(second, "other", "Jane Other", 1, "Lodz"), Token)).IsSuccess.ShouldBeTrue();
 
-        (await SearchIdsAsync(Query(first, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "other" }))).ShouldBeEmpty();
-        (await SearchIdsAsync(Query(second, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "jane" }))).ShouldBe(["other"]);
+        (await SearchIdsAsync(Query(first, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "other" }))).ShouldBeEmpty();
+        (await SearchIdsAsync(Query(second, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "jane" }))).ShouldBe(["other"]);
     }
 }

@@ -57,7 +57,7 @@ public class ElasticSearchIndexSettings
     /// <summary>
     /// The URLs of the cluster's other nodes, beside <see cref="ConnectionString"/>. A request that cannot reach a node
     /// is sent to the next one. Left unset on an <c>Indexes</c> entry that takes the shared connection string, the
-    /// index takes the shared nodes; an entry with its own connection string uses only its own. <c>CLOUD</c> and <c>CLOUDAPI</c> authentication connect by the cloud id and don't use it.
+    /// index takes the shared nodes; an entry with its own connection string uses only its own. <c>Cloud</c> and <c>CloudApi</c> authentication connect by the cloud id and don't use it.
     /// </summary>
     public IList<string>? AdditionalNodes { get; set; }
 
@@ -65,13 +65,13 @@ public class ElasticSearchIndexSettings
     /// How the client spreads requests over the nodes. Unset, a single <see cref="ConnectionString"/> is the only node
     /// the client uses, as before, and with <see cref="AdditionalNodes"/> the nodes take turns as with
     /// <see cref="Abstractions.Configuration.NodePoolType.Static"/>. Left unset on an <c>Indexes</c> entry, the index
-    /// takes the shared setting. <c>CLOUD</c> and <c>CLOUDAPI</c> authentication connect by the cloud id and don't use it.
+    /// takes the shared setting. <c>Cloud</c> and <c>CloudApi</c> authentication connect by the cloud id and don't use it.
     /// </summary>
     public NodePoolType? PoolType { get; set; }
 
     /// <summary>
     /// How to authenticate. Left unset on an <c>Indexes</c> entry, the index takes the shared authentication;
-    /// set it to <see cref="Configuration.AuthenticationType.NONE"/> there to turn the shared authentication off.
+    /// set it to <see cref="Configuration.AuthenticationType.None"/> there to turn the shared authentication off.
     /// </summary>
     public AuthenticationType? AuthenticationType { get; set; }
     public AuthenticationDetails? AuthenticationDetails { get; set; }
@@ -82,7 +82,7 @@ public class ElasticSearchIndexSettings
     /// system does not trust is then accepted when it has this fingerprint, or chains through valid signatures to a CA
     /// that has it, whatever host name it names. Like
     /// <see cref="DevelopmentOnlySkipCertificateValidation"/>, it goes with the endpoint: an <c>Indexes</c> entry with its own
-    /// <c>ConnectionString</c>, or its own <c>CLOUD</c> or <c>CLOUDAPI</c> authentication, uses only its own TLS settings,
+    /// <c>ConnectionString</c>, or its own <c>Cloud</c> or <c>CloudApi</c> authentication, uses only its own TLS settings,
     /// and one without takes the shared ones.
     /// </summary>
     public string? CertificateFingerprint { get; set; }
@@ -172,22 +172,22 @@ public enum ElasticSearchFieldType
 }
 public enum AuthenticationType
 {
-    NONE,
-    CLOUD,
-    CLOUDAPI,
-    PASSWORD,
+    None,
+    Cloud,
+    CloudApi,
+    Password,
 
     /// <summary>
     /// An API key sent to the cluster at <c>ConnectionString</c> as <c>Authorization: ApiKey &lt;key&gt;</c>. Set
     /// <c>AuthenticationDetails:ApiKey</c> to the <c>encoded</c> value that creating the key returns.
     /// </summary>
-    APIKEY,
+    ApiKey,
 
     /// <summary>
     /// A token sent to the cluster at <c>ConnectionString</c> as <c>Authorization: Bearer &lt;token&gt;</c>, such as a
     /// service account token or an access token from the token API. Set <c>AuthenticationDetails:Token</c>.
     /// </summary>
-    BEARER
+    Bearer
 }
 public class AuthenticationDetails
 {
@@ -196,6 +196,6 @@ public class AuthenticationDetails
     public string ApiKey { get; set; }
     public string Id { get; set; }
 
-    /// <summary>The token <see cref="AuthenticationType.BEARER"/> authentication sends.</summary>
+    /// <summary>The token <see cref="AuthenticationType.Bearer"/> authentication sends.</summary>
     public string? Token { get; set; }
 }

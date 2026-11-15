@@ -11,8 +11,8 @@ public interface ISearchQuery : ICreatableSearchQuery
     public List<ISortOrderField> SortOrder { get; set; }
     public List<IAggregationQuery> FacetQueries { get; set; }
     public List<IHighlightQuery> HighlightQueries { get; set; }
-    public IDictionary<Occurance, List<INestableQuery>> PostFilterQuery { get; set; }
-    public IDictionary<Occurance, List<ISearchSubQuery>> Query { get; set; }
+    public IDictionary<Occurrence, List<INestableQuery>> PostFilterQuery { get; set; }
+    public IDictionary<Occurrence, List<ISearchSubQuery>> Query { get; set; }
     public string Index { get; set; }
     public IEnumerable<string> Properties { get; set; }
 }

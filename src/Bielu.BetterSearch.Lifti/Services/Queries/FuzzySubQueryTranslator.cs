@@ -9,17 +9,17 @@ namespace Bielu.BetterSearch.Lifti.Services.Queries;
 
 internal sealed class FuzzySubQueryTranslator : ISubQueryTranslator<IQuery>
 {
-    public bool CanTranslate(ISearchSubQuery query) => query is FuzzyQuery;
+    public bool CanTranslate(ISearchSubQuery query) => query is FuzzySubQuery;
 
     public Task<Result<IQuery>> TranslateAsync(ISearchSubQuery query, IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators)
     {
-        if (query is not FuzzyQuery fuzzyQuery)
+        if (query is not FuzzySubQuery fuzzyQuery)
         {
             return Task.FromResult(Result.Fail<IQuery>("Query is not a fuzzy query"));
         }
 
-        ushort maxEdits = fuzzyQuery.Fuziness != null
-            ? (ushort)Math.Max(fuzzyQuery.Fuziness.Item1, fuzzyQuery.Fuziness.Item2)
+        ushort maxEdits = fuzzyQuery.MaxEdits is { } edits
+            ? (ushort)edits
             : (ushort)2;
         ushort maxSequential = (ushort)1;
 

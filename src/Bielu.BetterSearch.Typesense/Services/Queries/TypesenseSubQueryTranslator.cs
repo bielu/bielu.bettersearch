@@ -27,11 +27,11 @@ internal abstract class UnsupportedSubQueryTranslator<TSubQuery>(string reason) 
 }
 
 internal sealed class FuzzySubQueryTranslator()
-    : UnsupportedSubQueryTranslator<FuzzyQuery>(
+    : UnsupportedSubQueryTranslator<FuzzySubQuery>(
         "the provider runs every query as a filter, and Typesense filters only match exact values; its typo tolerance applies to the search text");
 
 internal sealed class LuceneSubQueryTranslator()
     : UnsupportedSubQueryTranslator<LuceneSubQuery>("Typesense has no Lucene query syntax, and the provider does not translate it yet");
 
 internal sealed class StringRangeSubQueryTranslator()
-    : UnsupportedSubQueryTranslator<StringRange>("Typesense filters compare strings only for equality and prefixes, not by order");
+    : UnsupportedSubQueryTranslator<StringRangeSubQuery>("Typesense filters compare strings only for equality and prefixes, not by order");

@@ -14,7 +14,7 @@ Aspire's PostgreSQL integration pins.
 >
 > - **`LuceneQuery`** returns a failed `Result`: PostgreSQL has no Lucene syntax, and the provider doesn't
 >   translate it.
-> - **`FuzzyQuery`** needs the `fuzzystrmatch` extension (`CREATE EXTENSION fuzzystrmatch;`) in the database.
+> - **`FuzzySubQuery`** needs the `fuzzystrmatch` extension (`CREATE EXTENSION fuzzystrmatch;`) in the database.
 >   Without it, a search with a fuzzy query returns a failed `Result` that says so. The distance is Levenshtein's,
 >   so a transposition (`jnae` for `jane`) counts as two edits, where Elasticsearch counts it as one.
 > - **Relevance scores**: every query runs as a SQL condition, and every hit has the `Score` 1. `ts_rank` is not
@@ -37,8 +37,8 @@ dotnet add package Bielu.BetterSearch.PostgreSql --prerelease
 ## Configure
 
 ```csharp
-using Bielu.BetterSearch.DepedencyInjection;
-using Bielu.BetterSearch.PostgreSql.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
+using Bielu.BetterSearch.PostgreSql.DependencyInjection;
 
 builder.Services.AddBetterSearch(builder.Configuration, search => search.AddPostgreSql());
 ```
@@ -105,17 +105,17 @@ name can hold any character.
   ISO text. **`TermsQuery`** matches any of its values, sent as two array parameters whatever their number.
 - **`PrefixQuery`** matches a word that starts with the value. **`PrefixPhraseQuery`** matches the value's words
   in order and next to each other, the last as a prefix.
-- **`FuzzyQuery`** matches when every word of the value is within the edit distance of a word of the field: the
-  larger number of `Fuziness`, at most 2, or by word length as Elasticsearch's `AUTO` when unset. `PrefixLenght`
+- **`FuzzySubQuery`** matches when every word of the value is within the edit distance of a word of the field: `MaxEdits`,
+  at most 2, or by word length as Elasticsearch's `AUTO` when unset. `PrefixLength`
   letters must match exactly.
 - **Ranges** match when a single value of the field is within both bounds, so a field holding `10` and `60` does
-  not match 20 to 50. Numbers compare with numbers, exactly for `LongRange`. `DateRangeQuery` compares the instants
-  of string values that start with an ISO 8601 date, a value without an offset taken as UTC. `StringRange`
+  not match 20 to 50. Numbers compare with numbers, exactly for `LongRangeSubQuery`. `DateRangeSubQuery` compares the instants
+  of string values that start with an ISO 8601 date, a value without an offset taken as UTC. `StringRangeSubQuery`
   compares whole string values by their UTF-8 bytes (the `C` collation).
-- **`SpatialSearchQuery`** works on any field holding `"lat,lon"` strings, as Elasticsearch accepts for a
+- **`SpatialSearchSubQuery`** works on any field holding `"lat,lon"` strings, as Elasticsearch accepts for a
   `geo_point`, or objects with `lat` and `lon` (or `lng`), by great-circle distance with Elasticsearch's mean
   Earth radius. It needs no extension; no index serves it, so every document holding the field is checked.
-- **Boolean logic** follows Lucene: `SHOULD` beside `MUST` or `FILTER` changes nothing, and `MUSTNOT` on its own
+- **Boolean logic** follows Lucene: `Should` beside `Must` or `Filter` changes nothing, and `MustNot` on its own
   returns the complement. A document without the field matches the negation of any query on it.
 
 A `PrefixQuery` or `PrefixPhraseQuery` that is a condition of the whole query, rather than inside an `OR` or a

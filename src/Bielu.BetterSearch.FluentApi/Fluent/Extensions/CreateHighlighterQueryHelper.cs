@@ -15,9 +15,9 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         }
         /// <summary>Adds a highlight request that <paramref name="query"/> configures.</summary>
         public static IBaseQueryConfigurator CreateHighlighterQuery(this IBaseQueryConfigurator configurator,
-            Action<HighLighterConfigurator> query)
+            Action<HighlighterConfigurator> query)
         {
-            var booleanQuery = new HighLighterConfigurator(configurator.Query);
+            var booleanQuery = new HighlighterConfigurator(configurator.Query);
             query.Invoke(booleanQuery);
 
             return configurator;

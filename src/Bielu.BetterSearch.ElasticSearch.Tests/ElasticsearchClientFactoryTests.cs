@@ -9,12 +9,12 @@ using Shouldly;
 
 namespace Bielu.BetterSearch.ElasticSearch.Tests;
 
-public class ElasticsearchClientFactoryTests
+public class ElasticSearchClientFactoryTests
 {
-    private static ElasticsearchClientFactory CreateFactory(ElasticSearchOptions options) =>
+    private static ElasticSearchClientFactory CreateFactory(ElasticSearchOptions options) =>
         CreateFactory(new TestOptionsMonitor<ElasticSearchOptions>(options));
 
-    private static ElasticsearchClientFactory CreateFactory(TestOptionsMonitor<ElasticSearchOptions> monitor) =>
+    private static ElasticSearchClientFactory CreateFactory(TestOptionsMonitor<ElasticSearchOptions> monitor) =>
         new(new ElasticSearchClientSettingsManager(monitor));
 
     private static ElasticSearchOptions SharedOptions(string connectionString, string? password = null) => new()
@@ -24,7 +24,7 @@ public class ElasticsearchClientFactoryTests
             : new ElasticSearchIndexSettings
             {
                 ConnectionString = connectionString,
-                AuthenticationType = AuthenticationType.PASSWORD,
+                AuthenticationType = AuthenticationType.Password,
                 AuthenticationDetails = new AuthenticationDetails { Username = "elastic", Password = password },
             },
     };
@@ -251,7 +251,7 @@ public class ElasticsearchClientFactoryTests
         {
             SharedIndexSettings = new ElasticSearchIndexSettings
             {
-                AuthenticationType = AuthenticationType.CLOUDAPI,
+                AuthenticationType = AuthenticationType.CloudApi,
                 AuthenticationDetails = new AuthenticationDetails { Id = CloudId, ApiKey = "shared-key" },
             },
             Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() },
@@ -275,7 +275,7 @@ public class ElasticsearchClientFactoryTests
             SharedIndexSettings = new ElasticSearchIndexSettings
             {
                 ConnectionString = "http://shared:9200",
-                AuthenticationType = AuthenticationType.PASSWORD,
+                AuthenticationType = AuthenticationType.Password,
             },
         };
         var monitor = new TestOptionsMonitor<ElasticSearchOptions>(invalid);
@@ -283,7 +283,7 @@ public class ElasticsearchClientFactoryTests
 
         var failed = await factory.TryGetClientAsync("people", TestContext.Current.CancellationToken);
         failed.IsFailed.ShouldBeTrue();
-        failed.Errors.Single().Message.ShouldStartWith("PASSWORD authentication needs AuthenticationDetails.");
+        failed.Errors.Single().Message.ShouldStartWith("Password authentication needs AuthenticationDetails.");
 
         invalid.SharedIndexSettings.AuthenticationDetails = new AuthenticationDetails { Username = "elastic", Password = "secret" };
         var fixedResult = await factory.TryGetClientAsync("people", TestContext.Current.CancellationToken);
@@ -296,7 +296,7 @@ public class ElasticsearchClientFactoryTests
     public async Task TryGetClientAsync_ClientCreationFailedOnce_SucceedsOnNextCallWithSameSettings()
     {
         var monitor = new TestOptionsMonitor<ElasticSearchOptions>(SharedOptions("http://shared:9200"));
-        var factory = new ElasticsearchClientFactory(new FailingOnceElasticSearchClientSettingsManagerDecorator(new ElasticSearchClientSettingsManager(monitor)));
+        var factory = new ElasticSearchClientFactory(new FailingOnceElasticSearchClientSettingsManagerDecorator(new ElasticSearchClientSettingsManager(monitor)));
 
         var failed = await factory.TryGetClientAsync("people", TestContext.Current.CancellationToken);
         failed.IsFailed.ShouldBeTrue();
@@ -354,7 +354,7 @@ public class ElasticsearchClientFactoryTests
                 ["two"] = new() { AdditionalNodes = ["http://second:9200/a", "http://third:9200/b"] },
             },
         };
-        var factory = new ElasticsearchClientFactory(new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options)));
+        var factory = new ElasticSearchClientFactory(new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options)));
 
         var one = await factory.GetOrCreateClientAsync("one");
         var two = await factory.GetOrCreateClientAsync("two");

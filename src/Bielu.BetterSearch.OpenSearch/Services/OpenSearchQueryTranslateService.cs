@@ -31,7 +31,7 @@ internal sealed class OpenSearchQueryTranslateService(IEnumerable<ISubQueryTrans
         return filter.IsSuccess ? Result.Ok<QueryContainer?>(filter.Value) : filter.ToResult<QueryContainer?>();
     }
 
-    private Task<Result<QueryContainer>> TranslateAsync(IDictionary<Occurance, List<ISearchSubQuery>>? clauses)
+    private Task<Result<QueryContainer>> TranslateAsync(IDictionary<Occurrence, List<ISearchSubQuery>>? clauses)
     {
         if (clauses == null || clauses.Values.All(group => group.Count == 0))
         {

@@ -74,9 +74,9 @@ public sealed class TypesenseUpdateDocumentTests(
 
             result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
             result.Value.ShouldBeTrue();
-            var range = SearchTestHelpers.Query(index, Occurance.MUST, new LongRange { Field = "Rank", MinValue = 0, MaxValue = 10 });
+            var range = SearchTestHelpers.Query(index, Occurrence.Must, new LongRangeSubQuery { Field = "Rank", MinValue = 0, MaxValue = 10 });
             (await searchService.SearchIdsAsync(range, Token)).ShouldBe(["a"]);
-            var term = SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Rank", Value = "top" });
+            var term = SearchTestHelpers.Query(index, Occurrence.Must, new TermSubQuery { Field = "Rank", Value = "top" });
             (await searchService.SearchIdsAsync(term, Token)).ShouldBe(["b"]);
             (await searchService.GetDocumentAsync(index, "b", Token)).Value.ShouldNotBeNull().Fields["Rank"].ShouldBe(["top"]);
         }

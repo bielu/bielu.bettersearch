@@ -7,7 +7,7 @@ which matches or doesn't, so hits aren't ranked. Paging, sorting, post filters a
 > [!WARNING]
 > **What won't work**
 >
-> - **`FuzzyQuery`** returns a failed `Result`: filters only match exact values, and Meilisearch's typo
+> - **`FuzzySubQuery`** returns a failed `Result`: filters only match exact values, and Meilisearch's typo
 >   tolerance applies to the whole search text, not one field.
 > - **`PrefixQuery` and `PrefixPhraseQuery`** with a value that isn't a string, such as a number, return a
 >   failed `Result`.
@@ -21,7 +21,7 @@ which matches or doesn't, so hits aren't ranked. Paging, sorting, post filters a
 >   or nested facet returns a failed `Result`. See [Facets](#facets).
 > - **Highlighting** returns a failed `Result`. Meilisearch marks only matches of the search text, and this
 >   provider runs every query as a filter with no search text, so there is nothing to mark.
-> - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
+> - **`SpatialSearchSubQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
 >
 > A missing connection string, or one that isn't an absolute `http` or `https` URL, makes each search and write
 > for that index return a failed `Result` whose message names the setting to fix. An
@@ -40,8 +40,8 @@ dotnet add package Bielu.BetterSearch.Meilisearch --prerelease
 The `AddBetterSearch` overload without configuration leaves the provider with empty settings.
 
 ```csharp
-using Bielu.BetterSearch.DepedencyInjection;
-using Bielu.BetterSearch.Meilisearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
+using Bielu.BetterSearch.Meilisearch.DependencyInjection;
 
 builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeilisearch());
 ```
@@ -140,7 +140,7 @@ filterable and sortable attributes the provider needs to the index settings, kee
   its `+` (`1E20`, not `1E+20`), as Meilisearch rejects `1E+20` in a filter. A `TermSubQuery` or `TermsSubQuery`
   value of `NaN` or an infinity returns a failed `Result`, as a Meilisearch filter reads `NaN` and `Infinity` as text
   and would match the strings `"NaN"` and `"Infinity"` rather than a number.
-- **`LongRange`** values past 2^53 lose precision, as Meilisearch compares numbers as doubles.
+- **`LongRangeSubQuery`** values past 2^53 lose precision, as Meilisearch compares numbers as doubles.
 - **Dates** without a time zone are read as UTC, as on every provider.
 - **Field names** can only contain letters, digits, `_`, `-` and `.`, and **document ids** letters, digits, `-`
   and `_`; anything else returns a failed `Result`.
@@ -207,7 +207,7 @@ timeout says the task may still index any or all of them.
 
 ## Removing documents
 
-`DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.
+`DeleteDocumentRequest.Index` names the index to remove the document from.
 
 - **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
 - **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result` with Meilisearch's error.

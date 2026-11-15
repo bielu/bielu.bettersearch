@@ -31,7 +31,7 @@ internal sealed class ElasticSearchQueryTranslateService(IEnumerable<ISubQueryTr
         return filter.IsSuccess ? Result.Ok<EsQuery?>(filter.Value) : filter.ToResult<EsQuery?>();
     }
 
-    private Task<Result<EsQuery>> TranslateAsync(IDictionary<Occurance, List<ISearchSubQuery>>? clauses)
+    private Task<Result<EsQuery>> TranslateAsync(IDictionary<Occurrence, List<ISearchSubQuery>>? clauses)
     {
         if (clauses == null || clauses.Values.All(group => group.Count == 0))
         {

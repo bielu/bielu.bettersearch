@@ -4,8 +4,8 @@ using Bielu.BetterSearch.Abstractions.Services;
 using OpenSearch.Client;
 using OpenSearch.Net;
 using Shouldly;
-using DateRangeQuery = Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeQuery;
-using FuzzyQuery = Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzyQuery;
+using DateRangeSubQuery = Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeSubQuery;
+using FuzzySubQuery = Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery;
 
 namespace Bielu.BetterSearch.OpenSearch.Tests;
 
@@ -27,10 +27,10 @@ public class OpenSearchQueryTranslateServiceTests(
     public async Task TranslateMainQueryAsync_Clauses_ReturnsBoolQueryWithEachOccurrence()
     {
         var query = new SearchQuery();
-        query.Add(Occurance.MUST, new TermSubQuery { Field = "Name", Value = "jane" });
-        query.Add(Occurance.SHOULD, new TermSubQuery { Field = "City", Value = "warsaw" });
-        query.Add(Occurance.MUSTNOT, new TermSubQuery { Field = "Age", Value = 30 });
-        query.Add(Occurance.FILTER, new PrefixSubQuery { Field = "Name", Value = "ja" });
+        query.Add(Occurrence.Must, new TermSubQuery { Field = "Name", Value = "jane" });
+        query.Add(Occurrence.Should, new TermSubQuery { Field = "City", Value = "warsaw" });
+        query.Add(Occurrence.MustNot, new TermSubQuery { Field = "Age", Value = 30 });
+        query.Add(Occurrence.Filter, new PrefixSubQuery { Field = "Name", Value = "ja" });
 
         var result = await translateService.TranslateMainQueryAsync(query);
 
@@ -46,7 +46,7 @@ public class OpenSearchQueryTranslateServiceTests(
     public static TheoryData<ISearchSubQuery> ConditionlessSubQueries() => new()
     {
         new TermSubQuery { Field = "City.keyword", Value = "" },
-        new FuzzyQuery { Field = "Name", Value = "" },
+        new FuzzySubQuery { Field = "Name", Value = "" },
     };
 
     [Theory]
@@ -54,7 +54,7 @@ public class OpenSearchQueryTranslateServiceTests(
     public async Task TranslateMainQueryAsync_ConditionlessClause_IsStillSent(ISearchSubQuery subQuery)
     {
         var query = new SearchQuery();
-        query.Add(Occurance.MUST, subQuery);
+        query.Add(Occurrence.Must, subQuery);
 
         var result = await translateService.TranslateMainQueryAsync(query);
 
@@ -67,7 +67,7 @@ public class OpenSearchQueryTranslateServiceTests(
     public async Task TranslateMainQueryAsync_SubQueryWithoutField_ReturnsFailedResult()
     {
         var query = new SearchQuery();
-        query.Add(Occurance.MUST, new TermSubQuery { Value = "jane" });
+        query.Add(Occurrence.Must, new TermSubQuery { Value = "jane" });
 
         var result = await translateService.TranslateMainQueryAsync(query);
 
@@ -104,7 +104,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [Fact]
     public async Task FuzzyQuery_EditDistanceAboveTwo_IsClampedToTwo()
     {
-        var subQuery = new Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzyQuery { Field = "Name", Value = "jnae", Fuziness = Tuple.Create(1, 5) };
+        var subQuery = new Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery { Field = "Name", Value = "jnae", MaxEdits = 5 };
 
         var result = await translators.First(t => t.CanTranslate(subQuery)).TranslateAsync(subQuery, translators);
 
@@ -128,7 +128,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [Fact]
     public async Task SpatialSearchQuery_InvalidUnit_ReturnsFailedResult()
     {
-        var subQuery = new SpatialSearchQuery { Field = "Location", Distance = 10, UnitOfDistance = "parsecs" };
+        var subQuery = new SpatialSearchSubQuery { Field = "Location", Distance = 10, UnitOfDistance = "parsecs" };
 
         var result = await translators.First(t => t.CanTranslate(subQuery)).TranslateAsync(subQuery, translators);
 
@@ -144,7 +144,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [InlineData(double.NaN, 0)]
     public async Task SpatialSearchQuery_CoordinatesOutOfRange_ReturnsFailedResult(double lat, double lng)
     {
-        var subQuery = new SpatialSearchQuery { Field = "Location", Distance = 10, Lat = lat, Lng = lng };
+        var subQuery = new SpatialSearchSubQuery { Field = "Location", Distance = 10, Lat = lat, Lng = lng };
 
         var result = await translators.First(t => t.CanTranslate(subQuery)).TranslateAsync(subQuery, translators);
 
@@ -157,7 +157,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [InlineData(1e20)]
     public async Task SpatialSearchQuery_VerySmallOrLargeDistance_IsAccepted(double distance)
     {
-        var subQuery = new SpatialSearchQuery { Field = "Location", Distance = distance, Lat = 52.23, Lng = 21.01 };
+        var subQuery = new SpatialSearchSubQuery { Field = "Location", Distance = distance, Lat = 52.23, Lng = 21.01 };
 
         var result = await translators.First(t => t.CanTranslate(subQuery)).TranslateAsync(subQuery, translators);
 
@@ -170,7 +170,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [Fact]
     public async Task DateRangeQuery_UtcBound_IsSentAsUtc()
     {
-        var subQuery = new DateRangeQuery { Field = "Born", MinValue = new DateTime(2020, 5, 1, 12, 0, 0, DateTimeKind.Utc) };
+        var subQuery = new DateRangeSubQuery { Field = "Born", MinValue = new DateTime(2020, 5, 1, 12, 0, 0, DateTimeKind.Utc) };
 
         var json = await TranslateToJsonAsync(subQuery);
 
@@ -181,7 +181,7 @@ public class OpenSearchQueryTranslateServiceTests(
     public async Task DateRangeQuery_LocalBound_IsSentAsTheSameInstantInUtc()
     {
         var bound = new DateTime(2020, 5, 1, 12, 0, 0, DateTimeKind.Local);
-        var subQuery = new DateRangeQuery { Field = "Born", MinValue = bound };
+        var subQuery = new DateRangeSubQuery { Field = "Born", MinValue = bound };
 
         var json = await TranslateToJsonAsync(subQuery);
 
@@ -192,7 +192,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [Fact]
     public async Task DateRangeQuery_UnspecifiedBound_IsSentAsUtc()
     {
-        var subQuery = new DateRangeQuery { Field = "Born", MinValue = new DateTime(2020, 5, 1, 12, 0, 0, DateTimeKind.Unspecified) };
+        var subQuery = new DateRangeSubQuery { Field = "Born", MinValue = new DateTime(2020, 5, 1, 12, 0, 0, DateTimeKind.Unspecified) };
 
         var json = await TranslateToJsonAsync(subQuery);
 
@@ -202,7 +202,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [Fact]
     public async Task DateRangeQuery_DateTimeOffsetBound_IsSentAsTheSameInstantInUtc()
     {
-        var subQuery = new DateRangeQuery { Field = "Born", MaxValue = new DateTimeOffset(2020, 5, 1, 14, 0, 0, TimeSpan.FromHours(2)) };
+        var subQuery = new DateRangeSubQuery { Field = "Born", MaxValue = new DateTimeOffset(2020, 5, 1, 14, 0, 0, TimeSpan.FromHours(2)) };
 
         var json = await TranslateToJsonAsync(subQuery);
 
@@ -212,7 +212,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [Fact]
     public async Task NumericRange_FractionalBounds_AreSentUnchanged()
     {
-        var subQuery = new NumericRange { Field = "Price", MinValue = 9.99, MaxValue = 49.5 };
+        var subQuery = new NumericRangeSubQuery { Field = "Price", MinValue = 9.99, MaxValue = 49.5 };
 
         var json = await TranslateToJsonAsync(subQuery);
 
@@ -232,7 +232,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [InlineData(false, false)]
     public async Task DateRangeQuery_Edges_PickInclusiveOrExclusiveBounds(bool includeMin, bool includeMax)
     {
-        var subQuery = new Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeQuery
+        var subQuery = new Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeSubQuery
         {
             Field = "Born",
             MinValue = new DateTime(1985, 1, 1, 0, 0, 0, DateTimeKind.Utc),

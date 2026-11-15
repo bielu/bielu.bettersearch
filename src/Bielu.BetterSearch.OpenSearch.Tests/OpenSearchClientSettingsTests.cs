@@ -1,7 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.OpenSearch.Configuration;
-using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+using Bielu.BetterSearch.OpenSearch.DependencyInjection;
 using Bielu.BetterSearch.OpenSearch.Services;
 using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Tests;
@@ -105,7 +105,7 @@ public class OpenSearchClientSettingsTests
         var key = OpenSearchClientFactory.ClientKey.From(new OpenSearchIndexSettings
         {
             ConnectionString = "http://shared:9200",
-            AuthenticationType = OpenSearchAuthenticationType.PASSWORD,
+            AuthenticationType = OpenSearchAuthenticationType.Password,
             AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "secret-password" },
             RequestTimeout = TimeSpan.FromSeconds(7),
             MaxRetries = 4,

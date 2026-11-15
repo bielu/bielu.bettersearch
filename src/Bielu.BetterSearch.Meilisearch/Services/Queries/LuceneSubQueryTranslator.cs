@@ -259,9 +259,9 @@ internal sealed class LuceneSubQueryTranslator(IOptionsMonitor<MeilisearchOption
             return Exists(field.Value);
         }
 
-        var bounds = new BaseRangeQuery { Field = field.Value, IncludeMinEdge = query.IncludesLower, IncludeMaxEdge = query.IncludesUpper };
+        var bounds = new BaseRangeSubQuery { Field = field.Value, IncludeMinEdge = query.IncludesLower, IncludeMaxEdge = query.IncludesUpper };
         var filters = new List<string>();
-        var words = StringRangeSubQueryTranslator.Create(new StringRange
+        var words = StringRangeSubQueryTranslator.Create(new StringRangeSubQuery
         {
             Field = field.Value,
             MinValue = lower,

@@ -15,7 +15,7 @@ public class FluentApiSearchQueryCreator(ISearchQuery baseQuery) : IFluentApiSea
     public ISearchQuery CreateSearchQuery(Action<IBaseQueryConfigurator> configurator)
     {
         var newQuery = new FluentQueryConfigurator(baseQuery);
-        newQuery.Occurance = Occurance.MUST;
+        newQuery.Occurrence = Occurrence.Must;
         configurator.Invoke(newQuery);
         return newQuery.Query;
     }

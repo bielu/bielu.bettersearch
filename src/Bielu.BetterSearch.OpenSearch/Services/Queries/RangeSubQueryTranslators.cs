@@ -3,30 +3,30 @@ using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Services;
 using FluentResults;
 using OpenSearch.Client;
-using DateRangeQuery = Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeQuery;
-using LongRange = Bielu.BetterSearch.Abstractions.Query.SubQueries.LongRange;
+using DateRangeSubQuery = Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeSubQuery;
+using LongRangeSubQuery = Bielu.BetterSearch.Abstractions.Query.SubQueries.LongRangeSubQuery;
 using OsDateRangeQuery = OpenSearch.Client.DateRangeQuery;
 using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.OpenSearch.Services.Queries;
 
-internal sealed class NumericRangeSubQueryTranslator : OpenSearchSubQueryTranslator<NumericRange>
+internal sealed class NumericRangeSubQueryTranslator : OpenSearchSubQueryTranslator<NumericRangeSubQuery>
 {
-    protected override Task<Result<QueryContainer>> TranslateAsync(NumericRange query, IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators)
+    protected override Task<Result<QueryContainer>> TranslateAsync(NumericRangeSubQuery query, IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators)
     {
-        var field = OpenSearchFieldNames.Require(query.Field, nameof(NumericRange));
+        var field = OpenSearchFieldNames.Require(query.Field, nameof(NumericRangeSubQuery));
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<QueryContainer>());
         }
 
-        var bounds = RangeBounds.Require(nameof(NumericRange), query.MinValue, query.MaxValue);
+        var bounds = RangeBounds.Require(nameof(NumericRangeSubQuery), query.MinValue, query.MaxValue);
         if (bounds.IsFailed)
         {
             return Task.FromResult(bounds.ToResult<QueryContainer>());
         }
 
-        var finite = RangeBounds.RequireFinite(nameof(NumericRange), query.MinValue, query.MaxValue);
+        var finite = RangeBounds.RequireFinite(nameof(NumericRangeSubQuery), query.MinValue, query.MaxValue);
         if (finite.IsFailed)
         {
             return Task.FromResult(finite.ToResult<QueryContainer>());
@@ -46,17 +46,17 @@ internal sealed class NumericRangeSubQueryTranslator : OpenSearchSubQueryTransla
 }
 
 /// <summary>A <c>long</c> range, so values beyond the precision of a double are sent unchanged.</summary>
-internal sealed class LongRangeSubQueryTranslator : OpenSearchSubQueryTranslator<LongRange>
+internal sealed class LongRangeSubQueryTranslator : OpenSearchSubQueryTranslator<LongRangeSubQuery>
 {
-    protected override Task<Result<QueryContainer>> TranslateAsync(LongRange query, IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators)
+    protected override Task<Result<QueryContainer>> TranslateAsync(LongRangeSubQuery query, IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators)
     {
-        var field = OpenSearchFieldNames.Require(query.Field, nameof(LongRange));
+        var field = OpenSearchFieldNames.Require(query.Field, nameof(LongRangeSubQuery));
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<QueryContainer>());
         }
 
-        var bounds = RangeBounds.Require(nameof(LongRange), query.MinValue, query.MaxValue);
+        var bounds = RangeBounds.Require(nameof(LongRangeSubQuery), query.MinValue, query.MaxValue);
         if (bounds.IsFailed)
         {
             return Task.FromResult(bounds.ToResult<QueryContainer>());
@@ -75,17 +75,17 @@ internal sealed class LongRangeSubQueryTranslator : OpenSearchSubQueryTranslator
     }
 }
 
-internal sealed class DateRangeSubQueryTranslator : OpenSearchSubQueryTranslator<DateRangeQuery>
+internal sealed class DateRangeSubQueryTranslator : OpenSearchSubQueryTranslator<DateRangeSubQuery>
 {
-    protected override Task<Result<QueryContainer>> TranslateAsync(DateRangeQuery query, IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators)
+    protected override Task<Result<QueryContainer>> TranslateAsync(DateRangeSubQuery query, IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators)
     {
-        var field = OpenSearchFieldNames.Require(query.Field, nameof(DateRangeQuery));
+        var field = OpenSearchFieldNames.Require(query.Field, nameof(DateRangeSubQuery));
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<QueryContainer>());
         }
 
-        var bounds = RangeBounds.Require(nameof(DateRangeQuery), query.MinValue, query.MaxValue);
+        var bounds = RangeBounds.Require(nameof(DateRangeSubQuery), query.MinValue, query.MaxValue);
         if (bounds.IsFailed)
         {
             return Task.FromResult(bounds.ToResult<QueryContainer>());
@@ -108,17 +108,17 @@ internal sealed class DateRangeSubQueryTranslator : OpenSearchSubQueryTranslator
 }
 
 /// <summary>A lexicographic range over the terms of the field; use a keyword field for whole values.</summary>
-internal sealed class StringRangeSubQueryTranslator : OpenSearchSubQueryTranslator<StringRange>
+internal sealed class StringRangeSubQueryTranslator : OpenSearchSubQueryTranslator<StringRangeSubQuery>
 {
-    protected override Task<Result<QueryContainer>> TranslateAsync(StringRange query, IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators)
+    protected override Task<Result<QueryContainer>> TranslateAsync(StringRangeSubQuery query, IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators)
     {
-        var field = OpenSearchFieldNames.Require(query.Field, nameof(StringRange));
+        var field = OpenSearchFieldNames.Require(query.Field, nameof(StringRangeSubQuery));
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<QueryContainer>());
         }
 
-        var bounds = RangeBounds.Require(nameof(StringRange), query.MinValue, query.MaxValue);
+        var bounds = RangeBounds.Require(nameof(StringRangeSubQuery), query.MinValue, query.MaxValue);
         if (bounds.IsFailed)
         {
             return Task.FromResult(bounds.ToResult<QueryContainer>());

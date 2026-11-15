@@ -5,7 +5,7 @@
         public string Field { get; set; }
         public bool IsAllField { get; set; }
 
-        public Dictionary<Occurance, ISearchSubQuery> Queries { get; set; } =
-            new Dictionary<Occurance, ISearchSubQuery>();
+        public Dictionary<Occurrence, ISearchSubQuery> Queries { get; set; } =
+            new Dictionary<Occurrence, ISearchSubQuery>();
     }
 }

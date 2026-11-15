@@ -66,28 +66,28 @@ public sealed class TypesenseFilterTranslationTests(IServiceProvider services)
 
     [Fact]
     public async Task NumericRange_FractionalBounds_CompareIntegersInsideTheRange()
-        => await ShouldRenderAsync(new NumericRange { Field = "Age", MinValue = 2.5, MaxValue = 7.5 }, "(i_Age:[3..7]) || (n_Age:[2.5..7.5])");
+        => await ShouldRenderAsync(new NumericRangeSubQuery { Field = "Age", MinValue = 2.5, MaxValue = 7.5 }, "(i_Age:[3..7]) || (n_Age:[2.5..7.5])");
 
     [Fact]
     public async Task NumericRange_ExcludedWholeEdges_StepInward()
-        => await ShouldRenderAsync(new NumericRange { Field = "Age", MinValue = 2, MaxValue = 7, IncludeMinEdge = false, IncludeMaxEdge = false },
+        => await ShouldRenderAsync(new NumericRangeSubQuery { Field = "Age", MinValue = 2, MaxValue = 7, IncludeMinEdge = false, IncludeMaxEdge = false },
             $"(i_Age:[3..6]) || (n_Age:[{(double)MathF.BitIncrement(2f)}..{(double)MathF.BitDecrement(7f)}])");
 
     [Fact]
     public async Task NumericRange_IncludedMaximumAtLongMinValue_StillMatchesThatInteger()
-        => await ShouldRenderAsync(new NumericRange { Field = "Age", MaxValue = long.MinValue },
+        => await ShouldRenderAsync(new NumericRangeSubQuery { Field = "Age", MaxValue = long.MinValue },
             $"(i_Age:<=-9223372036854775808) || (n_Age:<={(double)(float)long.MinValue:R})");
 
     [Fact]
     public async Task LongRange_MinimumOnly_ComparesFromTheMinimum()
-        => await ShouldRenderAsync(new LongRange { Field = "Big", MinValue = 9007199254740993L }, "(i_Big:>=9007199254740993) || (n_Big:>=9007199254740992)");
+        => await ShouldRenderAsync(new LongRangeSubQuery { Field = "Big", MinValue = 9007199254740993L }, "(i_Big:>=9007199254740993) || (n_Big:>=9007199254740992)");
 
     [Fact]
     public async Task DateRange_ExcludedEdges_StepByOneMillisecond()
     {
         var min = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var max = min.AddDays(1);
-        await ShouldRenderAsync(new DateRangeQuery { Field = "Born", MinValue = min, MaxValue = max, IncludeMinEdge = false, IncludeMaxEdge = false },
+        await ShouldRenderAsync(new DateRangeSubQuery { Field = "Born", MinValue = min, MaxValue = max, IncludeMinEdge = false, IncludeMaxEdge = false },
             $"d_Born:[{min.ToUnixTimeMilliseconds() + 1}..{max.ToUnixTimeMilliseconds() - 1}]");
     }
 
@@ -97,7 +97,7 @@ public sealed class TypesenseFilterTranslationTests(IServiceProvider services)
 
     [Fact]
     public async Task SpatialSearchQuery_Miles_ConvertsToKilometres()
-        => await ShouldRenderAsync(new SpatialSearchQuery { Field = "Location", Distance = 1, UnitOfDistance = "mi", Lat = 52.23, Lng = 21.01 },
+        => await ShouldRenderAsync(new SpatialSearchSubQuery { Field = "Location", Distance = 1, UnitOfDistance = "mi", Lat = 52.23, Lng = 21.01 },
             "g_Location:(52.23, 21.01, 1.609344 km)");
 
     private async Task<Result<TypesenseFilter>> TranslateAsync(ISearchSubQuery subQuery)

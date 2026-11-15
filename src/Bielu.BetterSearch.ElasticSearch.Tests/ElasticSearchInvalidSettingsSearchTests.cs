@@ -1,6 +1,6 @@
 ﻿using Bielu.BetterSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
-using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
+using Bielu.BetterSearch.ElasticSearch.DependencyInjection;
 using Bielu.BetterSearch.Tests;
 using Shouldly;
 
@@ -13,16 +13,16 @@ public sealed class ElasticSearchInvalidSettingsSearchTests : InvalidSettingsSea
     protected override void AddProvider(Configurator search) => search.AddElasticSearch();
 
     [Theory]
-    [InlineData("PASSWORD", null, null, "PASSWORD authentication needs AuthenticationDetails.", "AuthenticationDetails")]
-    [InlineData("PASSWORD", "Username", "elastic", "PASSWORD authentication needs AuthenticationDetails:Password.", "AuthenticationDetails:Password")]
-    [InlineData("CLOUD", null, null, "CLOUD authentication needs AuthenticationDetails.", "AuthenticationDetails")]
-    [InlineData("CLOUD", "Id", "name:abc", "CLOUD authentication needs AuthenticationDetails:Username and AuthenticationDetails:Password.", "AuthenticationDetails:Username")]
-    [InlineData("CLOUDAPI", null, null, "CLOUDAPI authentication needs AuthenticationDetails.", "AuthenticationDetails")]
-    [InlineData("CLOUDAPI", "Id", "name:abc", "CLOUDAPI authentication needs AuthenticationDetails:ApiKey.", "AuthenticationDetails:ApiKey")]
-    [InlineData("APIKEY", null, null, "APIKEY authentication needs AuthenticationDetails.", "AuthenticationDetails")]
-    [InlineData("APIKEY", "Id", "abc", "APIKEY authentication needs AuthenticationDetails:ApiKey.", "AuthenticationDetails:ApiKey")]
-    [InlineData("BEARER", null, null, "BEARER authentication needs AuthenticationDetails.", "AuthenticationDetails")]
-    [InlineData("BEARER", "ApiKey", "abc", "BEARER authentication needs AuthenticationDetails:Token.", "AuthenticationDetails:Token")]
+    [InlineData("Password", null, null, "Password authentication needs AuthenticationDetails.", "AuthenticationDetails")]
+    [InlineData("Password", "Username", "elastic", "Password authentication needs AuthenticationDetails:Password.", "AuthenticationDetails:Password")]
+    [InlineData("Cloud", null, null, "Cloud authentication needs AuthenticationDetails.", "AuthenticationDetails")]
+    [InlineData("Cloud", "Id", "name:abc", "Cloud authentication needs AuthenticationDetails:Username and AuthenticationDetails:Password.", "AuthenticationDetails:Username")]
+    [InlineData("CloudApi", null, null, "CloudApi authentication needs AuthenticationDetails.", "AuthenticationDetails")]
+    [InlineData("CloudApi", "Id", "name:abc", "CloudApi authentication needs AuthenticationDetails:ApiKey.", "AuthenticationDetails:ApiKey")]
+    [InlineData("ApiKey", null, null, "ApiKey authentication needs AuthenticationDetails.", "AuthenticationDetails")]
+    [InlineData("ApiKey", "Id", "abc", "ApiKey authentication needs AuthenticationDetails:ApiKey.", "AuthenticationDetails:ApiKey")]
+    [InlineData("Bearer", null, null, "Bearer authentication needs AuthenticationDetails.", "AuthenticationDetails")]
+    [InlineData("Bearer", "ApiKey", "abc", "Bearer authentication needs AuthenticationDetails:Token.", "AuthenticationDetails:Token")]
     public async Task SearchAsync_AuthenticationWithoutCredentials_ReturnsFailedResultNamingTheSetting(
         string authenticationType, string? detail, string? value, string expected, string setting)
     {

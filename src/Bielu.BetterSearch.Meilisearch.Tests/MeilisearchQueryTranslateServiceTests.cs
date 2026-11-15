@@ -19,10 +19,10 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
         return ((object)result.Value.Filter).ShouldBeOfType<string>();
     }
 
-    private static SearchQuery Query(Occurance occurance, ISearchSubQuery subQuery)
+    private static SearchQuery Query(Occurrence occurrence, ISearchSubQuery subQuery)
     {
         var query = new SearchQuery();
-        query.Add(occurance, subQuery);
+        query.Add(occurrence, subQuery);
         return query;
     }
 
@@ -35,7 +35,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_TermQuery_FiltersOnLowerCasedTokens()
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new TermSubQuery { Field = "Name", Value = "Jane \"J\" \\" }));
+        var filter = await FilterAsync(Query(Occurrence.Must, new TermSubQuery { Field = "Name", Value = "Jane \"J\" \\" }));
 
         filter.ShouldBe("(tokens.Name = \"jane \\\"j\\\" \\\\\")");
     }
@@ -43,7 +43,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_TermQueryOnStoredValue_KeepsTheValueAsGiven()
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new TermSubQuery { Field = "fields.City", Value = "Warsaw" }));
+        var filter = await FilterAsync(Query(Occurrence.Must, new TermSubQuery { Field = "fields.City", Value = "Warsaw" }));
 
         filter.ShouldBe("(fields.City = \"Warsaw\")");
     }
@@ -54,7 +54,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [InlineData(true, "fields.Age = true")]
     public async Task TranslateMainQueryAsync_TermQueryWithNonString_ComparesTheStoredValue(object value, string expected)
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new TermSubQuery { Field = "Age", Value = value }));
+        var filter = await FilterAsync(Query(Occurrence.Must, new TermSubQuery { Field = "Age", Value = value }));
 
         filter.ShouldBe($"({expected})");
     }
@@ -62,7 +62,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_TermQueryWithDate_ComparesUnixMilliseconds()
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new TermSubQuery { Field = "Born", Value = new DateTime(1970, 1, 1, 0, 0, 1, DateTimeKind.Unspecified) }));
+        var filter = await FilterAsync(Query(Occurrence.Must, new TermSubQuery { Field = "Born", Value = new DateTime(1970, 1, 1, 0, 0, 1, DateTimeKind.Unspecified) }));
 
         filter.ShouldBe("(dates.Born = 1000)");
     }
@@ -70,7 +70,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_DateTermOnStoredValue_ComparesTheDatesCopy()
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new TermSubQuery { Field = "fields.Born", Value = new DateTime(1970, 1, 1, 0, 0, 1, DateTimeKind.Utc) }));
+        var filter = await FilterAsync(Query(Occurrence.Must, new TermSubQuery { Field = "fields.Born", Value = new DateTime(1970, 1, 1, 0, 0, 1, DateTimeKind.Utc) }));
 
         filter.ShouldBe("(dates.Born = 1000)");
     }
@@ -82,7 +82,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [InlineData("NaN", "tokens.Age = \"nan\"")]
     public async Task TranslateMainQueryAsync_StringTermReadingAsNumberOrBoolean_AlsoComparesTheValue(string value, string expected)
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new TermSubQuery { Field = "Age", Value = value }));
+        var filter = await FilterAsync(Query(Occurrence.Must, new TermSubQuery { Field = "Age", Value = value }));
 
         filter.ShouldBe($"({expected})");
     }
@@ -90,7 +90,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_TermsQuery_UsesOneInPerAttribute()
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new TermsSubQuery { Field = "Age", Value = ["Jane", "30", 31, "jane", 30d] }));
+        var filter = await FilterAsync(Query(Occurrence.Must, new TermsSubQuery { Field = "Age", Value = ["Jane", "30", 31, "jane", 30d] }));
 
         filter.ShouldBe("(tokens.Age IN [\"jane\", \"30\"] OR fields.Age IN [30, 31])");
     }
@@ -100,7 +100,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [InlineData(false, false, "fields.Age 1.0000000000000002 TO 4.999999999999999")]
     public async Task TranslateMainQueryAsync_RangeWithBothBounds_UsesOneToRange(bool includeMin, bool includeMax, string expected)
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new NumericRange
+        var filter = await FilterAsync(Query(Occurrence.Must, new NumericRangeSubQuery
         {
             Field = "Age",
             MinValue = 1,
@@ -119,7 +119,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [InlineData(null, false, "fields.Age < 5")]
     public async Task TranslateMainQueryAsync_RangeWithOneBound_ComparesThatBound(bool? includeMin, bool? includeMax, string expected)
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new NumericRange
+        var filter = await FilterAsync(Query(Occurrence.Must, new NumericRangeSubQuery
         {
             Field = "Age",
             MinValue = includeMin == null ? null : 1,
@@ -138,7 +138,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [InlineData("b", "N", "tokens.Name \"b\0\" TO \"m\U0010FFFF\"")]
     public async Task TranslateMainQueryAsync_StringRangeWithExcludedEdges_MovesEachEdgeInward(string min, string max, string expected)
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new StringRange { Field = "Name", MinValue = min, MaxValue = max, IncludeMinEdge = false, IncludeMaxEdge = false }));
+        var filter = await FilterAsync(Query(Occurrence.Must, new StringRangeSubQuery { Field = "Name", MinValue = min, MaxValue = max, IncludeMinEdge = false, IncludeMaxEdge = false }));
 
         filter.ShouldBe($"({expected})");
     }
@@ -146,7 +146,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_StringRangeBelowEmptyMaximum_MatchesNothing()
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new StringRange { Field = "Name", MinValue = "a", MaxValue = "", IncludeMinEdge = false, IncludeMaxEdge = false }));
+        var filter = await FilterAsync(Query(Occurrence.Must, new StringRangeSubQuery { Field = "Name", MinValue = "a", MaxValue = "", IncludeMinEdge = false, IncludeMaxEdge = false }));
 
         filter.ShouldBe("(id IN [])");
     }
@@ -157,7 +157,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [InlineData(double.MinValue, double.MinValue, true, false)]
     public async Task TranslateMainQueryAsync_ExcludedEdgeAtTheLargestDouble_MatchesNothing(double min, double max, bool includeMin, bool includeMax)
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new NumericRange
+        var filter = await FilterAsync(Query(Occurrence.Must, new NumericRangeSubQuery
         {
             Field = "Age",
             MinValue = min,
@@ -187,8 +187,8 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_ShouldBesideMust_KeepsOnlyTheMust()
     {
-        var query = Query(Occurance.MUST, new TermSubQuery { Field = "Name", Value = "john" });
-        query.Add(Occurance.SHOULD, new TermSubQuery { Field = "Name", Value = "jane" });
+        var query = Query(Occurrence.Must, new TermSubQuery { Field = "Name", Value = "john" });
+        query.Add(Occurrence.Should, new TermSubQuery { Field = "Name", Value = "jane" });
 
         (await FilterAsync(query)).ShouldBe("(tokens.Name = \"john\")");
     }
@@ -196,7 +196,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_MustNotOnly_ExcludesFromEveryDocument()
     {
-        var filter = await FilterAsync(Query(Occurance.MUSTNOT, new TermSubQuery { Field = "Name", Value = "john" }));
+        var filter = await FilterAsync(Query(Occurrence.MustNot, new TermSubQuery { Field = "Name", Value = "john" }));
 
         filter.ShouldBe("id EXISTS AND NOT (tokens.Name = \"john\")");
     }
@@ -204,7 +204,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_EmptyTerms_MatchesNothing()
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new TermsSubQuery { Field = "Name", Value = [] }));
+        var filter = await FilterAsync(Query(Occurrence.Must, new TermsSubQuery { Field = "Name", Value = [] }));
 
         filter.ShouldBe("(id IN [])");
     }
@@ -212,19 +212,19 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_RangeWithoutBounds_ReturnsFailedResult()
     {
-        var result = await translateService.TranslateMainQueryAsync(Query(Occurance.MUST, new NumericRange { Field = "Age" }));
+        var result = await translateService.TranslateMainQueryAsync(Query(Occurrence.Must, new NumericRangeSubQuery { Field = "Age" }));
 
         result.IsFailed.ShouldBeTrue();
-        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("NumericRange has neither MinValue nor MaxValue; set at least one bound.");
+        result.Errors.ShouldHaveSingleItem().Message.ShouldBe("NumericRangeSubQuery has neither MinValue nor MaxValue; set at least one bound.");
     }
 
     [Fact]
     public async Task TranslateMainQueryAsync_PostFilter_IsCombinedWithTheQuery()
     {
-        var query = Query(Occurance.MUST, new TermSubQuery { Field = "Name", Value = "john" });
+        var query = Query(Occurrence.Must, new TermSubQuery { Field = "Name", Value = "john" });
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.MUST, new TermSubQuery { Field = "City", Value = "krakow" });
-        query.PostFilterQuery[Occurance.MUST] = [nested];
+        nested.Add(Occurrence.Must, new TermSubQuery { Field = "City", Value = "krakow" });
+        query.PostFilterQuery[Occurrence.Must] = [nested];
 
         (await FilterAsync(query)).ShouldBe("((tokens.Name = \"john\")) AND (((tokens.City = \"krakow\")))");
     }
@@ -242,23 +242,23 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
         new PrefixPhraseSubQuery { Field = "Name", Value = "  " },
         new PrefixPhraseSubQuery { Value = "jane" },
         new PrefixPhraseSubQuery { Field = "Name", Value = string.Join(' ', Enumerable.Repeat("word", 17)) },
-        new NumericRange { MinValue = 1 },
-        new FuzzyQuery { Field = "Name", Value = "jnae" },
+        new NumericRangeSubQuery { MinValue = 1 },
+        new FuzzySubQuery { Field = "Name", Value = "jnae" },
         new LuceneSubQuery { LuceneQuery = "Name:jane^2" },
-        new SpatialSearchQuery { Field = "Location" },
-        new SpatialSearchQuery { Distance = 10 },
-        new SpatialSearchQuery { Field = "Home", Distance = 10 },
-        new SpatialSearchQuery { Field = "Location", Distance = 10, Lat = 91 },
-        new SpatialSearchQuery { Field = "Location", Distance = 10, Lng = -181 },
-        new SpatialSearchQuery { Field = "Location", Distance = 10, Lat = double.NaN },
-        new SpatialSearchQuery { Field = "Location", Distance = 10, UnitOfDistance = "parsecs" },
+        new SpatialSearchSubQuery { Field = "Location" },
+        new SpatialSearchSubQuery { Distance = 10 },
+        new SpatialSearchSubQuery { Field = "Home", Distance = 10 },
+        new SpatialSearchSubQuery { Field = "Location", Distance = 10, Lat = 91 },
+        new SpatialSearchSubQuery { Field = "Location", Distance = 10, Lng = -181 },
+        new SpatialSearchSubQuery { Field = "Location", Distance = 10, Lat = double.NaN },
+        new SpatialSearchSubQuery { Field = "Location", Distance = 10, UnitOfDistance = "parsecs" },
     ];
 
     [Theory]
     [MemberData(nameof(InvalidSubQueries))]
     public async Task TranslateMainQueryAsync_UnsupportedOrIncompleteSubQuery_ReturnsFailure(ISearchSubQuery subQuery)
     {
-        var result = await translateService.TranslateMainQueryAsync(Query(Occurance.MUST, subQuery));
+        var result = await translateService.TranslateMainQueryAsync(Query(Occurrence.Must, subQuery));
 
         result.IsFailed.ShouldBeTrue();
     }
@@ -274,7 +274,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [MemberData(nameof(NonFiniteNumbers))]
     public async Task TranslateMainQueryAsync_NonFiniteNumber_ReturnsFailureNamingTheValue(ISearchSubQuery subQuery, string message)
     {
-        var result = await translateService.TranslateMainQueryAsync(Query(Occurance.MUST, subQuery));
+        var result = await translateService.TranslateMainQueryAsync(Query(Occurrence.Must, subQuery));
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain(message);
@@ -286,7 +286,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [InlineData("mi", "_geoRadius(52.23, 21.01, 16093.44)")]
     public async Task TranslateMainQueryAsync_SpatialQuery_FiltersOnGeoRadiusInMetres(string? unit, string expected)
     {
-        var filter = await FilterAsync(Query(Occurance.MUST, new SpatialSearchQuery
+        var filter = await FilterAsync(Query(Occurrence.Must, new SpatialSearchSubQuery
         {
             Field = "Location",
             Distance = 10,
@@ -303,7 +303,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     {
         var translator = new SpatialSearchSubQueryTranslator(new TestOptionsMonitor<MeilisearchOptions>(new MeilisearchOptions()));
 
-        var result = await translator.TranslateAsync(new SpatialSearchQuery { Field = "Location", Distance = 10 }, [translator]);
+        var result = await translator.TranslateAsync(new SpatialSearchSubQuery { Field = "Location", Distance = 10 }, [translator]);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("GeoField");
@@ -314,8 +314,8 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     {
         var query = new SearchQuery();
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.MUST, new LuceneSubQuery { LuceneQuery = "x" });
-        query.PostFilterQuery[Occurance.MUST] = [nested];
+        nested.Add(Occurrence.Must, new LuceneSubQuery { LuceneQuery = "x" });
+        query.PostFilterQuery[Occurrence.Must] = [nested];
 
         var result = await translateService.TranslateMainQueryAsync(query);
 

@@ -11,11 +11,11 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Aggregations
         {
             FilterAggregationQuery = filterAggregationQuery;
             Query = new BoolSearchSubQuery();
-            FilterAggregationQuery.Queries.Add(Occurance.MUST, Query);
+            FilterAggregationQuery.Queries.Add(Occurrence.Must, Query);
         }
 
 
         public INestableQuery Query { get; set; }
-        public Occurance Occurance { get; set; }
+        public Occurrence Occurrence { get; set; }
     }
 }

@@ -112,11 +112,11 @@ internal sealed class PostgreSqlIndexingProviderAsync(
         }
     }
 
-    public async Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default)
+    public async Task<Result> RemoveDocumentAsync(string id, string index, CancellationToken cancellationToken = default)
     {
-        var removed = await DeleteAsync(type, "d.id = $1", new NpgsqlParameter { Value = id, NpgsqlDbType = NpgsqlDbType.Text }, cancellationToken).ConfigureAwait(false);
+        var removed = await DeleteAsync(index, "d.id = $1", new NpgsqlParameter { Value = id, NpgsqlDbType = NpgsqlDbType.Text }, cancellationToken).ConfigureAwait(false);
         return removed.IsFailed
-            ? Result.Fail(new Error($"Removing document {id} from {type} failed: {removed.Errors[0].Message}").CausedBy(removed.Errors))
+            ? Result.Fail(new Error($"Removing document {id} from {index} failed: {removed.Errors[0].Message}").CausedBy(removed.Errors))
             : Result.Ok();
     }
 

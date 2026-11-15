@@ -175,8 +175,8 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
     {
         var query = new SearchQuery { Index = index, FacetQueries = [new TermAggregation { AggregationName = "colors", TermFieldName = Color }] };
         var acme = new BoolSearchSubQuery();
-        acme.Add(Occurance.MUST, BrandIs("acme"));
-        query.PostFilterQuery[Occurance.MUST] = [acme];
+        acme.Add(Occurrence.Must, BrandIs("acme"));
+        query.PostFilterQuery[Occurrence.Must] = [acme];
 
         var result = await SearchAsync(query);
 
@@ -191,7 +191,7 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
     [Fact]
     public async Task SearchAsync_TermFacetWithMainQuery_CountsOnlyMatches() => await RunAsync(async index =>
     {
-        var query = SearchTestHelpers.Query(index, Occurance.MUST, BrandIs("acme"));
+        var query = SearchTestHelpers.Query(index, Occurrence.Must, BrandIs("acme"));
         query.FacetQueries = [new TermAggregation { AggregationName = "colors", TermFieldName = Color }];
 
         var result = await SearchAsync(query);
@@ -233,7 +233,7 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
             Index = index,
             FacetQueries =
             [
-                new MultiTermAggreation
+                new MultiTermAggregation
                 {
                     AggregationName = "colorBrands",
                     Terms = [new SimpleTerm { TermFieldName = Color }, new SimpleTerm { TermFieldName = Brand }]
@@ -267,7 +267,7 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
         var filter = new FilterAggregationQuery
         {
             AggregationName = "globex",
-            Queries = { [Occurance.MUST] = BrandIs("globex") },
+            Queries = { [Occurrence.Must] = BrandIs("globex") },
             NestedAggregations = [new TermAggregation { AggregationName = "colors", TermFieldName = Color }]
         };
         var query = new SearchQuery { Index = index, FacetQueries = [filter] };
@@ -334,7 +334,7 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
         { "negative size", [new TermAggregation { AggregationName = "colors", TermFieldName = Color, Size = -1 }], "Facet colors has Size -1" },
         { "size past limit", [new TermAggregation { AggregationName = "colors", TermFieldName = Color, Size = 65_537 }], "past the limit of 65536 buckets" },
         { "same name twice", [new TermAggregation { AggregationName = "x", TermFieldName = Color }, new TermAggregation { AggregationName = "x", TermFieldName = Brand }], "Facet name x is used more than once" },
-        { "one multi-term field", [new MultiTermAggreation { AggregationName = "pair", Terms = [new SimpleTerm { TermFieldName = Color }] }], "Facet pair needs at least two Terms" },
+        { "one multi-term field", [new MultiTermAggregation { AggregationName = "pair", Terms = [new SimpleTerm { TermFieldName = Color }] }], "Facet pair needs at least two Terms" },
         { "unknown type", [new UnknownAggregation()], "Facet unknown is a UnknownAggregation" },
         {
             "unknown nested type",

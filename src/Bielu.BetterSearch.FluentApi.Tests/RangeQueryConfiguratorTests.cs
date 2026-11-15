@@ -10,12 +10,12 @@ namespace Bielu.BetterSearch.FluentApi.Tests;
 /// <summary>Builds each range query through the fluent API and checks both bounds and both edge flags.</summary>
 public sealed class RangeQueryConfiguratorTests
 {
-    private static T BuildRange<T>(Action<IQueryConfigurator> range) where T : BaseRangeQuery
+    private static T BuildRange<T>(Action<IQueryConfigurator> range) where T : BaseRangeSubQuery
     {
         var query = (SearchQuery)FluentApiSearchQueryCreator.Create()
             .CreateSearchQuery(search => search.CreateBoolQuery(boolQuery => range(boolQuery)));
 
-        var boolQuery = query.Query[Occurance.MUST].ShouldHaveSingleItem().ShouldBeOfType<BoolSearchSubQuery>();
+        var boolQuery = query.Query[Occurrence.Must].ShouldHaveSingleItem().ShouldBeOfType<BoolSearchSubQuery>();
         return boolQuery.NestedQueries.ShouldHaveSingleItem().ShouldBeOfType<T>();
     }
 
@@ -24,7 +24,7 @@ public sealed class RangeQueryConfiguratorTests
     [InlineData(false, true)]
     public void CreateNumericRangeQuery_MinAndMaxValue_SetsBothBoundsAndEdges(bool includeMin, bool includeMax)
     {
-        var range = BuildRange<NumericRange>(query => query.CreateNumericRangeQuery(r => r
+        var range = BuildRange<NumericRangeSubQuery>(query => query.CreateNumericRangeQuery(r => r
             .WithField("Price").WithMinValue(9.99, includeMin).WithMaxValue(49.5, includeMax)));
 
         range.Field.ShouldBe("Price");
@@ -39,7 +39,7 @@ public sealed class RangeQueryConfiguratorTests
     [InlineData(false, true)]
     public void CreateLongRangeQuery_MinAndMaxValue_SetsBothBoundsAndEdges(bool includeMin, bool includeMax)
     {
-        var range = BuildRange<LongRange>(query => query.CreateLongRangeQuery(r => r
+        var range = BuildRange<LongRangeSubQuery>(query => query.CreateLongRangeQuery(r => r
             .WithField("Views").WithMinValue(1L, includeMin).WithMaxValue(9_007_199_254_740_993L, includeMax)));
 
         range.Field.ShouldBe("Views");
@@ -54,7 +54,7 @@ public sealed class RangeQueryConfiguratorTests
     [InlineData(false, true)]
     public void CreateStringRangeQuery_MinAndMaxValue_SetsBothBoundsAndEdges(bool includeMin, bool includeMax)
     {
-        var range = BuildRange<StringRange>(query => query.CreateStringRangeQuery(r => r
+        var range = BuildRange<StringRangeSubQuery>(query => query.CreateStringRangeQuery(r => r
             .WithField("Name").WithMinValue("a", includeMin).WithMaxValue("m", includeMax)));
 
         range.Field.ShouldBe("Name");
@@ -72,7 +72,7 @@ public sealed class RangeQueryConfiguratorTests
         var min = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var max = new DateTime(2024, 12, 31, 23, 59, 59, DateTimeKind.Utc);
 
-        var range = BuildRange<DateRangeQuery>(query => query.CreateDateRangeQuery(r => r
+        var range = BuildRange<DateRangeSubQuery>(query => query.CreateDateRangeQuery(r => r
             .WithField("Born").WithMinValue(min, includeMin).WithMaxValue(max, includeMax)));
 
         range.Field.ShouldBe("Born");
@@ -103,7 +103,7 @@ public sealed class RangeQueryConfiguratorTests
     [Fact]
     public void CreateDateRangeQuery_DateTimeOffsetBounds_KeepTheirInstants()
     {
-        var range = BuildRange<DateRangeQuery>(query => query.CreateDateRangeQuery(r => r
+        var range = BuildRange<DateRangeSubQuery>(query => query.CreateDateRangeQuery(r => r
             .WithField("Born")
             .WithMinValue(new DateTimeOffset(2024, 1, 1, 2, 0, 0, TimeSpan.FromHours(2)))
             .WithMaxValue(new DateTimeOffset(2024, 1, 1, 7, 0, 0, TimeSpan.FromHours(-5)))));

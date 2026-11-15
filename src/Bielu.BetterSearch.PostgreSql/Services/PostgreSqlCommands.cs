@@ -19,7 +19,7 @@ internal static class PostgreSqlCommands
     public static bool IsMissingFunction(Exception e) => e is PostgresException { SqlState: PostgresErrorCodes.UndefinedFunction };
 
     public const string MissingFuzzyExtension =
-        "FuzzyQuery needs the fuzzystrmatch extension, which this database does not have: run CREATE EXTENSION fuzzystrmatch; in it.";
+        "FuzzySubQuery needs the fuzzystrmatch extension, which this database does not have: run CREATE EXTENSION fuzzystrmatch; in it.";
 
     public static string Describe(Exception e) => e is PostgresException postgres
         ? $"{postgres.MessageText} (SQLSTATE {postgres.SqlState})"

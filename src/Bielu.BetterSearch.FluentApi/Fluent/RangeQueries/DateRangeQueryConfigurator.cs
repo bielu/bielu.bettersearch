@@ -6,10 +6,10 @@ public class DateRangeQueryConfigurator : SubQueryConfigurator<DateRangeQueryCon
 {
     public DateRangeQueryConfigurator()
     {
-        Query = new DateRangeQuery();
+        Query = new DateRangeSubQuery();
     }
 
-    public DateRangeQuery Query { get; set; }
+    public DateRangeSubQuery Query { get; set; }
     protected override ISearchSubQuery SubQuery => Query;
     public DateRangeQueryConfigurator WithField(string fieldName)
     {

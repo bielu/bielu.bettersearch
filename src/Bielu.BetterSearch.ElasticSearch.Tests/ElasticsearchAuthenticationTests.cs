@@ -1,7 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
-using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
+using Bielu.BetterSearch.ElasticSearch.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
@@ -23,7 +23,7 @@ public class ElasticsearchAuthenticationTests(SecuredElasticsearchResource elast
 
         await AssertRoundTripAsync(new Dictionary<string, string?>
         {
-            [$"{Key}:AuthenticationType"] = "APIKEY",
+            [$"{Key}:AuthenticationType"] = "ApiKey",
             [$"{Key}:AuthenticationDetails:ApiKey"] = elasticsearch.ApiKey,
             [$"{Key}:CertificateFingerprint"] = elasticsearch.CaFingerprint,
         });
@@ -36,7 +36,7 @@ public class ElasticsearchAuthenticationTests(SecuredElasticsearchResource elast
 
         await AssertRoundTripAsync(new Dictionary<string, string?>
         {
-            [$"{Key}:AuthenticationType"] = "BEARER",
+            [$"{Key}:AuthenticationType"] = "Bearer",
             [$"{Key}:AuthenticationDetails:Token"] = elasticsearch.ServiceAccountToken,
             [$"{Key}:CertificateFingerprint"] = string.Join(":", elasticsearch.CaFingerprint.ToLowerInvariant().Chunk(2).Select(pair => new string(pair))),
         });
@@ -49,7 +49,7 @@ public class ElasticsearchAuthenticationTests(SecuredElasticsearchResource elast
 
         await AssertRoundTripAsync(new Dictionary<string, string?>
         {
-            [$"{Key}:AuthenticationType"] = "PASSWORD",
+            [$"{Key}:AuthenticationType"] = "Password",
             [$"{Key}:AuthenticationDetails:Username"] = "elastic",
             [$"{Key}:AuthenticationDetails:Password"] = elasticsearch.Password,
             [$"{Key}:DevelopmentOnlySkipCertificateValidation"] = "true",
@@ -63,7 +63,7 @@ public class ElasticsearchAuthenticationTests(SecuredElasticsearchResource elast
 
         var result = await IndexAsync(new Dictionary<string, string?>
         {
-            [$"{Key}:AuthenticationType"] = "APIKEY",
+            [$"{Key}:AuthenticationType"] = "ApiKey",
             [$"{Key}:AuthenticationDetails:ApiKey"] = elasticsearch.ApiKey,
         }, $"content-bettersearch-{Guid.NewGuid():N}");
 
@@ -78,7 +78,7 @@ public class ElasticsearchAuthenticationTests(SecuredElasticsearchResource elast
 
         var result = await IndexAsync(new Dictionary<string, string?>
         {
-            [$"{Key}:AuthenticationType"] = "APIKEY",
+            [$"{Key}:AuthenticationType"] = "ApiKey",
             [$"{Key}:AuthenticationDetails:ApiKey"] = elasticsearch.ApiKey,
             [$"{Key}:CertificateFingerprint"] = new string('A', 64),
         }, $"content-bettersearch-{Guid.NewGuid():N}");
@@ -88,8 +88,8 @@ public class ElasticsearchAuthenticationTests(SecuredElasticsearchResource elast
     }
 
     [Theory]
-    [InlineData("APIKEY", "ApiKey")]
-    [InlineData("BEARER", "Token")]
+    [InlineData("ApiKey", "ApiKey")]
+    [InlineData("Bearer", "Token")]
     public async Task IndexDocument_WrongCredential_FailsWithUnauthorized(string authenticationType, string detail)
     {
         await elasticsearch.EnsureStartedAsync(TestContext.Current.CancellationToken);

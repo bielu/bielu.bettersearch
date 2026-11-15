@@ -3,7 +3,7 @@ using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Configuration;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Tests;
 using FluentResults;
@@ -110,7 +110,7 @@ public class SearchServiceCachingTests
     {
         "index" => indexing.IndexDocumentAsync(new SearchDocument { Id = "1", Index = index }, Token),
         "index many" => indexing.IndexMultipleDocumentsAsync([new SearchDocument { Id = "1", Index = index }], Token),
-        "remove" => indexing.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "1", Type = index }, Token),
+        "remove" => indexing.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "1", Index = index }, Token),
         "remove many" => indexing.RemoveDocumentsAsync(index, ["1"], Token),
         "remove all" => indexing.RemoveAllDocumentsAsync(new DeleteAllDocumentsRequest { IndexName = index }, Token),
         "update" => indexing.UpdateDocumentAsync(index, "1", new Dictionary<string, IList<object>> { ["Name"] = ["x"] }, Token),

@@ -111,7 +111,7 @@ public class SearchServiceTelemetryTests
         using var capture = new TelemetryCapture(index);
         var service = new SearchServiceAsync(new FakeSearchProvider());
         var query = new SearchQuery { Index = index };
-        query.Add(Occurance.MUST, new TermSubQuery { Field = "secretField", Value = "secret-value" });
+        query.Add(Occurrence.Must, new TermSubQuery { Field = "secretField", Value = "secret-value" });
 
         await service.SearchAsync(query, Token);
 

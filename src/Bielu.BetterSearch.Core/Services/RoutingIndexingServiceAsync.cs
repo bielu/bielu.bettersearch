@@ -152,10 +152,10 @@ internal sealed class RoutingIndexingServiceAsync(IServiceProvider serviceProvid
         return all.Where(failed.Contains).ToList();
     }
 
-    /// <summary>Routes by <see cref="DeleteDocumentRequest.Type"/>, which holds the index name.</summary>
+    /// <summary>Routes by <see cref="DeleteDocumentRequest.Index"/>.</summary>
     public async Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document, CancellationToken cancellationToken = default)
     {
-        var key = routes.KeyFor(document?.Type);
+        var key = routes.KeyFor(document?.Index);
         if (key.IsFailed)
         {
             return key.ToResult();

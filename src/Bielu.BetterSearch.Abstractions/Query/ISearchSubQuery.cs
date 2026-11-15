@@ -2,7 +2,7 @@
 
 public interface ISearchSubQuery
 {
-    Occurance Occurance { get; set; }
+    Occurrence Occurrence { get; set; }
     int BoostValue { get; set; }
 
 }

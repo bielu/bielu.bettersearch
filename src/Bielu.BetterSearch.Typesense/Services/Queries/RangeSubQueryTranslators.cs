@@ -10,24 +10,24 @@ namespace Bielu.BetterSearch.Typesense.Services.Queries;
 /// Compares integers exactly and other numbers as Typesense <c>float</c>s, which hold about seven significant digits.
 /// Bounds with a fraction compare integers from the closest whole number inside the range.
 /// </summary>
-internal sealed class NumericRangeSubQueryTranslator : TypesenseSubQueryTranslator<NumericRange>
+internal sealed class NumericRangeSubQueryTranslator : TypesenseSubQueryTranslator<NumericRangeSubQuery>
 {
-    protected override Result<TypesenseFilter> Translate(NumericRange query, IEnumerable<ISubQueryTranslator<TypesenseFilter>> subQueryTranslators) =>
-        RangeFilter.Numbers(query, nameof(NumericRange), query.MinValue, query.MaxValue);
+    protected override Result<TypesenseFilter> Translate(NumericRangeSubQuery query, IEnumerable<ISubQueryTranslator<TypesenseFilter>> subQueryTranslators) =>
+        RangeFilter.Numbers(query, nameof(NumericRangeSubQuery), query.MinValue, query.MaxValue);
 }
 
 /// <summary>Compares integers exactly, so values beyond 2^53 keep their precision.</summary>
-internal sealed class LongRangeSubQueryTranslator : TypesenseSubQueryTranslator<LongRange>
+internal sealed class LongRangeSubQueryTranslator : TypesenseSubQueryTranslator<LongRangeSubQuery>
 {
-    protected override Result<TypesenseFilter> Translate(LongRange query, IEnumerable<ISubQueryTranslator<TypesenseFilter>> subQueryTranslators)
+    protected override Result<TypesenseFilter> Translate(LongRangeSubQuery query, IEnumerable<ISubQueryTranslator<TypesenseFilter>> subQueryTranslators)
     {
-        var field = N.Require(query.Field, nameof(LongRange));
+        var field = N.Require(query.Field, nameof(LongRangeSubQuery));
         if (field.IsFailed)
         {
             return field.ToResult<TypesenseFilter>();
         }
 
-        var bounds = RangeBounds.Require(nameof(LongRange), query.MinValue, query.MaxValue);
+        var bounds = RangeBounds.Require(nameof(LongRangeSubQuery), query.MinValue, query.MaxValue);
         if (bounds.IsFailed)
         {
             return bounds.ToResult<TypesenseFilter>();
@@ -42,17 +42,17 @@ internal sealed class LongRangeSubQueryTranslator : TypesenseSubQueryTranslator<
 }
 
 /// <summary>Compares the dates the provider stores as Unix milliseconds; an unspecified <see cref="DateTime"/> is UTC.</summary>
-internal sealed class DateRangeSubQueryTranslator : TypesenseSubQueryTranslator<DateRangeQuery>
+internal sealed class DateRangeSubQueryTranslator : TypesenseSubQueryTranslator<DateRangeSubQuery>
 {
-    protected override Result<TypesenseFilter> Translate(DateRangeQuery query, IEnumerable<ISubQueryTranslator<TypesenseFilter>> subQueryTranslators)
+    protected override Result<TypesenseFilter> Translate(DateRangeSubQuery query, IEnumerable<ISubQueryTranslator<TypesenseFilter>> subQueryTranslators)
     {
-        var field = N.Require(query.Field, nameof(DateRangeQuery));
+        var field = N.Require(query.Field, nameof(DateRangeSubQuery));
         if (field.IsFailed)
         {
             return field.ToResult<TypesenseFilter>();
         }
 
-        var bounds = RangeBounds.Require(nameof(DateRangeQuery), query.MinValue, query.MaxValue);
+        var bounds = RangeBounds.Require(nameof(DateRangeSubQuery), query.MinValue, query.MaxValue);
         return bounds.IsFailed
             ? bounds.ToResult<TypesenseFilter>()
             : Result.Ok(RangeFilter.Integers(N.Dates + N.Name(field.Value),
@@ -64,9 +64,9 @@ internal sealed class DateRangeSubQueryTranslator : TypesenseSubQueryTranslator<
 internal static class RangeFilter
 {
     private const string NotNegatable =
-        "Typesense filters cannot negate a range: a document matches when any of its values lies outside it, not when none lies inside, so a range can't be a MUSTNOT clause.";
+        "Typesense filters cannot negate a range: a document matches when any of its values lies outside it, not when none lies inside, so a range can't be a MustNot clause.";
 
-    public static Result<TypesenseFilter> Numbers(BaseRangeQuery query, string queryName, double? min, double? max)
+    public static Result<TypesenseFilter> Numbers(BaseRangeSubQuery query, string queryName, double? min, double? max)
     {
         var field = N.Require(query.Field, queryName);
         if (field.IsFailed)

@@ -7,6 +7,6 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
         public ISearchQuery Query { get; set; }
 
 
-        Occurance Occurance { get; set; }
+        Occurrence Occurrence { get; set; }
     }
 }

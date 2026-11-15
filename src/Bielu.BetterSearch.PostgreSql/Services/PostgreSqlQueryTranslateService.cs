@@ -39,7 +39,7 @@ internal sealed class PostgreSqlQueryTranslateService(IEnumerable<ISubQueryTrans
             .WithSuccesses(main.Successes).WithSuccesses(postFilter.Successes);
     }
 
-    private Task<Result<PostgreSqlFilter>> TranslateAsync(IDictionary<Occurance, List<ISearchSubQuery>>? clauses)
+    private Task<Result<PostgreSqlFilter>> TranslateAsync(IDictionary<Occurrence, List<ISearchSubQuery>>? clauses)
     {
         if (clauses == null || clauses.Values.All(group => group == null || group.Count == 0))
         {

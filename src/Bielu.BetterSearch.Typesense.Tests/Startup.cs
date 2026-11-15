@@ -1,6 +1,6 @@
-﻿using Bielu.BetterSearch.DepedencyInjection;
+﻿using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.Typesense.Configuration;
-using Bielu.BetterSearch.Typesense.DepedencyInjection;
+using Bielu.BetterSearch.Typesense.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.DependencyInjection.Logging;
 

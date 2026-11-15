@@ -69,7 +69,7 @@ public class OpenSearchIndexSettings
     public NodePoolType? PoolType { get; set; }
     /// <summary>
     /// How to authenticate. Unset under <c>Indexes</c> means the index takes the shared authentication;
-    /// <c>NONE</c> there turns it off for that index. Unset in <c>SharedIndexSettings</c> means <c>NONE</c>.
+    /// <c>None</c> there turns it off for that index. Unset in <c>SharedIndexSettings</c> means <c>None</c>.
     /// </summary>
     public OpenSearchAuthenticationType? AuthenticationType { get; set; }
     public OpenSearchAuthenticationDetails? AuthenticationDetails { get; set; }
@@ -169,9 +169,9 @@ public enum OpenSearchFieldType
 
 public enum OpenSearchAuthenticationType
 {
-    NONE = 0,
-    PASSWORD = 1,
-    APIKEY = 2
+    None = 0,
+    Password = 1,
+    ApiKey = 2
 }
 
 public class OpenSearchAuthenticationDetails

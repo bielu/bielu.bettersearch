@@ -15,10 +15,10 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 > - **Facets** return a failed `Result`: the index keeps the words of each field, not the values to count.
 > - **Highlighting** returns a failed `Result`: the index keeps only the words of each document, not its text,
 >   so there is no text to mark the matched terms in.
-> - **Range and spatial queries**: `DateRangeQuery`, `NumericRange`, `LongRange`, `StringRange` and
->   `SpatialSearchQuery` return a failed `Result`. A range with neither bound fails with the message every provider
+> - **Range and spatial queries**: `DateRangeSubQuery`, `NumericRangeSubQuery`, `LongRangeSubQuery`, `StringRangeSubQuery` and
+>   `SpatialSearchSubQuery` return a failed `Result`. A range with neither bound fails with the message every provider
 >   gives for it, naming the missing bounds, rather than saying ranges are not supported, and so does a
->   `NumericRange` with a `NaN` or infinite bound.
+>   `NumericRangeSubQuery` with a `NaN` or infinite bound.
 > - **`LuceneQuery`** is not supported.
 > - **Fields are ignored**: term, terms, fuzzy, prefix and phrase prefix queries match the value in any field.
 > - **A value with no words**, such as `null`, `""` or `-`, returns a failed `Result` from a term, fuzzy, prefix or
@@ -46,7 +46,7 @@ dotnet add package Bielu.BetterSearch.Lifti --prerelease
 ## Register
 
 ```csharp
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 
 builder.Services.AddBetterSearch(search => search.AddLiftiSearch());
 ```
@@ -57,11 +57,11 @@ A write is searchable as soon as the call returns, as the index is in memory.
 
 ## How queries behave
 
-- **`MUST`, `SHOULD` and `MUSTNOT`** follow Lucene semantics, as on the other providers: alongside `MUST`,
-  `SHOULD` changes nothing, and a nested bool with only `MUSTNOT` clauses excludes from its parent's matches.
-- **A query that would match every document except some exclusions**, such as one with only `MUSTNOT`
+- **`Must`, `Should` and `MustNot`** follow Lucene semantics, as on the other providers: alongside `Must`,
+  `Should` changes nothing, and a nested bool with only `MustNot` clauses excludes from its parent's matches.
+- **A query that would match every document except some exclusions**, such as one with only `MustNot`
   clauses, returns a failed `Result`, as Lifti has no query for every document.
-- **`FILTER`** is treated as `MUST`, so it still scores.
+- **`Filter`** is treated as `Must`, so it still scores.
 - **Total hit count** is exact.
 - **Values are split into words as the index splits them.** Field values are turned into text the same way on
   every machine and split into words at punctuation and spaces, with case and accents folded, so `3.5` is
@@ -69,6 +69,8 @@ A write is searchable as soon as the call returns, as the index is in memory.
   tokenizer, and its words must be next to each other, in order: `3.5` matches `3.5` but not `5.3` or `35`,
   a `DateTime` matches that date, as both are written as ISO 8601 text in UTC (`2026-11-08T00:00:00Z`), `żółw` matches `Żółw`, and `jane d` as a phrase prefix matches
   `Jane Doe`. Fuzzy matches each word on its own, and prefix and phrase prefix match the last word as a prefix.
+  Fuzzy allows 2 edits for every word when `MaxEdits` is unset, not `AUTO` as on Elasticsearch, and uses an
+  explicit `MaxEdits` as given, with no limit of 2.
   A prefix value that ends with punctuation or a space, such as `3.`, has a complete last word, so that word
   matches whole and must be followed by another word: `3.` matches `3.5`, not `35` or `3`. As Lifti has no
   wildcard that excludes one word, that following word can be the next value of a multi-valued field, so `3.`
@@ -87,7 +89,7 @@ them is stored.
 
 ## Removing documents
 
-`DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.
+`DeleteDocumentRequest.Index` names the index to remove the document from.
 
 - **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
 - **An index that does not exist**: `RemoveDocumentAsync` succeeds and does not create the index. Lifti keeps

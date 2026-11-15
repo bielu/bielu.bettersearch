@@ -57,7 +57,7 @@ internal sealed class CachingIndexingServiceAsyncDecorator(
         }
         finally
         {
-            await EvictIndexAsync(document?.Type).ConfigureAwait(false);
+            await EvictIndexAsync(document?.Index).ConfigureAwait(false);
         }
     }
 

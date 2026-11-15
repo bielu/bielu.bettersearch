@@ -56,7 +56,7 @@ public class TypesenseOptions
     public TimeSpan SchemaCheckInterval { get; set; } = TimeSpan.FromSeconds(5);
 
     /// <summary>
-    /// The document field holding each document's location, for <c>SpatialSearchQuery</c>. Typesense filters by
+    /// The document field holding each document's location, for <c>SpatialSearchSubQuery</c>. Typesense filters by
     /// distance only on a <c>geopoint</c> field, so the provider stores this field's point as one. Its value is one point:
     /// a <c>"lat,lon"</c> string, as Elasticsearch accepts for a <c>geo_point</c>, or a dictionary with <c>lat</c> and
     /// <c>lon</c> (or <c>lng</c>). Unset, spatial queries return a failed <c>Result</c>.

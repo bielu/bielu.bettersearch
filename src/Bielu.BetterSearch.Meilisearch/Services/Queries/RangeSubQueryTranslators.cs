@@ -6,24 +6,24 @@ using FluentResults;
 
 namespace Bielu.BetterSearch.Meilisearch.Services.Queries;
 
-internal sealed class NumericRangeSubQueryTranslator : MeilisearchSubQueryTranslator<NumericRange>
+internal sealed class NumericRangeSubQueryTranslator : MeilisearchSubQueryTranslator<NumericRangeSubQuery>
 {
-    protected override Result<MeilisearchFilter> Translate(NumericRange query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators) =>
-        RangeFilter.Numbers(query, nameof(NumericRange), MeilisearchFieldNames.Fields, query.MinValue, query.MaxValue);
+    protected override Result<MeilisearchFilter> Translate(NumericRangeSubQuery query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators) =>
+        RangeFilter.Numbers(query, nameof(NumericRangeSubQuery), MeilisearchFieldNames.Fields, query.MinValue, query.MaxValue);
 }
 
 /// <summary>Meilisearch stores numbers as doubles, so values beyond 2^53 compare at that precision.</summary>
-internal sealed class LongRangeSubQueryTranslator : MeilisearchSubQueryTranslator<LongRange>
+internal sealed class LongRangeSubQueryTranslator : MeilisearchSubQueryTranslator<LongRangeSubQuery>
 {
-    protected override Result<MeilisearchFilter> Translate(LongRange query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators) =>
-        RangeFilter.Numbers(query, nameof(LongRange), MeilisearchFieldNames.Fields, query.MinValue, query.MaxValue);
+    protected override Result<MeilisearchFilter> Translate(LongRangeSubQuery query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators) =>
+        RangeFilter.Numbers(query, nameof(LongRangeSubQuery), MeilisearchFieldNames.Fields, query.MinValue, query.MaxValue);
 }
 
 /// <summary>Compares the dates the provider stores as Unix milliseconds; an unspecified <see cref="DateTime"/> is UTC.</summary>
-internal sealed class DateRangeSubQueryTranslator : MeilisearchSubQueryTranslator<DateRangeQuery>
+internal sealed class DateRangeSubQueryTranslator : MeilisearchSubQueryTranslator<DateRangeSubQuery>
 {
-    protected override Result<MeilisearchFilter> Translate(DateRangeQuery query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators) =>
-        RangeFilter.Numbers(query, nameof(DateRangeQuery), MeilisearchFieldNames.Dates,
+    protected override Result<MeilisearchFilter> Translate(DateRangeSubQuery query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators) =>
+        RangeFilter.Numbers(query, nameof(DateRangeSubQuery), MeilisearchFieldNames.Dates,
             MeilisearchDocument.ToUnixMilliseconds(query.MinValue?.Instant), MeilisearchDocument.ToUnixMilliseconds(query.MaxValue?.Instant));
 }
 
@@ -31,12 +31,12 @@ internal sealed class DateRangeSubQueryTranslator : MeilisearchSubQueryTranslato
 /// Compares the field's lower-cased words, as Elasticsearch compares analyzed tokens; a <c>fields.</c> name compares
 /// whole values. Meilisearch compares strings ignoring case either way, so the bounds are lower-cased for both.
 /// </summary>
-internal sealed class StringRangeSubQueryTranslator : MeilisearchSubQueryTranslator<StringRange>
+internal sealed class StringRangeSubQueryTranslator : MeilisearchSubQueryTranslator<StringRangeSubQuery>
 {
-    protected override Result<MeilisearchFilter> Translate(StringRange query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators) =>
+    protected override Result<MeilisearchFilter> Translate(StringRangeSubQuery query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators) =>
         Create(query);
 
-    public static Result<MeilisearchFilter> Create(StringRange query)
+    public static Result<MeilisearchFilter> Create(StringRangeSubQuery query)
     {
         var min = query.MinValue?.ToLowerInvariant();
         var max = query.MaxValue?.ToLowerInvariant();
@@ -47,12 +47,12 @@ internal sealed class StringRangeSubQueryTranslator : MeilisearchSubQueryTransla
             max = query.IncludeMaxEdge ? max : RangeFilter.Before(max);
             if (max == null)
             {
-                var field = MeilisearchFieldNames.Require(query.Field, nameof(StringRange));
+                var field = MeilisearchFieldNames.Require(query.Field, nameof(StringRangeSubQuery));
                 return field.IsFailed ? field.ToResult<MeilisearchFilter>() : Filter(MeilisearchFieldNames.MatchNone);
             }
         }
 
-        return RangeFilter.Create(query, nameof(StringRange), MeilisearchFieldNames.Tokens,
+        return RangeFilter.Create(query, nameof(StringRangeSubQuery), MeilisearchFieldNames.Tokens,
             min == null ? null : MeilisearchFieldNames.Quote(min), max == null ? null : MeilisearchFieldNames.Quote(max));
     }
 }
@@ -66,7 +66,7 @@ internal static class RangeFilter
     /// A range over numbers, which Meilisearch stores as doubles. With both bounds an excluded edge moves to the next
     /// double inward, as <c>TO</c> includes its edges.
     /// </summary>
-    public static Result<MeilisearchFilter> Numbers(BaseRangeQuery query, string queryName, string map, double? min, double? max)
+    public static Result<MeilisearchFilter> Numbers(BaseRangeSubQuery query, string queryName, string map, double? min, double? max)
     {
         var finite = RangeBounds.RequireFinite(queryName, min, max);
         if (finite.IsFailed)
@@ -90,7 +90,7 @@ internal static class RangeFilter
     }
 
     /// <summary>A range filter, failing when <paramref name="min"/> and <paramref name="max"/> are both <c>null</c>.</summary>
-    public static Result<MeilisearchFilter> Create(BaseRangeQuery query, string queryName, string map, string? min, string? max)
+    public static Result<MeilisearchFilter> Create(BaseRangeSubQuery query, string queryName, string map, string? min, string? max)
     {
         var field = MeilisearchFieldNames.Require(query.Field, queryName);
         if (field.IsFailed)

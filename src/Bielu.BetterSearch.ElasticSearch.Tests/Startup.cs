@@ -1,6 +1,6 @@
-﻿using Bielu.BetterSearch.DepedencyInjection;
+﻿using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
-using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
+using Bielu.BetterSearch.ElasticSearch.DependencyInjection;
 using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.DependencyInjection.Logging;
@@ -25,7 +25,7 @@ public class Startup
                 options.SharedIndexSettings = new ElasticSearchIndexSettings
                 {
                     ConnectionString = elasticsearch.EnsureStarted().ToString(),
-                    AuthenticationType = AuthenticationType.NONE,
+                    AuthenticationType = AuthenticationType.None,
                     // Facet fields are text, so the facet tests show that facets count the keyword sub-field.
                     Mappings =
                     [

@@ -3,29 +3,29 @@ using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using FluentResults;
-using DateRangeQuery = Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeQuery;
+using DateRangeSubQuery = Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeSubQuery;
 using EsDateRangeQuery = Elastic.Clients.Elasticsearch.QueryDsl.DateRangeQuery;
 using EsQuery = Elastic.Clients.Elasticsearch.QueryDsl.Query;
 
 namespace Bielu.BetterSearch.ElasticSearch.Services.Queries;
 
-internal sealed class NumericRangeSubQueryTranslator : ElasticSearchSubQueryTranslator<NumericRange>
+internal sealed class NumericRangeSubQueryTranslator : ElasticSearchSubQueryTranslator<NumericRangeSubQuery>
 {
-    protected override Task<Result<EsQuery>> TranslateAsync(NumericRange query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
+    protected override Task<Result<EsQuery>> TranslateAsync(NumericRangeSubQuery query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
     {
-        var field = ElasticSearchFieldNames.Require(query.Field, nameof(NumericRange));
+        var field = ElasticSearchFieldNames.Require(query.Field, nameof(NumericRangeSubQuery));
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<EsQuery>());
         }
 
-        var bounds = RangeBounds.Require(nameof(NumericRange), query.MinValue, query.MaxValue);
+        var bounds = RangeBounds.Require(nameof(NumericRangeSubQuery), query.MinValue, query.MaxValue);
         if (bounds.IsFailed)
         {
             return Task.FromResult(bounds.ToResult<EsQuery>());
         }
 
-        var finite = RangeBounds.RequireFinite(nameof(NumericRange), query.MinValue, query.MaxValue);
+        var finite = RangeBounds.RequireFinite(nameof(NumericRangeSubQuery), query.MinValue, query.MaxValue);
         if (finite.IsFailed)
         {
             return Task.FromResult(finite.ToResult<EsQuery>());
@@ -44,17 +44,17 @@ internal sealed class NumericRangeSubQueryTranslator : ElasticSearchSubQueryTran
 }
 
 /// <summary>An untyped range, so values beyond the precision of a double are sent unchanged.</summary>
-internal sealed class LongRangeSubQueryTranslator : ElasticSearchSubQueryTranslator<LongRange>
+internal sealed class LongRangeSubQueryTranslator : ElasticSearchSubQueryTranslator<LongRangeSubQuery>
 {
-    protected override Task<Result<EsQuery>> TranslateAsync(LongRange query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
+    protected override Task<Result<EsQuery>> TranslateAsync(LongRangeSubQuery query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
     {
-        var field = ElasticSearchFieldNames.Require(query.Field, nameof(LongRange));
+        var field = ElasticSearchFieldNames.Require(query.Field, nameof(LongRangeSubQuery));
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<EsQuery>());
         }
 
-        var bounds = RangeBounds.Require(nameof(LongRange), query.MinValue, query.MaxValue);
+        var bounds = RangeBounds.Require(nameof(LongRangeSubQuery), query.MinValue, query.MaxValue);
         if (bounds.IsFailed)
         {
             return Task.FromResult(bounds.ToResult<EsQuery>());
@@ -72,17 +72,17 @@ internal sealed class LongRangeSubQueryTranslator : ElasticSearchSubQueryTransla
     }
 }
 
-internal sealed class DateRangeSubQueryTranslator : ElasticSearchSubQueryTranslator<DateRangeQuery>
+internal sealed class DateRangeSubQueryTranslator : ElasticSearchSubQueryTranslator<DateRangeSubQuery>
 {
-    protected override Task<Result<EsQuery>> TranslateAsync(DateRangeQuery query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
+    protected override Task<Result<EsQuery>> TranslateAsync(DateRangeSubQuery query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
     {
-        var field = ElasticSearchFieldNames.Require(query.Field, nameof(DateRangeQuery));
+        var field = ElasticSearchFieldNames.Require(query.Field, nameof(DateRangeSubQuery));
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<EsQuery>());
         }
 
-        var bounds = RangeBounds.Require(nameof(DateRangeQuery), query.MinValue, query.MaxValue);
+        var bounds = RangeBounds.Require(nameof(DateRangeSubQuery), query.MinValue, query.MaxValue);
         if (bounds.IsFailed)
         {
             return Task.FromResult(bounds.ToResult<EsQuery>());
@@ -104,17 +104,17 @@ internal sealed class DateRangeSubQueryTranslator : ElasticSearchSubQueryTransla
 }
 
 /// <summary>A lexicographic range over the terms of the field; use a keyword field for whole values.</summary>
-internal sealed class StringRangeSubQueryTranslator : ElasticSearchSubQueryTranslator<StringRange>
+internal sealed class StringRangeSubQueryTranslator : ElasticSearchSubQueryTranslator<StringRangeSubQuery>
 {
-    protected override Task<Result<EsQuery>> TranslateAsync(StringRange query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
+    protected override Task<Result<EsQuery>> TranslateAsync(StringRangeSubQuery query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
     {
-        var field = ElasticSearchFieldNames.Require(query.Field, nameof(StringRange));
+        var field = ElasticSearchFieldNames.Require(query.Field, nameof(StringRangeSubQuery));
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<EsQuery>());
         }
 
-        var bounds = RangeBounds.Require(nameof(StringRange), query.MinValue, query.MaxValue);
+        var bounds = RangeBounds.Require(nameof(StringRangeSubQuery), query.MinValue, query.MaxValue);
         if (bounds.IsFailed)
         {
             return Task.FromResult(bounds.ToResult<EsQuery>());

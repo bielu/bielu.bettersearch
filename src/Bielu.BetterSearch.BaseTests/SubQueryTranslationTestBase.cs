@@ -65,35 +65,35 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
     public virtual async Task BoolSearchQueryShouldBeTranslatable()
     {
         var subQuery = new BoolSearchSubQuery();
-        subQuery.Add(Occurance.MUST, new TermSubQuery { Field = "Name", Value = "jane" });
+        subQuery.Add(Occurrence.Must, new TermSubQuery { Field = "Name", Value = "jane" });
         await SubQueryShouldBeTranslatableAsync(subQuery);
     }
 
     [Fact]
     public virtual async Task DateRangeQueryShouldBeTranslatable()
     {
-        var subQuery = new DateRangeQuery { Field = "Born", MinValue = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
+        var subQuery = new DateRangeSubQuery { Field = "Born", MinValue = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
         await SubQueryShouldBeTranslatableAsync(subQuery);
     }
 
     [Fact]
     public virtual async Task FuzzyQueryShouldBeTranslatable()
     {
-        var subQuery = new FuzzyQuery { Field = "Name", Value = "jnae" };
+        var subQuery = new FuzzySubQuery { Field = "Name", Value = "jnae" };
         await SubQueryShouldBeTranslatableAsync(subQuery);
     }
 
     [Fact]
     public virtual async Task LongRangeShouldBeTranslatable()
     {
-        var subQuery = new LongRange { Field = "Age", MinValue = 1, MaxValue = 100 };
+        var subQuery = new LongRangeSubQuery { Field = "Age", MinValue = 1, MaxValue = 100 };
         await SubQueryShouldBeTranslatableAsync(subQuery);
     }
 
     [Fact]
     public virtual async Task NumericRangeShouldBeTranslatable()
     {
-        var subQuery = new NumericRange { Field = "Age", MinValue = 1, MaxValue = 100 };
+        var subQuery = new NumericRangeSubQuery { Field = "Age", MinValue = 1, MaxValue = 100 };
         await SubQueryShouldBeTranslatableAsync(subQuery);
     }
 
@@ -113,7 +113,7 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
 
     [Fact]
     public virtual async Task FuzzyQuery_CommaDecimalCulture_SendsInvariantValue()
-        => await SubQueryShouldSendInvariantAsync(new FuzzyQuery { Field = "Name", Value = 3.5 }, "3.5", "3,5");
+        => await SubQueryShouldSendInvariantAsync(new FuzzySubQuery { Field = "Name", Value = 3.5 }, "3.5", "3,5");
 
     [Fact]
     public virtual async Task PrefixPhraseSubQuery_CommaDecimalCulture_SendsInvariantValue()
@@ -146,7 +146,7 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
 
     protected async Task FuzzyValueShouldFailAsync(object value, string typeName)
     {
-        var result = await TranslateAsync(new FuzzyQuery { Field = "Born", Value = value });
+        var result = await TranslateAsync(new FuzzySubQuery { Field = "Born", Value = value });
         result.IsFailed.ShouldBeTrue();
         result.Errors.ShouldHaveSingleItem().Message.ShouldContain($"is a {typeName}; a fuzzy match needs a string or a number");
     }
@@ -176,14 +176,14 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
     [Fact]
     public virtual async Task SpatialSearchQueryShouldBeTranslatable()
     {
-        var subQuery = new SpatialSearchQuery { Field = "Location", Distance = 10, Lat = 52.23, Lng = 21.01 };
+        var subQuery = new SpatialSearchSubQuery { Field = "Location", Distance = 10, Lat = 52.23, Lng = 21.01 };
         await SubQueryShouldBeTranslatableAsync(subQuery);
     }
 
     [Fact]
     public virtual async Task StringRangeShouldBeTranslatable()
     {
-        var subQuery = new StringRange { Field = "Name", MinValue = "a", MaxValue = "m" };
+        var subQuery = new StringRangeSubQuery { Field = "Name", MinValue = "a", MaxValue = "m" };
         await SubQueryShouldBeTranslatableAsync(subQuery);
     }
 
@@ -206,15 +206,15 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
         new BoolSearchSubQuery(),
         new TermSubQuery(),
         new TermsSubQuery(),
-        new FuzzyQuery(),
+        new FuzzySubQuery(),
         new PrefixSubQuery(),
         new PrefixPhraseSubQuery(),
         new LuceneSubQuery(),
-        new SpatialSearchQuery(),
-        new NumericRange(),
-        new LongRange(),
-        new DateRangeQuery(),
-        new StringRange()
+        new SpatialSearchSubQuery(),
+        new NumericRangeSubQuery(),
+        new LongRangeSubQuery(),
+        new DateRangeSubQuery(),
+        new StringRangeSubQuery()
     ];
 
     // A sub-query added to NestedQueries directly, or by a collection initializer, keeps these defaults.
@@ -222,9 +222,9 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
     [MemberData(nameof(DefaultConstructedSubQueries))]
     public void DefaultConstructedSubQuery_IsAMustWithBoostOne(ISearchSubQuery subQuery)
     {
-        subQuery.Occurance.ShouldBe(Occurance.MUST);
+        subQuery.Occurrence.ShouldBe(Occurrence.Must);
         subQuery.BoostValue.ShouldBe(1);
-        if (subQuery is BaseRangeQuery range)
+        if (subQuery is BaseRangeSubQuery range)
         {
             range.IncludeMinEdge.ShouldBeTrue();
             range.IncludeMaxEdge.ShouldBeTrue();
@@ -233,10 +233,10 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
 
     public static TheoryData<ISearchSubQuery> RangesWithoutBounds() =>
     [
-        new NumericRange { Field = "Age" },
-        new LongRange { Field = "Age" },
-        new DateRangeQuery { Field = "Born" },
-        new StringRange { Field = "Name" }
+        new NumericRangeSubQuery { Field = "Age" },
+        new LongRangeSubQuery { Field = "Age" },
+        new DateRangeSubQuery { Field = "Born" },
+        new StringRangeSubQuery { Field = "Name" }
     ];
 
     // A range with no bounds would match every document that has the field, so every provider fails it the same way.
@@ -263,11 +263,11 @@ public abstract class SubQueryTranslationTestBase<T>(IEnumerable<ISubQueryTransl
     [MemberData(nameof(NonFiniteBounds))]
     public async Task NumericRangeWithNonFiniteBound_ReturnsFailedResult(double? min, double? max)
     {
-        var result = await TranslateAsync(new NumericRange { Field = "Price", MinValue = min, MaxValue = max });
+        var result = await TranslateAsync(new NumericRangeSubQuery { Field = "Price", MinValue = min, MaxValue = max });
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.ShouldHaveSingleItem().Message
-            .ShouldBe("NumericRange has a bound that is not a finite number; use a finite MinValue and MaxValue.");
+            .ShouldBe("NumericRangeSubQuery has a bound that is not a finite number; use a finite MinValue and MaxValue.");
     }
 
     [Fact]

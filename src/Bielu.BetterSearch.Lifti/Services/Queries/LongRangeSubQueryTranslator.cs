@@ -14,13 +14,13 @@ namespace Bielu.BetterSearch.Lifti.Services.Queries;
 /// </summary>
 internal sealed class LongRangeSubQueryTranslator : ISubQueryTranslator<IQuery>
 {
-    public bool CanTranslate(ISearchSubQuery query) => query is LongRange;
+    public bool CanTranslate(ISearchSubQuery query) => query is LongRangeSubQuery;
 
     public Task<Result<IQuery>> TranslateAsync(ISearchSubQuery query, IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators)
     {
         // A range with no bounds fails as it does in every provider, so a forgotten bound reads the same everywhere.
-        var range = (LongRange)query;
-        var bounds = RangeBounds.Require(nameof(LongRange), range.MinValue, range.MaxValue);
+        var range = (LongRangeSubQuery)query;
+        var bounds = RangeBounds.Require(nameof(LongRangeSubQuery), range.MinValue, range.MaxValue);
         return Task.FromResult(bounds.IsFailed
             ? bounds.ToResult<IQuery>()
             : Result.Fail<IQuery>("Lifti does not support long range queries."));

@@ -52,7 +52,7 @@ public abstract class IndexPrefixTestBase(IServiceProvider services) : IDisposab
 
     /// <summary>The ids of every document in <paramref name="index"/>, each named <c>item</c> and its id.</summary>
     protected Task<List<string>> IdsAsync(string index) =>
-        Search.SearchIdsAsync(SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "item" }), Token);
+        Search.SearchIdsAsync(SearchTestHelpers.Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "item" }), Token);
 
     protected static void ShouldSucceed(ResultBase result) =>
         result.IsSuccess.ShouldBeTrue(Errors(result));
@@ -108,7 +108,7 @@ public abstract class IndexPrefixTestBase(IServiceProvider services) : IDisposab
             // Nothing was written under the unprefixed name.
             (await EngineIndexExistsAsync(index)).ShouldBeFalse();
 
-            ShouldSucceed(await Indexing.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "a", Type = index }, Token));
+            ShouldSucceed(await Indexing.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "a", Index = index }, Token));
             var removed = await Indexing.RemoveDocumentsAsync(index, ["b"], Token);
             ShouldSucceed(removed);
             removed.Value.ShouldBe(1);
@@ -138,7 +138,7 @@ public abstract class IndexPrefixTestBase(IServiceProvider services) : IDisposab
         var got = await Search.GetDocumentAsync(index, "a", Token);
         ShouldSucceed(got);
         got.Value.ShouldNotBeNull().Fields["Name"].ShouldHaveSingleItem().ShouldBe("item a");
-        var counted = await Search.CountAsync(SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "item" }), Token);
+        var counted = await Search.CountAsync(SearchTestHelpers.Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "item" }), Token);
         ShouldSucceed(counted);
         counted.Value.ShouldBe(4);
         var updated = await Indexing.UpdateDocumentAsync(index, "d", new Dictionary<string, IList<object>> { ["Name"] = ["item d updated"] }, Token);

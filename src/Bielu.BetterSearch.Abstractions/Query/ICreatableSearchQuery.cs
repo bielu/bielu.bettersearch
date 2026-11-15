@@ -2,5 +2,5 @@
 
 public interface ICreatableSearchQuery
 {
-    void Add(Occurance key, ISearchSubQuery value);
+    void Add(Occurrence key, ISearchSubQuery value);
 }

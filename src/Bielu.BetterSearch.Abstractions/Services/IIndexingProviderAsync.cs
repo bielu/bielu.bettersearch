@@ -6,7 +6,7 @@ public interface IIndexingProviderAsync
 {
     Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default);
     Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents, CancellationToken cancellationToken = default);
-    Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default);
+    Task<Result> RemoveDocumentAsync(string id, string index, CancellationToken cancellationToken = default);
     /// <summary>
     /// Removes the documents with <paramref name="ids"/> from <paramref name="index"/> in one request where the engine
     /// allows it, and returns how many were removed. An id that is not in the index is not counted and is not an error,

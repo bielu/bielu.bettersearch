@@ -62,10 +62,10 @@ public sealed class MeilisearchSearchTests(
         return result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
     }
 
-    private static SearchQuery Query(string index, Occurance occurance, ISearchSubQuery subQuery)
+    private static SearchQuery Query(string index, Occurrence occurrence, ISearchSubQuery subQuery)
     {
         var query = new SearchQuery { Index = index };
-        query.Add(occurance, subQuery);
+        query.Add(occurrence, subQuery);
         return query;
     }
 
@@ -84,7 +84,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "Jane" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "Jane" }));
 
         // "Jane" is also a city, which a field-blind provider would match.
         ids.ShouldBe(["5", "Up-1"]);
@@ -102,7 +102,7 @@ public sealed class MeilisearchSearchTests(
         };
         (await indexingProvider.IndexDocumentAsync(turtle, Token)).IsSuccess.ShouldBeTrue();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "żółw" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "żółw" }));
 
         ids.ShouldBe(["1"]);
     }
@@ -112,8 +112,8 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var whole = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "fields.Name", Value = "John Doe" }));
-        var word = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "fields.Name", Value = "John" }));
+        var whole = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "fields.Name", Value = "John Doe" }));
+        var word = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "fields.Name", Value = "John" }));
 
         whole.ShouldBe(["2"]);
         word.ShouldBeEmpty();
@@ -124,7 +124,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Age", Value = 35 }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Age", Value = 35 }));
 
         ids.ShouldBe(["3"]);
     }
@@ -134,7 +134,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Born", Value = new DateTime(1994, 1, 1, 0, 0, 0, DateTimeKind.Utc) }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Born", Value = new DateTime(1994, 1, 1, 0, 0, 0, DateTimeKind.Utc) }));
 
         ids.ShouldBe(["2"]);
     }
@@ -144,7 +144,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "City", Value = ["warsaw", "Gdansk"] }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermsSubQuery { Field = "City", Value = ["warsaw", "Gdansk"] }));
 
         ids.ShouldBe(["3", "4", "Up-1"]);
     }
@@ -154,7 +154,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "City", Value = [] }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermsSubQuery { Field = "City", Value = [] }));
 
         ids.ShouldBeEmpty();
     }
@@ -164,7 +164,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new PrefixSubQuery { Field = "Name", Value = "Jo" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new PrefixSubQuery { Field = "Name", Value = "Jo" }));
 
         ids.ShouldBe(["2", "3"]);
     }
@@ -174,8 +174,8 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new PrefixPhraseSubQuery { Field = "Name", Value = "john sm" }));
-        var middle = await SearchIdsAsync(Query(index, Occurance.MUST, new PrefixPhraseSubQuery { Field = "Name", Value = "Do" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new PrefixPhraseSubQuery { Field = "Name", Value = "john sm" }));
+        var middle = await SearchIdsAsync(Query(index, Occurrence.Must, new PrefixPhraseSubQuery { Field = "Name", Value = "Do" }));
 
         ids.ShouldBe(["3"]);
         middle.ShouldBe(["2", "Up-1"]);
@@ -186,7 +186,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var inclusive = await SearchIdsAsync(Query(index, Occurance.MUST, new NumericRange
+        var inclusive = await SearchIdsAsync(Query(index, Occurrence.Must, new NumericRangeSubQuery
         {
             Field = "Age",
             MinValue = 30,
@@ -194,7 +194,7 @@ public sealed class MeilisearchSearchTests(
             IncludeMinEdge = true,
             IncludeMaxEdge = true
         }));
-        var exclusive = await SearchIdsAsync(Query(index, Occurance.MUST, new NumericRange
+        var exclusive = await SearchIdsAsync(Query(index, Occurrence.Must, new NumericRangeSubQuery
         {
             Field = "Age",
             MinValue = 30,
@@ -212,7 +212,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new LongRange
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new LongRangeSubQuery
         {
             Field = "Views",
             MinValue = 4_000_000_000,
@@ -227,7 +227,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new DateRangeQuery
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new DateRangeSubQuery
         {
             Field = "Born",
             MinValue = new DateTime(1985, 1, 1, 0, 0, 0, DateTimeKind.Utc),
@@ -242,7 +242,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new StringRange
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new StringRangeSubQuery
         {
             Field = "fields.City",
             MinValue = "Gdansk",
@@ -260,7 +260,7 @@ public sealed class MeilisearchSearchTests(
         var index = await CreatePeopleAsync();
 
         // "Jane Doe" has "jane" past the minimum and "doe" before the maximum, but neither word inside the range.
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new StringRange
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new StringRangeSubQuery
         {
             Field = "Name",
             MinValue = "e",
@@ -277,7 +277,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new StringRange
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new StringRangeSubQuery
         {
             Field = "fields.City",
             MinValue = "Gdansk",
@@ -301,7 +301,7 @@ public sealed class MeilisearchSearchTests(
         };
         (await indexingProvider.IndexMultipleDocumentsAsync([Scores("1", 0, 10), Scores("2", 3), Scores("3", 5)], Token)).IsSuccess.ShouldBeTrue();
 
-        var inclusive = await SearchIdsAsync(Query(index, Occurance.MUST, new NumericRange
+        var inclusive = await SearchIdsAsync(Query(index, Occurrence.Must, new NumericRangeSubQuery
         {
             Field = "Scores",
             MinValue = 1,
@@ -309,7 +309,7 @@ public sealed class MeilisearchSearchTests(
             IncludeMinEdge = true,
             IncludeMaxEdge = true
         }));
-        var exclusive = await SearchIdsAsync(Query(index, Occurance.MUST, new NumericRange { Field = "Scores", MinValue = 1, MaxValue = 5, IncludeMinEdge = false, IncludeMaxEdge = false }));
+        var exclusive = await SearchIdsAsync(Query(index, Occurrence.Must, new NumericRangeSubQuery { Field = "Scores", MinValue = 1, MaxValue = 5, IncludeMinEdge = false, IncludeMaxEdge = false }));
 
         inclusive.ShouldBe(["2", "3"]);
         exclusive.ShouldBe(["2"]);
@@ -330,8 +330,8 @@ public sealed class MeilisearchSearchTests(
         {
             (await indexingProvider.IndexMultipleDocumentsAsync([Amount("1", 1e20), Amount("2", 1e19)], Token)).Value.ShouldBe(2);
 
-            var term = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Amount", Value = 1e20 }));
-            var terms = await SearchIdsAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "Amount", Value = [1e20, 1e21] }));
+            var term = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Amount", Value = 1e20 }));
+            var terms = await SearchIdsAsync(Query(index, Occurrence.Must, new TermsSubQuery { Field = "Amount", Value = [1e20, 1e21] }));
 
             term.ShouldBe(["1"]);
             terms.ShouldBe(["1"]);
@@ -395,7 +395,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "fields.City", Value = "WARSAW" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "fields.City", Value = "WARSAW" }));
 
         ids.ShouldBe(["3", "Up-1"]);
     }
@@ -415,7 +415,7 @@ public sealed class MeilisearchSearchTests(
             Fields = new Dictionary<string, IList<object>> { { "Age", [30] }, { "Active", [true] } }
         }, Token)).IsSuccess.ShouldBeTrue();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = field, Value = value }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = field, Value = value }));
 
         ids.ShouldBe([expected]);
     }
@@ -425,7 +425,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "fields.Born", Value = new DateTime(1994, 1, 1, 0, 0, 0, DateTimeKind.Utc) }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "fields.Born", Value = new DateTime(1994, 1, 1, 0, 0, 0, DateTimeKind.Utc) }));
 
         ids.ShouldBe(["2"]);
     }
@@ -436,7 +436,7 @@ public sealed class MeilisearchSearchTests(
         var index = await CreatePeopleAsync();
         var values = Enumerable.Range(0, 2_000).Select(i => (object)$"city{i}").Append("Gdansk").ToList();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermsSubQuery { Field = "City", Value = values }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermsSubQuery { Field = "City", Value = values }));
 
         ids.ShouldBe(["4"]);
     }
@@ -446,7 +446,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUSTNOT, new TermSubQuery { Field = "Name", Value = "john" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.MustNot, new TermSubQuery { Field = "Name", Value = "john" }));
 
         ids.ShouldBe(["4", "5", "Up-1"]);
     }
@@ -455,8 +455,8 @@ public sealed class MeilisearchSearchTests(
     public async Task SearchAsync_ShouldOnly_ReturnsTheUnion()
     {
         var index = await CreatePeopleAsync();
-        var query = Query(index, Occurance.SHOULD, new TermSubQuery { Field = "Name", Value = "anna" });
-        query.Add(Occurance.SHOULD, new TermSubQuery { Field = "City", Value = "krakow" });
+        var query = Query(index, Occurrence.Should, new TermSubQuery { Field = "Name", Value = "anna" });
+        query.Add(Occurrence.Should, new TermSubQuery { Field = "City", Value = "krakow" });
 
         var ids = await SearchIdsAsync(query);
 
@@ -469,11 +469,11 @@ public sealed class MeilisearchSearchTests(
         var index = await CreatePeopleAsync();
         // City is Warsaw AND (Name is jane OR Age >= 35) AND NOT Name is doe
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.SHOULD, new TermSubQuery { Field = "Name", Value = "jane" });
-        nested.Add(Occurance.SHOULD, new NumericRange { Field = "Age", MinValue = 35, IncludeMinEdge = true });
-        var query = Query(index, Occurance.FILTER, new TermSubQuery { Field = "City", Value = "warsaw" });
-        query.Add(Occurance.MUST, nested);
-        query.Add(Occurance.MUSTNOT, new TermSubQuery { Field = "Name", Value = "doe" });
+        nested.Add(Occurrence.Should, new TermSubQuery { Field = "Name", Value = "jane" });
+        nested.Add(Occurrence.Should, new NumericRangeSubQuery { Field = "Age", MinValue = 35, IncludeMinEdge = true });
+        var query = Query(index, Occurrence.Filter, new TermSubQuery { Field = "City", Value = "warsaw" });
+        query.Add(Occurrence.Must, nested);
+        query.Add(Occurrence.MustNot, new TermSubQuery { Field = "Name", Value = "doe" });
 
         var ids = await SearchIdsAsync(query);
 
@@ -561,7 +561,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" }), TestContext.Current.CancellationToken);
+        var result = await searchService.SearchAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "doe" }), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         var hit = result.Value.Items.Single(item => item.Document.Id == "Up-1");
@@ -610,7 +610,7 @@ public sealed class MeilisearchSearchTests(
     public async Task SearchAsync_Properties_ReturnsOnlyThoseFields()
     {
         var index = await CreatePeopleAsync();
-        var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "anna" });
+        var query = Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "anna" });
         query.Properties = ["Name"];
 
         var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
@@ -651,7 +651,7 @@ public sealed class MeilisearchSearchTests(
         var index = await CreatePlacesAsync();
 
         // Lodz is about 120 km from Warsaw, 190 km from Krakow and 290 km from Gdansk.
-        SpatialSearchQuery Around(double distance, string? unit = null) => new()
+        SpatialSearchSubQuery Around(double distance, string? unit = null) => new()
         {
             Field = "Location",
             Lat = 51.7592,
@@ -659,10 +659,10 @@ public sealed class MeilisearchSearchTests(
             Distance = distance,
             UnitOfDistance = unit
         };
-        var near = await SearchIdsAsync(Query(index, Occurance.MUST, Around(150)));
-        var wider = await SearchIdsAsync(Query(index, Occurance.MUST, Around(250)));
-        var miles = await SearchIdsAsync(Query(index, Occurance.MUST, Around(200, "mi")));
-        var outside = await SearchIdsAsync(Query(index, Occurance.MUSTNOT, Around(150)));
+        var near = await SearchIdsAsync(Query(index, Occurrence.Must, Around(150)));
+        var wider = await SearchIdsAsync(Query(index, Occurrence.Must, Around(250)));
+        var miles = await SearchIdsAsync(Query(index, Occurrence.Must, Around(200, "mi")));
+        var outside = await SearchIdsAsync(Query(index, Occurrence.MustNot, Around(150)));
 
         near.ShouldBe(["warsaw"]);
         wider.ShouldBe(["krakow", "warsaw"]);
@@ -675,7 +675,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePlacesAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "fields.Location", Value = "52.2297,21.0122" }), TestContext.Current.CancellationToken);
+        var result = await searchService.SearchAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "fields.Location", Value = "52.2297,21.0122" }), TestContext.Current.CancellationToken);
 
         result.Value.Items.Single().Document.CustomProperties["Location"].ShouldBe(["52.2297,21.0122"]);
     }
@@ -684,10 +684,10 @@ public sealed class MeilisearchSearchTests(
     public async Task SearchAsync_PostFilter_FiltersHits()
     {
         var index = await CreatePeopleAsync();
-        var query = Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "john" });
+        var query = Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "john" });
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.MUST, new TermSubQuery { Field = "City", Value = "krakow" });
-        query.PostFilterQuery[Occurance.MUST] = [nested];
+        nested.Add(Occurrence.Must, new TermSubQuery { Field = "City", Value = "krakow" });
+        query.PostFilterQuery[Occurrence.Must] = [nested];
 
         var ids = await SearchIdsAsync(query);
 
@@ -701,7 +701,7 @@ public sealed class MeilisearchSearchTests(
         (await indexingProvider.CreateIndexAsync(index, Token)).Value.ShouldBeTrue();
         (await indexingProvider.IndexDocumentAsync(Person(index, "1", "Ola", 20, 1, DateTime.UnixEpoch, "Lodz"), Token)).IsSuccess.ShouldBeTrue();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "City", Value = "lodz" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "City", Value = "lodz" }));
 
         ids.ShouldBe(["1"]);
     }
@@ -713,7 +713,7 @@ public sealed class MeilisearchSearchTests(
         (await indexingProvider.DeleteIndexAsync(index, Token)).Value.ShouldBeTrue();
         (await indexingProvider.IndexDocumentAsync(Person(index, "1", "Ola", 20, 1, DateTime.UnixEpoch, "Lodz"), Token)).IsSuccess.ShouldBeTrue();
 
-        var ids = await SearchIdsAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "City", Value = "lodz" }));
+        var ids = await SearchIdsAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "City", Value = "lodz" }));
 
         ids.ShouldBe(["1"]);
     }
@@ -723,7 +723,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "nobody" }), TestContext.Current.CancellationToken);
+        var result = await searchService.SearchAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "nobody" }), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Items.ShouldBeEmpty();
@@ -752,7 +752,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new TermSubQuery { Value = "jane" }), TestContext.Current.CancellationToken);
+        var result = await searchService.SearchAsync(Query(index, Occurrence.Must, new TermSubQuery { Value = "jane" }), TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
     }
@@ -806,7 +806,7 @@ public sealed class MeilisearchSearchTests(
     public async Task SearchAsync_LuceneQuery_MatchesAsElasticsearchWould(string lucene, string[] expected)
     {
         var index = await CreatePeopleAsync();
-        var query = Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = lucene });
+        var query = Query(index, Occurrence.Must, new LuceneSubQuery { LuceneQuery = lucene });
         query.PageSize = 100;
 
         var result = await searchService.SearchAsync(query, Token);
@@ -827,7 +827,7 @@ public sealed class MeilisearchSearchTests(
             var documents = LuceneDateRangeCases.Documents(index);
             (await indexingProvider.IndexMultipleDocumentsAsync(documents, Token)).Value.ShouldBe(documents.Length);
 
-            var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = lucene }), Token);
+            var result = await searchService.SearchAsync(Query(index, Occurrence.Must, new LuceneSubQuery { LuceneQuery = lucene }), Token);
 
             result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.Message)));
             result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id, StringComparer.Ordinal).ShouldBe(expected);
@@ -856,7 +856,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = lucene }), Token);
+        var result = await searchService.SearchAsync(Query(index, Occurrence.Must, new LuceneSubQuery { LuceneQuery = lucene }), Token);
 
         result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.Message)));
         result.Value.Items.Select(item => item.Document.Id).OrderBy(id => id, StringComparer.Ordinal).ShouldBe(expected);
@@ -868,8 +868,8 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var exact = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = "Name:jane~" }), Token);
-        var typo = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = "Name:jnae~" }), Token);
+        var exact = await searchService.SearchAsync(Query(index, Occurrence.Must, new LuceneSubQuery { LuceneQuery = "Name:jane~" }), Token);
+        var typo = await searchService.SearchAsync(Query(index, Occurrence.Must, new LuceneSubQuery { LuceneQuery = "Name:jnae~" }), Token);
 
         exact.Value.Items.Select(item => item.Document.Id).OrderBy(id => id, StringComparer.Ordinal).ShouldBe(["5", "Up-1"]);
         exact.Successes.OfType<TranslationWarning>().Single().Message.ShouldContain("matches the exact word");
@@ -882,7 +882,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = "Name:jane AND Name:\"\"" }), Token);
+        var result = await searchService.SearchAsync(Query(index, Occurrence.Must, new LuceneSubQuery { LuceneQuery = "Name:jane AND Name:\"\"" }), Token);
 
         result.Errors.Single().Message.ShouldContain("empty phrase");
     }
@@ -892,7 +892,7 @@ public sealed class MeilisearchSearchTests(
     {
         var index = await CreatePeopleAsync();
 
-        var result = await searchService.SearchAsync(Query(index, Occurance.MUST, new LuceneSubQuery { LuceneQuery = "jane" }), Token);
+        var result = await searchService.SearchAsync(Query(index, Occurrence.Must, new LuceneSubQuery { LuceneQuery = "jane" }), Token);
 
         result.Errors.Single().Message.ShouldContain("names no field");
     }

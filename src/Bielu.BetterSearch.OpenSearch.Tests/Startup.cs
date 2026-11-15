@@ -1,6 +1,6 @@
-﻿using Bielu.BetterSearch.DepedencyInjection;
+﻿using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.OpenSearch.Configuration;
-using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+using Bielu.BetterSearch.OpenSearch.DependencyInjection;
 using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.DependencyInjection.Logging;
@@ -23,7 +23,7 @@ public class Startup
                 options.SharedIndexSettings = new OpenSearchIndexSettings
                 {
                     ConnectionString = openSearch.EnsureStarted().ToString(),
-                    AuthenticationType = OpenSearchAuthenticationType.NONE,
+                    AuthenticationType = OpenSearchAuthenticationType.None,
                     // Facet fields are text, so the facet tests show that facets count the keyword sub-field.
                     Mappings =
                     [

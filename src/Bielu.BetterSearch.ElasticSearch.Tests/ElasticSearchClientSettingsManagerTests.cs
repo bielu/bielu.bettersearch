@@ -26,7 +26,7 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
     private static ElasticSearchIndexSettings PasswordSettings(string connectionString, string password) => new()
     {
         ConnectionString = connectionString,
-        AuthenticationType = AuthenticationType.PASSWORD,
+        AuthenticationType = AuthenticationType.Password,
         AuthenticationDetails = new AuthenticationDetails { Username = "elastic", Password = password },
     };
 
@@ -114,7 +114,7 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
         var settings = GetConnectionSettings(options, "people");
 
         settings.ConnectionString.ShouldBe("https://shared:9200");
-        settings.AuthenticationType.ShouldBe(AuthenticationType.PASSWORD);
+        settings.AuthenticationType.ShouldBe(AuthenticationType.Password);
         settings.AuthenticationDetails.ShouldNotBeNull().Password.ShouldBe("secret");
     }
 
@@ -148,7 +148,7 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
         var settings = GetConnectionSettings(options, "people");
 
         settings.ConnectionString.ShouldBe("https://people:9200");
-        settings.AuthenticationType.ShouldBe(AuthenticationType.PASSWORD);
+        settings.AuthenticationType.ShouldBe(AuthenticationType.Password);
         settings.AuthenticationDetails.ShouldNotBeNull().Password.ShouldBe("secret");
     }
 
@@ -160,14 +160,14 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
             SharedIndexSettings = PasswordSettings("https://shared:9200", "secret"),
             Indexes = new Dictionary<string, ElasticSearchIndexSettings>
             {
-                ["people"] = new() { AuthenticationType = AuthenticationType.NONE },
+                ["people"] = new() { AuthenticationType = AuthenticationType.None },
             },
         };
 
         var settings = GetConnectionSettings(options, "people");
 
         settings.ConnectionString.ShouldBe("https://shared:9200");
-        settings.AuthenticationType.ShouldBe(AuthenticationType.NONE);
+        settings.AuthenticationType.ShouldBe(AuthenticationType.None);
         settings.AuthenticationDetails.ShouldBeNull();
     }
 
@@ -196,7 +196,7 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
         {
             Indexes = new Dictionary<string, ElasticSearchIndexSettings>
             {
-                ["people"] = new() { ConnectionString = "http://people:9200", AuthenticationType = AuthenticationType.NONE },
+                ["people"] = new() { ConnectionString = "http://people:9200", AuthenticationType = AuthenticationType.None },
             },
         };
 
@@ -407,7 +407,7 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
     public void CreateClientSettings_CloudWithAdditionalNodes_UsesCloudPool()
     {
         var options = NodeOptions(NodePoolType.Sticky, "not a url");
-        options.SharedIndexSettings.AuthenticationType = AuthenticationType.CLOUDAPI;
+        options.SharedIndexSettings.AuthenticationType = AuthenticationType.CloudApi;
         options.SharedIndexSettings.AuthenticationDetails = new AuthenticationDetails
         {
             // "name:" followed by base64 of "<domain>$<elasticsearch id>$<kibana id>", the format of an Elastic Cloud id.
@@ -451,7 +451,7 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
             SharedIndexSettings = new ElasticSearchIndexSettings
             {
                 ConnectionString = "https://shared:9200",
-                AuthenticationType = AuthenticationType.APIKEY,
+                AuthenticationType = AuthenticationType.ApiKey,
                 AuthenticationDetails = new AuthenticationDetails { ApiKey = "a2V5" },
             },
         }, "people");
@@ -463,8 +463,8 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
     }
 
     [Theory]
-    [InlineData(AuthenticationType.APIKEY)]
-    [InlineData(AuthenticationType.BEARER)]
+    [InlineData(AuthenticationType.ApiKey)]
+    [InlineData(AuthenticationType.Bearer)]
     public void CreateClientSettings_KeyOrTokenWithAdditionalNodes_UsesEveryNodeInTheChosenPool(AuthenticationType authenticationType)
     {
         var settings = GetSettings(new ElasticSearchOptions
@@ -481,12 +481,12 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
 
         settings.NodePool.ShouldBeOfType<StickyNodePool>();
         NodeUris(settings).ShouldBe([new Uri("https://first:9200"), new Uri("https://second:9200"), new Uri("https://third:9200")]);
-        settings.Authentication.ShouldNotBeNull().AuthScheme.ShouldBe(authenticationType == AuthenticationType.APIKEY ? "ApiKey" : "Bearer");
+        settings.Authentication.ShouldNotBeNull().AuthScheme.ShouldBe(authenticationType == AuthenticationType.ApiKey ? "ApiKey" : "Bearer");
     }
 
     [Theory]
-    [InlineData(AuthenticationType.APIKEY)]
-    [InlineData(AuthenticationType.BEARER)]
+    [InlineData(AuthenticationType.ApiKey)]
+    [InlineData(AuthenticationType.Bearer)]
     public void ValidateOnStart_KeyOrTokenWithAnInvalidAdditionalNode_FailsNamingTheNode(AuthenticationType authenticationType)
     {
         var failures = ElasticSearchClientSettingsManager.ConnectionFailures(new ElasticSearchIndexSettings
@@ -508,7 +508,7 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
             SharedIndexSettings = new ElasticSearchIndexSettings
             {
                 ConnectionString = "https://shared:9200",
-                AuthenticationType = AuthenticationType.BEARER,
+                AuthenticationType = AuthenticationType.Bearer,
                 AuthenticationDetails = new AuthenticationDetails { Token = "AAEAAWVsYXN0aWM" },
             },
         }, "people");
@@ -588,8 +588,8 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
     }
 
     [Theory]
-    [InlineData(AuthenticationType.CLOUD)]
-    [InlineData(AuthenticationType.CLOUDAPI)]
+    [InlineData(AuthenticationType.Cloud)]
+    [InlineData(AuthenticationType.CloudApi)]
     public void GetConnectionSettings_IndexWithItsOwnCloudId_KeepsItsOwnTlsSettings(AuthenticationType authenticationType)
     {
         var options = new ElasticSearchOptions
@@ -619,16 +619,16 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
     [Fact]
     public void ClientKey_ToString_LeavesOutTheTokenAndApiKey()
     {
-        var key = ElasticsearchClientFactory.ClientKey.From(new ElasticSearchIndexSettings
+        var key = ElasticSearchClientFactory.ClientKey.From(new ElasticSearchIndexSettings
         {
             ConnectionString = "https://shared:9200",
-            AuthenticationType = AuthenticationType.BEARER,
+            AuthenticationType = AuthenticationType.Bearer,
             AuthenticationDetails = new AuthenticationDetails { Token = "s3cret-token", ApiKey = "s3cret-key" },
         });
 
         var text = key.ToString();
 
-        text.ShouldContain("BEARER");
+        text.ShouldContain("Bearer");
         text.ShouldNotContain("s3cret");
     }
 
@@ -640,12 +640,12 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
             SharedIndexSettings = new ElasticSearchIndexSettings
             {
                 ConnectionString = "https://shared:9200",
-                AuthenticationType = AuthenticationType.BEARER,
+                AuthenticationType = AuthenticationType.Bearer,
                 AuthenticationDetails = new AuthenticationDetails { Token = "old" },
             },
         };
         var monitor = new TestOptionsMonitor<ElasticSearchOptions>(options);
-        var factory = new ElasticsearchClientFactory(new ElasticSearchClientSettingsManager(monitor));
+        var factory = new ElasticSearchClientFactory(new ElasticSearchClientSettingsManager(monitor));
         var before = await factory.GetOrCreateClientAsync("people");
 
         options.SharedIndexSettings.AuthenticationDetails = new AuthenticationDetails { Token = "new" };

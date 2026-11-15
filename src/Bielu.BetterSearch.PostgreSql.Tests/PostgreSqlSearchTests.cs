@@ -43,8 +43,8 @@ public sealed class PostgreSqlSearchTests(
         }
     }
 
-    private Task<List<string>> IdsAsync(string index, ISearchSubQuery subQuery, Occurance occurance = Occurance.MUST) =>
-        searchService.SearchIdsAsync(SearchTestHelpers.Query(index, occurance, subQuery), Token);
+    private Task<List<string>> IdsAsync(string index, ISearchSubQuery subQuery, Occurrence occurrence = Occurrence.Must) =>
+        searchService.SearchIdsAsync(SearchTestHelpers.Query(index, occurrence, subQuery), Token);
 
     [Theory]
     [InlineData("Name'); DROP TABLE people; --")]
@@ -63,7 +63,7 @@ public sealed class PostgreSqlSearchTests(
             (await IdsAsync(index, new TermSubQuery { Field = field, Value = "x" })).ShouldBe(["1"]);
             (await IdsAsync(index, new TermsSubQuery { Field = field, Value = [value, "1"] })).ShouldBe(["1"]);
             (await IdsAsync(index, new PrefixSubQuery { Field = field, Value = "x'" })).ShouldBe(["1"]);
-            (await IdsAsync(index, new StringRange { Field = field, MinValue = value, MaxValue = value })).ShouldBe(["1"]);
+            (await IdsAsync(index, new StringRangeSubQuery { Field = field, MinValue = value, MaxValue = value })).ShouldBe(["1"]);
             (await indexingProvider.IndexExistsAsync(index, Token)).Value.ShouldBeTrue();
         });
     }
@@ -117,7 +117,7 @@ public sealed class PostgreSqlSearchTests(
 
             (await IdsAsync(index, new TermSubQuery { Field = "Big", Value = beyondDouble })).ShouldBe(["1"]);
             (await IdsAsync(index, new TermSubQuery { Field = "Big", Value = "9007199254740993" })).ShouldBe(["1"]);
-            (await IdsAsync(index, new LongRange { Field = "Big", MinValue = beyondDouble })).ShouldBe(["1"]);
+            (await IdsAsync(index, new LongRangeSubQuery { Field = "Big", MinValue = beyondDouble })).ShouldBe(["1"]);
             (await IdsAsync(index, new TermSubQuery { Field = "Whole", Value = 3 })).ShouldBe(["1"]);
             (await IdsAsync(index, new TermSubQuery { Field = "Whole", Value = "3.5" })).ShouldBe(["2"]);
         });
@@ -238,7 +238,7 @@ public sealed class PostgreSqlSearchTests(
             ], Token);
             indexed.IsSuccess.ShouldBeTrue(string.Join("; ", indexed.Errors.Select(error => error.Message)));
 
-            var result = await search.SearchAsync(SearchTestHelpers.Query(index, Occurance.MUST, new DateRangeQuery
+            var result = await search.SearchAsync(SearchTestHelpers.Query(index, Occurrence.Must, new DateRangeSubQuery
             {
                 Field = "Day",
                 MinValue = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc),
@@ -271,8 +271,8 @@ public sealed class PostgreSqlSearchTests(
             Document(index, "2", new() { { "Price", [10, 30] }, { "Day", ["2026-01-01", "2026-06-15T10:00:00Z"] } }),
         ], async index =>
         {
-            (await IdsAsync(index, new NumericRange { Field = "Price", MinValue = 20, MaxValue = 50 })).ShouldBe(["2"]);
-            (await IdsAsync(index, new DateRangeQuery
+            (await IdsAsync(index, new NumericRangeSubQuery { Field = "Price", MinValue = 20, MaxValue = 50 })).ShouldBe(["2"]);
+            (await IdsAsync(index, new DateRangeSubQuery
             {
                 Field = "Day",
                 MinValue = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc),
@@ -303,10 +303,10 @@ public sealed class PostgreSqlSearchTests(
         {
             (await IdsAsync(index, new PrefixPhraseSubQuery { Field = "Name", Value = "john do" })).ShouldBe(["1"]);
             (await IdsAsync(index, new PrefixSubQuery { Field = "Name", Value = "jo" })).ShouldBe(["1", "2", "3"]);
-            (await IdsAsync(index, new PrefixSubQuery { Field = "Name", Value = "jo" }, Occurance.MUSTNOT)).ShouldBeEmpty();
+            (await IdsAsync(index, new PrefixSubQuery { Field = "Name", Value = "jo" }, Occurrence.MustNot)).ShouldBeEmpty();
             // No single word starts with two words, so nothing matches and its negation matches everything.
             (await IdsAsync(index, new PrefixSubQuery { Field = "Name", Value = "john do" })).ShouldBeEmpty();
-            (await IdsAsync(index, new PrefixSubQuery { Field = "Name", Value = "john do" }, Occurance.MUSTNOT)).ShouldBe(["1", "2", "3"]);
+            (await IdsAsync(index, new PrefixSubQuery { Field = "Name", Value = "john do" }, Occurrence.MustNot)).ShouldBe(["1", "2", "3"]);
         });
     }
 
@@ -321,9 +321,9 @@ public sealed class PostgreSqlSearchTests(
         ], async index =>
         {
             // "jane" has 4 letters, so AUTO allows one edit: "jade" is one away, "john" three.
-            (await IdsAsync(index, new FuzzyQuery { Field = "Name", Value = "jane" })).ShouldBe(["1", "2"]);
-            (await IdsAsync(index, new FuzzyQuery { Field = "Name", Value = "jane", Fuziness = Tuple.Create(0, 0) })).ShouldBe(["1"]);
-            (await IdsAsync(index, new FuzzyQuery { Field = "Name", Value = "jane", PrefixLenght = 3 })).ShouldBe(["1"]);
+            (await IdsAsync(index, new FuzzySubQuery { Field = "Name", Value = "jane" })).ShouldBe(["1", "2"]);
+            (await IdsAsync(index, new FuzzySubQuery { Field = "Name", Value = "jane", MaxEdits = 0 })).ShouldBe(["1"]);
+            (await IdsAsync(index, new FuzzySubQuery { Field = "Name", Value = "jane", PrefixLength = 3 })).ShouldBe(["1"]);
         });
     }
 
@@ -356,7 +356,7 @@ public sealed class PostgreSqlSearchTests(
                 var provider = new PostgreSqlSearchProviderAsync(
                     new PostgreSqlQueryTranslateService([new Services.Queries.FuzzySubQueryTranslator()]), factory, options);
 
-                var result = await provider.SearchAsync(SearchTestHelpers.Query(index, Occurance.MUST, new FuzzyQuery { Field = "Name", Value = "jane" }), Token);
+                var result = await provider.SearchAsync(SearchTestHelpers.Query(index, Occurrence.Must, new FuzzySubQuery { Field = "Name", Value = "jane" }), Token);
 
                 result.Errors.ShouldHaveSingleItem().Message.ShouldBe(PostgreSqlCommands.MissingFuzzyExtension);
             }
@@ -380,10 +380,10 @@ public sealed class PostgreSqlSearchTests(
             Document(index, "4", new() { { "Location", ["not a point"] } }),
         ], async index =>
         {
-            (await IdsAsync(index, new SpatialSearchQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 300 })).ShouldBe(["1", "2"]);
-            (await IdsAsync(index, new SpatialSearchQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 200, UnitOfDistance = "mi" }))
+            (await IdsAsync(index, new SpatialSearchSubQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 300 })).ShouldBe(["1", "2"]);
+            (await IdsAsync(index, new SpatialSearchSubQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 200, UnitOfDistance = "mi" }))
                 .ShouldBe(["1", "2"]);
-            (await IdsAsync(index, new SpatialSearchQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 10 }, Occurance.MUSTNOT))
+            (await IdsAsync(index, new SpatialSearchSubQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 10 }, Occurrence.MustNot))
                 .ShouldBe(["2", "3", "4"]);
         });
     }
@@ -398,8 +398,8 @@ public sealed class PostgreSqlSearchTests(
             Document(index, "3", new() { { "Code", ["c"] } }),
         ], async index =>
         {
-            (await IdsAsync(index, new StringRange { Field = "Code", MinValue = "A", MaxValue = "b" })).ShouldBe(["1", "2"]);
-            (await IdsAsync(index, new StringRange { Field = "Code", MinValue = "a", IncludeMinEdge = false })).ShouldBe(["3"]);
+            (await IdsAsync(index, new StringRangeSubQuery { Field = "Code", MinValue = "A", MaxValue = "b" })).ShouldBe(["1", "2"]);
+            (await IdsAsync(index, new StringRangeSubQuery { Field = "Code", MinValue = "a", IncludeMinEdge = false })).ShouldBe(["3"]);
         });
     }
 
@@ -438,7 +438,7 @@ public sealed class PostgreSqlSearchTests(
     public async Task SearchAsync_LuceneSubQuery_FailsNamingIt()
     {
         var result = await searchService.SearchAsync(
-            SearchTestHelpers.Query("people", Occurance.MUST, new LuceneSubQuery { LuceneQuery = "Name:jane" }), Token);
+            SearchTestHelpers.Query("people", Occurrence.Must, new LuceneSubQuery { LuceneQuery = "Name:jane" }), Token);
 
         result.Errors.ShouldHaveSingleItem().Message.ShouldContain("does not support LuceneSubQuery");
     }

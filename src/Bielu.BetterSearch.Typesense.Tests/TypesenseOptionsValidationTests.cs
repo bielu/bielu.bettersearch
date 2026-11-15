@@ -1,10 +1,10 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Configuration;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.Tests;
 using Bielu.BetterSearch.Typesense.Configuration;
-using Bielu.BetterSearch.Typesense.DepedencyInjection;
+using Bielu.BetterSearch.Typesense.DependencyInjection;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

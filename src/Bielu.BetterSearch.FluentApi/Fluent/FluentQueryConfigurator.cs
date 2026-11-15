@@ -6,6 +6,6 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
     public class FluentQueryConfigurator(ISearchQuery baseQuery) : IBaseQueryConfigurator
     {
         public ISearchQuery Query { get; set; } = baseQuery;
-        public Occurance Occurance { get; set; }
+        public Occurrence Occurrence { get; set; }
     }
 }

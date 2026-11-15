@@ -44,7 +44,7 @@ internal sealed class MeilisearchQueryTranslateService(IEnumerable<ISubQueryTran
         }).WithSuccesses(successes);
     }
 
-    private Task<Result<MeilisearchFilter>> TranslateAsync(IDictionary<Occurance, List<ISearchSubQuery>>? clauses)
+    private Task<Result<MeilisearchFilter>> TranslateAsync(IDictionary<Occurrence, List<ISearchSubQuery>>? clauses)
     {
         if (clauses == null || clauses.Values.All(group => group.Count == 0))
         {

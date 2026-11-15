@@ -8,30 +8,30 @@
     public abstract class SubQueryConfigurator<TSelf> where TSelf : SubQueryConfigurator<TSelf>
     {
         /// <summary>The occurrence chosen for this sub-query, or <c>null</c> to take the parent's.</summary>
-        public Occurance? Occurance
+        public Occurrence? Occurrence
         {
-            get => _occurance;
+            get => _occurrence;
             set
             {
-                _occurance = value;
-                if (value is { } occurance)
+                _occurrence = value;
+                if (value is { } occurrence)
                 {
-                    SubQuery.Occurance = occurance;
+                    SubQuery.Occurrence = occurrence;
                 }
             }
         }
 
-        private Occurance? _occurance;
+        private Occurrence? _occurrence;
 
         /// <summary>The query this configurator builds.</summary>
         protected abstract ISearchSubQuery SubQuery { get; }
 
         internal ISearchSubQuery Built => SubQuery;
 
-        public TSelf Must() => With(Abstractions.Query.Occurance.MUST);
-        public TSelf MustNot() => With(Abstractions.Query.Occurance.MUSTNOT);
-        public TSelf Should() => With(Abstractions.Query.Occurance.SHOULD);
-        public TSelf Filter() => With(Abstractions.Query.Occurance.FILTER);
+        public TSelf Must() => With(Abstractions.Query.Occurrence.Must);
+        public TSelf MustNot() => With(Abstractions.Query.Occurrence.MustNot);
+        public TSelf Should() => With(Abstractions.Query.Occurrence.Should);
+        public TSelf Filter() => With(Abstractions.Query.Occurrence.Filter);
 
         /// <summary>Sets the <see cref="ISearchSubQuery.BoostValue"/> of the sub-query.</summary>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="boost"/> is 0 or less.</exception>
@@ -42,9 +42,9 @@
             return (TSelf)this;
         }
 
-        private TSelf With(Occurance occurance)
+        private TSelf With(Occurrence occurrence)
         {
-            Occurance = occurance;
+            Occurrence = occurrence;
             return (TSelf)this;
         }
     }

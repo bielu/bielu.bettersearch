@@ -78,7 +78,7 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
             {
                 ["products"] = new()
                 {
-                    AuthenticationType = OpenSearchAuthenticationType.PASSWORD,
+                    AuthenticationType = OpenSearchAuthenticationType.Password,
                     AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "secret" },
                 },
             },
@@ -96,7 +96,7 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
             SharedIndexSettings = new OpenSearchIndexSettings
             {
                 ConnectionString = "http://shared:9200",
-                AuthenticationType = OpenSearchAuthenticationType.APIKEY,
+                AuthenticationType = OpenSearchAuthenticationType.ApiKey,
                 AuthenticationDetails = new OpenSearchAuthenticationDetails { ApiKey = "os_key" },
             },
         });
@@ -115,7 +115,7 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
             SharedIndexSettings = new OpenSearchIndexSettings
             {
                 ConnectionString = "http://shared:9200",
-                AuthenticationType = OpenSearchAuthenticationType.PASSWORD,
+                AuthenticationType = OpenSearchAuthenticationType.Password,
                 AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "secret" },
             },
             Indexes = new Dictionary<string, OpenSearchIndexSettings>
@@ -138,7 +138,7 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
             SharedIndexSettings = new OpenSearchIndexSettings
             {
                 ConnectionString = "http://shared:9200",
-                AuthenticationType = OpenSearchAuthenticationType.PASSWORD,
+                AuthenticationType = OpenSearchAuthenticationType.Password,
                 AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "secret" },
             },
             Indexes = new Dictionary<string, OpenSearchIndexSettings> { ["products"] = products },
@@ -183,12 +183,12 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
             SharedIndexSettings = new OpenSearchIndexSettings
             {
                 ConnectionString = "http://shared:9200",
-                AuthenticationType = OpenSearchAuthenticationType.PASSWORD,
+                AuthenticationType = OpenSearchAuthenticationType.Password,
                 AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "secret" },
             },
             Indexes = new Dictionary<string, OpenSearchIndexSettings>
             {
-                ["products"] = new() { ConnectionString = "http://products:9200", AuthenticationType = OpenSearchAuthenticationType.NONE },
+                ["products"] = new() { ConnectionString = "http://products:9200", AuthenticationType = OpenSearchAuthenticationType.None },
             },
         });
 
@@ -230,7 +230,7 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
             SharedIndexSettings = new OpenSearchIndexSettings
             {
                 ConnectionString = "http://shared:9200",
-                AuthenticationType = OpenSearchAuthenticationType.PASSWORD,
+                AuthenticationType = OpenSearchAuthenticationType.Password,
                 AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = "old" },
             },
         };
@@ -250,7 +250,7 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
         SharedIndexSettings = new OpenSearchIndexSettings
         {
             ConnectionString = "http://shared:9200",
-            AuthenticationType = OpenSearchAuthenticationType.PASSWORD,
+            AuthenticationType = OpenSearchAuthenticationType.Password,
             AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = password },
         },
     };
@@ -311,8 +311,8 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
     }
 
     [Theory]
-    [InlineData(OpenSearchAuthenticationType.PASSWORD)]
-    [InlineData(OpenSearchAuthenticationType.APIKEY)]
+    [InlineData(OpenSearchAuthenticationType.Password)]
+    [InlineData(OpenSearchAuthenticationType.ApiKey)]
     public void ClientKey_ToString_LeavesOutCredentials(OpenSearchAuthenticationType authenticationType)
     {
         var key = OpenSearchClientFactory.ClientKey.From(new OpenSearchIndexSettings
@@ -353,8 +353,8 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
         }));
 
     [Theory]
-    [InlineData(OpenSearchAuthenticationType.PASSWORD)]
-    [InlineData(OpenSearchAuthenticationType.APIKEY)]
+    [InlineData(OpenSearchAuthenticationType.Password)]
+    [InlineData(OpenSearchAuthenticationType.ApiKey)]
     public void CreateClientSettings_AuthenticationWithoutDetails_Throws(OpenSearchAuthenticationType authenticationType) =>
         Should.Throw<ArgumentException>(() => GetSettings(new OpenSearchOptions
         {
@@ -366,10 +366,10 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
         }));
 
     [Theory]
-    [InlineData(OpenSearchAuthenticationType.PASSWORD, "", "s3cret", "")]
-    [InlineData(OpenSearchAuthenticationType.PASSWORD, "admin", " ", "")]
-    [InlineData(OpenSearchAuthenticationType.APIKEY, "", "", "")]
-    [InlineData(OpenSearchAuthenticationType.APIKEY, "", "", "  ")]
+    [InlineData(OpenSearchAuthenticationType.Password, "", "s3cret", "")]
+    [InlineData(OpenSearchAuthenticationType.Password, "admin", " ", "")]
+    [InlineData(OpenSearchAuthenticationType.ApiKey, "", "", "")]
+    [InlineData(OpenSearchAuthenticationType.ApiKey, "", "", "  ")]
     public void CreateClientSettings_AuthenticationWithEmptyCredentials_Throws(
         OpenSearchAuthenticationType authenticationType, string username, string password, string apiKey) =>
         Should.Throw<ArgumentException>(() => GetSettings(new OpenSearchOptions
@@ -429,7 +429,7 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
             SharedIndexSettings = null!,
             Indexes = new Dictionary<string, OpenSearchIndexSettings>
             {
-                ["products"] = new() { ConnectionString = "http://products:9200", AuthenticationType = OpenSearchAuthenticationType.NONE },
+                ["products"] = new() { ConnectionString = "http://products:9200", AuthenticationType = OpenSearchAuthenticationType.None },
             },
         };
 

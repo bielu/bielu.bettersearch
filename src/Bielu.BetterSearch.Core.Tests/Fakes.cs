@@ -59,7 +59,7 @@ internal class FakeIndexingProvider : IIndexingProviderAsync
     public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents, CancellationToken cancellationToken = default) =>
         Task.FromResult(BulkIndexResult);
 
-    public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) => Task.FromResult(RemoveResult);
+    public Task<Result> RemoveDocumentAsync(string id, string index, CancellationToken cancellationToken = default) => Task.FromResult(RemoveResult);
 
     public Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids, CancellationToken cancellationToken = default) =>
         Task.FromResult(RemoveDocumentsResult);
