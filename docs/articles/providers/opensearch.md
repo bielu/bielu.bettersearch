@@ -113,6 +113,56 @@ not keep an old client cached. A dropped client is not disposed, so a request al
 back to an earlier setting after its client was dropped creates a new client, and the `configureClient` callbacks run
 again.
 
+### Amazon OpenSearch Service and Serverless (AWS SigV4)
+
+Amazon OpenSearch Service with IAM authentication and Amazon OpenSearch Serverless need each request signed with
+AWS Signature Version 4. Add the `Bielu.BetterSearch.OpenSearch.Aws` package, which signs through
+[`OpenSearch.Net.Auth.AwsSigV4`](https://www.nuget.org/packages/OpenSearch.Net.Auth.AwsSigV4/), so the base
+package takes no AWS dependency:
+
+```bash
+dotnet add package Bielu.BetterSearch.OpenSearch.Aws --prerelease
+```
+
+```csharp
+using Bielu.BetterSearch.OpenSearch.Aws;
+
+builder.Services.AddBetterSearch(builder.Configuration, search => search
+    .AddOpenSearch()
+    .AddOpenSearchAwsSigV4());
+```
+
+```json
+"OpenSearch": {
+  "SharedIndexSettings": { "ConnectionString": "https://search-my-domain.eu-west-1.es.amazonaws.com" },
+  "AwsSigV4": { "Service": "es", "Region": "eu-west-1" }
+}
+```
+
+| Setting | Meaning |
+|---------|---------|
+| `Service` | `es` (the default) for an Amazon OpenSearch Service domain, or `aoss` for an Amazon OpenSearch Serverless collection. Any other value fails startup validation, naming `Bielu:BetterSearch:OpenSearch:AwsSigV4:Service` |
+| `Region` | The region the requests are signed for. Unset, the AWS SDK finds it, from `AWS_REGION` or the AWS profile. An empty value fails startup validation |
+| `Credentials` | Set in code only, through `AddOpenSearchAwsSigV4(options => options.Credentials = ...)`. Unset, the AWS SDK's default credential chain finds them: environment variables, the AWS profile, or the role of the container or instance. Session credentials send `X-Amz-Security-Token` |
+
+Leave `AuthenticationType` at `NONE`: the signature is the request's `Authorization` header. Every OpenSearch client the
+provider creates signs its requests, whichever `Indexes` entry it is for, and each client gets its connection when it
+is created, with the settings current then. Two calls racing to create the same client can each create a connection,
+and only one client and its connection are kept.
+
+> [!NOTE]
+> The signing is tested against a local endpoint, not a real Amazon OpenSearch domain or Serverless collection: the
+> tests send requests with known credentials, region, service and clock, and check `Authorization` (its `Credential`
+> scope, `SignedHeaders` and signature), `X-Amz-Date`, `X-Amz-Content-Sha256` and `X-Amz-Security-Token`, recomputing
+> the signature with a reference signer that matches AWS's published SigV4 examples.
+
+`AddOpenSearchAwsSigV4` is built on `UseOpenSearchConnection`, in the base package, which sends every OpenSearch
+client's requests through the `IConnection` its callback returns. The callback runs when a client is created, with the
+same race as `configureClient`: two calls creating the same client can each run it, and the connection of the client
+that isn't kept is dropped without being disposed. `configureClient` can't
+do this, as the client takes its connection when it is created. A client the provider creates again, after a changed
+setting dropped it, runs the callback again.
+
 ## How queries behave
 
 Documents are stored with their values under `fields`, as with Elasticsearch, so a query on `Name` searches

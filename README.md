@@ -271,6 +271,7 @@ top-level term facets, and Lifti none. Only Elasticsearch and OpenSearch highlig
 | [`Bielu.BetterSearch.Caching.FusionCache`](https://www.nuget.org/packages/Bielu.BetterSearch.Caching.FusionCache/) | Search result cache over [FusionCache](https://github.com/ZiggyCreatures/FusionCache) |
 | [`Bielu.BetterSearch.OpenTelemetry`](https://www.nuget.org/packages/Bielu.BetterSearch.OpenTelemetry/) | `AddBetterSearchInstrumentation()` for OpenTelemetry tracing and metrics |
 | [`Bielu.BetterSearch.HealthChecks`](https://www.nuget.org/packages/Bielu.BetterSearch.HealthChecks/) | `AddBetterSearchHealthCheck()`, which pings the configured engine |
+| [`Bielu.BetterSearch.OpenSearch.Aws`](https://www.nuget.org/packages/Bielu.BetterSearch.OpenSearch.Aws/) | `AddOpenSearchAwsSigV4()`, which signs OpenSearch requests with AWS SigV4 for Amazon OpenSearch Service and Serverless |
 
 ### Providers
 

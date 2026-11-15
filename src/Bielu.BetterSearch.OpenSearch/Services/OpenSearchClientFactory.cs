@@ -4,6 +4,7 @@ using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.Services;
 using FluentResults;
 using OpenSearch.Client;
+using IConnection = OpenSearch.Net.IConnection;
 using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.OpenSearch.Services;
@@ -17,10 +18,12 @@ namespace Bielu.BetterSearch.OpenSearch.Services;
 /// The request timeout and retry count are part of the key, so indexes that set different ones get different clients.
 /// The <c>configureClient</c> callbacks given to <c>AddOpenSearch</c> run on each client's settings once, when the
 /// client is created; two calls racing to create the same client can each run them, and only one client is kept.
+/// So does <c>createConnection</c>, set through <c>UseOpenSearchConnection</c>, which gives each client its connection.
 /// </summary>
 internal sealed class OpenSearchClientFactory(
     IOpenSearchClientSettingsManager settingsManager,
-    IEnumerable<ClientConfiguration<ConnectionSettings>> clientConfigurations) : IClientFactoryAsync<IOpenSearchClient>
+    IEnumerable<ClientConfiguration<ConnectionSettings>> clientConfigurations,
+    Func<IConnection>? createConnection = null) : IClientFactoryAsync<IOpenSearchClient>
 {
     private readonly IReadOnlyList<ClientConfiguration<ConnectionSettings>> _clientConfigurations = clientConfigurations.ToList();
 
@@ -36,7 +39,7 @@ internal sealed class OpenSearchClientFactory(
         var settings = settingsManager.GetConnectionSettings(indexName);
         var client = _clients.GetOrCreate(indexName, ClientKey.From(settings), _ =>
         {
-            var connectionSettings = settingsManager.CreateClientSettings(settings);
+            var connectionSettings = settingsManager.CreateClientSettings(settings, createConnection?.Invoke());
             ClientConfiguration<ConnectionSettings>.Apply(_clientConfigurations, connectionSettings);
             return new OpenSearchClient(connectionSettings);
         });

@@ -90,10 +90,11 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
             .Concat(ConnectionSettingsChecks.TlsFailures(key, connection, settings.CertificateFingerprint, settings.DevelopmentOnlySkipCertificateValidation));
     }
 
-    public ConnectionSettings CreateClientSettings(OpenSearchIndexSettings settings)
+    public ConnectionSettings CreateClientSettings(OpenSearchIndexSettings settings, IConnection? connection = null)
     {
         ConnectionSettingsChecks.ThrowIfAny(ConnectionFailures(settings, SettingSource.Unknown, SettingSource.Unknown));
-        var connectionSettings = new ConnectionSettings(CreateConnectionPool(settings));
+        // A null connection is the client's default HttpConnection.
+        var connectionSettings = new ConnectionSettings(CreateConnectionPool(settings), connection);
         var details = settings.AuthenticationDetails!;
         switch (settings.AuthenticationType ?? OpenSearchAuthenticationType.NONE)
         {
