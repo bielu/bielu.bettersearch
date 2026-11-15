@@ -1,8 +1,8 @@
 ﻿using System.Globalization;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.Typesense.Configuration;
 using Bielu.BetterSearch.Services;
+using Bielu.BetterSearch.Typesense.Configuration;
 using FluentResults;
 using Microsoft.Extensions.Options;
 using N = Bielu.BetterSearch.Typesense.Services.TypesenseFieldNames;

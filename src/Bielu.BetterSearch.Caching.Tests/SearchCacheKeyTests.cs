@@ -83,13 +83,11 @@ public class SearchCacheKeyTests
     [Fact]
     public void Build_DictionaryInsertionOrderDiffers_SameKey()
     {
-        var first = Queries.Term("products");
-        first.Add(Occurrence.Should, new TermSubQuery { Field = "City", Value = "Warsaw" });
-        var second = new SearchQuery { Index = "products", Page = 1, PageSize = 10, SortOrder = first.SortOrder };
-        second.Add(Occurrence.Should, new TermSubQuery { Field = "City", Value = "Warsaw" });
-        second.Add(Occurrence.Must, new TermSubQuery { Field = "Name", Value = "jane", BoostValue = 1 });
+        var first = new Dictionary<string, int> { ["a"] = 1, ["b"] = 2 };
+        var second = new Dictionary<string, int> { ["b"] = 2, ["a"] = 1 };
 
-        Key(second).ShouldBe(Key(first));
+        SearchCacheKey.Canonical(second).ShouldBe(SearchCacheKey.Canonical(first));
+        SearchCacheKey.Canonical(second).ShouldNotBe(SearchCacheKey.Canonical(new Dictionary<string, int> { ["a"] = 2, ["b"] = 1 }));
     }
 
     [Fact]

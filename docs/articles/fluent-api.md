@@ -50,12 +50,12 @@ both levels:
 | `CreatePrefixPhraseQuery` | `PrefixPhraseSubQuery` | `WithField`, `WithValue` |
 | `CreateFuzzyQuery` | `FuzzySubQuery` | `WithField`, `WithValue`, `WithMaxEdits`, `WithPrefixLength`, `WithMaxExpansions`, `WithTranspositions` |
 | `CreateNumericRangeQuery`, `CreateLongRangeQuery`, `CreateStringRangeQuery`, `CreateDateRangeQuery` | `NumericRangeSubQuery`, `LongRangeSubQuery`, `StringRangeSubQuery`, `DateRangeSubQuery` | `WithField`, `WithMinValue(value, includeEdge)`, `WithMaxValue(value, includeEdge)` |
-| `CreateGeoDistanceQuery` | `SpatialSearchSubQuery` | `WithField`, `WithCenter(lat, lng)`, `WithDistance`, `WithUnitOfDistance` |
+| `CreateGeoDistanceQuery` | `SpatialSearchSubQuery` | `WithField`, `WithCenter(lat, lng)`, `WithDistance`, `WithUnitOfDistance(DistanceUnit)` (kilometres by default) |
 | `CreateLuceneQuery` | `LuceneSubQuery` | `WithQuery(luceneQuery)`, stored unchanged; what each engine does with it is in the [feature matrix](feature-matrix.md) |
 | `CreateBoolQuery` | `BoolSearchSubQuery` | the methods in this table, `WithBoost` |
 
-Each of these also has `WithBoost(boost)`, which sets the clause's `BoostValue` and throws
-`ArgumentOutOfRangeException` for a boost of 0 or less. The fuzzy options throw `ArgumentOutOfRangeException` for a
+Each of these also has `WithBoost(boost)`, which sets the clause's `BoostValue`, a `double` such as 0.5 or 1.5, and
+throws `ArgumentOutOfRangeException` for a boost of 0 or less, or one that is not a finite number. The fuzzy options throw `ArgumentOutOfRangeException` for a
 negative value.
 
 ### Occurrence
@@ -81,8 +81,8 @@ To make a bool optional, create it on a parent whose occurrence is `Should`.
 
 ## Post filters
 
-`CreatePostFilterQuery` adds a bool to `PostFilterQuery`, under the occurrence of the query (`Must` unless you set
-`Occurrence` on the configurator). A post filter narrows the hits after facets are counted. Each call adds another bool.
+`CreatePostFilterQuery` adds a bool to `PostFilterQuery`, with the occurrence of the query (`Must` unless you set
+`Occurrence` on the configurator) set on the bool. A post filter narrows the hits after facets are counted. Each call adds another bool.
 
 ```csharp
 .CreateSearchQuery(search => search
