@@ -31,7 +31,7 @@ internal sealed class BooleanSubQueryTranslator : ISubQueryTranslator<PostgreSql
 
     public Task<Result<PostgreSqlFilter>> TranslateAsync(ISearchSubQuery query, IEnumerable<ISubQueryTranslator<PostgreSqlFilter>> subQueryTranslators) =>
         query is BoolSearchSubQuery boolQuery
-            ? PostgreSqlBoolFilterBuilder.BuildAsync((boolQuery.NestedQueries ?? []).Select(nested => (nested?.Occurance ?? Occurance.MUST, nested!)), subQueryTranslators)
+            ? PostgreSqlBoolFilterBuilder.BuildAsync((boolQuery.NestedQueries ?? []).Select(nested => (nested?.Occurrence ?? Occurrence.Must, nested!)), subQueryTranslators)
             : Task.FromResult(Result.Fail<PostgreSqlFilter>($"Query is not a {nameof(BoolSearchSubQuery)}"));
 }
 

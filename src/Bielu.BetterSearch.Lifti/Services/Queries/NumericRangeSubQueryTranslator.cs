@@ -14,15 +14,15 @@ namespace Bielu.BetterSearch.Lifti.Services.Queries;
 /// </summary>
 internal sealed class NumericRangeSubQueryTranslator : ISubQueryTranslator<IQuery>
 {
-    public bool CanTranslate(ISearchSubQuery query) => query is NumericRange;
+    public bool CanTranslate(ISearchSubQuery query) => query is NumericRangeSubQuery;
 
     public Task<Result<IQuery>> TranslateAsync(ISearchSubQuery query, IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators)
     {
         // A range with no bounds fails as it does in every provider, so a forgotten bound reads the same everywhere.
-        var range = (NumericRange)query;
+        var range = (NumericRangeSubQuery)query;
         var bounds = Result.Merge(
-            RangeBounds.Require(nameof(NumericRange), range.MinValue, range.MaxValue),
-            RangeBounds.RequireFinite(nameof(NumericRange), range.MinValue, range.MaxValue));
+            RangeBounds.Require(nameof(NumericRangeSubQuery), range.MinValue, range.MaxValue),
+            RangeBounds.RequireFinite(nameof(NumericRangeSubQuery), range.MinValue, range.MaxValue));
         return Task.FromResult(bounds.IsFailed
             ? bounds.ToResult<IQuery>()
             : Result.Fail<IQuery>("Lifti does not support numeric range queries."));

@@ -31,7 +31,7 @@ public class QueryTranslationUnitTests(IEnumerable<ISubQueryTranslator<IQuery>> 
 
     [Fact]
     public override async Task FuzzyQuery_CommaDecimalCulture_SendsInvariantValue()
-        => (await RenderUnderLetterDecimalCultureAsync(new FuzzyQuery { Field = "Name", Value = 3.5 })).ShouldBe("\"?2,?3 ?2,?5\"");
+        => (await RenderUnderLetterDecimalCultureAsync(new FuzzySubQuery { Field = "Name", Value = 3.5 })).ShouldBe("\"?2,?3 ?2,?5\"");
 
     [Fact]
     public override async Task PrefixPhraseSubQuery_CommaDecimalCulture_SendsInvariantValue()
@@ -65,17 +65,17 @@ public class QueryTranslationUnitTests(IEnumerable<ISubQueryTranslator<IQuery>> 
 
     [Fact]
     public async Task FuzzyQuery_DateValue_MatchesWordsOfItsText()
-        => (await RenderUnderCommaDecimalCultureAsync(new FuzzyQuery { Field = "Born", Value = Date }))
+        => (await RenderUnderCommaDecimalCultureAsync(new FuzzySubQuery { Field = "Born", Value = Date }))
             .ShouldBe("\"?2,?2026 ?2,?11 ?2,?08T00 ?2,?00 ?2,?00Z\"");
 
     [Fact]
     public async Task FuzzyQuery_DateTimeOffsetValue_MatchesWordsOfItsText()
-        => (await RenderUnderCommaDecimalCultureAsync(new FuzzyQuery { Field = "Born", Value = new DateTimeOffset(Date) }))
+        => (await RenderUnderCommaDecimalCultureAsync(new FuzzySubQuery { Field = "Born", Value = new DateTimeOffset(Date) }))
             .ShouldBe("\"?2,?2026 ?2,?11 ?2,?08T00 ?2,?00 ?2,?00Z\"");
 
     [Fact]
     public async Task FuzzyQuery_BooleanValue_MatchesWordsOfItsText()
-        => (await RenderUnderCommaDecimalCultureAsync(new FuzzyQuery { Field = "Born", Value = true })).ShouldBe("?2,?TRUE");
+        => (await RenderUnderCommaDecimalCultureAsync(new FuzzySubQuery { Field = "Born", Value = true })).ShouldBe("?2,?TRUE");
 
     [Fact]
     public override async Task TermSubQuery_DateValue_SendsIsoDateInUtc()
@@ -107,23 +107,23 @@ public class QueryTranslationUnitTests(IEnumerable<ISubQueryTranslator<IQuery>> 
 
     [Fact]
     public override async Task DateRangeQueryShouldBeTranslatable()
-        => await RangeShouldBeUnsupportedAsync(new DateRangeQuery { Field = "Born", MinValue = Date }, "date");
+        => await RangeShouldBeUnsupportedAsync(new DateRangeSubQuery { Field = "Born", MinValue = Date }, "date");
 
     [Fact]
     public override async Task LongRangeShouldBeTranslatable()
-        => await RangeShouldBeUnsupportedAsync(new LongRange { Field = "Age", MinValue = 1, MaxValue = 100 }, "long");
+        => await RangeShouldBeUnsupportedAsync(new LongRangeSubQuery { Field = "Age", MinValue = 1, MaxValue = 100 }, "long");
 
     [Fact]
     public override async Task NumericRangeShouldBeTranslatable()
-        => await RangeShouldBeUnsupportedAsync(new NumericRange { Field = "Age", MinValue = 1, MaxValue = 100 }, "numeric");
+        => await RangeShouldBeUnsupportedAsync(new NumericRangeSubQuery { Field = "Age", MinValue = 1, MaxValue = 100 }, "numeric");
 
     [Fact]
     public override async Task SpatialSearchQueryShouldBeTranslatable()
-        => await SubQueryTranslationShouldFailAsync(new SpatialSearchQuery());
+        => await SubQueryTranslationShouldFailAsync(new SpatialSearchSubQuery());
 
     [Fact]
     public override async Task StringRangeShouldBeTranslatable()
-        => await RangeShouldBeUnsupportedAsync(new StringRange { Field = "Name", MinValue = "a", MaxValue = "m" }, "string");
+        => await RangeShouldBeUnsupportedAsync(new StringRangeSubQuery { Field = "Name", MinValue = "a", MaxValue = "m" }, "string");
 
     [Fact]
     public override async Task LuceneSubQueryShouldBeTranslatable()

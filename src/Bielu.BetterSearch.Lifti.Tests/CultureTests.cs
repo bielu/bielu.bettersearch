@@ -25,7 +25,7 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
             indexed.IsSuccess.ShouldBeTrue();
 
             var query = new SearchQuery { Index = index };
-            query.Add(Occurance.MUST, new TermSubQuery { Field = "Price", Value = 5 });
+            query.Add(Occurrence.Must, new TermSubQuery { Field = "Price", Value = 5 });
             var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
 
             result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
@@ -52,7 +52,7 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
     }
 
     private Task<List<string>> SearchIdsAsync(string index, ISearchSubQuery subQuery) =>
-        searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurance.MUST, subQuery), TestContext.Current.CancellationToken);
+        searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurrence.Must, subQuery), TestContext.Current.CancellationToken);
 
     [Fact]
     public async Task SearchAsync_TermForWholeDecimal_MatchesTheDecimalOnly()
@@ -71,7 +71,7 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
         // 35 is one edit from 3.5 as text, but each word of 3.5 is matched on its own.
         var index = await IndexValuesAsync(("decimal", [3.5]), ("integer", [35d]));
 
-        var ids = await SearchIdsAsync(index, new FuzzyQuery { Field = "Value", Value = 3.5 });
+        var ids = await SearchIdsAsync(index, new FuzzySubQuery { Field = "Value", Value = 3.5 });
 
         ids.ShouldBe(["decimal"]);
     }
@@ -83,7 +83,7 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
         var index = await IndexValuesAsync(("decimal", [3.5]), ("list", ["3", "5"]));
 
         var term = await SearchIdsAsync(index, new TermSubQuery { Field = "Value", Value = 3.5 });
-        var fuzzy = await SearchIdsAsync(index, new FuzzyQuery { Field = "Value", Value = 3.5 });
+        var fuzzy = await SearchIdsAsync(index, new FuzzySubQuery { Field = "Value", Value = 3.5 });
         var single = await SearchIdsAsync(index, new TermSubQuery { Field = "Value", Value = "5" });
 
         term.ShouldBe(["decimal"]);
@@ -101,11 +101,11 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
         // the middle word of a phrase that runs across two values.
         var index = await IndexValuesAsync(("list", ["elephant", "giraffe"]), ("x", ["x"]));
 
-        var ids = await SearchIdsAsync(index, new FuzzyQuery
+        var ids = await SearchIdsAsync(index, new FuzzySubQuery
         {
             Field = "Value",
             Value = value,
-            Fuziness = fuzziness is { } edits ? Tuple.Create(edits, edits) : null
+            MaxEdits = fuzziness
         });
 
         ids.ShouldBe(value == "x" ? ["x"] : []);
@@ -203,7 +203,7 @@ public class CultureTests(ISearchServiceAsync searchService, IIndexingServiceAsy
         indexed.IsSuccess.ShouldBeTrue();
 
         var query = new SearchQuery { Index = index };
-        query.Add(Occurance.MUST, new TermSubQuery { Field = "Born", Value = "2026" });
+        query.Add(Occurrence.Must, new TermSubQuery { Field = "Born", Value = "2026" });
         var result = await searchService.SearchAsync(query, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));

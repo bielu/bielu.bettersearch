@@ -40,8 +40,8 @@ dotnet add package Bielu.BetterSearch.Lifti --prerelease           # in-memory
 Elasticsearch, configured from `Bielu:BetterSearch:ElasticSearch`:
 
 ```csharp
-using Bielu.BetterSearch.DepedencyInjection;
-using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
+using Bielu.BetterSearch.ElasticSearch.DependencyInjection;
 
 builder.Services.AddBetterSearch(builder.Configuration, search => search.AddElasticSearch());
 ```
@@ -49,8 +49,8 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddElas
 OpenSearch, configured from `Bielu:BetterSearch:OpenSearch`:
 
 ```csharp
-using Bielu.BetterSearch.DepedencyInjection;
-using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
+using Bielu.BetterSearch.OpenSearch.DependencyInjection;
 
 builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpenSearch());
 ```
@@ -62,7 +62,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
       "OpenSearch": {
         "SharedIndexSettings": {
           "ConnectionString": "http://localhost:9200",
-          "AuthenticationType": "PASSWORD",
+          "AuthenticationType": "Password",
           "AuthenticationDetails": { "Username": "admin", "Password": "..." }
         }
       }
@@ -71,9 +71,9 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
 }
 ```
 
-`AuthenticationType` is `NONE`, `PASSWORD` (basic, `Username` and `Password`) or `APIKEY` (an OpenSearch
+`AuthenticationType` is `None`, `Password` (basic, `Username` and `Password`) or `ApiKey` (an OpenSearch
 3.x API key in `ApiKey`). An entry under `Indexes` overrides the connection string or the authentication
-for that one index and takes the rest from the shared settings (set `"AuthenticationType": "NONE"` there to
+for that one index and takes the rest from the shared settings (set `"AuthenticationType": "None"` there to
 turn the shared authentication off for that index), and `MaxResultWindow` (10,000 by default)
 should match the indexes' `index.max_result_window`.
 `AdditionalNodes` lists the cluster's other nodes, on OpenSearch and Elasticsearch, and `PoolType` (`Static`,
@@ -98,8 +98,8 @@ already wait. See [when writes are searchable](docs/articles/providers/elasticse
 Meilisearch, configured from `Bielu:BetterSearch:Meilisearch`:
 
 ```csharp
-using Bielu.BetterSearch.DepedencyInjection;
-using Bielu.BetterSearch.Meilisearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
+using Bielu.BetterSearch.Meilisearch.DependencyInjection;
 
 builder.Services.AddBetterSearch(builder.Configuration, search => search.AddMeilisearch());
 ```
@@ -130,8 +130,8 @@ long texts small, and re-index after adding a field to it (see the [feature matr
 Typesense, configured from `Bielu:BetterSearch:Typesense`:
 
 ```csharp
-using Bielu.BetterSearch.DepedencyInjection;
-using Bielu.BetterSearch.Typesense.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
+using Bielu.BetterSearch.Typesense.DependencyInjection;
 
 builder.Services.AddBetterSearch(builder.Configuration, search => search.AddTypesense());
 ```
@@ -153,14 +153,14 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddType
 
 `AdditionalNodes` lists a cluster's other nodes, tried in order when one can't be reached. Typesense also runs
 queries as filters, so hits aren't ranked; fuzzy, raw Lucene and string range queries, facets and highlighting
-return a failed `Result`, and so does a `MUSTNOT` range, prefix or spatial query, as Typesense filters can only
+return a failed `Result`, and so does a `MustNot` range, prefix or spatial query, as Typesense filters can only
 negate an equality. See the [Typesense page](docs/articles/providers/typesense.md).
 
 PostgreSQL full-text search, configured from `Bielu:BetterSearch:PostgreSql`:
 
 ```csharp
-using Bielu.BetterSearch.DepedencyInjection;
-using Bielu.BetterSearch.PostgreSql.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
+using Bielu.BetterSearch.PostgreSql.DependencyInjection;
 
 builder.Services.AddBetterSearch(builder.Configuration, search => search.AddPostgreSql());
 ```
@@ -187,7 +187,7 @@ aren't ranked; raw Lucene queries, facets and highlighting return a failed `Resu
 Or in memory:
 
 ```csharp
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 
 builder.Services.AddBetterSearch(search => search.AddLiftiSearch());
 ```
@@ -203,7 +203,7 @@ await indexing.IndexDocumentAsync(new SearchDocument
 });
 
 var query = new SearchQuery { Index = "people", Page = 1, PageSize = 20 };
-query.Add(Occurance.MUST, new PrefixSubQuery { Field = "Name", Value = "ja" });
+query.Add(Occurrence.Must, new PrefixSubQuery { Field = "Name", Value = "ja" });
 
 var result = await search.SearchAsync(query, cancellationToken);
 if (result.IsSuccess)

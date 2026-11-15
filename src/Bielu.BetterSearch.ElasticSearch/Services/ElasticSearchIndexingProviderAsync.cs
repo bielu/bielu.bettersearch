@@ -63,10 +63,10 @@ internal sealed partial class ElasticSearchIndexingProviderAsync(
         return merged.IsSuccess ? Result.Ok(merged.Value.Sum()) : Result.Fail<int>(merged.Errors);
     }
 
-    public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) =>
-        clientFactory.TryWithClientAsync(type, async client =>
+    public Task<Result> RemoveDocumentAsync(string id, string index, CancellationToken cancellationToken = default) =>
+        clientFactory.TryWithClientAsync(index, async client =>
         {
-            var indexResult = await client.DeleteAsync(new DeleteRequest(Name(type), id) { Refresh = WaitFor(type) }, cancellationToken).ConfigureAwait(false);
+            var indexResult = await client.DeleteAsync(new DeleteRequest(Name(index), id) { Refresh = WaitFor(index) }, cancellationToken).ConfigureAwait(false);
             // Deletes are idempotent: a document that is not there is already gone. A missing index is still a failure,
             // and Elasticsearch reports it with an error rather than a not_found result.
             var removed = indexResult.ElasticsearchServerError is null

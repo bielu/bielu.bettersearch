@@ -3,9 +3,9 @@ using System.Diagnostics;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.Diagnostics;
-using Bielu.BetterSearch.Meilisearch.DepedencyInjection;
+using Bielu.BetterSearch.Meilisearch.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -84,7 +84,7 @@ public class MeilisearchErrorMessageTelemetryTests
         ActivitySource.AddActivityListener(listener);
 
         var query = new SearchQuery { Index = index };
-        query.Add(Occurance.MUST, new LuceneSubQuery { LuceneQuery = $"email:\"{Email}" });
+        query.Add(Occurrence.Must, new LuceneSubQuery { LuceneQuery = $"email:\"{Email}" });
         var result = await service.SearchAsync(query, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();

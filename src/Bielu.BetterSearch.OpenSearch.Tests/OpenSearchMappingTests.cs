@@ -32,7 +32,7 @@ public sealed class OpenSearchMappingTests(
             SharedIndexSettings = new OpenSearchIndexSettings
             {
                 ConnectionString = openSearch.Endpoint!.ToString(),
-                AuthenticationType = OpenSearchAuthenticationType.NONE,
+                AuthenticationType = OpenSearchAuthenticationType.None,
             },
             Indexes = new Dictionary<string, OpenSearchIndexSettings> { [index] = new() { Mappings = [.. mappings] } },
         });
@@ -81,7 +81,7 @@ public sealed class OpenSearchMappingTests(
     private static SearchQuery Term(string field, object value)
     {
         var query = new SearchQuery();
-        query.Add(Occurance.MUST, new TermSubQuery { Field = field, Value = value });
+        query.Add(Occurrence.Must, new TermSubQuery { Field = field, Value = value });
         return query;
     }
 
@@ -308,7 +308,7 @@ public sealed class OpenSearchMappingTests(
                 Document(providers.Index, "krakow", "Location", new Dictionary<string, object> { ["lat"] = 50.0647, ["lon"] = 19.9450 }),
                 Document(providers.Index, "piaseczno", "Location", "52.0811,21.0238"));
             var query = new SearchQuery();
-            query.Add(Occurance.MUST, new SpatialSearchQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 20 });
+            query.Add(Occurrence.Must, new SpatialSearchSubQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 20 });
 
             // Piaseczno is about 17 km from Warsaw, Krakow about 250 km.
             (await SearchIdsAsync(providers, query)).ShouldBe(["piaseczno", "warsaw"]);
@@ -322,7 +322,7 @@ public sealed class OpenSearchMappingTests(
     private static SearchQuery Between(string field, DateTime min, DateTime max)
     {
         var query = new SearchQuery();
-        query.Add(Occurance.MUST, new Abstractions.Query.SubQueries.DateRangeQuery { Field = field, MinValue = min, MaxValue = max, IncludeMinEdge = true, IncludeMaxEdge = false });
+        query.Add(Occurrence.Must, new Abstractions.Query.SubQueries.DateRangeSubQuery { Field = field, MinValue = min, MaxValue = max, IncludeMinEdge = true, IncludeMaxEdge = false });
         return query;
     }
 

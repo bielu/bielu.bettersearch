@@ -1,5 +1,5 @@
 ﻿using Bielu.BetterSearch.Configuration;
-using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+using Bielu.BetterSearch.OpenSearch.DependencyInjection;
 using Bielu.BetterSearch.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -12,7 +12,7 @@ public static class OpenSearchAwsSigV4ConfiguratorExtensions
     /// Signs every request the OpenSearch provider sends with AWS SigV4, for Amazon OpenSearch Service with IAM
     /// authentication or Amazon OpenSearch Serverless. The settings are read from
     /// <c>Bielu:BetterSearch:OpenSearch:AwsSigV4</c> and then <paramref name="configure"/>, and validated at startup.
-    /// Leave the OpenSearch <c>AuthenticationType</c> at <c>NONE</c>: the signature is the request's
+    /// Leave the OpenSearch <c>AuthenticationType</c> at <c>None</c>: the signature is the request's
     /// <c>Authorization</c> header. Each cached OpenSearch client gets its own signing connection, with the options
     /// current when the client is created.
     /// </summary>

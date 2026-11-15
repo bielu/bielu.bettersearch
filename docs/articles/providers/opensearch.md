@@ -28,8 +28,8 @@ dotnet add package Bielu.BetterSearch.OpenSearch --prerelease
 `AddBetterSearch` overload without configuration leaves the provider with empty settings.
 
 ```csharp
-using Bielu.BetterSearch.DepedencyInjection;
-using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
+using Bielu.BetterSearch.OpenSearch.DependencyInjection;
 
 builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpenSearch());
 ```
@@ -45,7 +45,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
           "ConnectionString": "http://localhost:9200",
           "AdditionalNodes": [ "http://node-2:9200", "http://node-3:9200" ],
           "PoolType": "Static",
-          "AuthenticationType": "PASSWORD",
+          "AuthenticationType": "Password",
           "AuthenticationDetails": { "Username": "admin", "Password": "..." }
         },
         "Indexes": {
@@ -64,10 +64,10 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search.AddOpen
 | `ConnectionString` | Cluster URL, `http` or `https`; a missing or invalid one makes each call for that index return a failed `Result` |
 | `AdditionalNodes` | URLs of the cluster's other nodes, each an absolute `http` or `https` URL with the same scheme as `ConnectionString`. A request that can't reach a node is sent to the next one, and the node is left out for a while before it is tried again. An `Indexes` entry with its own `ConnectionString` uses only its own nodes; an entry without one takes its own `AdditionalNodes` if set, or the shared ones |
 | `PoolType` | How requests are spread over the nodes: `Static` (the nodes take turns, starting from a random one), `Sticky` (always the first node that is up, in the order listed, starting from `ConnectionString`) or `Sniffing` (as `Static`, but the client asks the cluster for its nodes at startup and after a node fails, and then uses the addresses the nodes publish, which it must be able to reach). Unset, a lone `ConnectionString` is the only node the client uses, as before, and with `AdditionalNodes` the pool is `Static`. An `Indexes` entry that leaves it out takes the shared value |
-| `AuthenticationType` | `NONE`, `PASSWORD` (basic, `Username` and `Password`) or `APIKEY` (an OpenSearch 3.x API key in `ApiKey`, sent as `Authorization: ApiKey <key>`) |
+| `AuthenticationType` | `None`, `Password` (basic, `Username` and `Password`) or `ApiKey` (an OpenSearch 3.x API key in `ApiKey`, sent as `Authorization: ApiKey <key>`) |
 | `CertificateFingerprint` | The SHA-256 fingerprint of the server's certificate or of the CA that signed it, 64 hex digits with or without colons. A certificate the system does not trust is then accepted when it has this fingerprint, or chains through valid signatures to a CA that has it, whatever host name it names; one the system trusts is accepted as before. Can't be set together with `DevelopmentOnlySkipCertificateValidation` |
 | `DevelopmentOnlySkipCertificateValidation` | `true` accepts any server certificate, so anyone between the application and the cluster can read and change the traffic, credentials included. Only for a local development cluster, such as one running the security plugin's demo certificates. A certificate the system trusts needs neither TLS setting; set `CertificateFingerprint` only for one it does not, such as a self-signed CA |
-| `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "NONE"` turns the shared authentication off for that index. Indexes that end up with the same nodes, pool type and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people`. The TLS settings go with the connection string: an entry with its own `ConnectionString` uses only its own `CertificateFingerprint` and `DevelopmentOnlySkipCertificateValidation`, and one without takes the shared ones; setting either on an entry without its own `ConnectionString` fails validation |
+| `Indexes` | Per-index settings; an entry can set its own connection string or authentication, and takes whatever it leaves out from `SharedIndexSettings`. An entry's `"AuthenticationType": "None"` turns the shared authentication off for that index. Indexes that end up with the same nodes, pool type and authentication share one client, and changed settings take effect on the next call. Keys match index names whatever their case, so `People` applies to the index `people`. The TLS settings go with the connection string: an entry with its own `ConnectionString` uses only its own `CertificateFingerprint` and `DevelopmentOnlySkipCertificateValidation`, and one without takes the shared ones; setting either on an entry without its own `ConnectionString` fails validation |
 | `Mappings` | Explicit field mappings, in `SharedIndexSettings` or an `Indexes` entry; see [Field mappings](#field-mappings) |
 | `BulkBatchSize` | Most documents `IndexMultipleDocumentsAsync` sends in one bulk request, 1000 by default, in `SharedIndexSettings` or an `Indexes` entry; see [Indexing several documents](#indexing-several-documents). It must be greater than 0, or startup validation fails |
 | `WriteVisibility` | `Default` or `WaitUntilSearchable`, in `SharedIndexSettings` or an `Indexes` entry; see [When writes are searchable](#when-writes-are-searchable). An entry that leaves it out takes the shared value, and `"WriteVisibility": "Default"` there turns the shared one off |
@@ -145,7 +145,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search
 | `Region` | The region the requests are signed for. Unset, the AWS SDK finds it, from `AWS_REGION` or the AWS profile. An empty value fails startup validation |
 | `Credentials` | Set in code only, through `AddOpenSearchAwsSigV4(options => options.Credentials = ...)`. Unset, the AWS SDK's default credential chain finds them: environment variables, the AWS profile, or the role of the container or instance. Session credentials send `X-Amz-Security-Token` |
 
-Leave `AuthenticationType` at `NONE`: the signature is the request's `Authorization` header. Every OpenSearch client the
+Leave `AuthenticationType` at `None`: the signature is the request's `Authorization` header. Every OpenSearch client the
 provider creates signs its requests, whichever `Indexes` entry it is for, and each client gets its connection when it
 is created, with the settings current then. Two calls racing to create the same client can each create a connection,
 and only one client and its connection are kept.
@@ -172,14 +172,14 @@ Documents are stored with their values under `fields`, as with Elasticsearch, so
   Use `Field.keyword` to match the whole value.
 - **`PrefixQuery` needs a text or keyword field, and `PrefixPhraseQuery` a text field.** On a field holding
   numbers or dates, OpenSearch rejects the query and the search returns a failed `Result`.
-- **`StringRange` bounds are case-sensitive.** They are compared to the indexed tokens as given, so on an
+- **`StringRangeSubQuery` bounds are case-sensitive.** They are compared to the indexed tokens as given, so on an
   analyzed field, whose tokens are lower-cased, `"a"`–`"z"` matches `Jane` but `"A"`–`"Z"` doesn't. Pass
   lower-case bounds, or use `Field.keyword` to compare whole values.
 - **Sorting on a text field** is rejected by OpenSearch. A field mapped as `Text` in `Mappings` sorts on its `keyword`
   sub-field under its plain name; an unmapped text field still sorts as `Field.keyword`.
-- **`SpatialSearchQuery`** needs the field mapped as `GeoPoint` in `Mappings`; dynamic mapping doesn't create one.
+- **`SpatialSearchSubQuery`** needs the field mapped as `GeoPoint` in `Mappings`; dynamic mapping doesn't create one.
 - **`LuceneQuery`** field names need the `fields.` prefix.
-- **`FuzzyQuery`** allows at most 2 edits, and uses `AUTO` when `Fuziness` is unset. A value that is not a string or
+- **`FuzzySubQuery`** allows at most 2 edits, and uses `AUTO` when `MaxEdits` is unset. A value that is not a string or
   a number, such as a date or a boolean, returns a failed `Result`.
 - **Dates are stored and queried as ISO 8601 text in UTC**, with fractional seconds only when they are not zero
   (`2026-11-08T13:05:00Z`, `2026-11-08T13:05:00.123Z`). A local `DateTime` and a `DateTimeOffset` are converted to
@@ -222,7 +222,7 @@ unless the first value it sees looks like a date (`2026-11-13`), which date dete
   automatically, so callers sort on `Field`. That sort compares whole values as given: upper case sorts
   before lower case (`Banana` before `apple`), a multi-valued field sorts ascending by its lowest value, and a
   value longer than 256 characters isn't in the sub-field, so it sorts as if the field were missing.
-- **`GeoPoint`** makes `SpatialSearchQuery` work. A point is a `"lat,lon"` string or a dictionary with `lat`
+- **`GeoPoint`** makes `SpatialSearchSubQuery` work. A point is a `"lat,lon"` string or a dictionary with `lat`
   and `lon`.
 - **`Date`** with a `Format` must accept the values documents hold, or indexing them fails. The provider writes a
   `DateTime` or `DateTimeOffset` as ISO 8601 text in UTC (`2026-11-08T13:05:00Z`) and a `DateOnly` as `yyyy-MM-dd`, so a custom format has to
@@ -269,7 +269,7 @@ the field name without the `fields.` prefix (`Name`, also when the request names
 
 - **`TermAggregation`** is a `terms` aggregation: one `KeyBucket` per value, the values with the most documents
   first, `Size` of them (10 when it is 0).
-- **`MultiTermAggreation`** is a `multi_terms` aggregation: one `KeyBucket` per combination of values, each value
+- **`MultiTermAggregation`** is a `multi_terms` aggregation: one `KeyBucket` per combination of values, each value
   in `Keys` and the joined key, such as `Red|acme`, in `Key`.
 - **`FilterAggregationQuery`** is a `filter` aggregation: a `SingleAggregation` whose one bucket holds the number of
   documents its `Queries` match.
@@ -373,7 +373,7 @@ write them again after the swap. After a rebuild the index name is an alias: sea
 
 ## Removing documents
 
-`DeleteDocumentRequest.Type` is the **index name**, not the document type held in `SearchDocument.Type`.
+`DeleteDocumentRequest.Index` names the index to remove the document from.
 
 - **A document that is not there**: `RemoveDocumentAsync` succeeds, as the document is already gone.
 - **An index that does not exist**: `RemoveDocumentAsync` returns a failed `Result`.

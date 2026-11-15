@@ -44,44 +44,44 @@ internal static class RangeFilter
         "ELSE (e #>> '{}')::timestamp AT TIME ZONE 'UTC' END END)";
 }
 
-internal sealed class NumericRangeSubQueryTranslator : PostgreSqlSubQueryTranslator<NumericRange>
+internal sealed class NumericRangeSubQueryTranslator : PostgreSqlSubQueryTranslator<NumericRangeSubQuery>
 {
-    protected override Result<PostgreSqlFilter> Translate(NumericRange query)
+    protected override Result<PostgreSqlFilter> Translate(NumericRangeSubQuery query)
     {
-        var field = RangeFilter.Field(query.Field, nameof(NumericRange));
-        var bounds = Result.Merge(field, RangeBounds.Require(nameof(NumericRange), query.MinValue, query.MaxValue),
-            RangeBounds.RequireFinite(nameof(NumericRange), query.MinValue, query.MaxValue));
+        var field = RangeFilter.Field(query.Field, nameof(NumericRangeSubQuery));
+        var bounds = Result.Merge(field, RangeBounds.Require(nameof(NumericRangeSubQuery), query.MinValue, query.MaxValue),
+            RangeBounds.RequireFinite(nameof(NumericRangeSubQuery), query.MinValue, query.MaxValue));
         return bounds.IsFailed
             ? Result.Fail<PostgreSqlFilter>(bounds.Errors[0])
-            : Result.Ok(RangeFilter.Build(field.Value, nameof(NumericRange), "jsonb_typeof(e) = 'number'", "(e)::numeric",
+            : Result.Ok(RangeFilter.Build(field.Value, nameof(NumericRangeSubQuery), "jsonb_typeof(e) = 'number'", "(e)::numeric",
                 query.MinValue, query.MaxValue, NpgsqlDbType.Double, query.IncludeMinEdge, query.IncludeMaxEdge));
     }
 }
 
 /// <summary>Compares exactly at any size, as the bounds are compared with the stored decimals as integers.</summary>
-internal sealed class LongRangeSubQueryTranslator : PostgreSqlSubQueryTranslator<LongRange>
+internal sealed class LongRangeSubQueryTranslator : PostgreSqlSubQueryTranslator<LongRangeSubQuery>
 {
-    protected override Result<PostgreSqlFilter> Translate(LongRange query)
+    protected override Result<PostgreSqlFilter> Translate(LongRangeSubQuery query)
     {
-        var field = RangeFilter.Field(query.Field, nameof(LongRange));
-        var bounds = Result.Merge(field, RangeBounds.Require(nameof(LongRange), query.MinValue, query.MaxValue));
+        var field = RangeFilter.Field(query.Field, nameof(LongRangeSubQuery));
+        var bounds = Result.Merge(field, RangeBounds.Require(nameof(LongRangeSubQuery), query.MinValue, query.MaxValue));
         return bounds.IsFailed
             ? Result.Fail<PostgreSqlFilter>(bounds.Errors[0])
-            : Result.Ok(RangeFilter.Build(field.Value, nameof(LongRange), "jsonb_typeof(e) = 'number'", "(e)::numeric",
+            : Result.Ok(RangeFilter.Build(field.Value, nameof(LongRangeSubQuery), "jsonb_typeof(e) = 'number'", "(e)::numeric",
                 query.MinValue, query.MaxValue, NpgsqlDbType.Bigint, query.IncludeMinEdge, query.IncludeMaxEdge));
     }
 }
 
 /// <summary>Compares instants, so a bound with any offset or <c>DateTimeKind</c> matches the dates stored as UTC text.</summary>
-internal sealed class DateRangeSubQueryTranslator : PostgreSqlSubQueryTranslator<DateRangeQuery>
+internal sealed class DateRangeSubQueryTranslator : PostgreSqlSubQueryTranslator<DateRangeSubQuery>
 {
-    protected override Result<PostgreSqlFilter> Translate(DateRangeQuery query)
+    protected override Result<PostgreSqlFilter> Translate(DateRangeSubQuery query)
     {
-        var field = RangeFilter.Field(query.Field, nameof(DateRangeQuery));
-        var bounds = Result.Merge(field, RangeBounds.Require(nameof(DateRangeQuery), query.MinValue, query.MaxValue));
+        var field = RangeFilter.Field(query.Field, nameof(DateRangeSubQuery));
+        var bounds = Result.Merge(field, RangeBounds.Require(nameof(DateRangeSubQuery), query.MinValue, query.MaxValue));
         return bounds.IsFailed
             ? Result.Fail<PostgreSqlFilter>(bounds.Errors[0])
-            : Result.Ok(RangeFilter.Build(field.Value, nameof(DateRangeQuery), $"{RangeFilter.Timestamp} IS NOT NULL", RangeFilter.Timestamp,
+            : Result.Ok(RangeFilter.Build(field.Value, nameof(DateRangeSubQuery), $"{RangeFilter.Timestamp} IS NOT NULL", RangeFilter.Timestamp,
                 query.MinValue?.UtcDateTime, query.MaxValue?.UtcDateTime, NpgsqlDbType.TimestampTz, query.IncludeMinEdge, query.IncludeMaxEdge));
     }
 }
@@ -90,15 +90,15 @@ internal sealed class DateRangeSubQueryTranslator : PostgreSqlSubQueryTranslator
 /// Compares whole string values by their UTF-8 bytes (the <c>C</c> collation), as Elasticsearch compares a keyword
 /// field, so <c>B</c> sorts before <c>a</c>.
 /// </summary>
-internal sealed class StringRangeSubQueryTranslator : PostgreSqlSubQueryTranslator<StringRange>
+internal sealed class StringRangeSubQueryTranslator : PostgreSqlSubQueryTranslator<StringRangeSubQuery>
 {
-    protected override Result<PostgreSqlFilter> Translate(StringRange query)
+    protected override Result<PostgreSqlFilter> Translate(StringRangeSubQuery query)
     {
-        var field = RangeFilter.Field(query.Field, nameof(StringRange));
-        var bounds = Result.Merge(field, RangeBounds.Require(nameof(StringRange), query.MinValue, query.MaxValue));
+        var field = RangeFilter.Field(query.Field, nameof(StringRangeSubQuery));
+        var bounds = Result.Merge(field, RangeBounds.Require(nameof(StringRangeSubQuery), query.MinValue, query.MaxValue));
         return bounds.IsFailed
             ? Result.Fail<PostgreSqlFilter>(bounds.Errors[0])
-            : Result.Ok(RangeFilter.Build(field.Value, nameof(StringRange), "jsonb_typeof(e) = 'string'", "(e #>> '{}') COLLATE \"C\"",
+            : Result.Ok(RangeFilter.Build(field.Value, nameof(StringRangeSubQuery), "jsonb_typeof(e) = 'string'", "(e #>> '{}') COLLATE \"C\"",
                 query.MinValue, query.MaxValue, NpgsqlDbType.Text, query.IncludeMinEdge, query.IncludeMaxEdge));
     }
 }

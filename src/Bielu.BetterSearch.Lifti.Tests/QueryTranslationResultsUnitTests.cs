@@ -26,7 +26,7 @@ public class QueryTranslationResultsUnitTests(
     [Fact]
     public override async Task SearchAsync_MustNotOnly_ReturnsTheComplement() => await SearchAsync_MustNotOnly_ShouldFailAsync();
 
-    /// <summary>The <c>MUST</c> only excludes, so the matches are every other document, which Lifti cannot return.</summary>
+    /// <summary>The <c>Must</c> only excludes, so the matches are every other document, which Lifti cannot return.</summary>
     [Fact]
     public override async Task SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ReturnsEveryDocumentExceptTheExclusions() =>
         await SearchAsync_ShouldBesideMustOfNestedMustNotOnly_ShouldFailAsync();

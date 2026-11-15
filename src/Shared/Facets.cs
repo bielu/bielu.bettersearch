@@ -53,9 +53,9 @@ internal static class Facets
             var own = facet switch
             {
                 TermAggregation term => ValidateTerm(name, term),
-                MultiTermAggreation multiTerm => ValidateMultiTerm(name, multiTerm),
+                MultiTermAggregation multiTerm => ValidateMultiTerm(name, multiTerm),
                 FilterAggregationQuery filter => ValidateFilter(name, filter),
-                _ => Result.Fail($"Facet {name} is a {facet.GetType().Name}; only TermAggregation, MultiTermAggreation and FilterAggregationQuery are supported.")
+                _ => Result.Fail($"Facet {name} is a {facet.GetType().Name}; only TermAggregation, MultiTermAggregation and FilterAggregationQuery are supported.")
             };
             if (own.IsFailed)
             {
@@ -94,7 +94,7 @@ internal static class Facets
         return ValidateSize(name, term.Size);
     }
 
-    private static Result ValidateMultiTerm(string name, MultiTermAggreation multiTerm)
+    private static Result ValidateMultiTerm(string name, MultiTermAggregation multiTerm)
     {
         if (multiTerm.Terms is not { Count: >= 2 })
         {

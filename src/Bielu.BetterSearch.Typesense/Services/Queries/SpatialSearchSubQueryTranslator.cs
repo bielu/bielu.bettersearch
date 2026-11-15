@@ -13,11 +13,11 @@ namespace Bielu.BetterSearch.Typesense.Services.Queries;
 /// field must be that one. The unit is an Elasticsearch distance unit, kilometres by default.
 /// </summary>
 internal sealed class SpatialSearchSubQueryTranslator(IOptionsMonitor<TypesenseOptions> optionsMonitor)
-    : TypesenseSubQueryTranslator<SpatialSearchQuery>
+    : TypesenseSubQueryTranslator<SpatialSearchSubQuery>
 {
     private const string DefaultUnit = "km";
 
-    private const string NotNegatable = "Typesense filters cannot negate a geo radius, so a SpatialSearchQuery can't be a MUSTNOT clause.";
+    private const string NotNegatable = "Typesense filters cannot negate a geo radius, so a SpatialSearchSubQuery can't be a MustNot clause.";
 
     /// <summary>Metres in one of each unit, by every name Elasticsearch accepts.</summary>
     private static readonly Dictionary<string, double> MetresPerUnit = new(StringComparer.Ordinal)
@@ -43,9 +43,9 @@ internal sealed class SpatialSearchSubQueryTranslator(IOptionsMonitor<TypesenseO
         ["nauticalmiles"] = 1852,
     };
 
-    protected override Result<TypesenseFilter> Translate(SpatialSearchQuery query, IEnumerable<ISubQueryTranslator<TypesenseFilter>> subQueryTranslators)
+    protected override Result<TypesenseFilter> Translate(SpatialSearchSubQuery query, IEnumerable<ISubQueryTranslator<TypesenseFilter>> subQueryTranslators)
     {
-        var field = N.Require(query.Field, nameof(SpatialSearchQuery));
+        var field = N.Require(query.Field, nameof(SpatialSearchSubQuery));
         if (field.IsFailed)
         {
             return field.ToResult<TypesenseFilter>();
@@ -55,34 +55,34 @@ internal sealed class SpatialSearchSubQueryTranslator(IOptionsMonitor<TypesenseO
         if (string.IsNullOrWhiteSpace(geoField))
         {
             return Result.Fail<TypesenseFilter>(
-                $"{nameof(SpatialSearchQuery)} needs TypesenseOptions.GeoField: Typesense filters by distance only on a geopoint field, which the provider fills from that field.");
+                $"{nameof(SpatialSearchSubQuery)} needs TypesenseOptions.GeoField: Typesense filters by distance only on a geopoint field, which the provider fills from that field.");
         }
 
         if (N.Name(field.Value) != geoField)
         {
             return Result.Fail<TypesenseFilter>(
-                $"{nameof(SpatialSearchQuery)} field '{field.Value}' is not TypesenseOptions.GeoField '{geoField}': the provider stores a point for that field only.");
+                $"{nameof(SpatialSearchSubQuery)} field '{field.Value}' is not TypesenseOptions.GeoField '{geoField}': the provider stores a point for that field only.");
         }
 
         if (query.Distance <= 0 || double.IsNaN(query.Distance) || double.IsInfinity(query.Distance))
         {
-            return Result.Fail<TypesenseFilter>($"{nameof(SpatialSearchQuery)} needs a Distance greater than 0.");
+            return Result.Fail<TypesenseFilter>($"{nameof(SpatialSearchSubQuery)} needs a Distance greater than 0.");
         }
 
         if (query.Lat is < -90 or > 90 || double.IsNaN(query.Lat))
         {
-            return Result.Fail<TypesenseFilter>($"{nameof(SpatialSearchQuery)} has an invalid Lat {query.Lat}: it must be between -90 and 90.");
+            return Result.Fail<TypesenseFilter>($"{nameof(SpatialSearchSubQuery)} has an invalid Lat {query.Lat}: it must be between -90 and 90.");
         }
 
         if (query.Lng is < -180 or > 180 || double.IsNaN(query.Lng))
         {
-            return Result.Fail<TypesenseFilter>($"{nameof(SpatialSearchQuery)} has an invalid Lng {query.Lng}: it must be between -180 and 180.");
+            return Result.Fail<TypesenseFilter>($"{nameof(SpatialSearchSubQuery)} has an invalid Lng {query.Lng}: it must be between -180 and 180.");
         }
 
         var unit = string.IsNullOrWhiteSpace(query.UnitOfDistance) ? DefaultUnit : query.UnitOfDistance;
         if (!MetresPerUnit.TryGetValue(unit, out var metres))
         {
-            return Result.Fail<TypesenseFilter>($"{nameof(SpatialSearchQuery)} has an invalid UnitOfDistance {unit}.");
+            return Result.Fail<TypesenseFilter>($"{nameof(SpatialSearchSubQuery)} has an invalid UnitOfDistance {unit}.");
         }
 
         var typesenseField = N.Geo + geoField;

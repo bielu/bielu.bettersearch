@@ -73,8 +73,8 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
     private static SearchQuery DoeOrWarsaw(string index)
     {
         var query = new SearchQuery { Index = index };
-        query.Add(Occurance.SHOULD, new TermSubQuery { Field = "Name", Value = "doe" });
-        query.Add(Occurance.SHOULD, new TermSubQuery { Field = "City", Value = "warsaw" });
+        query.Add(Occurrence.Should, new TermSubQuery { Field = "Name", Value = "doe" });
+        query.Add(Occurrence.Should, new TermSubQuery { Field = "City", Value = "warsaw" });
         return query;
     }
 
@@ -150,11 +150,11 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
     {
         await WithPeopleAsync(async index =>
         {
-            var query = SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "doe" });
+            var query = SearchTestHelpers.Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "doe" });
             query.HighlightQueries.Add(new BaseHighlightQuery
             {
                 Field = "Name",
-                Queries = { [Occurance.MUST] = new TermSubQuery { Field = "Name", Value = "jane" } }
+                Queries = { [Occurrence.Must] = new TermSubQuery { Field = "Name", Value = "jane" } }
             });
 
             if (await HighlightAsync(query) is not { } hits)
@@ -172,7 +172,7 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
     {
         await WithPeopleAsync(async index =>
         {
-            var query = SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Tags", Value = "pear" });
+            var query = SearchTestHelpers.Query(index, Occurrence.Must, new TermSubQuery { Field = "Tags", Value = "pear" });
             query.HighlightQueries.Add(new BaseHighlightQuery { Field = "Tags" });
 
             if (await HighlightAsync(query) is not { } hits)
@@ -190,7 +190,7 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
     {
         await WithPeopleAsync(async index =>
         {
-            var query = SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "cat" });
+            var query = SearchTestHelpers.Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "cat" });
             query.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name" });
 
             if (await HighlightAsync(query) is not { } hits)
@@ -236,9 +236,9 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
     public async Task SearchAsync_NullClauseInOwnHighlightQuery_ReturnsFailure()
     {
         var query = new SearchQuery { Index = $"highlight-{Guid.NewGuid():N}" };
-        query.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name", Queries = { [Occurance.MUST] = null! } });
+        query.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name", Queries = { [Occurrence.Must] = null! } });
 
-        await ShouldFailAsync(query, "The highlight query for field Name holds a null MUST clause");
+        await ShouldFailAsync(query, "The highlight query for field Name holds a null Must clause");
     }
 
     [Fact]
@@ -263,11 +263,11 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
     }
 
     [Fact]
-    public void HighLighterConfigurator_New_AddsTheRequestItConfigures()
+    public void HighlighterConfigurator_New_AddsTheRequestItConfigures()
     {
         var query = new SearchQuery();
 
-        var configurator = new HighLighterConfigurator(query);
+        var configurator = new HighlighterConfigurator(query);
         configurator.Query.Field = "Name";
 
         query.HighlightQueries.ShouldHaveSingleItem().ShouldBeSameAs(configurator.Query);

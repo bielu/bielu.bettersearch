@@ -14,10 +14,10 @@ namespace Bielu.BetterSearch.Meilisearch.Tests;
 /// <summary>Pins how Lucene syntax translates; the search tests check what the filters match on a real server.</summary>
 public class MeilisearchLuceneSubQueryTests(IQueryTranslateServiceAsync<MeilisearchQuery> translateService)
 {
-    private Task<Result<MeilisearchQuery>> TranslateAsync(string lucene, Occurance occurance = Occurance.MUST)
+    private Task<Result<MeilisearchQuery>> TranslateAsync(string lucene, Occurrence occurrence = Occurrence.Must)
     {
         var query = new SearchQuery();
-        query.Add(occurance, new LuceneSubQuery { LuceneQuery = lucene });
+        query.Add(occurrence, new LuceneSubQuery { LuceneQuery = lucene });
         return translateService.TranslateMainQueryAsync(query);
     }
 
@@ -94,8 +94,8 @@ public class MeilisearchLuceneSubQueryTests(IQueryTranslateServiceAsync<Meilisea
     {
         var query = new SearchQuery();
         var nested = new BoolSearchSubQuery();
-        nested.Add(Occurance.MUST, new LuceneSubQuery { LuceneQuery = "Name:jnae~" });
-        query.PostFilterQuery[Occurance.MUST] = [nested];
+        nested.Add(Occurrence.Must, new LuceneSubQuery { LuceneQuery = "Name:jnae~" });
+        query.PostFilterQuery[Occurrence.Must] = [nested];
 
         var result = await translateService.TranslateMainQueryAsync(query);
 

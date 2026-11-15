@@ -8,10 +8,10 @@ namespace Bielu.BetterSearch.Tests;
 public static class SearchTestHelpers
 {
     /// <summary>A query on <paramref name="index"/> holding the one clause.</summary>
-    public static SearchQuery Query(string index, Occurance occurance, ISearchSubQuery subQuery)
+    public static SearchQuery Query(string index, Occurrence occurrence, ISearchSubQuery subQuery)
     {
         var query = new SearchQuery { Index = index };
-        query.Add(occurance, subQuery);
+        query.Add(occurrence, subQuery);
         return query;
     }
 

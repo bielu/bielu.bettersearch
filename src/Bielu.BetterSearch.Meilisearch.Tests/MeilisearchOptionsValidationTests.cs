@@ -2,9 +2,9 @@
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Configuration;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.Meilisearch.Configuration;
-using Bielu.BetterSearch.Meilisearch.DepedencyInjection;
+using Bielu.BetterSearch.Meilisearch.DependencyInjection;
 using Bielu.BetterSearch.Meilisearch.Services;
 using Bielu.BetterSearch.Meilisearch.Services.Queries;
 using Bielu.BetterSearch.Tests;
@@ -225,7 +225,7 @@ public class MeilisearchOptionsValidationTests : OptionsValidationTestBase
         var translated = new[]
         {
             await phrasePrefix.TranslateAsync(new PrefixPhraseSubQuery { Field = "Name", Value = "jane d" }, [phrasePrefix]),
-            await spatial.TranslateAsync(new SpatialSearchQuery { Field = "Location", Distance = 10 }, [spatial]),
+            await spatial.TranslateAsync(new SpatialSearchSubQuery { Field = "Location", Distance = 10 }, [spatial]),
             await lucene.TranslateAsync(new LuceneSubQuery { LuceneQuery = "Name:\"a b\"" }, [lucene]),
         };
 

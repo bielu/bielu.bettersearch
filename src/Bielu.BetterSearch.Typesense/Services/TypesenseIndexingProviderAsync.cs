@@ -188,12 +188,12 @@ internal sealed partial class TypesenseIndexingProviderAsync(
         return Result.Ok((failed, reason));
     }
 
-    public async Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default)
+    public async Task<Result> RemoveDocumentAsync(string id, string index, CancellationToken cancellationToken = default)
     {
         try
         {
-            var client = await clientFactory.GetOrCreateClientAsync(type).ConfigureAwait(false);
-            var collection = TypesenseHttpClientWrapper.Escape(Name(type));
+            var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
+            var collection = TypesenseHttpClientWrapper.Escape(Name(index));
             // A '.' or '..' path segment would be resolved away, so such an id is deleted by filter instead.
             var path = id is "." or ".."
                 ? $"collections/{collection}/documents?filter_by={Uri.EscapeDataString($"id:[`{id}`]")}"
@@ -210,7 +210,7 @@ internal sealed partial class TypesenseIndexingProviderAsync(
                 return Result.Ok();
             }
 
-            return Result.Fail(new Error($"Removing document {id} from {type} failed: {response.Describe()}"));
+            return Result.Fail(new Error($"Removing document {id} from {index} failed: {response.Describe()}"));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

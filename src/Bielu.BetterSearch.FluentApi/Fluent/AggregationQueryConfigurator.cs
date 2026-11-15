@@ -23,7 +23,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
         }
         public AggregationQueryConfigurator CreateMultiTermQuery(Action<MultiTermAggregationQueryConfigurator> query)
         {
-            var termAggregation = new MultiTermAggreation();
+            var termAggregation = new MultiTermAggregation();
             var configurator = new MultiTermAggregationQueryConfigurator(termAggregation);
             query.Invoke(configurator);
             configuratorQuery.FacetQueries.Add(termAggregation);

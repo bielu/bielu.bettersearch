@@ -10,12 +10,12 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         /// <summary>
         /// Adds <paramref name="subQuery"/> with its own occurrence when one was chosen, else with the parent's.
         /// </summary>
-        private static void Add(this ICreatableSearchQuery target, Occurance parent,
-            Occurance? own, ISearchSubQuery subQuery)
+        private static void Add(this ICreatableSearchQuery target, Occurrence parent,
+            Occurrence? own, ISearchSubQuery subQuery)
         {
-            var occurance = own ?? parent;
-            subQuery.Occurance = occurance;
-            target.Add(occurance, subQuery);
+            var occurrence = own ?? parent;
+            subQuery.Occurrence = occurrence;
+            target.Add(occurrence, subQuery);
         }
 
         /// <summary>
@@ -23,100 +23,100 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         /// implementation behind the top-level and the nested <c>Create…Query</c> methods.
         /// </summary>
         private static TConfigurator Create<TConfigurator, TSubQuery>(this TConfigurator configurator,
-            ICreatableSearchQuery target, Occurance parent, Action<TSubQuery> query)
+            ICreatableSearchQuery target, Occurrence parent, Action<TSubQuery> query)
             where TSubQuery : SubQueryConfigurator<TSubQuery>, new()
         {
             var subQuery = new TSubQuery();
             query.Invoke(subQuery);
-            target.Add(parent, subQuery.Occurance, subQuery.Built);
+            target.Add(parent, subQuery.Occurrence, subQuery.Built);
             return configurator;
         }
 
         public static IQueryConfigurator CreateTermQuery(this IQueryConfigurator configurator,
             Action<TermQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IQueryConfigurator CreateTermsQuery(this IQueryConfigurator configurator,
             Action<TermsQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IQueryConfigurator CreateFuzzyQuery(this IQueryConfigurator configurator,
             Action<FuzzyQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IQueryConfigurator CreatePrefixQuery(this IQueryConfigurator configurator,
             Action<PrefixQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IQueryConfigurator CreatePrefixPhraseQuery(this IQueryConfigurator configurator,
             Action<PrefixPhraseQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IQueryConfigurator CreateNumericRangeQuery(this IQueryConfigurator configurator,
             Action<NumericRangeQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IQueryConfigurator CreateLongRangeQuery(this IQueryConfigurator configurator,
             Action<LongRangeQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IQueryConfigurator CreateStringRangeQuery(this IQueryConfigurator configurator,
             Action<StringRangeQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IQueryConfigurator CreateDateRangeQuery(this IQueryConfigurator configurator,
             Action<DateRangeQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
-        public static IQueryConfigurator CreateGoeDistanceQuery(this IQueryConfigurator configurator,
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
+        public static IQueryConfigurator CreateGeoDistanceQuery(this IQueryConfigurator configurator,
             Action<SpatialQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IQueryConfigurator CreateLuceneQuery(this IQueryConfigurator configurator,
             Action<LuceneQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
 
         public static IBaseQueryConfigurator CreateTermQuery(this IBaseQueryConfigurator configurator,
             Action<TermQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IBaseQueryConfigurator CreateTermsQuery(this IBaseQueryConfigurator configurator,
             Action<TermsQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IBaseQueryConfigurator CreateFuzzyQuery(this IBaseQueryConfigurator configurator,
             Action<FuzzyQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IBaseQueryConfigurator CreatePrefixQuery(this IBaseQueryConfigurator configurator,
             Action<PrefixQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IBaseQueryConfigurator CreatePrefixPhraseQuery(this IBaseQueryConfigurator configurator,
             Action<PrefixPhraseQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IBaseQueryConfigurator CreateNumericRangeQuery(this IBaseQueryConfigurator configurator,
             Action<NumericRangeQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IBaseQueryConfigurator CreateLongRangeQuery(this IBaseQueryConfigurator configurator,
             Action<LongRangeQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IBaseQueryConfigurator CreateStringRangeQuery(this IBaseQueryConfigurator configurator,
             Action<StringRangeQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IBaseQueryConfigurator CreateDateRangeQuery(this IBaseQueryConfigurator configurator,
             Action<DateRangeQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
-        public static IBaseQueryConfigurator CreateGoeDistanceQuery(this IBaseQueryConfigurator configurator,
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
+        public static IBaseQueryConfigurator CreateGeoDistanceQuery(this IBaseQueryConfigurator configurator,
             Action<SpatialQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
         public static IBaseQueryConfigurator CreateLuceneQuery(this IBaseQueryConfigurator configurator,
             Action<LuceneQueryConfigurator> query) =>
-            configurator.Create(configurator.Query, configurator.Occurance, query);
+            configurator.Create(configurator.Query, configurator.Occurrence, query);
 
         public static IQueryConfigurator CreateBoolQuery(this IQueryConfigurator configurator,
             Action<BooleanQueryConfigurator> query)
         {
             var booleanQuery = new BooleanQueryConfigurator();
             query.Invoke(booleanQuery);
-            configurator.Query.Add(configurator.Occurance, null, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurrence, null, booleanQuery.Query);
             return configurator;
         }
         /// <summary>
         /// Keeps only documents whose <see cref="CultureField.Name"/> field holds <paramref name="culture"/>,
-        /// as a <c>FILTER</c> clause. Index the culture with <see cref="CultureField.Value"/>.
+        /// as a <c>Filter</c> clause. Index the culture with <see cref="CultureField.Value"/>.
         /// </summary>
         public static IBaseQueryConfigurator FilterByCulture(this IBaseQueryConfigurator configurator, string culture)
         {
-            configurator.Query.Add(Occurance.FILTER, new TermSubQuery
+            configurator.Query.Add(Occurrence.Filter, new TermSubQuery
             {
-                Occurance = Occurance.FILTER,
+                Occurrence = Occurrence.Filter,
                 Field = CultureField.Name,
                 Value = CultureField.Value(culture)
             });
@@ -131,9 +131,9 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
             Action<BooleanQueryConfigurator> query)
         {
             var booleanQuery = new BooleanQueryConfigurator();
-            booleanQuery.Occurance = configurator.Occurance;
+            booleanQuery.Occurrence = configurator.Occurrence;
             query.Invoke(booleanQuery);
-            configurator.Query.Add(configurator.Occurance, null, booleanQuery.Query);
+            configurator.Query.Add(configurator.Occurrence, null, booleanQuery.Query);
             return configurator;
         }
 
@@ -145,14 +145,14 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
             Action<BooleanQueryConfigurator> query)
         {
             var booleanQuery = new BooleanQueryConfigurator();
-            booleanQuery.Occurance = configurator.Occurance;
+            booleanQuery.Occurrence = configurator.Occurrence;
             query.Invoke(booleanQuery);
-            booleanQuery.Query.Occurance = configurator.Occurance;
-            configurator.Query.PostFilterQuery ??= new Dictionary<Occurance, List<INestableQuery>>();
-            if (!configurator.Query.PostFilterQuery.TryGetValue(configurator.Occurance, out var clauses))
+            booleanQuery.Query.Occurrence = configurator.Occurrence;
+            configurator.Query.PostFilterQuery ??= new Dictionary<Occurrence, List<INestableQuery>>();
+            if (!configurator.Query.PostFilterQuery.TryGetValue(configurator.Occurrence, out var clauses))
             {
                 clauses = [];
-                configurator.Query.PostFilterQuery.Add(configurator.Occurance, clauses);
+                configurator.Query.PostFilterQuery.Add(configurator.Occurrence, clauses);
             }
 
             clauses.Add(booleanQuery.Query);

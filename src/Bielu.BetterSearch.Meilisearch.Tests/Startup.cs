@@ -1,6 +1,6 @@
-﻿using Bielu.BetterSearch.DepedencyInjection;
+﻿using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.Meilisearch.Configuration;
-using Bielu.BetterSearch.Meilisearch.DepedencyInjection;
+using Bielu.BetterSearch.Meilisearch.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.DependencyInjection.Logging;
 

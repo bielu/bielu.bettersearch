@@ -8,20 +8,20 @@ using Lifti.Querying.QueryParts;
 namespace Bielu.BetterSearch.Lifti.Services.Queries;
 
 /// <summary>
-/// Combines clauses by their occurrence with Lucene semantics, as Elasticsearch does: every <c>MUST</c>
-/// and <c>FILTER</c> clause is required; <c>SHOULD</c> clauses only decide the matches when nothing is
-/// required; <c>MUSTNOT</c> clauses exclude. Lifti has no query for every document, so a nested bool
-/// with only <c>MUSTNOT</c> clauses hands its exclusions to the parent, and a query with no positive
+/// Combines clauses by their occurrence with Lucene semantics, as Elasticsearch does: every <c>Must</c>
+/// and <c>Filter</c> clause is required; <c>Should</c> clauses only decide the matches when nothing is
+/// required; <c>MustNot</c> clauses exclude. Lifti has no query for every document, so a nested bool
+/// with only <c>MustNot</c> clauses hands its exclusions to the parent, and a query with no positive
 /// clause anywhere returns a failed <see cref="Result"/> instead of the complement.
 /// </summary>
 internal static class LiftiBoolQueryBuilder
 {
     private const string NoPositiveClause =
-        "Lifti cannot return every document except the MUSTNOT matches; add a MUST, FILTER or SHOULD clause.";
+        "Lifti cannot return every document except the MustNot matches; add a Must, Filter or Should clause.";
 
     /// <summary>Returns the combined query part, or <c>null</c> when there are no clauses.</summary>
     public static async Task<Result<IQueryPart?>> BuildAsync(
-        IEnumerable<(Occurance Occurance, ISearchSubQuery Query)> clauses,
+        IEnumerable<(Occurrence Occurrence, ISearchSubQuery Query)> clauses,
         IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators)
     {
         var built = await BuildClausesAsync(clauses, subQueryTranslators).ConfigureAwait(false);
@@ -45,7 +45,7 @@ internal static class LiftiBoolQueryBuilder
     /// document except them; with neither, there are no clauses.
     /// </summary>
     private static async Task<Result<(IQueryPart? Matches, IQueryPart? Excluded)>> BuildClausesAsync(
-        IEnumerable<(Occurance Occurance, ISearchSubQuery Query)> clauses,
+        IEnumerable<(Occurrence Occurrence, ISearchSubQuery Query)> clauses,
         IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators)
     {
         IQueryPart? required = null;
@@ -58,13 +58,13 @@ internal static class LiftiBoolQueryBuilder
         // Excluding "not x" requires x, but unlike a MUST it leaves SHOULD deciding the matches, as in Lucene.
         IQueryPart? doubleNegated = null;
 
-        foreach (var (occurance, subQuery) in clauses)
+        foreach (var (occurrence, subQuery) in clauses)
         {
             IQueryPart? part;
             if (subQuery is BoolSearchSubQuery nested)
             {
                 var nestedClauses = await BuildClausesAsync(
-                    nested.NestedQueries.Select(query => (query.Occurance, query)),
+                    nested.NestedQueries.Select(query => (query.Occurrence, query)),
                     subQueryTranslators).ConfigureAwait(false);
                 if (nestedClauses.IsFailed)
                 {
@@ -74,14 +74,14 @@ internal static class LiftiBoolQueryBuilder
                 var (nestedMatches, nestedExcluded) = nestedClauses.Value;
                 if (nestedMatches == null && nestedExcluded != null)
                 {
-                    switch (occurance)
+                    switch (occurrence)
                     {
                         // Requiring "not x" excludes x; excluding "not x" requires x.
-                        case Occurance.MUST or Occurance.FILTER:
+                        case Occurrence.Must or Occurrence.Filter:
                             excluded = Or(excluded, nestedExcluded);
                             hasRequired = true;
                             continue;
-                        case Occurance.MUSTNOT:
+                        case Occurrence.MustNot:
                             doubleNegated = And(doubleNegated, nestedExcluded);
                             continue;
                         default:
@@ -116,12 +116,12 @@ internal static class LiftiBoolQueryBuilder
                 continue;
             }
 
-            switch (occurance)
+            switch (occurrence)
             {
-                case Occurance.SHOULD:
+                case Occurrence.Should:
                     optional = Or(optional, part);
                     break;
-                case Occurance.MUSTNOT:
+                case Occurrence.MustNot:
                     excluded = Or(excluded, part);
                     break;
                 default:

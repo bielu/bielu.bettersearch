@@ -533,12 +533,12 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
     [Theory]
     [InlineData(null, "test-index-1", "The request to remove a document from 'test-index-1' has a null or empty Id.")]
     [InlineData("", "test-index-1", "The request to remove a document from 'test-index-1' has a null or empty Id.")]
-    [InlineData("7", null, "The request to remove document 7 has a null or empty Type, the name of the index.")]
-    [InlineData("7", "", "The request to remove document 7 has a null or empty Type, the name of the index.")]
-    public async Task RemoveDocumentAsync_MissingIdOrType_FailsNamingIt(string? id, string? type, string expected)
+    [InlineData("7", null, "The request to remove document 7 has a null or empty Index.")]
+    [InlineData("7", "", "The request to remove document 7 has a null or empty Index.")]
+    public async Task RemoveDocumentAsync_MissingIdOrIndex_FailsNamingIt(string? id, string? index, string expected)
     {
 
-        var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest { Id = id!, Type = type! }, Token);
+        var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest { Id = id!, Index = index! }, Token);
 
         result.Errors.ShouldHaveSingleItem().Message.ShouldBe(expected);
     }
@@ -592,7 +592,7 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         (await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
         {
             Id = document.Id,
-            Type = document.Index,
+            Index = document.Index,
         })).IsSuccess.ShouldBeTrue();
     }
 
@@ -619,7 +619,7 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
             var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
             {
                 Id = "never-indexed",
-                Type = index,
+                Index = index,
             }, Token);
 
             //Assert
@@ -641,7 +641,7 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
         {
             (await serviceAsync.IndexDocumentAsync(document, Token)).IsSuccess.ShouldBeTrue();
             (await CountDocumentsAsync(index)).ShouldBe(1);
-            var request = new DeleteDocumentRequest() { Id = document.Id, Type = index, };
+            var request = new DeleteDocumentRequest() { Id = document.Id, Index = index, };
             (await serviceAsync.RemoveDocumentAsync(request, Token)).IsSuccess.ShouldBeTrue();
 
             //Act
@@ -669,7 +669,7 @@ public abstract class IndexingTestBase(IIndexingServiceAsync serviceAsync, IInde
             var result = await serviceAsync.RemoveDocumentAsync(new DeleteDocumentRequest()
             {
                 Id = "1",
-                Type = index,
+                Index = index,
             }, Token);
 
             //Assert

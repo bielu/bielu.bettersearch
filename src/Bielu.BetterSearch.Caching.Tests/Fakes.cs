@@ -77,7 +77,7 @@ internal class FakeIndexingProvider : IIndexingProviderAsync
     public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents, CancellationToken cancellationToken = default) =>
         Task.FromResult(documents.Any(document => document.Id == FailId) ? Result.Fail<int>("write failed") : Outcome().ToResult(documents.Count()));
 
-    public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) =>
+    public Task<Result> RemoveDocumentAsync(string id, string index, CancellationToken cancellationToken = default) =>
         Task.FromResult(Outcome());
 
     public Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids, CancellationToken cancellationToken = default) =>
@@ -130,7 +130,7 @@ internal static class Queries
     public static SearchQuery Term(string index, string value = "jane", int page = 1, int boost = 1, bool desc = false)
     {
         var query = new SearchQuery { Index = index, Page = page, PageSize = 10 };
-        query.Add(Occurance.MUST, new TermSubQuery { Field = "Name", Value = value, BoostValue = boost });
+        query.Add(Occurrence.Must, new TermSubQuery { Field = "Name", Value = value, BoostValue = boost });
         query.SortOrder.Add(new SortField { FieldName = "Name", Desc = desc });
         return query;
     }

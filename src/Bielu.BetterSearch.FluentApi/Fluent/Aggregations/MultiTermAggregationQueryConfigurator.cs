@@ -2,7 +2,7 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent.Aggregations;
 
-public class MultiTermAggregationQueryConfigurator(MultiTermAggreation query)
+public class MultiTermAggregationQueryConfigurator(MultiTermAggregation query)
 {
     public MultiTermAggregationQueryConfigurator WithName(string name)
     {

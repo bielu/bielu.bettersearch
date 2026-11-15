@@ -39,7 +39,7 @@ public abstract class SearchableWritesTestBase(IServiceProvider services) : IDis
 
     /// <summary>The ids of every document in <paramref name="index"/>, each named <c>item</c> and its id.</summary>
     private Task<List<string>> IdsAsync(string index) =>
-        Search.SearchIdsAsync(SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "item" }), Token);
+        Search.SearchIdsAsync(SearchTestHelpers.Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "item" }), Token);
 
     private static void ShouldSucceed(ResultBase result) =>
         result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
@@ -67,7 +67,7 @@ public abstract class SearchableWritesTestBase(IServiceProvider services) : IDis
             indexed.Value.ShouldBe(2);
             (await IdsAsync(index)).ShouldBe(["a", "b", "c", "d", "e"]);
 
-            ShouldSucceed(await Indexing.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "a", Type = index }, Token));
+            ShouldSucceed(await Indexing.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "a", Index = index }, Token));
             (await IdsAsync(index)).ShouldBe(["b", "c", "d", "e"]);
 
             var removed = await Indexing.RemoveDocumentsAsync(index, ["b", "c"], Token);

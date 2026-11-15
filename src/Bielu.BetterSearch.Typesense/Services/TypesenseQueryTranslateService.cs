@@ -39,7 +39,7 @@ internal sealed class TypesenseQueryTranslateService(IEnumerable<ISubQueryTransl
         return Result.Ok(new TypesenseSearchRequest(filter)).WithSuccesses(successes);
     }
 
-    private Task<Result<TypesenseFilter>> TranslateAsync(IDictionary<Occurance, List<ISearchSubQuery>>? clauses)
+    private Task<Result<TypesenseFilter>> TranslateAsync(IDictionary<Occurrence, List<ISearchSubQuery>>? clauses)
     {
         if (clauses == null || clauses.Values.All(group => group == null || group.Count == 0))
         {

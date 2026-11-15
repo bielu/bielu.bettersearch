@@ -13,7 +13,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 internal static class ElasticSearchBoolQueryBuilder
 {
     public static async Task<Result<EsQuery>> BuildAsync(
-        IEnumerable<(Occurance Occurance, ISearchSubQuery Query)> clauses,
+        IEnumerable<(Occurrence Occurrence, ISearchSubQuery Query)> clauses,
         IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators,
         int boostValue = 1)
     {
@@ -22,7 +22,7 @@ internal static class ElasticSearchBoolQueryBuilder
         var mustNot = new List<EsQuery>();
         var filter = new List<EsQuery>();
 
-        foreach (var (occurance, subQuery) in clauses)
+        foreach (var (occurrence, subQuery) in clauses)
         {
             var translator = subQueryTranslators.FirstOrDefault(t => t.CanTranslate(subQuery));
             if (translator == null)
@@ -36,11 +36,11 @@ internal static class ElasticSearchBoolQueryBuilder
                 return translated;
             }
 
-            var target = occurance switch
+            var target = occurrence switch
             {
-                Occurance.SHOULD => should,
-                Occurance.MUSTNOT => mustNot,
-                Occurance.FILTER => filter,
+                Occurrence.Should => should,
+                Occurrence.MustNot => mustNot,
+                Occurrence.Filter => filter,
                 _ => must
             };
             target.Add(translated.Value);

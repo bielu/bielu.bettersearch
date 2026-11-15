@@ -1,8 +1,8 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.Meilisearch.Configuration;
-using Bielu.BetterSearch.Meilisearch.DepedencyInjection;
+using Bielu.BetterSearch.Meilisearch.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using MeilisearchClient = Meilisearch.MeilisearchClient;

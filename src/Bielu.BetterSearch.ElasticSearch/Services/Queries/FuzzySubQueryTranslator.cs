@@ -11,13 +11,13 @@ using Result = FluentResults.Result;
 
 namespace Bielu.BetterSearch.ElasticSearch.Services.Queries;
 
-internal sealed class FuzzySubQueryTranslator : ElasticSearchSubQueryTranslator<FuzzyQuery>
+internal sealed class FuzzySubQueryTranslator : ElasticSearchSubQueryTranslator<FuzzySubQuery>
 {
     private const int MaxEdits = 2;
 
-    protected override Task<Result<EsQuery>> TranslateAsync(FuzzyQuery query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
+    protected override Task<Result<EsQuery>> TranslateAsync(FuzzySubQuery query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
     {
-        var field = ElasticSearchFieldNames.Require(query.Field, nameof(FuzzyQuery));
+        var field = ElasticSearchFieldNames.Require(query.Field, nameof(FuzzySubQuery));
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<EsQuery>());
@@ -25,7 +25,7 @@ internal sealed class FuzzySubQueryTranslator : ElasticSearchSubQueryTranslator<
 
         if (query.Value == null)
         {
-            return Task.FromResult(Result.Fail<EsQuery>($"{nameof(FuzzyQuery)} needs a Value."));
+            return Task.FromResult(Result.Fail<EsQuery>($"{nameof(FuzzySubQuery)} needs a Value."));
         }
 
         // A date or boolean is not text to match within a few edits: a date field rejects a fuzzy match at search
@@ -33,14 +33,13 @@ internal sealed class FuzzySubQueryTranslator : ElasticSearchSubQueryTranslator<
         if (query.Value is not string && !QueryValueText.IsNumber(query.Value))
         {
             return Task.FromResult(Result.Fail<EsQuery>(
-                $"{nameof(FuzzyQuery)} value '{QueryValueText.From(query.Value)}' is a {query.Value.GetType().Name}; a fuzzy match needs a string or a number."));
+                $"{nameof(FuzzySubQuery)} value '{QueryValueText.From(query.Value)}' is a {query.Value.GetType().Name}; a fuzzy match needs a string or a number."));
         }
 
-        // As in the Lifti provider, the larger number of the pair is the edit distance. Elasticsearch
-        // allows at most 2 edits.
-        var fuzziness = query.Fuziness == null
+        // Elasticsearch allows at most 2 edits.
+        var fuzziness = query.MaxEdits == null
             ? new Fuzziness("AUTO")
-            : new Fuzziness(Math.Clamp(Math.Max(query.Fuziness.Item1, query.Fuziness.Item2), 0, MaxEdits));
+            : new Fuzziness(Math.Clamp(query.MaxEdits.Value, 0, MaxEdits));
 
         // A match query runs the value through the field's own search analyzer, so a text field
         // matches it lower-cased and a keyword field matches it as given. Each token is matched fuzzily,
@@ -52,7 +51,7 @@ internal sealed class FuzzySubQueryTranslator : ElasticSearchSubQueryTranslator<
             Operator = Operator.And,
             Fuzziness = fuzziness,
             FuzzyTranspositions = query.Transposition,
-            PrefixLength = query.PrefixLenght > 0 ? query.PrefixLenght : null,
+            PrefixLength = query.PrefixLength > 0 ? query.PrefixLength : null,
             MaxExpansions = query.MaxExpansions > 0 ? query.MaxExpansions : null,
             Boost = ElasticSearchFieldNames.Boost(query.BoostValue)
         }));

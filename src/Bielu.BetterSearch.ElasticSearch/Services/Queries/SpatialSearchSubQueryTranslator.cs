@@ -13,13 +13,13 @@ namespace Bielu.BetterSearch.ElasticSearch.Services.Queries;
 /// A <c>geo_distance</c> query. The field must be mapped as <c>geo_point</c> in the index; dynamic
 /// mapping does not create one. The unit is an Elasticsearch distance unit, kilometres by default.
 /// </summary>
-internal sealed class SpatialSearchSubQueryTranslator : ElasticSearchSubQueryTranslator<SpatialSearchQuery>
+internal sealed class SpatialSearchSubQueryTranslator : ElasticSearchSubQueryTranslator<SpatialSearchSubQuery>
 {
     private const string DefaultUnit = "km";
 
-    protected override Task<Result<EsQuery>> TranslateAsync(SpatialSearchQuery query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
+    protected override Task<Result<EsQuery>> TranslateAsync(SpatialSearchSubQuery query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
     {
-        var field = ElasticSearchFieldNames.Require(query.Field, nameof(SpatialSearchQuery));
+        var field = ElasticSearchFieldNames.Require(query.Field, nameof(SpatialSearchSubQuery));
         if (field.IsFailed)
         {
             return Task.FromResult(field.ToResult<EsQuery>());
@@ -27,7 +27,7 @@ internal sealed class SpatialSearchSubQueryTranslator : ElasticSearchSubQueryTra
 
         if (query.Distance <= 0)
         {
-            return Task.FromResult(Result.Fail<EsQuery>($"{nameof(SpatialSearchQuery)} needs a Distance greater than 0."));
+            return Task.FromResult(Result.Fail<EsQuery>($"{nameof(SpatialSearchSubQuery)} needs a Distance greater than 0."));
         }
 
         var unit = string.IsNullOrWhiteSpace(query.UnitOfDistance) ? DefaultUnit : query.UnitOfDistance;

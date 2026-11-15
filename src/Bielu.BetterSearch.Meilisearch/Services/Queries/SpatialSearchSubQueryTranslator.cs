@@ -14,7 +14,7 @@ namespace Bielu.BetterSearch.Meilisearch.Services.Queries;
 /// Elasticsearch distance unit, kilometres by default.
 /// </summary>
 internal sealed class SpatialSearchSubQueryTranslator(IOptionsMonitor<MeilisearchOptions> optionsMonitor)
-    : MeilisearchSubQueryTranslator<SpatialSearchQuery>
+    : MeilisearchSubQueryTranslator<SpatialSearchSubQuery>
 {
     private const string DefaultUnit = "km";
 
@@ -42,9 +42,9 @@ internal sealed class SpatialSearchSubQueryTranslator(IOptionsMonitor<Meilisearc
         ["nauticalmiles"] = 1852,
     };
 
-    protected override Result<MeilisearchFilter> Translate(SpatialSearchQuery query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators)
+    protected override Result<MeilisearchFilter> Translate(SpatialSearchSubQuery query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators)
     {
-        var field = MeilisearchFieldNames.Require(query.Field, nameof(SpatialSearchQuery));
+        var field = MeilisearchFieldNames.Require(query.Field, nameof(SpatialSearchSubQuery));
         if (field.IsFailed)
         {
             return field.ToResult<MeilisearchFilter>();
@@ -60,34 +60,34 @@ internal sealed class SpatialSearchSubQueryTranslator(IOptionsMonitor<Meilisearc
         if (string.IsNullOrWhiteSpace(geoField))
         {
             return Result.Fail<MeilisearchFilter>(
-                $"{nameof(SpatialSearchQuery)} needs MeilisearchOptions.GeoField: Meilisearch only filters by distance on the top-level _geo attribute, which the provider fills from that field.");
+                $"{nameof(SpatialSearchSubQuery)} needs MeilisearchOptions.GeoField: Meilisearch only filters by distance on the top-level _geo attribute, which the provider fills from that field.");
         }
 
         if (field.Value != geoField)
         {
             return Result.Fail<MeilisearchFilter>(
-                $"{nameof(SpatialSearchQuery)} field '{field.Value}' is not MeilisearchOptions.GeoField '{geoField}': Meilisearch only filters by distance on one field.");
+                $"{nameof(SpatialSearchSubQuery)} field '{field.Value}' is not MeilisearchOptions.GeoField '{geoField}': Meilisearch only filters by distance on one field.");
         }
 
         if (query.Distance <= 0 || double.IsNaN(query.Distance) || double.IsInfinity(query.Distance))
         {
-            return Result.Fail<MeilisearchFilter>($"{nameof(SpatialSearchQuery)} needs a Distance greater than 0.");
+            return Result.Fail<MeilisearchFilter>($"{nameof(SpatialSearchSubQuery)} needs a Distance greater than 0.");
         }
 
         if (query.Lat is < -90 or > 90 || double.IsNaN(query.Lat))
         {
-            return Result.Fail<MeilisearchFilter>($"{nameof(SpatialSearchQuery)} has an invalid Lat {query.Lat}: it must be between -90 and 90.");
+            return Result.Fail<MeilisearchFilter>($"{nameof(SpatialSearchSubQuery)} has an invalid Lat {query.Lat}: it must be between -90 and 90.");
         }
 
         if (query.Lng is < -180 or > 180 || double.IsNaN(query.Lng))
         {
-            return Result.Fail<MeilisearchFilter>($"{nameof(SpatialSearchQuery)} has an invalid Lng {query.Lng}: it must be between -180 and 180.");
+            return Result.Fail<MeilisearchFilter>($"{nameof(SpatialSearchSubQuery)} has an invalid Lng {query.Lng}: it must be between -180 and 180.");
         }
 
         var unit = string.IsNullOrWhiteSpace(query.UnitOfDistance) ? DefaultUnit : query.UnitOfDistance;
         if (!MetresPerUnit.TryGetValue(unit, out var metres))
         {
-            return Result.Fail<MeilisearchFilter>($"{nameof(SpatialSearchQuery)} has an invalid UnitOfDistance {unit}.");
+            return Result.Fail<MeilisearchFilter>($"{nameof(SpatialSearchSubQuery)} has an invalid UnitOfDistance {unit}.");
         }
 
         return Filter(string.Create(CultureInfo.InvariantCulture,

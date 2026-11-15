@@ -42,7 +42,7 @@ public sealed class PostgreSqlTranslationValueTests(IServiceProvider services)
         new TermSubQuery { Field = "Name", Value = "3.5" },
         new PrefixSubQuery { Field = "Name", Value = 3.5 },
         new PrefixPhraseSubQuery { Field = "Name", Value = 3.5 },
-        new FuzzyQuery { Field = "Name", Value = 3.5 },
+        new FuzzySubQuery { Field = "Name", Value = 3.5 },
     };
 
     [Theory]

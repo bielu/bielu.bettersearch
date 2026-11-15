@@ -188,7 +188,7 @@ public class IndexingServiceAsync(
     // Not counted in bettersearch.documents.removed: the provider does not say whether the document was there.
     public Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
         CancellationToken cancellationToken = default) =>
-        BetterSearchTelemetry.RunAsync("remove", document?.Type, indexingProvider, logger, RecordErrorMessages, null,
+        BetterSearchTelemetry.RunAsync("remove", document?.Index, indexingProvider, logger, RecordErrorMessages, null,
             () => RemoveDocumentCoreAsync(document!, cancellationToken));
 
     private async Task<Result> RemoveDocumentCoreAsync(DeleteDocumentRequest document,
@@ -201,15 +201,15 @@ public class IndexingServiceAsync(
 
         if (string.IsNullOrEmpty(document.Id))
         {
-            return Result.Fail($"The request to remove a document from '{document.Type}' has a null or empty Id.");
+            return Result.Fail($"The request to remove a document from '{document.Index}' has a null or empty Id.");
         }
 
-        if (string.IsNullOrEmpty(document.Type))
+        if (string.IsNullOrEmpty(document.Index))
         {
-            return Result.Fail($"The request to remove document {document.Id} has a null or empty Type, the name of the index.");
+            return Result.Fail($"The request to remove document {document.Id} has a null or empty Index.");
         }
 
-        return await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken).ConfigureAwait(false);
+        return await indexingProvider.RemoveDocumentAsync(document.Id, document.Index, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,

@@ -127,9 +127,9 @@ internal sealed class MeilisearchIndexingProviderAsync(
             .CausedBy(errors);
     }
 
-    public async Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default)
+    public async Task<Result> RemoveDocumentAsync(string id, string index, CancellationToken cancellationToken = default)
     {
-        var task = await RunTaskAsync(type, client => client.Index(Name(type)).DeleteOneDocumentAsync(id, cancellationToken), cancellationToken).ConfigureAwait(false);
+        var task = await RunTaskAsync(index, client => client.Index(Name(index)).DeleteOneDocumentAsync(id, cancellationToken), cancellationToken).ConfigureAwait(false);
         return task.ToResult();
     }
 

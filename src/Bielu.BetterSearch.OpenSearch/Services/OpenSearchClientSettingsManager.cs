@@ -46,7 +46,7 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
             CertificateFingerprint = tls.CertificateFingerprint,
             DevelopmentOnlySkipCertificateValidation = tls.DevelopmentOnlySkipCertificateValidation ?? false,
             AuthenticationType = (ownAuthentication ? indexSpecific.AuthenticationType : shared.AuthenticationType)
-                                 ?? OpenSearchAuthenticationType.NONE,
+                                 ?? OpenSearchAuthenticationType.None,
             AuthenticationDetails = ownAuthentication ? indexSpecific.AuthenticationDetails : shared.AuthenticationDetails,
             PoolType = indexSpecific.PoolType ?? shared?.PoolType,
             Mappings = FieldMappings.Merge(shared?.Mappings, indexSpecific.Mappings),
@@ -70,18 +70,18 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
         SettingSource? nodes = null, SettingSource? pool = null)
     {
         var key = OpenSearchOptions.OpenSearchOptionsKey;
-        var authenticationType = settings.AuthenticationType ?? OpenSearchAuthenticationType.NONE;
+        var authenticationType = settings.AuthenticationType ?? OpenSearchAuthenticationType.None;
         var details = settings.AuthenticationDetails;
         string?[] failures =
         [
             .. ConnectionSettingsChecks.NodeFailures(key, connection, nodes ?? connection, pool ?? connection, settings.ConnectionString, settings.AdditionalNodes, settings.PoolType),
             authenticationType switch
             {
-                OpenSearchAuthenticationType.NONE => null,
-                OpenSearchAuthenticationType.PASSWORD => ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
+                OpenSearchAuthenticationType.None => null,
+                OpenSearchAuthenticationType.Password => ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(OpenSearchAuthenticationDetails.Username), details?.Username),
                     (nameof(OpenSearchAuthenticationDetails.Password), details?.Password)),
-                OpenSearchAuthenticationType.APIKEY => ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
+                OpenSearchAuthenticationType.ApiKey => ConnectionSettingsChecks.CredentialsFailure(key, authentication, authenticationType, details,
                     (nameof(OpenSearchAuthenticationDetails.ApiKey), details?.ApiKey)),
                 _ => ConnectionSettingsChecks.UnknownAuthenticationTypeFailure(key, authentication, settings.AuthenticationType),
             },
@@ -96,12 +96,12 @@ internal sealed class OpenSearchClientSettingsManager(IOptionsMonitor<OpenSearch
         // A null connection is the client's default HttpConnection.
         var connectionSettings = new ConnectionSettings(CreateConnectionPool(settings), connection);
         var details = settings.AuthenticationDetails!;
-        switch (settings.AuthenticationType ?? OpenSearchAuthenticationType.NONE)
+        switch (settings.AuthenticationType ?? OpenSearchAuthenticationType.None)
         {
-            case OpenSearchAuthenticationType.PASSWORD:
+            case OpenSearchAuthenticationType.Password:
                 connectionSettings.BasicAuthentication(details.Username, details.Password);
                 break;
-            case OpenSearchAuthenticationType.APIKEY:
+            case OpenSearchAuthenticationType.ApiKey:
                 // OpenSearch API keys are sent as they are, "Authorization: ApiKey <token>", not encoded with an id.
                 connectionSettings.ApiKeyAuthentication(new ApiKeyAuthenticationCredentials(details.ApiKey));
                 break;

@@ -1,6 +1,6 @@
 ﻿using Bielu.BetterSearch.Configuration;
 using Bielu.BetterSearch.Meilisearch.Configuration;
-using Bielu.BetterSearch.Meilisearch.DepedencyInjection;
+using Bielu.BetterSearch.Meilisearch.DependencyInjection;
 using Bielu.BetterSearch.Tests;
 
 namespace Bielu.BetterSearch.Meilisearch.Tests;

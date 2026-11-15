@@ -5,15 +5,15 @@ using FluentResults;
 namespace Bielu.BetterSearch.Typesense.Services;
 
 /// <summary>
-/// Combines clauses into one filter with Lucene semantics, as Elasticsearch does: every <c>MUST</c> and
-/// <c>FILTER</c> clause must match and no <c>MUSTNOT</c> clause may. <c>SHOULD</c> clauses are only required,
-/// as at least one match, when there is no <c>MUST</c> or <c>FILTER</c>; beside one they would only add to the
+/// Combines clauses into one filter with Lucene semantics, as Elasticsearch does: every <c>Must</c> and
+/// <c>Filter</c> clause must match and no <c>MustNot</c> clause may. <c>Should</c> clauses are only required,
+/// as at least one match, when there is no <c>Must</c> or <c>Filter</c>; beside one they would only add to the
 /// score, which filters don't compute. No clauses match every document.
 /// </summary>
 internal static class TypesenseBoolFilterBuilder
 {
     public static async Task<Result<TypesenseFilter>> BuildAsync(
-        IEnumerable<(Occurance Occurance, ISearchSubQuery Query)> clauses,
+        IEnumerable<(Occurrence Occurrence, ISearchSubQuery Query)> clauses,
         IEnumerable<ISubQueryTranslator<TypesenseFilter>> subQueryTranslators)
     {
         var required = new List<TypesenseFilter>();
@@ -21,7 +21,7 @@ internal static class TypesenseBoolFilterBuilder
         var mustNot = new List<TypesenseFilter>();
         var successes = new List<ISuccess>();
 
-        foreach (var (occurance, subQuery) in clauses)
+        foreach (var (occurrence, subQuery) in clauses)
         {
             if (subQuery == null)
             {
@@ -40,10 +40,10 @@ internal static class TypesenseBoolFilterBuilder
                 return translated;
             }
 
-            var target = occurance switch
+            var target = occurrence switch
             {
-                Occurance.SHOULD => should,
-                Occurance.MUSTNOT => mustNot,
+                Occurrence.Should => should,
+                Occurrence.MustNot => mustNot,
                 _ => required
             };
             target.Add(translated.Value);

@@ -1,7 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Configuration;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
-using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
+using Bielu.BetterSearch.ElasticSearch.DependencyInjection;
 using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -23,7 +23,7 @@ public sealed class ElasticsearchNodeFailoverTests(ElasticsearchResource elastic
                 AdditionalNodes = additionalNodes,
                 // Sticky tries the nodes in the order listed, so every request starts at the unreachable one.
                 PoolType = NodePoolType.Sticky,
-                AuthenticationType = AuthenticationType.NONE,
+                AuthenticationType = AuthenticationType.None,
                 WriteVisibility = WriteVisibility.WaitUntilSearchable,
             });
         return services.BuildServiceProvider();

@@ -120,7 +120,7 @@ public class IndexingServiceTelemetryTests
         using var capture = new TelemetryCapture(index);
         var service = new IndexingServiceAsync(new FakeIndexingProvider(), new AcceptingValidator());
 
-        (await service.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "1", Type = index }, Token)).IsSuccess.ShouldBeTrue();
+        (await service.RemoveDocumentAsync(new DeleteDocumentRequest { Id = "1", Index = index }, Token)).IsSuccess.ShouldBeTrue();
 
         var activity = capture.SingleActivity();
         activity.OperationName.ShouldBe($"remove {index}");

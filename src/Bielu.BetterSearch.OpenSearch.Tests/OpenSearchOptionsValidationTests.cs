@@ -1,7 +1,7 @@
 ﻿using Bielu.BetterSearch.Configuration;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.OpenSearch.Configuration;
-using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+using Bielu.BetterSearch.OpenSearch.DependencyInjection;
 using Bielu.BetterSearch.OpenSearch.Services;
 using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.Configuration;
@@ -190,12 +190,12 @@ public class OpenSearchOptionsValidationTests : TlsOptionsValidationTestBase
         var failure = ValidateOnStart(new Dictionary<string, string?>
         {
             ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
-            ["Indexes:people:AuthenticationType"] = "APIKEY",
+            ["Indexes:people:AuthenticationType"] = "ApiKey",
             ["Indexes:people:AuthenticationDetails:ApiKey"] = " ",
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"APIKEY authentication needs AuthenticationDetails:ApiKey. Set {Key}:Indexes:people:AuthenticationDetails:ApiKey."
+            $"ApiKey authentication needs AuthenticationDetails:ApiKey. Set {Key}:Indexes:people:AuthenticationDetails:ApiKey."
         ]);
     }
 
@@ -205,12 +205,26 @@ public class OpenSearchOptionsValidationTests : TlsOptionsValidationTestBase
         var failure = ValidateOnStart(new Dictionary<string, string?>
         {
             ["SharedIndexSettings:ConnectionString"] = "localhost:9200",
-            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationType"] = "Password",
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
             $"ConnectionString is not an http or https URL. Set {Key}:SharedIndexSettings:ConnectionString, or {Key}:Indexes:<index>:ConnectionString for one index.",
-            $"PASSWORD authentication needs AuthenticationDetails. Set {Key}:SharedIndexSettings:AuthenticationDetails, or {Key}:Indexes:<index>:AuthenticationType with {Key}:Indexes:<index>:AuthenticationDetails for one index.",
+            $"Password authentication needs AuthenticationDetails. Set {Key}:SharedIndexSettings:AuthenticationDetails, or {Key}:Indexes:<index>:AuthenticationType with {Key}:Indexes:<index>:AuthenticationDetails for one index.",
+        ]);
+    }
+
+    [Fact]
+    public void ValidateOnStart_UpperCaseAuthenticationTypeFromBeforeTheRename_BindsToTheRenamedMember()
+    {
+        var failure = ValidateOnStart(new Dictionary<string, string?>
+        {
+            ["SharedIndexSettings:ConnectionString"] = "http://localhost:9200",
+            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+        });
+
+        failure.ShouldNotBeNull().Failures.ShouldBe([
+            $"Password authentication needs AuthenticationDetails. Set {Key}:SharedIndexSettings:AuthenticationDetails, or {Key}:Indexes:<index>:AuthenticationType with {Key}:Indexes:<index>:AuthenticationDetails for one index.",
         ]);
     }
 
@@ -219,7 +233,7 @@ public class OpenSearchOptionsValidationTests : TlsOptionsValidationTestBase
     {
         ValidateOnStart(new Dictionary<string, string?>
         {
-            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationType"] = "Password",
             ["SharedIndexSettings:AuthenticationDetails:Username"] = "admin",
             ["SharedIndexSettings:AuthenticationDetails:Password"] = "secret",
             ["Indexes:people:ConnectionString"] = "http://people:9200",
@@ -232,13 +246,13 @@ public class OpenSearchOptionsValidationTests : TlsOptionsValidationTestBase
     {
         var failure = ValidateOnStart(new Dictionary<string, string?>
         {
-            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationType"] = "Password",
             ["SharedIndexSettings:AuthenticationDetails:Username"] = "admin",
             ["Indexes:people:ConnectionString"] = "http://people:9200",
         });
 
         failure.ShouldNotBeNull().Failures.ShouldBe([
-            $"PASSWORD authentication needs AuthenticationDetails:Password. Set {Key}:SharedIndexSettings:AuthenticationDetails:Password, which {Key}:Indexes:people inherits."
+            $"Password authentication needs AuthenticationDetails:Password. Set {Key}:SharedIndexSettings:AuthenticationDetails:Password, which {Key}:Indexes:people inherits."
         ]);
     }
 
@@ -281,7 +295,7 @@ public class OpenSearchOptionsValidationTests : TlsOptionsValidationTestBase
     {
         var failure = ValidateOnStart(new Dictionary<string, string?>
         {
-            ["Indexes:people:AuthenticationType"] = "PASSWORD",
+            ["Indexes:people:AuthenticationType"] = "Password",
             ["Indexes:people:AuthenticationDetails:Username"] = "admin",
             ["Indexes:people:AuthenticationDetails:Password"] = "secret",
         });
@@ -296,7 +310,7 @@ public class OpenSearchOptionsValidationTests : TlsOptionsValidationTestBase
     {
         var failure = ValidateOnStart(new Dictionary<string, string?>
         {
-            ["SharedIndexSettings:AuthenticationType"] = "PASSWORD",
+            ["SharedIndexSettings:AuthenticationType"] = "Password",
             ["SharedIndexSettings:AuthenticationDetails:Username"] = "admin",
             ["SharedIndexSettings:AuthenticationDetails:Password"] = "secret",
             ["Indexes:people:ConnectionString"] = "http://people:9200",

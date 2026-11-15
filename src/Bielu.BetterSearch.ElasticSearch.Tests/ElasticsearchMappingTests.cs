@@ -33,7 +33,7 @@ public sealed class ElasticsearchMappingTests(
             SharedIndexSettings = new ElasticSearchIndexSettings
             {
                 ConnectionString = elasticsearch.Endpoint!.ToString(),
-                AuthenticationType = AuthenticationType.NONE,
+                AuthenticationType = AuthenticationType.None,
             },
             Indexes = new Dictionary<string, ElasticSearchIndexSettings> { [index] = new() { Mappings = [.. mappings] } },
         });
@@ -82,7 +82,7 @@ public sealed class ElasticsearchMappingTests(
     private static SearchQuery Term(string field, object value)
     {
         var query = new SearchQuery();
-        query.Add(Occurance.MUST, new TermSubQuery { Field = field, Value = value });
+        query.Add(Occurrence.Must, new TermSubQuery { Field = field, Value = value });
         return query;
     }
 
@@ -309,7 +309,7 @@ public sealed class ElasticsearchMappingTests(
                 Document(providers.Index, "krakow", "Location", new Dictionary<string, object> { ["lat"] = 50.0647, ["lon"] = 19.9450 }),
                 Document(providers.Index, "piaseczno", "Location", "52.0811,21.0238"));
             var query = new SearchQuery();
-            query.Add(Occurance.MUST, new SpatialSearchQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 20 });
+            query.Add(Occurrence.Must, new SpatialSearchSubQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 20 });
 
             // Piaseczno is about 17 km from Warsaw, Krakow about 250 km.
             (await SearchIdsAsync(providers, query)).ShouldBe(["piaseczno", "warsaw"]);
@@ -323,7 +323,7 @@ public sealed class ElasticsearchMappingTests(
     private static SearchQuery Between(string field, DateTime min, DateTime max)
     {
         var query = new SearchQuery();
-        query.Add(Occurance.MUST, new DateRangeQuery { Field = field, MinValue = min, MaxValue = max, IncludeMinEdge = true, IncludeMaxEdge = false });
+        query.Add(Occurrence.Must, new DateRangeSubQuery { Field = field, MinValue = min, MaxValue = max, IncludeMinEdge = true, IncludeMaxEdge = false });
         return query;
     }
 

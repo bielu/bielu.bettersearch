@@ -1,9 +1,9 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Tests;
 using Bielu.BetterSearch.Typesense.Configuration;
-using Bielu.BetterSearch.Typesense.DepedencyInjection;
+using Bielu.BetterSearch.Typesense.DependencyInjection;
 using Bielu.BetterSearch.Typesense.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

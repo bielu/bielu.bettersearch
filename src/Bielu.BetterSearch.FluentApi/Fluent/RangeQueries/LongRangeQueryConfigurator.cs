@@ -6,10 +6,10 @@ public class LongRangeQueryConfigurator : SubQueryConfigurator<LongRangeQueryCon
 {
     public LongRangeQueryConfigurator()
     {
-        Query = new LongRange();
+        Query = new LongRangeSubQuery();
     }
 
-    public LongRange Query { get; set; }
+    public LongRangeSubQuery Query { get; set; }
     protected override ISearchSubQuery SubQuery => Query;
     public LongRangeQueryConfigurator WithField(string fieldName)
     {

@@ -69,7 +69,7 @@ public class MeilisearchOptions
     public TimeSpan SettingsCheckInterval { get; set; } = TimeSpan.FromSeconds(5);
 
     /// <summary>
-    /// The document field holding each document's location, for <c>SpatialSearchQuery</c>. Meilisearch only filters by
+    /// The document field holding each document's location, for <c>SpatialSearchSubQuery</c>. Meilisearch only filters by
     /// distance on its top-level <c>_geo</c> attribute, so the provider copies this field there when it indexes a
     /// document. Its value is one point: a <c>"lat,lon"</c> string, as Elasticsearch accepts for a <c>geo_point</c>, or a
     /// dictionary with <c>lat</c> and <c>lon</c> (or <c>lng</c>). Unset, spatial queries return a failed <c>Result</c>.

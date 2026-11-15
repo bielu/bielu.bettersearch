@@ -55,7 +55,7 @@ public abstract class NodeFailoverTestBase
 
             ShouldSucceed(await indexing.IndexDocumentAsync(Document(index, "a"), Token));
 
-            var ids = await search.SearchIdsAsync(SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Name", Value = "item" }), Token);
+            var ids = await search.SearchIdsAsync(SearchTestHelpers.Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "item" }), Token);
             ids.ShouldBe(["a"]);
         }
         finally

@@ -15,7 +15,7 @@ public class DummyIndexingProviderAsync : IIndexingProviderAsync
 
     public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<int>(NoProviderMessage));
 
-    public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail(NoProviderMessage));
+    public Task<Result> RemoveDocumentAsync(string id, string index, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail(NoProviderMessage));
 
     public Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<int>(NoProviderMessage));
 

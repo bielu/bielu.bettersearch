@@ -1,7 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
-using Bielu.BetterSearch.ElasticSearch.DepedencyInjection;
+using Bielu.BetterSearch.ElasticSearch.DependencyInjection;
 using Bielu.BetterSearch.ElasticSearch.Services;
 using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Tests;
@@ -14,7 +14,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Tests;
 
 public class ElasticsearchClientSettingsTests
 {
-    private static ElasticsearchClientFactory CreateFactory(ElasticSearchOptions options,
+    private static ElasticSearchClientFactory CreateFactory(ElasticSearchOptions options,
         params Action<ElasticsearchClientSettings>[] configureClient) =>
         new(new ElasticSearchClientSettingsManager(new TestOptionsMonitor<ElasticSearchOptions>(options)),
             configureClient.Select(configure => new ClientConfiguration<ElasticsearchClientSettings>(configure)));
@@ -102,10 +102,10 @@ public class ElasticsearchClientSettingsTests
     [Fact]
     public void ClientKey_ToString_ShowsTheTimeoutButNotTheCredentials()
     {
-        var key = ElasticsearchClientFactory.ClientKey.From(new ElasticSearchIndexSettings
+        var key = ElasticSearchClientFactory.ClientKey.From(new ElasticSearchIndexSettings
         {
             ConnectionString = "http://shared:9200",
-            AuthenticationType = AuthenticationType.PASSWORD,
+            AuthenticationType = AuthenticationType.Password,
             AuthenticationDetails = new AuthenticationDetails { Username = "elastic", Password = "secret-password" },
             RequestTimeout = TimeSpan.FromSeconds(7),
             MaxRetries = 4,

@@ -11,14 +11,14 @@ for `truncate`; the AppHost and the integration tests run 29.0.
 > [!WARNING]
 > **What won't work**
 >
-> - **`FuzzyQuery`** returns a failed `Result`: filters only match exact values, and Typesense's typo
+> - **`FuzzySubQuery`** returns a failed `Result`: filters only match exact values, and Typesense's typo
 >   tolerance applies to the search text.
 > - **`LuceneQuery`** returns a failed `Result`: Typesense has no Lucene syntax, and the provider doesn't
 >   translate it yet.
-> - **`StringRange`** returns a failed `Result`: Typesense filters compare strings only for equality and prefixes.
-> - **`MUSTNOT` on a range, a prefix or a `SpatialSearchQuery`** returns a failed `Result`. Typesense has no
+> - **`StringRangeSubQuery`** returns a failed `Result`: Typesense filters compare strings only for equality and prefixes.
+> - **`MustNot` on a range, a prefix or a `SpatialSearchSubQuery`** returns a failed `Result`. Typesense has no
 >   `NOT` for an expression, so the provider pushes each negation down to its comparisons, and only an equality
->   (`TermQuery`, `TermsQuery`) has a negated form, `:!=`. A `MUSTNOT` term works, double negations included.
+>   (`TermQuery`, `TermsQuery`) has a negated form, `:!=`. A `MustNot` term works, double negations included.
 > - **`PrefixQuery` and `PrefixPhraseQuery`** with a value that isn't a string return a failed `Result`.
 > - **Relevance scores**: every hit has the `Score` 1.
 > - **Facets** and **highlighting** return a failed `Result`.
@@ -29,7 +29,7 @@ for `truncate`; the AppHost and the integration tests run 29.0.
 >   together: see [Rebuilding an index](#rebuilding-an-index). They have a single-writer contract: one rebuild of
 >   an index at a time, with no two of its calls running at once. The first rebuild of an index created as a plain
 >   collection deletes it before creating the alias, so searches in between fail.
-> - **`SpatialSearchQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
+> - **`SpatialSearchSubQuery`** works only on the field named by `GeoField`; without it, a failed `Result`.
 > - **`PageSize`** above 250, the most Typesense returns in one page, returns a failed `Result`.
 > - **`SortOrder`** takes at most 3 fields, as Typesense does, and only fields holding one number, date or
 >   string in a document. A sort on a field that holds several values, or a boolean, in every document returns a
@@ -48,8 +48,8 @@ dotnet add package Bielu.BetterSearch.Typesense --prerelease
 ## Configure
 
 ```csharp
-using Bielu.BetterSearch.DepedencyInjection;
-using Bielu.BetterSearch.Typesense.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
+using Bielu.BetterSearch.Typesense.DependencyInjection;
 
 builder.Services.AddBetterSearch(builder.Configuration, search => search.AddTypesense());
 ```
@@ -137,15 +137,15 @@ creates its collection.
 - **`TermQuery`** on a string matches one word, ignoring case, including non-ASCII (`Żółw` matches `żółw`). On
   `fields.Name` it matches the whole value, also ignoring case, as Typesense compares strings. A string that reads
   as a number or boolean also matches that value. Numbers, booleans and dates match the value.
-- **A field no document has** matches nothing, and its `MUSTNOT` matches every document. Typesense fails a filter
+- **A field no document has** matches nothing, and its `MustNot` matches every document. Typesense fails a filter
   on a field missing from the schema, so the provider reads the collection's fields and leaves such a comparison
   out of the filter.
 - **Numbers** that aren't integers compare as Typesense `float`s, about seven significant digits: `0.3` matches
   `0.30000000000000004`, and `16777217` stored as a double matches `16777216`. Integers compare exactly as `int64`,
-  so `LongRange` and a `long` term keep their precision past 2^53. A fractional range bound compares integers from
+  so `LongRangeSubQuery` and a `long` term keep their precision past 2^53. A fractional range bound compares integers from
   the closest whole number inside the range, so at least 4.5 matches 5 and not 4.
 - **`PrefixPhraseQuery`** matches at most 16 words.
-- **`SpatialSearchQuery`** takes any Elasticsearch distance unit and sends the distance in kilometres.
+- **`SpatialSearchSubQuery`** takes any Elasticsearch distance unit and sends the distance in kilometres.
 - **A filter value** holding a backtick returns a failed `Result`, as a Typesense filter value can't contain one.
 - **Total hit count** is exact.
 

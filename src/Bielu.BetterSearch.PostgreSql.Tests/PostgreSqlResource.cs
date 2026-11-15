@@ -8,7 +8,7 @@ namespace Bielu.BetterSearch.PostgreSql.Tests;
 
 /// <summary>
 /// Starts PostgreSQL through the examples AppHost, once for the whole test run, and installs the
-/// <c>fuzzystrmatch</c> extension that <c>FuzzyQuery</c> needs. Only the database runs as a container; the code
+/// <c>fuzzystrmatch</c> extension that <c>FuzzySubQuery</c> needs. Only the database runs as a container; the code
 /// under test runs in the test process, so coverage is collected for it as usual.
 /// </summary>
 public sealed class PostgreSqlResource : IHostedService

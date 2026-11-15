@@ -1,6 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Abstractions.Services.NullImplementations;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.HealthChecks;
 using FluentResults;
 using Microsoft.Extensions.DependencyInjection;

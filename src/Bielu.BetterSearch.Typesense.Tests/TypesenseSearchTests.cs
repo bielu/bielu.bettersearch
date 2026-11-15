@@ -50,7 +50,7 @@ public sealed class TypesenseSearchTests(ISearchServiceAsync searchService, IInd
     [Fact]
     public Task SearchAsync_TermOnFieldNoDocumentHas_ReturnsNoHits() => WithPeopleAsync(async index =>
     {
-        var ids = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Nickname", Value = "jd" }), Token);
+        var ids = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurrence.Must, new TermSubQuery { Field = "Nickname", Value = "jd" }), Token);
 
         ids.ShouldBeEmpty();
     });
@@ -58,7 +58,7 @@ public sealed class TypesenseSearchTests(ISearchServiceAsync searchService, IInd
     [Fact]
     public Task SearchAsync_MustNotTermOnFieldNoDocumentHas_ReturnsEveryDocument() => WithPeopleAsync(async index =>
     {
-        var ids = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurance.MUSTNOT, new TermSubQuery { Field = "Nickname", Value = "jd" }), Token);
+        var ids = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurrence.MustNot, new TermSubQuery { Field = "Nickname", Value = "jd" }), Token);
 
         ids.ShouldBe(["1", "2", "3"]);
     });
@@ -66,7 +66,7 @@ public sealed class TypesenseSearchTests(ISearchServiceAsync searchService, IInd
     [Fact]
     public Task SearchAsync_MustNotTerm_ReturnsDocumentsWithoutTheFieldToo() => WithPeopleAsync(async index =>
     {
-        var ids = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurance.MUSTNOT, new TermSubQuery { Field = "Age", Value = 25 }), Token);
+        var ids = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurrence.MustNot, new TermSubQuery { Field = "Age", Value = 25 }), Token);
 
         ids.ShouldBe(["2", "3"]);
     });
@@ -75,7 +75,7 @@ public sealed class TypesenseSearchTests(ISearchServiceAsync searchService, IInd
     public Task SearchAsync_MustNotRange_ReturnsFailedResult() => WithPeopleAsync(async index =>
     {
         var result = await searchService.SearchAsync(
-            SearchTestHelpers.Query(index, Occurance.MUSTNOT, new NumericRange { Field = "Age", MinValue = 20, MaxValue = 26 }), Token);
+            SearchTestHelpers.Query(index, Occurrence.MustNot, new NumericRangeSubQuery { Field = "Age", MinValue = 20, MaxValue = 26 }), Token);
 
         result.Errors.ShouldHaveSingleItem().Message.ShouldContain("Typesense filters cannot negate a range");
     });
@@ -91,8 +91,8 @@ public sealed class TypesenseSearchTests(ISearchServiceAsync searchService, IInd
     [Fact]
     public Task SearchAsync_SpatialQuery_ReturnsOnlyDocumentsInTheRadius() => WithPeopleAsync(async index =>
     {
-        var ids = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurance.MUST,
-            new SpatialSearchQuery { Field = "Location", Lat = 52.23, Lng = 21.01, Distance = 10 }), Token);
+        var ids = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurrence.Must,
+            new SpatialSearchSubQuery { Field = "Location", Lat = 52.23, Lng = 21.01, Distance = 10 }), Token);
 
         ids.ShouldBe(["1"]);
     });
@@ -100,7 +100,7 @@ public sealed class TypesenseSearchTests(ISearchServiceAsync searchService, IInd
     [Fact]
     public Task SearchAsync_PrefixPhrase_MatchesWordsInOrderWithTheLastAsPrefix() => WithPeopleAsync(async index =>
     {
-        var ids = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurance.MUST,
+        var ids = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurrence.Must,
             new PrefixPhraseSubQuery { Field = "Name", Value = "jane d" }), Token);
 
         ids.ShouldBe(["1"]);
@@ -126,8 +126,8 @@ public sealed class TypesenseSearchTests(ISearchServiceAsync searchService, IInd
         Document(index, "high", new() { ["Big"] = [9007199254740993L] })
     ], async index =>
     {
-        var term = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Big", Value = 9007199254740993L }), Token);
-        var range = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurance.MUST, new LongRange { Field = "Big", MinValue = 9007199254740993L }), Token);
+        var term = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurrence.Must, new TermSubQuery { Field = "Big", Value = 9007199254740993L }), Token);
+        var range = await searchService.SearchIdsAsync(SearchTestHelpers.Query(index, Occurrence.Must, new LongRangeSubQuery { Field = "Big", MinValue = 9007199254740993L }), Token);
 
         term.ShouldBe(["high"]);
         range.ShouldBe(["high"]);

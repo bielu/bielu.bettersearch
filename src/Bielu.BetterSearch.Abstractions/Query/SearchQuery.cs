@@ -12,16 +12,16 @@ namespace Bielu.BetterSearch.Abstractions.Query
         public List<IAggregationQuery> FacetQueries { get; set; } = new List<IAggregationQuery>();
         public List<IHighlightQuery> HighlightQueries { get; set; } = new List<IHighlightQuery>();
 
-        public IDictionary<Occurance, List<INestableQuery>> PostFilterQuery { get; set; } =
-            new Dictionary<Occurance, List<INestableQuery>>();
+        public IDictionary<Occurrence, List<INestableQuery>> PostFilterQuery { get; set; } =
+            new Dictionary<Occurrence, List<INestableQuery>>();
 
-        public IDictionary<Occurance, List<ISearchSubQuery>> Query { get; set; } = new Dictionary<Occurance, List<ISearchSubQuery>>();
+        public IDictionary<Occurrence, List<ISearchSubQuery>> Query { get; set; } = new Dictionary<Occurrence, List<ISearchSubQuery>>();
         public string Index { get; set; }
 
 
         public IEnumerable<string> Properties { get; set; }
 
-        public void Add(Occurance key, ISearchSubQuery value)
+        public void Add(Occurrence key, ISearchSubQuery value)
         {
             if (!Query.TryGetValue(key, out var queries))
             {

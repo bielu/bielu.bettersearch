@@ -1,6 +1,6 @@
-﻿using Bielu.BetterSearch.DepedencyInjection;
+﻿using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.PostgreSql.Configuration;
-using Bielu.BetterSearch.PostgreSql.DepedencyInjection;
+using Bielu.BetterSearch.PostgreSql.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.DependencyInjection.Logging;
 

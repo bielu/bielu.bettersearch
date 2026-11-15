@@ -1,0 +1,43 @@
+﻿using Bielu.BetterSearch.Abstractions.Models;
+using Bielu.BetterSearch.Abstractions.Query.Highlighter;
+
+namespace Bielu.BetterSearch.FluentApi.Fluent
+{
+    public class HighlighterConfigurator
+    {
+        public HighlighterConfigurator(ISearchQuery searchSubQueries)
+        {
+            this.Query = new BaseHighlightQuery();
+            searchSubQueries.HighlightQueries.Add(this.Query);
+        }
+
+        /// <summary>Highlights <paramref name="fieldName"/>.</summary>
+        public HighlighterConfigurator WithField(string fieldName)
+        {
+            Query.Field = fieldName;
+            Query.IsAllField = false;
+            return this;
+        }
+
+        /// <summary>Highlights every field, rather than one.</summary>
+        public HighlighterConfigurator ForAllFields()
+        {
+            Query.IsAllField = true;
+            return this;
+        }
+
+        /// <summary>
+        /// Highlights where the bool query <paramref name="query"/> builds matches, rather than where the main query does.
+        /// Calling it again replaces the earlier query.
+        /// </summary>
+        public HighlighterConfigurator WithQuery(Action<BooleanQueryConfigurator> query)
+        {
+            var booleanQuery = new BooleanQueryConfigurator();
+            query.Invoke(booleanQuery);
+            Query.Queries = new Dictionary<Occurrence, ISearchSubQuery> { [Occurrence.Must] = booleanQuery.Query };
+            return this;
+        }
+
+        public IHighlightQuery Query { get; set; }
+    }
+}

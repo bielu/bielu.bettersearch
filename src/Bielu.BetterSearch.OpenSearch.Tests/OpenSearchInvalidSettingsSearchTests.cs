@@ -1,6 +1,6 @@
 ﻿using Bielu.BetterSearch.Configuration;
 using Bielu.BetterSearch.OpenSearch.Configuration;
-using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+using Bielu.BetterSearch.OpenSearch.DependencyInjection;
 using Bielu.BetterSearch.Tests;
 
 namespace Bielu.BetterSearch.OpenSearch.Tests;

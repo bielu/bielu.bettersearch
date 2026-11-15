@@ -12,6 +12,6 @@ internal sealed class BooleanSubQueryTranslator : ISubQueryTranslator<Meilisearc
 
     public Task<Result<MeilisearchFilter>> TranslateAsync(ISearchSubQuery query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators) =>
         query is BoolSearchSubQuery boolQuery
-            ? MeilisearchBoolFilterBuilder.BuildAsync(boolQuery.NestedQueries.Select(nested => (nested.Occurance, nested)), subQueryTranslators)
+            ? MeilisearchBoolFilterBuilder.BuildAsync(boolQuery.NestedQueries.Select(nested => (nested.Occurrence, nested)), subQueryTranslators)
             : Task.FromResult(Result.Fail<MeilisearchFilter>($"Query is not a {nameof(BoolSearchSubQuery)}"));
 }

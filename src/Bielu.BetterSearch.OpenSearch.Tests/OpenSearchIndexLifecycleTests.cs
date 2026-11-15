@@ -2,9 +2,9 @@
 using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Services;
-using Bielu.BetterSearch.DepedencyInjection;
+using Bielu.BetterSearch.DependencyInjection;
 using Bielu.BetterSearch.OpenSearch.Configuration;
-using Bielu.BetterSearch.OpenSearch.DepedencyInjection;
+using Bielu.BetterSearch.OpenSearch.DependencyInjection;
 using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Tests;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,7 +34,7 @@ public sealed class OpenSearchIndexLifecycleTests(OpenSearchResource openSearch)
             options.SharedIndexSettings = new OpenSearchIndexSettings
             {
                 ConnectionString = openSearch.EnsureStarted().ToString(),
-                AuthenticationType = OpenSearchAuthenticationType.NONE,
+                AuthenticationType = OpenSearchAuthenticationType.None,
                 WriteVisibility = WriteVisibility.WaitUntilSearchable,
                 Mappings = [new OpenSearchFieldMapping { Field = "City", Type = OpenSearchFieldType.Keyword }],
             };

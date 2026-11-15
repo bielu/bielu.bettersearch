@@ -58,7 +58,7 @@ internal static class OpenSearchAggregations
                         Size = Facets.SizeOf(term.Size)
                     };
                     break;
-                case MultiTermAggreation multiTerm:
+                case MultiTermAggregation multiTerm:
                     aggregation = new MultiTermsAggregation(facet.AggregationName)
                     {
                         Terms = multiTerm.Terms.Select(term => new Term { Field = Field(term.TermFieldName, mappings) }).ToList(),
@@ -67,9 +67,9 @@ internal static class OpenSearchAggregations
                     break;
                 case FilterAggregationQuery filter:
                     var filterQuery = new SearchQuery { Index = index };
-                    foreach (var (occurance, subQuery) in filter.Queries ?? [])
+                    foreach (var (occurrence, subQuery) in filter.Queries ?? [])
                     {
-                        filterQuery.Add(occurance, subQuery);
+                        filterQuery.Add(occurrence, subQuery);
                     }
 
                     var translated = await queryTranslateService.TranslateMainQueryAsync(filterQuery).ConfigureAwait(false);
@@ -128,7 +128,7 @@ internal static class OpenSearchAggregations
                 TermAggregation => aggregates?.Terms(facet.AggregationName) is { } terms
                     ? Buckets(facet, terms.Buckets.Select(bucket => (bucket.KeyAsString ?? bucket.Key, bucket.DocCount, (AggregateDictionary)bucket)), nestedFacets)
                     : Missing(facet),
-                MultiTermAggreation => aggregates?.MultiTerms(facet.AggregationName) is { } multiTerms
+                MultiTermAggregation => aggregates?.MultiTerms(facet.AggregationName) is { } multiTerms
                     ? MultiTermBuckets(facet, multiTerms, nestedFacets)
                     : Missing(facet),
                 FilterAggregationQuery => aggregates?.Filter(facet.AggregationName) is { } filter

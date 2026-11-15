@@ -6,23 +6,23 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
     {
         public BooleanQueryConfigurator Must()
         {
-            Occurance = Occurance.MUST;
+            Occurrence = Occurrence.Must;
             return this;
         }
         public BooleanQueryConfigurator MustNot()
         {
-            Occurance = Occurance.MUSTNOT;
+            Occurrence = Occurrence.MustNot;
             return this;
         }
         public BooleanQueryConfigurator Should()
         {
-            Occurance = Occurance.SHOULD;
+            Occurrence = Occurrence.Should;
             return this;
         }
 
         public BooleanQueryConfigurator Filter()
         {
-            Occurance = Occurance.FILTER;
+            Occurrence = Occurrence.Filter;
             return this;
         }
         /// <summary>Sets the <see cref="ISearchSubQuery.BoostValue"/> of the bool query.</summary>
@@ -34,6 +34,6 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
             return this;
         }
         public INestableQuery Query { get; set; } = new BoolSearchSubQuery();
-        public Occurance Occurance { get; set; } = Occurance.MUST;
+        public Occurrence Occurrence { get; set; } = Occurrence.Must;
     }
 }

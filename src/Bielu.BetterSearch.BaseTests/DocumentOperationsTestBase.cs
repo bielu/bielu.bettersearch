@@ -47,7 +47,7 @@ public abstract class DocumentOperationsTestBase(
     };
 
     private static SearchQuery CategoryQuery(string index, string category) =>
-        SearchTestHelpers.Query(index, Occurance.MUST, new TermSubQuery { Field = "Category", Value = category });
+        SearchTestHelpers.Query(index, Occurrence.Must, new TermSubQuery { Field = "Category", Value = category });
 
     private async Task IndexAsync(string index, params SearchDocument[] documents)
     {
@@ -245,8 +245,8 @@ public abstract class DocumentOperationsTestBase(
             document.Fields["Rank"].ShouldBe([7L]);
             (await searchService.SearchIdsAsync(CategoryQuery(index, "blog"), Token)).ShouldBe(["b"]);
             (await searchService.SearchIdsAsync(CategoryQuery(index, "news"), Token)).ShouldBe(["a"]);
-            var published = SearchTestHelpers.Query(index, Occurance.MUST,
-                new DateRangeQuery { Field = "Published", MinValue = Published.AddDays(-1), MaxValue = Published.AddDays(1) });
+            var published = SearchTestHelpers.Query(index, Occurrence.Must,
+                new DateRangeSubQuery { Field = "Published", MinValue = Published.AddDays(-1), MaxValue = Published.AddDays(1) });
             (await searchService.SearchIdsAsync(published, Token)).ShouldBe(["a", "b"]);
         }
         finally

@@ -36,24 +36,24 @@ internal sealed class TypesenseQueryTranslationTests(IEnumerable<ISubQueryTransl
     public override async Task TermsSubQuery_DateValue_SendsIsoDateInUtc()
         => await ShouldRenderAsync(new TermsSubQuery { Field = "Born", Value = [OffsetDate] }, $"d_Born:=[{OffsetDate.ToUnixTimeMilliseconds()}]");
 
-    // The provider rejects every FuzzyQuery, whatever its value; see FuzzyQueryShouldBeTranslatable.
+    // The provider rejects every FuzzySubQuery, whatever its value; see FuzzyQueryShouldBeTranslatable.
     public override async Task FuzzyQuery_CommaDecimalCulture_SendsInvariantValue()
-        => await SubQueryTranslationShouldFailAsync(new FuzzyQuery { Field = "Name", Value = 3.5 });
+        => await SubQueryTranslationShouldFailAsync(new FuzzySubQuery { Field = "Name", Value = 3.5 });
 
     public override async Task FuzzyQuery_DateValue_ReturnsFailedResult()
-        => await SubQueryTranslationShouldFailAsync(new FuzzyQuery { Field = "Born", Value = Date });
+        => await SubQueryTranslationShouldFailAsync(new FuzzySubQuery { Field = "Born", Value = Date });
 
     public override async Task FuzzyQuery_DateTimeOffsetValue_ReturnsFailedResult()
-        => await SubQueryTranslationShouldFailAsync(new FuzzyQuery { Field = "Born", Value = new DateTimeOffset(Date) });
+        => await SubQueryTranslationShouldFailAsync(new FuzzySubQuery { Field = "Born", Value = new DateTimeOffset(Date) });
 
     public override async Task FuzzyQuery_BooleanValue_ReturnsFailedResult()
-        => await SubQueryTranslationShouldFailAsync(new FuzzyQuery { Field = "Born", Value = true });
+        => await SubQueryTranslationShouldFailAsync(new FuzzySubQuery { Field = "Born", Value = true });
 
     public override async Task FuzzyQueryShouldBeTranslatable()
-        => await SubQueryTranslationShouldFailAsync(new FuzzyQuery { Field = "Name", Value = "jnae" });
+        => await SubQueryTranslationShouldFailAsync(new FuzzySubQuery { Field = "Name", Value = "jnae" });
 
     public override async Task StringRangeShouldBeTranslatable()
-        => await SubQueryTranslationShouldFailAsync(new StringRange { Field = "Name", MinValue = "a", MaxValue = "m" });
+        => await SubQueryTranslationShouldFailAsync(new StringRangeSubQuery { Field = "Name", MinValue = "a", MaxValue = "m" });
 
     public override async Task LuceneSubQueryShouldBeTranslatable()
         => await SubQueryTranslationShouldFailAsync(new LuceneSubQuery { LuceneQuery = "Name:jane" });

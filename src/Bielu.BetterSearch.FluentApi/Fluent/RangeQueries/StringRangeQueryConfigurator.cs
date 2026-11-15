@@ -6,10 +6,10 @@ public class StringRangeQueryConfigurator : SubQueryConfigurator<StringRangeQuer
 {
     public StringRangeQueryConfigurator()
     {
-        Query = new StringRange();
+        Query = new StringRangeSubQuery();
     }
 
-    public StringRange Query { get; set; }
+    public StringRangeSubQuery Query { get; set; }
     protected override ISearchSubQuery SubQuery => Query;
     public StringRangeQueryConfigurator WithField(string fieldName)
     {

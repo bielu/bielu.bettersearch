@@ -60,7 +60,7 @@ public class DefaultInterfaceMembersUnitTests
     {
         public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<Result> RemoveDocumentAsync(string id, string type, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<Result> RemoveDocumentAsync(string id, string index, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default) => throw new NotSupportedException();
