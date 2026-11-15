@@ -3,31 +3,9 @@
 namespace Bielu.BetterSearch.Abstractions.Services;
 
 /// <summary>
-/// Indexes and removes documents, and reports what it did to subscribers.
+/// Indexes and removes documents. To run code after a write, decorate this service in DI, as the search cache does.
 /// </summary>
-/// <remarks>
-/// The three observable streams share one contract. An observer gets <see cref="IObserver{T}.OnNext"/> once for each
-/// operation that succeeded, after the provider has done it: a document indexed, a document removed, an index emptied.
-/// A rejected document or a failed operation sends nothing; the returned <see cref="Result"/> carries the reason.
-/// <see cref="IObserver{T}.OnError"/> is never sent, and <see cref="IObserver{T}.OnCompleted"/> is sent once, when
-/// the service is disposed, so a stream stays open for every operation the service performs. Subscribing after
-/// disposal sends <see cref="IObserver{T}.OnCompleted"/> straight away, and operations after disposal notify nobody.
-/// An observer that throws is logged and skipped: the operation still returns its own <see cref="Result"/>, and the
-/// other observers are still notified. Subscribing an observer that is already subscribed notifies it once, until
-/// every handle <c>Subscribe</c> returned for it is disposed.
-/// <para>
-/// Observers are called one at a time, and never after <see cref="IObserver{T}.OnCompleted"/>, only while the service
-/// is not used concurrently. When one instance runs operations in parallel, or is disposed while an operation runs,
-/// an observer can get overlapping <see cref="IObserver{T}.OnNext"/> calls, or one last
-/// <see cref="IObserver{T}.OnNext"/> after <see cref="IObserver{T}.OnCompleted"/>, so it must be thread-safe.
-/// </para>
-/// <para>
-/// The DI scope owns the service and disposes it, which completes the streams for every subscriber in that scope.
-/// Do not dispose an injected service yourself: dispose the handle <c>Subscribe</c> returned to stop listening. Only
-/// code that creates the service itself, outside DI, should dispose it.
-/// </para>
-/// </remarks>
-public interface IIndexingServiceAsync : IObservable<SearchDocument>, IObservable<DeleteDocumentRequest>, IObservable<DeleteAllDocumentsRequest>, IDisposable
+public interface IIndexingServiceAsync
 {
     Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default);
     /// <summary>
@@ -36,32 +14,26 @@ public interface IIndexingServiceAsync : IObservable<SearchDocument>, IObservabl
     /// that is <c>null</c>, has a <c>null</c> or empty <c>Id</c> or <c>Index</c>, has a <c>null</c> field or value,
     /// or that the validator rejects fails the batch before anything is sent, so none of it is stored. A document the engine rejects fails the batch too; what the engine
     /// stored of the rest depends on the provider, and the error names the ids that were not stored in its
-    /// <c>ids</c> metadata. On success the <see cref="SearchDocument"/> observers get one
-    /// <see cref="IObserver{T}.OnNext"/> for each document; when the <see cref="Result"/> fails they get nothing,
-    /// even for documents already stored.
+    /// <c>ids</c> metadata.
     /// </summary>
     Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document, CancellationToken cancellationToken = default);
     Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document, CancellationToken cancellationToken = default);
     /// <summary>
     /// Removes the documents with <paramref name="ids"/> from <paramref name="index"/> and returns how many were
-    /// removed; see <see cref="IIndexingProviderAsync.RemoveDocumentsAsync"/>. On success, the
-    /// <see cref="DeleteDocumentRequest"/> observers get one <see cref="IObserver{T}.OnNext"/> for each distinct id,
-    /// removed or not there; when the <see cref="Result"/> fails they get nothing, even for documents already removed.
+    /// removed; see <see cref="IIndexingProviderAsync.RemoveDocumentsAsync"/>.
     /// </summary>
     Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids, CancellationToken cancellationToken = default);
     /// <summary>
     /// Removes every document from the index named by <paramref name="request"/> and returns how many were removed,
     /// as reported by <see cref="IIndexingProviderAsync.RemoveAllDocumentsAsync"/>. A <c>null</c> value means the
-    /// engine removed the documents but did not report how many. On success, the
-    /// <see cref="DeleteAllDocumentsRequest"/> observers get one <see cref="IObserver{T}.OnNext"/>; when the
-    /// <see cref="Result"/> fails they get nothing.
+    /// engine removed the documents but did not report how many.
     /// </summary>
     Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Replaces some fields of one document; see <see cref="IIndexingProviderAsync.UpdateDocumentAsync"/>. An empty
     /// update, or one with a <c>null</c> field or value, fails before the provider is called. The document validator
-    /// is not run, as it checks whole documents, and observers are not notified.
+    /// is not run, as it checks whole documents.
     /// </summary>
     Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
         CancellationToken cancellationToken = default) =>

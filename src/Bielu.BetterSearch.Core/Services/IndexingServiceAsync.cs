@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace Bielu.BetterSearch.Services;
 
-/// <summary>The default <see cref="IIndexingServiceAsync"/>; see it for the observer contract.</summary>
+/// <summary>The default <see cref="IIndexingServiceAsync"/>.</summary>
 public class IndexingServiceAsync(
     IIndexingProviderAsync indexingProvider,
     IDocumentValidatorAsync documentValidator,
@@ -14,13 +14,7 @@ public class IndexingServiceAsync(
     IOptionsMonitor<BetterSearchInstrumentationOptions>? instrumentationOptions = null)
     : IIndexingServiceAsync
 {
-    private readonly ObserverList<SearchDocument> _indexingObservers = new(logger);
-    private readonly ObserverList<DeleteDocumentRequest> _deleteDocumentObservers = new(logger);
-    private readonly ObserverList<DeleteAllDocumentsRequest> _deleteAllDocumentsObservers = new(logger);
-
     private bool RecordErrorMessages => BetterSearchTelemetry.RecordsErrorMessages(instrumentationOptions);
-
-    public IDisposable Subscribe(IObserver<SearchDocument> observer) => _indexingObservers.Subscribe(observer);
 
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
     {
@@ -48,13 +42,7 @@ public class IndexingServiceAsync(
             return validationResult;
         }
 
-        var result = await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
-        if (result.IsSuccess)
-        {
-            _indexingObservers.Notify(document);
-        }
-
-        return result;
+        return await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
@@ -115,17 +103,7 @@ public class IndexingServiceAsync(
             return Result.Fail<int>(errors);
         }
 
-        // One bulk call. When it fails, observers get nothing, even for documents the engine already stored.
-        var result = await indexingProvider.IndexMultipleDocumentsAsync(documents, cancellationToken).ConfigureAwait(false);
-        if (result.IsSuccess)
-        {
-            foreach (var doc in documents)
-            {
-                _indexingObservers.Notify(doc);
-            }
-        }
-
-        return result;
+        return await indexingProvider.IndexMultipleDocumentsAsync(documents, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -231,13 +209,7 @@ public class IndexingServiceAsync(
             return Result.Fail($"The request to remove document {document.Id} has a null or empty Type, the name of the index.");
         }
 
-        var result = await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken).ConfigureAwait(false);
-        if (result.IsSuccess)
-        {
-            _deleteDocumentObservers.Notify(document);
-        }
-
-        return result;
+        return await indexingProvider.RemoveDocumentAsync(document.Id, document.Type, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,
@@ -268,16 +240,7 @@ public class IndexingServiceAsync(
             return Result.Ok(0);
         }
 
-        var result = await indexingProvider.RemoveDocumentsAsync(index, distinctIds.Value, cancellationToken).ConfigureAwait(false);
-        if (result.IsSuccess)
-        {
-            foreach (var id in distinctIds.Value)
-            {
-                _deleteDocumentObservers.Notify(new DeleteDocumentRequest { Id = id, Type = index });
-            }
-        }
-
-        return result;
+        return await indexingProvider.RemoveDocumentsAsync(index, distinctIds.Value, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
@@ -305,13 +268,7 @@ public class IndexingServiceAsync(
             return Result.Fail<long?>("The request to remove all documents has a null or empty IndexName.");
         }
 
-        var result = await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken).ConfigureAwait(false);
-        if (result.IsSuccess)
-        {
-            _deleteAllDocumentsObservers.Notify(request);
-        }
-
-        return result;
+        return await indexingProvider.RemoveAllDocumentsAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -337,27 +294,5 @@ public class IndexingServiceAsync(
         }
 
         return result;
-    }
-
-    public IDisposable Subscribe(IObserver<DeleteDocumentRequest> observer) => _deleteDocumentObservers.Subscribe(observer);
-
-    public IDisposable Subscribe(IObserver<DeleteAllDocumentsRequest> observer) => _deleteAllDocumentsObservers.Subscribe(observer);
-
-    /// <summary>Ends every stream: each observer gets <see cref="IObserver{T}.OnCompleted"/> once and is unsubscribed.</summary>
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>Ends every stream when <paramref name="disposing"/> is <c>true</c>. Never throws, and later calls do nothing.</summary>
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _indexingObservers.Complete();
-            _deleteDocumentObservers.Complete();
-            _deleteAllDocumentsObservers.Complete();
-        }
     }
 }

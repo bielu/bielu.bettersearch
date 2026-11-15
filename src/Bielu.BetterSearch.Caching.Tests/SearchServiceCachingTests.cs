@@ -103,10 +103,7 @@ public class SearchServiceCachingTests
         result.Items.Single().Document.Id.ShouldEndWith("-2");
     }
 
-    /// <summary>The writes that notify an observer once.</summary>
-    public static TheoryData<string> Writes => ["index", "index many", "remove", "remove many", "remove all"];
-
-    /// <summary>Every write, each of which evicts its index; an update notifies no observer.</summary>
+    /// <summary>Every write, each of which evicts its index.</summary>
     public static TheoryData<string> EvictingWrites => ["index", "index many", "remove", "remove many", "remove all", "update"];
 
     private static Task WriteAsync(IIndexingServiceAsync indexing, string write, string index) => write switch
@@ -250,25 +247,6 @@ public class SearchServiceCachingTests
     }
 
     [Fact]
-    public async Task SearchAsync_CacheHit_NotifiesObservers()
-    {
-        //Arrange
-        await using var services = Build();
-        await SearchAsync(services, Queries.Term("products"));
-        using var scope = services.CreateScope();
-        var search = scope.ServiceProvider.GetRequiredService<ISearchServiceAsync>();
-        var observer = new RecordingObserver<ISearchModel>();
-        using var subscription = search.Subscribe(observer);
-
-        //Act
-        (await search.SearchAsync(Queries.Term("products"), Token)).IsSuccess.ShouldBeTrue();
-
-        //Assert
-        _search.Calls.ShouldBe(1);
-        observer.Values.Select(document => document.Id).ShouldBe(["products-1"]);
-    }
-
-    [Fact]
     public async Task SearchAsync_SkipReturnsTrue_CallsProviderEveryTime()
     {
         //Arrange
@@ -408,37 +386,14 @@ public class SearchServiceCachingTests
         first.Items.Single().Document.CustomProperties["link"].Single().ShouldBe(new Uri("https://example.com"));
     }
 
-    [Theory]
-    [InlineData("index")]
-    [InlineData("index many")]
-    public async Task IndexingWrite_ObserverSearchesTheIndex_ReadsPastTheEvictedResult(string write)
-    {
-        //Arrange
-        await using var services = Build();
-        await SearchAsync(services, Queries.Term("products"));
-        var indexing = Indexing(services);
-        var seen = new List<string>();
-        // Searches from inside OnNext, as an observer that refreshes a view of the index would.
-        using var subscription = indexing.Subscribe(new CallbackObserver<SearchDocument>(_ =>
-            seen.Add(SearchAsync(services, Queries.Term("products")).GetAwaiter().GetResult().Items.Single().Document.Id)));
-
-        //Act
-        await WriteAsync(indexing, write, "products");
-
-        //Assert
-        seen.ShouldBe(["products-2"]);
-    }
-
     [Fact]
-    public async Task IndexMultipleDocumentsAsync_ProviderFails_EvictsAndNotifiesNothing()
+    public async Task IndexMultipleDocumentsAsync_ProviderFails_Evicts()
     {
         //Arrange
         await using var services = Build();
         await SearchAsync(services, Queries.Term("products"));
         _indexing.FailId = "2";
         var indexing = Indexing(services);
-        var seen = new List<string>();
-        using var subscription = indexing.Subscribe(new CallbackObserver<SearchDocument>(document => seen.Add(document.Id)));
 
         //Act
         var result = await indexing.IndexMultipleDocumentsAsync(
@@ -448,7 +403,6 @@ public class SearchServiceCachingTests
         //Assert
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldBe("write failed");
-        seen.ShouldBeEmpty();
         after.Items.Single().Document.Id.ShouldBe("products-2");
     }
 
@@ -567,45 +521,6 @@ public class SearchServiceCachingTests
     }
 
     [Fact]
-    public async Task SearchAsync_ObserverOnDecorator_NotifiedOnMissAndHitOnce()
-    {
-        //Arrange
-        await using var services = Build();
-        using var scope = services.CreateScope();
-        var search = scope.ServiceProvider.GetRequiredService<ISearchServiceAsync>();
-        var observer = new RecordingObserver<ISearchModel>();
-        using var subscription = search.Subscribe(observer);
-
-        //Act
-        (await search.SearchAsync(Queries.Term("products"), Token)).IsSuccess.ShouldBeTrue();
-        (await search.SearchAsync(Queries.Term("products"), Token)).IsSuccess.ShouldBeTrue();
-
-        //Assert
-        _search.Calls.ShouldBe(1);
-        // Once for the miss and once for the hit: a notification from the decorated service as well would make it three.
-        observer.Values.Select(document => document.Id).ShouldBe(["products-1", "products-1"]);
-    }
-
-    [Theory]
-    [MemberData(nameof(Writes))]
-    public async Task IndexingWrite_ObserverOnDecorator_NotifiedOnce(string write)
-    {
-        //Arrange
-        await using var services = Build();
-        var indexing = Indexing(services);
-        var notifications = 0;
-        using var indexed = indexing.Subscribe(new CallbackObserver<SearchDocument>(_ => notifications++));
-        using var removed = indexing.Subscribe(new CallbackObserver<DeleteDocumentRequest>(_ => notifications++));
-        using var emptied = indexing.Subscribe(new CallbackObserver<DeleteAllDocumentsRequest>(_ => notifications++));
-
-        //Act
-        await WriteAsync(indexing, write, "products");
-
-        //Assert
-        notifications.ShouldBe(1);
-    }
-
-    [Fact]
     public async Task CompleteRebuildAsync_CacheRegistered_EvictsCachedSearchesOfTheIndexOnly()
     {
         //Arrange
@@ -639,13 +554,11 @@ public class SearchServiceCachingTests
     }
 
     [Fact]
-    public async Task UpdateDocumentAsync_CacheRegistered_ReachesProviderAndNotifiesNoObserver()
+    public async Task UpdateDocumentAsync_CacheRegistered_ReachesProvider()
     {
         //Arrange
         await using var services = Build();
         var indexing = Indexing(services);
-        var notifications = 0;
-        using var indexed = indexing.Subscribe(new CallbackObserver<SearchDocument>(_ => notifications++));
 
         //Act
         var result = await indexing.UpdateDocumentAsync("products", "1", new Dictionary<string, IList<object>> { ["Name"] = ["x"] }, Token);
@@ -653,7 +566,6 @@ public class SearchServiceCachingTests
         //Assert
         result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.Message)));
         result.Value.ShouldBeTrue();
-        notifications.ShouldBe(0);
     }
 
     [Fact]
@@ -733,19 +645,6 @@ public class SearchServiceCachingTests
             Calls++;
             return inner.SearchAsync(query, cancellationToken);
         }
-
-        public IDisposable Subscribe(IObserver<ISearchModel> observer) => inner.Subscribe(observer);
-
-        public void Dispose()
-        {
-        }
-    }
-
-    private sealed class CallbackObserver<T>(Action<T> onNext) : IObserver<T>
-    {
-        public void OnCompleted() { }
-        public void OnError(Exception error) { }
-        public void OnNext(T value) => onNext(value);
     }
 
     /// <summary>Runs the factory, then fails to store what it returned.</summary>

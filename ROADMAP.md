@@ -25,14 +25,13 @@ Nothing has shipped as stable, so breaking changes are still free. The 1.0 block
 | Lifti index | `CreateIndexAsync` on an existing index silently replaces it, losing its documents | Success with `false`, as on the other providers | [#107](https://github.com/bielu/bielu.bettersearch/issues/107) |
 | Lifti search | Searching or counting in a missing index creates it and returns no hits | A failed `Result`, as on the other providers, without creating the index | [#107](https://github.com/bielu/bielu.bettersearch/issues/107) |
 | Lifti search | `Page` and `PageSize` are ignored; hits contain only an id and a score | Paged hits with fields | [#107](https://github.com/bielu/bielu.bettersearch/issues/107) |
-| Core | `IndexingServiceAsync` and `SearchServiceAsync` are scoped, so an observer only sees the operations of its own scope | See the observer surface below | [#165](https://github.com/bielu/bielu.bettersearch/issues/165) |
 
 ## Blockers for 1.0
 
 The breaking changes, in the order [#168](https://github.com/bielu/bielu.bettersearch/issues/168) gives. Items marked **stack N** are one stack of pull requests, each based on the branch of the one before it and merged from the bottom up, as [AGENTS.md](AGENTS.md#stacked-pull-requests) describes.
 
 1. [#97](https://github.com/bielu/bielu.bettersearch/issues/97) Remove dead and placeholder public API, the Typesense public types included. **Stack 1**, based on `main`.
-2. [#165](https://github.com/bielu/bielu.bettersearch/issues/165) The observer surface: [#168](https://github.com/bielu/bielu.bettersearch/issues/168) decides to remove it. **Stack 2**.
+2. [#165](https://github.com/bielu/bielu.bettersearch/issues/165) The observer surface: removed. `IIndexingServiceAsync` and `ISearchServiceAsync` are no longer `IObservable<>` or `IDisposable`, which also ends the defect of observers seeing only their own DI scope. Code that needs a hook decorates the service in DI, as the search cache does; a singleton hook can be added after 1.0 without a break. **Stack 2**.
 3. [#96](https://github.com/bielu/bielu.bettersearch/issues/96) Rename the misspelled public API (`DepedencyInjection`, `Occurance`, `PrefixLenght`, `Fuziness` and others). **Stack 3**.
 4. [#163](https://github.com/bielu/bielu.bettersearch/issues/163) Query model: one source of truth for occurrence, consistent clause containers and value types. **Stack 4**.
 5. [#164](https://github.com/bielu/bielu.bettersearch/issues/164) Unify the document and result shapes. **Stack 5**.
