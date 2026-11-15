@@ -28,28 +28,31 @@ Nothing has shipped as stable, so breaking changes are still free. The 1.0 block
 
 ## Blockers for 1.0
 
-The breaking changes, in the order [#168](https://github.com/bielu/bielu.bettersearch/issues/168) gives. Items marked **stack N** are one stack of pull requests, each based on the branch of the one before it and merged from the bottom up, as [AGENTS.md](AGENTS.md#stacked-pull-requests) describes.
+The work for 1.0, in the order [#168](https://github.com/bielu/bielu.bettersearch/issues/168) and the stacking comments on each issue give. Items marked **stack N** are one stack of pull requests, each based on the branch of the one before it and merged from the bottom up, as [AGENTS.md](AGENTS.md#stacked-pull-requests) describes.
 
-1. [#97](https://github.com/bielu/bielu.bettersearch/issues/97) Remove dead and placeholder public API, the Typesense public types included. **Stack 1**, based on `main`.
-2. [#165](https://github.com/bielu/bielu.bettersearch/issues/165) The observer surface: removed. `IIndexingServiceAsync` and `ISearchServiceAsync` are no longer `IObservable<>` or `IDisposable`, which also ends the defect of observers seeing only their own DI scope. Code that needs a hook decorates the service in DI, as the search cache does; a singleton hook can be added after 1.0 without a break. **Stack 2**.
-3. [#96](https://github.com/bielu/bielu.bettersearch/issues/96) Rename the misspelled public API (`DepedencyInjection`, `Occurance`, `PrefixLenght`, `Fuziness` and others). **Stack 3**.
+1. [#97](https://github.com/bielu/bielu.bettersearch/issues/97) Remove dead and placeholder public API, the Typesense public types included. **Stack 1**. Done ([#172](https://github.com/bielu/bielu.bettersearch/pull/172)).
+2. [#165](https://github.com/bielu/bielu.bettersearch/issues/165) The observer surface: removed. `IIndexingServiceAsync` and `ISearchServiceAsync` are no longer `IObservable<>` or `IDisposable`, which also ends the defect of observers seeing only their own DI scope. Code that needs a hook decorates the service in DI, as the search cache does; a singleton hook can be added after 1.0 without a break. **Stack 2**. Done ([#173](https://github.com/bielu/bielu.bettersearch/pull/173)).
+3. [#96](https://github.com/bielu/bielu.bettersearch/issues/96) Rename the misspelled public API (`DepedencyInjection`, `Occurance`, `PrefixLenght`, `Fuziness` and others). **Stack 3**, based on `main` now that stacks 1 and 2 are merged.
 4. [#163](https://github.com/bielu/bielu.bettersearch/issues/163) Query model: one source of truth for occurrence, consistent clause containers and value types. **Stack 4**.
 5. [#164](https://github.com/bielu/bielu.bettersearch/issues/164) Unify the document and result shapes. **Stack 5**.
 6. [#166](https://github.com/bielu/bielu.bettersearch/issues/166) Make the default interface members abstract. **Stack 6**.
-7. [#94](https://github.com/bielu/bielu.bettersearch/issues/94) Full-text match query, designed before the freeze, as it touches scoring and highlighting. **Open decision.**
-8. [#107](https://github.com/bielu/bielu.bettersearch/issues/107) A Lucene.NET provider, or Lifti marked as test-only and left out of the 1.0 promise; this includes the decision on the Lucene.NET prerelease dependency (NU5104). **Open decision.**
-9. [#106](https://github.com/bielu/bielu.bettersearch/issues/106) Vector and hybrid search: a decision only. **Open decision.**
-10. [#167](https://github.com/bielu/bielu.bettersearch/issues/167) Clear the nullable warnings, then turn on `PublicApiAnalyzers` and `CS1591`. **Stack 7**, based on the branch of the PR for #166, as it depends on the final shape of the API.
+7. [#167](https://github.com/bielu/bielu.bettersearch/issues/167) Clear the nullable warnings, then turn on `PublicApiAnalyzers` and `CS1591`. **Stack 7**, once the breaking changes above have settled the shape of the API.
+8. [#94](https://github.com/bielu/bielu.bettersearch/issues/94) Full-text match query (analyzed text, several fields, phrase). Elasticsearch, OpenSearch and PostgreSQL support every shape; on Meilisearch and Typesense, which take one search text per request, at most one match clause at the top level under `MUST` or `FILTER` is supported, and any other shape returns a failed `Result` naming the limit. **Stack 8**. It comes after `PublicApiAnalyzers` is on, so it adds its new public API to the tracked API files.
+9. [#101](https://github.com/bielu/bielu.bettersearch/issues/101) Cursor-based paging past the result window: `search_after` with a point in time on Elasticsearch and OpenSearch, keyset paging on PostgreSQL, and Typesense where its API allows; a cursor request returns a failed `Result` on Meilisearch (naming `maxTotalHits`) and on Lifti. **Stack 9**.
+10. [#107](https://github.com/bielu/bielu.bettersearch/issues/107) A `Bielu.BetterSearch.Lucene` provider on Lucene.NET, written against the final API. It ships as stable with the Lucene.NET 4.8 prerelease dependency as a written-down exception (`NoWarn` for NU5104 in that project only). Lifti is deprecated for one release once it lands, then removed. **Stack 10**.
+11. [#106](https://github.com/bielu/bielu.bettersearch/issues/106) Vector and hybrid search: a decision only. **Open decision.**
 
 ## Open decisions
 
 These are not made yet. Until they are, nothing here or in the docs should be read as deciding them.
 
-- **Full-text match query ([#94](https://github.com/bielu/bielu.bettersearch/issues/94)):** its shape, and whether it lands before 1.0.
-- **Lifti or Lucene.NET ([#107](https://github.com/bielu/bielu.bettersearch/issues/107)):** whether a `Bielu.BetterSearch.Lucene` provider on [Lucene.NET](https://github.com/apache/lucenenet) replaces Lifti, or Lifti stays as a test-only provider outside the 1.0 promise. Lucene.NET 4.8 is still labelled beta, so a stable package depending on it gets NuGet warning NU5104. The Meilisearch provider already has that dependency, through `Lucene.Net.QueryParser` `4.8.0-beta00018`, which it uses to translate raw Lucene queries; Core and Abstractions don't.
 - **Vector and hybrid search ([#106](https://github.com/bielu/bielu.bettersearch/issues/106)):** whether they are in scope for 1.0.
 
+The match query ([#94](https://github.com/bielu/bielu.bettersearch/issues/94)), cursor paging ([#101](https://github.com/bielu/bielu.bettersearch/issues/101)) and the Lucene.NET provider ([#107](https://github.com/bielu/bielu.bettersearch/issues/107)) are decided; their decisions are in the issues and summarized in the blockers above.
+
 ### Background for #107
+
+Lucene.NET 4.8 is still labelled beta, so a stable package depending on it gets NuGet warning NU5104. The Meilisearch provider already has that dependency, through `Lucene.Net.QueryParser` `4.8.0-beta00018`, which it uses to translate raw Lucene queries; Core and Abstractions don't.
 
 Lifti is not archived, but its last release was v7.0.2 in December 2025, and the only activity since is one maintainer's unmerged V8 PR from May 2026.
 
@@ -68,8 +71,6 @@ A spike on .NET 10 with Lucene.NET `4.8.0-beta00018` ran term, prefix, fuzzy, nu
 These are additive, so they can ship in a minor release:
 
 - [#98](https://github.com/bielu/bielu.bettersearch/issues/98) Typed documents: map POCOs to and from `SearchDocument`.
-- [#101](https://github.com/bielu/bielu.bettersearch/issues/101) Page past the result window with cursor-based paging.
-- [#161](https://github.com/bielu/bielu.bettersearch/issues/161) Client factories keep every superseded client after a credential change.
 - [#29](https://github.com/bielu/bielu.bettersearch/issues/29) Extract shared provider logic.
 - [#28](https://github.com/bielu/bielu.bettersearch/issues/28) An Algolia provider.
 - [#108](https://github.com/bielu/bielu.bettersearch/issues/108) An Azure AI Search provider.
