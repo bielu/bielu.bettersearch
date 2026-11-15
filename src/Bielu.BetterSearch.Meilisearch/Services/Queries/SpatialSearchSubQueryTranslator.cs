@@ -16,31 +16,6 @@ namespace Bielu.BetterSearch.Meilisearch.Services.Queries;
 internal sealed class SpatialSearchSubQueryTranslator(IOptionsMonitor<MeilisearchOptions> optionsMonitor)
     : MeilisearchSubQueryTranslator<SpatialSearchSubQuery>
 {
-    private const string DefaultUnit = "km";
-
-    /// <summary>Metres in one of each unit, by every name Elasticsearch accepts.</summary>
-    private static readonly Dictionary<string, double> MetresPerUnit = new(StringComparer.Ordinal)
-    {
-        ["mi"] = 1609.344,
-        ["miles"] = 1609.344,
-        ["yd"] = 0.9144,
-        ["yards"] = 0.9144,
-        ["ft"] = 0.3048,
-        ["feet"] = 0.3048,
-        ["in"] = 0.0254,
-        ["inch"] = 0.0254,
-        ["km"] = 1000,
-        ["kilometers"] = 1000,
-        ["m"] = 1,
-        ["meters"] = 1,
-        ["cm"] = 0.01,
-        ["centimeters"] = 0.01,
-        ["mm"] = 0.001,
-        ["millimeters"] = 0.001,
-        ["NM"] = 1852,
-        ["nmi"] = 1852,
-        ["nauticalmiles"] = 1852,
-    };
 
     protected override Result<MeilisearchFilter> Translate(SpatialSearchSubQuery query, IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators)
     {
@@ -84,11 +59,13 @@ internal sealed class SpatialSearchSubQueryTranslator(IOptionsMonitor<Meilisearc
             return Result.Fail<MeilisearchFilter>($"{nameof(SpatialSearchSubQuery)} has an invalid Lng {query.Lng}: it must be between -180 and 180.");
         }
 
-        var unit = string.IsNullOrWhiteSpace(query.UnitOfDistance) ? DefaultUnit : query.UnitOfDistance;
-        if (!MetresPerUnit.TryGetValue(unit, out var metres))
+        var unit = DistanceUnits.Resolve(query.UnitOfDistance);
+        if (unit.IsFailed)
         {
-            return Result.Fail<MeilisearchFilter>($"{nameof(SpatialSearchSubQuery)} has an invalid UnitOfDistance {unit}.");
+            return unit.ToResult<MeilisearchFilter>();
         }
+
+        var metres = unit.Value.Metres;
 
         return Filter(string.Create(CultureInfo.InvariantCulture,
             $"_geoRadius({query.Lat:R}, {query.Lng:R}, {query.Distance * metres:R})"));

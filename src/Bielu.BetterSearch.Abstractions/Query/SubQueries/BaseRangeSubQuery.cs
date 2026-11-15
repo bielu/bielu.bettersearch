@@ -8,7 +8,7 @@
     public class BaseRangeSubQuery : ISearchSubQuery
     {
         public Occurrence Occurrence { get; set; } = Occurrence.Must;
-        public int BoostValue { get; set; } = 1;
+        public double BoostValue { get; set; } = 1;
         public string? Field { get; set; }
         /// <summary>Whether the minimum itself matches. <c>true</c> by default.</summary>
         public bool IncludeMinEdge { get; set; } = true;

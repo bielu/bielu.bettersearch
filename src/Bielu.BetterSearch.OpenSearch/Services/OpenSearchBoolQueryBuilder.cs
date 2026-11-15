@@ -15,7 +15,7 @@ internal static class OpenSearchBoolQueryBuilder
     public static async Task<Result<QueryContainer>> BuildAsync(
         IEnumerable<(Occurrence Occurrence, ISearchSubQuery Query)> clauses,
         IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators,
-        int boostValue = 1)
+        double boostValue = 1)
     {
         var must = new List<QueryContainer>();
         var should = new List<QueryContainer>();

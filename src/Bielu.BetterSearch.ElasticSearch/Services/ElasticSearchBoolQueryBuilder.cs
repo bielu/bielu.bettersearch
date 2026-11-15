@@ -15,7 +15,7 @@ internal static class ElasticSearchBoolQueryBuilder
     public static async Task<Result<EsQuery>> BuildAsync(
         IEnumerable<(Occurrence Occurrence, ISearchSubQuery Query)> clauses,
         IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators,
-        int boostValue = 1)
+        double boostValue = 1)
     {
         var must = new List<EsQuery>();
         var should = new List<EsQuery>();

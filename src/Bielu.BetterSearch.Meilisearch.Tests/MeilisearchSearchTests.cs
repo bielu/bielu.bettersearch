@@ -651,7 +651,7 @@ public sealed class MeilisearchSearchTests(
         var index = await CreatePlacesAsync();
 
         // Lodz is about 120 km from Warsaw, 190 km from Krakow and 290 km from Gdansk.
-        SpatialSearchSubQuery Around(double distance, string? unit = null) => new()
+        SpatialSearchSubQuery Around(double distance, DistanceUnit unit = DistanceUnit.Kilometers) => new()
         {
             Field = "Location",
             Lat = 51.7592,
@@ -661,7 +661,7 @@ public sealed class MeilisearchSearchTests(
         };
         var near = await SearchIdsAsync(Query(index, Occurrence.Must, Around(150)));
         var wider = await SearchIdsAsync(Query(index, Occurrence.Must, Around(250)));
-        var miles = await SearchIdsAsync(Query(index, Occurrence.Must, Around(200, "mi")));
+        var miles = await SearchIdsAsync(Query(index, Occurrence.Must, Around(200, DistanceUnit.Miles)));
         var outside = await SearchIdsAsync(Query(index, Occurrence.MustNot, Around(150)));
 
         near.ShouldBe(["warsaw"]);
@@ -687,7 +687,7 @@ public sealed class MeilisearchSearchTests(
         var query = Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "john" });
         var nested = new BoolSearchSubQuery();
         nested.Add(Occurrence.Must, new TermSubQuery { Field = "City", Value = "krakow" });
-        query.PostFilterQuery[Occurrence.Must] = [nested];
+        query.PostFilterQuery.Add(nested);
 
         var ids = await SearchIdsAsync(query);
 

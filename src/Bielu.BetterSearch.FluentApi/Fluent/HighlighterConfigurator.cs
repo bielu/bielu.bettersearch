@@ -34,7 +34,8 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
         {
             var booleanQuery = new BooleanQueryConfigurator();
             query.Invoke(booleanQuery);
-            Query.Queries = new Dictionary<Occurrence, ISearchSubQuery> { [Occurrence.Must] = booleanQuery.Query };
+            booleanQuery.Query.Occurrence = Occurrence.Must;
+            Query.Queries = [booleanQuery.Query];
             return this;
         }
 

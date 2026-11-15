@@ -2,6 +2,7 @@
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Typesense.Configuration;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 using Microsoft.Extensions.Options;
 using N = Bielu.BetterSearch.Typesense.Services.TypesenseFieldNames;
@@ -15,33 +16,7 @@ namespace Bielu.BetterSearch.Typesense.Services.Queries;
 internal sealed class SpatialSearchSubQueryTranslator(IOptionsMonitor<TypesenseOptions> optionsMonitor)
     : TypesenseSubQueryTranslator<SpatialSearchSubQuery>
 {
-    private const string DefaultUnit = "km";
-
     private const string NotNegatable = "Typesense filters cannot negate a geo radius, so a SpatialSearchSubQuery can't be a MustNot clause.";
-
-    /// <summary>Metres in one of each unit, by every name Elasticsearch accepts.</summary>
-    private static readonly Dictionary<string, double> MetresPerUnit = new(StringComparer.Ordinal)
-    {
-        ["mi"] = 1609.344,
-        ["miles"] = 1609.344,
-        ["yd"] = 0.9144,
-        ["yards"] = 0.9144,
-        ["ft"] = 0.3048,
-        ["feet"] = 0.3048,
-        ["in"] = 0.0254,
-        ["inch"] = 0.0254,
-        ["km"] = 1000,
-        ["kilometers"] = 1000,
-        ["m"] = 1,
-        ["meters"] = 1,
-        ["cm"] = 0.01,
-        ["centimeters"] = 0.01,
-        ["mm"] = 0.001,
-        ["millimeters"] = 0.001,
-        ["NM"] = 1852,
-        ["nmi"] = 1852,
-        ["nauticalmiles"] = 1852,
-    };
 
     protected override Result<TypesenseFilter> Translate(SpatialSearchSubQuery query, IEnumerable<ISubQueryTranslator<TypesenseFilter>> subQueryTranslators)
     {
@@ -79,11 +54,13 @@ internal sealed class SpatialSearchSubQueryTranslator(IOptionsMonitor<TypesenseO
             return Result.Fail<TypesenseFilter>($"{nameof(SpatialSearchSubQuery)} has an invalid Lng {query.Lng}: it must be between -180 and 180.");
         }
 
-        var unit = string.IsNullOrWhiteSpace(query.UnitOfDistance) ? DefaultUnit : query.UnitOfDistance;
-        if (!MetresPerUnit.TryGetValue(unit, out var metres))
+        var unit = DistanceUnits.Resolve(query.UnitOfDistance);
+        if (unit.IsFailed)
         {
-            return Result.Fail<TypesenseFilter>($"{nameof(SpatialSearchSubQuery)} has an invalid UnitOfDistance {unit}.");
+            return unit.ToResult<TypesenseFilter>();
         }
+
+        var metres = unit.Value.Metres;
 
         var typesenseField = N.Geo + geoField;
         var kilometres = query.Distance * metres / 1000;

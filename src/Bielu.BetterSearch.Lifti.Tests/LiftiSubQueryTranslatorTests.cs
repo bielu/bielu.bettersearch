@@ -14,7 +14,7 @@ public sealed class LiftiSubQueryTranslatorTests(IEnumerable<ISubQueryTranslator
     private sealed class UnknownSubQuery : ISearchSubQuery
     {
         public Occurrence Occurrence { get; set; }
-        public int BoostValue { get; set; }
+        public double BoostValue { get; set; }
     }
 
     public static TheoryData<ISubQueryTranslator<IQuery>, string> SupportedTranslators() => new()

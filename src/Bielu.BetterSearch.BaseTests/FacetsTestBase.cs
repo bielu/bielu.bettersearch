@@ -176,7 +176,7 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
         var query = new SearchQuery { Index = index, FacetQueries = [new TermAggregation { AggregationName = "colors", TermFieldName = Color }] };
         var acme = new BoolSearchSubQuery();
         acme.Add(Occurrence.Must, BrandIs("acme"));
-        query.PostFilterQuery[Occurrence.Must] = [acme];
+        query.PostFilterQuery.Add(acme);
 
         var result = await SearchAsync(query);
 
@@ -267,7 +267,7 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
         var filter = new FilterAggregationQuery
         {
             AggregationName = "globex",
-            Queries = { [Occurrence.Must] = BrandIs("globex") },
+            Queries = { BrandIs("globex") },
             NestedAggregations = [new TermAggregation { AggregationName = "colors", TermFieldName = Color }]
         };
         var query = new SearchQuery { Index = index, FacetQueries = [filter] };

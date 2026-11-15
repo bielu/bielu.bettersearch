@@ -80,7 +80,7 @@ internal sealed class MeilisearchSearchProviderAsync(
         // the other providers, are counted by a second search without it.
         var facetAttributes = facets.Value.Select(facet => facet.Attribute).Distinct(StringComparer.Ordinal).ToList();
         MeilisearchQuery? facetQuery = null;
-        if (facetAttributes.Count > 0 && query.PostFilterQuery?.Values.Any(clauses => clauses.Count > 0) == true)
+        if (facetAttributes.Count > 0 && query.PostFilterQuery?.Count > 0)
         {
             var mainOnly = await queryTranslateService.TranslateMainQueryAsync(new SearchQuery { Index = query.Index, Query = query.Query })
                 .ConfigureAwait(false);

@@ -53,24 +53,19 @@ internal static class Highlights
     }
 
     /// <summary>
-    /// The clauses of a request's own highlight query, grouped as the main query's are, or <c>null</c> when it has
-    /// none. Fails on a <c>null</c> clause, so a malformed own query is not mistaken for no own query.
+    /// The clauses of a request's own highlight query, or <c>null</c> when it has none. Fails on a <c>null</c> clause,
+    /// so a malformed own query is not mistaken for no own query.
     /// </summary>
-    public static Result<IDictionary<Occurrence, List<ISearchSubQuery>>?> OwnQuery(IHighlightQuery request)
+    public static Result<IList<ISearchSubQuery>?> OwnQuery(IHighlightQuery request)
     {
-        var clauses = new Dictionary<Occurrence, List<ISearchSubQuery>>();
-        foreach (var (occurrence, clause) in request.Queries ?? [])
+        var clauses = request.Queries ?? [];
+        if (clauses.Any(clause => clause == null))
         {
-            if (clause == null)
-            {
-                return Result.Fail<IDictionary<Occurrence, List<ISearchSubQuery>>?>(
-                    $"The highlight query for {(request.IsAllField ? "all fields" : $"field {request.Field}")} holds a null {occurrence} clause.");
-            }
-
-            clauses[occurrence] = [clause];
+            return Result.Fail<IList<ISearchSubQuery>?>(
+                $"The highlight query for {(request.IsAllField ? "all fields" : $"field {request.Field}")} holds a null clause.");
         }
 
-        return Result.Ok<IDictionary<Occurrence, List<ISearchSubQuery>>?>(clauses.Count > 0 ? clauses : null);
+        return Result.Ok<IList<ISearchSubQuery>?>(clauses.Count > 0 ? clauses : null);
     }
 
     /// <summary>

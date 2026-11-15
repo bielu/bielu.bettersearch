@@ -381,7 +381,7 @@ public sealed class PostgreSqlSearchTests(
         ], async index =>
         {
             (await IdsAsync(index, new SpatialSearchSubQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 300 })).ShouldBe(["1", "2"]);
-            (await IdsAsync(index, new SpatialSearchSubQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 200, UnitOfDistance = "mi" }))
+            (await IdsAsync(index, new SpatialSearchSubQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 200, UnitOfDistance = DistanceUnit.Miles }))
                 .ShouldBe(["1", "2"]);
             (await IdsAsync(index, new SpatialSearchSubQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 10 }, Occurrence.MustNot))
                 .ShouldBe(["2", "3", "4"]);

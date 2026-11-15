@@ -97,7 +97,7 @@ public sealed class TypesenseFilterTranslationTests(IServiceProvider services)
 
     [Fact]
     public async Task SpatialSearchQuery_Miles_ConvertsToKilometres()
-        => await ShouldRenderAsync(new SpatialSearchSubQuery { Field = "Location", Distance = 1, UnitOfDistance = "mi", Lat = 52.23, Lng = 21.01 },
+        => await ShouldRenderAsync(new SpatialSearchSubQuery { Field = "Location", Distance = 1, UnitOfDistance = DistanceUnit.Miles, Lat = 52.23, Lng = 21.01 },
             "g_Location:(52.23, 21.01, 1.609344 km)");
 
     private async Task<Result<TypesenseFilter>> TranslateAsync(ISearchSubQuery subQuery)

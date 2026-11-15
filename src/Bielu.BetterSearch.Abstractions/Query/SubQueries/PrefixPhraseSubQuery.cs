@@ -3,7 +3,7 @@
     public class PrefixPhraseSubQuery : ISearchSubQuery
     {
         public Occurrence Occurrence { get; set; } = Occurrence.Must;
-        public int BoostValue { get; set; } = 1;
+        public double BoostValue { get; set; } = 1;
         public string? Field { get; set; }
         public object? Value { get; set; }
 
