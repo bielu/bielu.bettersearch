@@ -5,7 +5,7 @@ using Lifti;
 
 namespace Bielu.BetterSearch.Lifti.Services;
 
-public class LiftiIndexingProviderAsync(
+internal sealed class LiftiIndexingProviderAsync(
     IClientFactoryAsync<IFullTextIndex<string>> clientFactory,
     ILiftiIndexManager liftiIndexManager) : IIndexingProviderAsync
 {
@@ -158,9 +158,6 @@ public class LiftiIndexingProviderAsync(
             return Result.Fail(new Error(e.Message).CausedBy(e));
         }
     }
-
-    public Task<Result<int>> RemoveAllDocumentsAsync(CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
 
     public async Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default)
     {

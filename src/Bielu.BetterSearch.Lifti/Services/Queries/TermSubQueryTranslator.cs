@@ -7,7 +7,7 @@ using Lifti.Querying.QueryParts;
 
 namespace Bielu.BetterSearch.Lifti.Services.Queries;
 
-public class TermSubQueryTranslator : ISubQueryTranslator<IQuery>
+internal sealed class TermSubQueryTranslator : ISubQueryTranslator<IQuery>
 {
     public bool CanTranslate(ISearchSubQuery query) => query is TermSubQuery;
 

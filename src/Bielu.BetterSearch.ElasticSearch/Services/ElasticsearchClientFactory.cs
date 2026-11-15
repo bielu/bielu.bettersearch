@@ -18,7 +18,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 /// The <c>configureClient</c> callbacks given to <c>AddElasticSearch</c> run on each client's settings once, when the
 /// client is created; two calls racing to create the same client can each run them, and only one client is kept.
 /// </summary>
-public class ElasticsearchClientFactory : IClientFactoryAsync<ElasticsearchClient>
+internal sealed class ElasticsearchClientFactory : IClientFactoryAsync<ElasticsearchClient>
 {
     private readonly ClientCache<ClientKey, ElasticsearchClient> _clients = new();
     private readonly IElasticSearchClientSettingsManager searchClientSettingsManager;

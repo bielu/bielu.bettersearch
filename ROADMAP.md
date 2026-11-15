@@ -25,7 +25,6 @@ Nothing has shipped as stable, so breaking changes are still free. The 1.0 block
 | Lifti index | `CreateIndexAsync` on an existing index silently replaces it, losing its documents | Success with `false`, as on the other providers | [#107](https://github.com/bielu/bielu.bettersearch/issues/107) |
 | Lifti search | Searching or counting in a missing index creates it and returns no hits | A failed `Result`, as on the other providers, without creating the index | [#107](https://github.com/bielu/bielu.bettersearch/issues/107) |
 | Lifti search | `Page` and `PageSize` are ignored; hits contain only an id and a score | Paged hits with fields | [#107](https://github.com/bielu/bielu.bettersearch/issues/107) |
-| Lifti index | The public `LiftiIndexingProviderAsync.RemoveAllDocumentsAsync(CancellationToken)`, which is not on the interface, throws `NotImplementedException` | Removed | [#97](https://github.com/bielu/bielu.bettersearch/issues/97) |
 | Core | `IndexingServiceAsync` and `SearchServiceAsync` are scoped, so an observer only sees the operations of its own scope | See the observer surface below | [#165](https://github.com/bielu/bielu.bettersearch/issues/165) |
 
 ## Blockers for 1.0

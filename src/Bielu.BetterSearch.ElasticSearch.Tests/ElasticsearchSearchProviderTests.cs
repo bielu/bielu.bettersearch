@@ -6,6 +6,7 @@ using Bielu.BetterSearch.ElasticSearch.Services;
 using Bielu.BetterSearch.Tests;
 using Elastic.Clients.Elasticsearch;
 using FluentResults;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Shouldly;
 using EsQuery = Elastic.Clients.Elasticsearch.QueryDsl.Query;
@@ -19,8 +20,10 @@ public sealed class ElasticsearchSearchProviderTests(
     IQueryTranslateServiceAsync<EsQuery> queryTranslateService,
     IPostFilterTranslateServiceAsync<EsQuery> postFilterTranslateService,
     IIndexingProviderAsync indexingProvider,
-    IElasticSearchClientSettingsManager settingsManager)
+    IServiceProvider services)
 {
+    private IElasticSearchClientSettingsManager SettingsManager => services.GetRequiredService<IElasticSearchClientSettingsManager>();
+
     private sealed class RejectingTranslateService : IQueryTranslateServiceAsync<EsQuery>
     {
         public Task<Result<EsQuery>> TranslateMainQueryAsync(ISearchQuery query) =>
@@ -36,7 +39,7 @@ public sealed class ElasticsearchSearchProviderTests(
             clientFactory,
             new ElasticSearchResultMapper(),
             options,
-            settingsManager);
+            SettingsManager);
 
         var result = await provider.SearchAsync(new SearchQuery { Index = "any" }, TestContext.Current.CancellationToken);
 
@@ -69,7 +72,7 @@ public sealed class ElasticsearchSearchProviderTests(
             clientFactory,
             new ElasticSearchResultMapper(),
             new TestOptionsMonitor<ElasticSearchOptions>(new ElasticSearchOptions { MaxResultWindow = 3 }),
-            settingsManager);
+            SettingsManager);
 
         var result = await provider.SearchAsync(new SearchQuery { Index = index, PageSize = 1 }, TestContext.Current.CancellationToken);
 

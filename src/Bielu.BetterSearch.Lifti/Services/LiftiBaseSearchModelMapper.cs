@@ -4,7 +4,7 @@ using Lifti;
 
 namespace Bielu.BetterSearch.Lifti.Services;
 
-public class LiftiBaseSearchModelMapper : IResultMapper<ISearchResults<string>>
+internal sealed class LiftiBaseSearchModelMapper : IResultMapper<ISearchResults<string>>
 {
     public ISearchResult MapResult(ISearchResults<string> searchEngineResult) => new BaseSearchResults()
     {

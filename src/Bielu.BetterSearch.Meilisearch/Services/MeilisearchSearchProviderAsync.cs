@@ -18,7 +18,7 @@ namespace Bielu.BetterSearch.Meilisearch.Services;
 /// Runs the query as a Meilisearch filter with no search text, so every hit matches it exactly and has the
 /// same ranking score. Hits are ordered by <c>SortOrder</c> when given.
 /// </summary>
-public sealed class MeilisearchSearchProviderAsync(
+internal sealed class MeilisearchSearchProviderAsync(
     IQueryTranslateServiceAsync<MeilisearchQuery> queryTranslateService,
     IClientFactoryAsync<MeilisearchClient> clientFactory,
     IOptionsMonitor<MeilisearchOptions> optionsMonitor) : ISearchProviderAsync

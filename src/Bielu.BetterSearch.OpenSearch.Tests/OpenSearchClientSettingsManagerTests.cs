@@ -31,7 +31,7 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
             Indexes = new Dictionary<string, OpenSearchIndexSettings>
             {
                 ["people"] = new() { BulkBatchSize = 50 },
-                ["places"] = new() { IndexName = "places" },
+                ["places"] = new(),
             },
         });
 
@@ -205,7 +205,7 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
             SharedIndexSettings = new OpenSearchIndexSettings { ConnectionString = "http://shared:9200" },
             Indexes = new Dictionary<string, OpenSearchIndexSettings>
             {
-                ["products"] = new() { IndexingEnabled = false },
+                ["products"] = new(),
                 ["default"] = new() { ConnectionString = "http://other:9200" },
             },
         };

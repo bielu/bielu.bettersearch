@@ -25,7 +25,6 @@ The solution is `src/Bielu.BetterSearch.slnx`. Everything, tests included, lives
 | `Bielu.BetterSearch.Caching.FusionCache` | Search result cache on FusionCache (`AddFusionSearchCache`) |
 | `Bielu.BetterSearch.HealthChecks` | Health check (`AddBetterSearchHealthCheck`) |
 | `Bielu.BetterSearch.OpenTelemetry` | OpenTelemetry tracing and metrics registration (`AddBetterSearchInstrumentation`) |
-| `Bielu.BetterSearch.EndpointApi` | Placeholder (not packed) |
 | `examples/Bielu.BetterSearch.Examples.AppHost` | Aspire AppHost running the search engines and their UIs, for local development and the integration tests (not packed) |
 | `Bielu.BetterSearch.BaseTests` | Provider-agnostic test bases, inherited by each provider's test project (not packed) |
 | `Bielu.BetterSearch.Core.Tests` | Health check and telemetry tests (not packed) |

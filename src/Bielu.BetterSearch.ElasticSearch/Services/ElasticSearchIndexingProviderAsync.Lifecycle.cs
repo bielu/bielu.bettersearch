@@ -16,7 +16,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 /// that completing and aborting each remove with <c>must_exist</c>, so once one has run the other fails, even when they
 /// overlap or run in different processes.
 /// </summary>
-public partial class ElasticSearchIndexingProviderAsync
+internal sealed partial class ElasticSearchIndexingProviderAsync
 {
     public Task<Result<IndexRebuild>> StartRebuildAsync(string index, CancellationToken cancellationToken = default) =>
         clientFactory.TryWithClientAsync(index, async client =>

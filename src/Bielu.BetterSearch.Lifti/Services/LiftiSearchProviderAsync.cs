@@ -8,7 +8,7 @@ using Lifti.Querying;
 
 namespace Bielu.BetterSearch.Lifti.Services;
 
-public class LiftiSearchProviderAsync(
+internal sealed class LiftiSearchProviderAsync(
     IQueryTranslateServiceAsync<IQuery> queryTranslateServiceAsync,
     ILiftiIndexManager manager,
     IResultMapper<ISearchResults<string>> resultMapper) : ISearchProviderAsync

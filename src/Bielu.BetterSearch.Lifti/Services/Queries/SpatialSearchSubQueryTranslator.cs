@@ -10,7 +10,7 @@ namespace Bielu.BetterSearch.Lifti.Services.Queries;
 /// Lifti does not support spatial/geo queries. This translator always returns a failure result.
 /// See the feature matrix for details on supported features.
 /// </summary>
-public class SpatialSearchSubQueryTranslator : ISubQueryTranslator<IQuery>
+internal sealed class SpatialSearchSubQueryTranslator : ISubQueryTranslator<IQuery>
 {
     public bool CanTranslate(ISearchSubQuery query) => query is SpatialSearchQuery;
 

@@ -49,7 +49,7 @@ public class OpenSearchOptions
     public int MaxResultWindow { get; set; } = 10_000;
 }
 
-public class OpenSearchIndexSettings : IndexSettings
+public class OpenSearchIndexSettings
 {
     public string ConnectionString { get; set; } = string.Empty;
 

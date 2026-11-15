@@ -8,7 +8,7 @@ using Npgsql;
 namespace Bielu.BetterSearch.PostgreSql.Tests;
 
 public class PostgreSqlDepedenyInjectionTests(IServiceProvider collection)
-    : DepedenyInjectionTestBase<PostgreSqlIndexingProviderAsync, NpgsqlDataSource, PostgreSqlSearchRequest>(collection)
+    : DepedenyInjectionTestBase(collection, typeof(NpgsqlDataSource), typeof(PostgreSqlSearchRequest))
 {
     protected override void AddProvider(Configurator search) => search.AddPostgreSql();
 

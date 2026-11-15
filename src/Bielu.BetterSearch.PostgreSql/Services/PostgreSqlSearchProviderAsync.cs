@@ -15,7 +15,7 @@ namespace Bielu.BetterSearch.PostgreSql.Services;
 /// Runs the query as a SQL condition on the index's table. Every hit matches the condition exactly and has the same
 /// score, 1. Hits are ordered by <c>SortOrder</c> when given, then by id, so pages never overlap.
 /// </summary>
-public sealed class PostgreSqlSearchProviderAsync(
+internal sealed class PostgreSqlSearchProviderAsync(
     IQueryTranslateServiceAsync<PostgreSqlSearchRequest> queryTranslateService,
     IClientFactoryAsync<NpgsqlDataSource> dataSourceFactory,
     IOptionsMonitor<PostgreSqlOptions> optionsMonitor) : ISearchProviderAsync
