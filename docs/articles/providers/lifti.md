@@ -69,6 +69,8 @@ A write is searchable as soon as the call returns, as the index is in memory.
   tokenizer, and its words must be next to each other, in order: `3.5` matches `3.5` but not `5.3` or `35`,
   a `DateTime` matches that date, as both are written as ISO 8601 text in UTC (`2026-11-08T00:00:00Z`), `żółw` matches `Żółw`, and `jane d` as a phrase prefix matches
   `Jane Doe`. Fuzzy matches each word on its own, and prefix and phrase prefix match the last word as a prefix.
+  Fuzzy allows 2 edits for every word when `MaxEdits` is unset, not `AUTO` as on Elasticsearch, and uses an
+  explicit `MaxEdits` as given, with no limit of 2.
   A prefix value that ends with punctuation or a space, such as `3.`, has a complete last word, so that word
   matches whole and must be followed by another word: `3.` matches `3.5`, not `35` or `3`. As Lifti has no
   wildcard that excludes one word, that following word can be the next value of a multi-valued field, so `3.`
