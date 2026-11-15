@@ -17,7 +17,6 @@ namespace Bielu.BetterSearch.Abstractions.Query
 
         public IDictionary<Occurance, List<ISearchSubQuery>> Query { get; set; } = new Dictionary<Occurance, List<ISearchSubQuery>>();
         public string Index { get; set; }
-        public DateTime? PreviewAt { get; set; }
 
 
         public IEnumerable<string> Properties { get; set; }

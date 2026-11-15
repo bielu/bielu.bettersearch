@@ -18,7 +18,7 @@ namespace Bielu.BetterSearch.Typesense.Services;
 /// fill, complete and abort do not run at the same time as another rebuild call for the same index. Running them at
 /// the same time is not supported and can leave a collection behind or the alias pointing at a deleted collection.
 /// </remarks>
-public sealed partial class TypesenseIndexingProviderAsync
+internal sealed partial class TypesenseIndexingProviderAsync
 {
     public async Task<Result<IndexRebuild>> StartRebuildAsync(string index, CancellationToken cancellationToken = default)
     {

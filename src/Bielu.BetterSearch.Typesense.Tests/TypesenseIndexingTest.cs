@@ -1,6 +1,7 @@
 ﻿using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Tests;
 using Bielu.BetterSearch.Typesense.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 
 namespace Bielu.BetterSearch.Typesense.Tests;
@@ -8,7 +9,7 @@ namespace Bielu.BetterSearch.Typesense.Tests;
 public sealed class TypesenseIndexingTest(
     IIndexingServiceAsync serviceAsync,
     IIndexingProviderAsync indexingProviderAsync,
-    IClientFactoryAsync<TypesenseHttpClientWrapper> clientFactory)
+    IServiceProvider services)
     : IndexingTestBase(serviceAsync, indexingProviderAsync)
 {
     // The provider converts every value to the field type its schema declares for it, and Typesense accepted every
@@ -18,7 +19,7 @@ public sealed class TypesenseIndexingTest(
     // Typesense applies each write before it answers, so the count already reflects it.
     protected override async Task<long> CountDocumentsAsync(string index)
     {
-        var client = await clientFactory.GetOrCreateClientAsync(index);
+        var client = await services.GetRequiredService<IClientFactoryAsync<TypesenseHttpClientWrapper>>().GetOrCreateClientAsync(index);
         var response = await client.SendAsync(HttpMethod.Get, $"collections/{index}", null, TestContext.Current.CancellationToken);
         response.IsSuccess.ShouldBeTrue(response.Describe());
         using var json = System.Text.Json.JsonDocument.Parse(response.Body);

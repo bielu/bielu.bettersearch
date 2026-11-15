@@ -64,7 +64,7 @@ public class TypesenseOptions
     public string? GeoField { get; set; }
 }
 
-public class TypesenseIndexSettings : IndexSettings
+public class TypesenseIndexSettings
 {
     /// <summary>The URL of the Typesense node, for example <c>http://localhost:8108</c>.</summary>
     public string ConnectionString { get; set; } = string.Empty;

@@ -3,7 +3,7 @@ using Lifti;
 
 namespace Bielu.BetterSearch.Lifti.Services;
 
-public class LiftiClientFactoryAsync(ILiftiIndexManager indexManager)
+internal sealed class LiftiClientFactoryAsync(ILiftiIndexManager indexManager)
     : IClientFactoryAsync<IFullTextIndex<string>>
 {
     public async Task<IFullTextIndex<string>> GetOrCreateClientAsync(string indexName)

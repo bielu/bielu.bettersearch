@@ -40,11 +40,6 @@ internal sealed class TypesenseClientSettingsManager(IOptionsMonitor<TypesenseOp
         // lookup see the inherited nodes before the inherited key.
         return new TypesenseIndexSettings
         {
-            IndexName = indexSpecific.IndexName,
-            AliasName = indexSpecific.AliasName,
-            TypeName = indexSpecific.TypeName,
-            IndexingEnabled = indexSpecific.IndexingEnabled,
-            DevMode = indexSpecific.DevMode,
             ConnectionString = shared.ConnectionString,
             AdditionalNodes = indexSpecific.AdditionalNodes ?? shared.AdditionalNodes,
             ApiKey = indexSpecific.ApiKey ?? shared.ApiKey,

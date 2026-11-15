@@ -31,7 +31,7 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
             Indexes = new Dictionary<string, OpenSearchIndexSettings>
             {
                 ["people"] = new() { BulkBatchSize = 50 },
-                ["places"] = new() { IndexName = "places" },
+                ["places"] = new(),
             },
         });
 
@@ -205,7 +205,7 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
             SharedIndexSettings = new OpenSearchIndexSettings { ConnectionString = "http://shared:9200" },
             Indexes = new Dictionary<string, OpenSearchIndexSettings>
             {
-                ["products"] = new() { IndexingEnabled = false },
+                ["products"] = new(),
                 ["default"] = new() { ConnectionString = "http://other:9200" },
             },
         };
@@ -243,6 +243,71 @@ public class OpenSearchClientSettingsManagerTests : CertificateFingerprintTestBa
 
         after.ShouldNotBeSameAs(before);
         after.ConnectionSettings.BasicAuthenticationCredentials.Password.CreateString().ShouldBe("new");
+    }
+
+    private static OpenSearchOptions PasswordOptions(string password) => new()
+    {
+        SharedIndexSettings = new OpenSearchIndexSettings
+        {
+            ConnectionString = "http://shared:9200",
+            AuthenticationType = OpenSearchAuthenticationType.PASSWORD,
+            AuthenticationDetails = new OpenSearchAuthenticationDetails { Username = "admin", Password = password },
+        },
+    };
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_PasswordRotatedManyTimes_KeepsOnlyTheCurrentClient()
+    {
+        var monitor = new TestOptionsMonitor<OpenSearchOptions>(PasswordOptions("password-0"));
+        var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor));
+        var first = await factory.GetOrCreateClientAsync("people");
+
+        var current = first;
+        for (var rotation = 1; rotation <= 20; rotation++)
+        {
+            monitor.CurrentValue = PasswordOptions($"password-{rotation}");
+            current = await factory.GetOrCreateClientAsync("people");
+        }
+
+        factory.CachedClientCount.ShouldBe(1);
+        current.ConnectionSettings.BasicAuthenticationCredentials.Password.CreateString().ShouldBe("password-20");
+        // A caller still holding a superseded client keeps its settings; the cache only stops handing it out.
+        first.ConnectionSettings.BasicAuthenticationCredentials.Password.CreateString().ShouldBe("password-0");
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_PasswordRotatedAndBack_CreatesNewClientForOldPassword()
+    {
+        var monitor = new TestOptionsMonitor<OpenSearchOptions>(PasswordOptions("old"));
+        var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor));
+        var before = await factory.GetOrCreateClientAsync("people");
+
+        monitor.CurrentValue = PasswordOptions("new");
+        await factory.GetOrCreateClientAsync("people");
+        monitor.CurrentValue = PasswordOptions("old");
+        var back = await factory.GetOrCreateClientAsync("people");
+
+        back.ShouldNotBeSameAs(before);
+        back.ConnectionSettings.BasicAuthenticationCredentials.Password.CreateString().ShouldBe("old");
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_OneOfTwoIndexesSharingClientMovesAway_OtherKeepsTheClient()
+    {
+        var monitor = new TestOptionsMonitor<OpenSearchOptions>(PasswordOptions("secret"));
+        var factory = new OpenSearchClientFactory(new OpenSearchClientSettingsManager(monitor));
+        var people = await factory.GetOrCreateClientAsync("people");
+        var places = await factory.GetOrCreateClientAsync("places");
+        places.ShouldBeSameAs(people);
+
+        var moved = PasswordOptions("secret");
+        moved.Indexes = new Dictionary<string, OpenSearchIndexSettings> { ["people"] = new() { ConnectionString = "http://people:9200" } };
+        monitor.CurrentValue = moved;
+        var peopleAfter = await factory.GetOrCreateClientAsync("people");
+
+        factory.CachedClientCount.ShouldBe(2);
+        (await factory.GetOrCreateClientAsync("places")).ShouldBeSameAs(people);
+        peopleAfter.ConnectionSettings.ConnectionPool.Nodes.Single().Uri.ShouldBe(new Uri("http://people:9200"));
     }
 
     [Theory]

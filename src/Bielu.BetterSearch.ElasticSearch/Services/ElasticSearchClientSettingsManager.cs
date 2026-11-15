@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace Bielu.BetterSearch.ElasticSearch.Services;
 
-public class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOptions> optionsMonitor)
+internal sealed class ElasticSearchClientSettingsManager(IOptionsMonitor<ElasticSearchOptions> optionsMonitor)
     : IElasticSearchClientSettingsManager
 {
     public ElasticSearchIndexSettings GetConnectionSettings(string indexName)

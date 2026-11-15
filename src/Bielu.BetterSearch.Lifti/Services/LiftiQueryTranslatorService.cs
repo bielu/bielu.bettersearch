@@ -8,7 +8,7 @@ using Lifti.Querying.QueryParts;
 
 namespace Bielu.BetterSearch.Lifti.Services;
 
-public class LiftiQueryTranslatorService(
+internal sealed class LiftiQueryTranslatorService(
     IEnumerable<ISubQueryTranslator<IQuery>> subQueryTranslators) : IQueryTranslateServiceAsync<IQuery>
 {
     public async Task<Result<IQuery>> TranslateMainQueryAsync(ISearchQuery query)

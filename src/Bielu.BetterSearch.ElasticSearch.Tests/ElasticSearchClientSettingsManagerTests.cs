@@ -74,7 +74,7 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
     [Fact]
     public void GetConnectionSettings_IndexWithoutConnectionString_LeavesOptionsUnchanged()
     {
-        var people = new ElasticSearchIndexSettings { IndexName = "people" };
+        var people = new ElasticSearchIndexSettings();
         var options = new ElasticSearchOptions
         {
             SharedIndexSettings = new ElasticSearchIndexSettings { ConnectionString = "http://shared:9200" },
@@ -108,7 +108,7 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
         var options = new ElasticSearchOptions
         {
             SharedIndexSettings = PasswordSettings("https://shared:9200", "secret"),
-            Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() { IndexName = "people" } },
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() },
         };
 
         var settings = GetConnectionSettings(options, "people");
@@ -127,7 +127,7 @@ public class ElasticSearchClientSettingsManagerTests : CertificateFingerprintTes
             Indexes = new Dictionary<string, ElasticSearchIndexSettings>
             {
                 ["people"] = new() { BulkBatchSize = 50 },
-                ["places"] = new() { IndexName = "places" },
+                ["places"] = new(),
             },
         };
 

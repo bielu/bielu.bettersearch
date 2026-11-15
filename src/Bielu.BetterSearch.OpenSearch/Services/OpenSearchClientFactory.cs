@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using Bielu.BetterSearch.Abstractions.Configuration;
+﻿using Bielu.BetterSearch.Abstractions.Configuration;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.OpenSearch.Configuration;
 using Bielu.BetterSearch.Services;
@@ -14,7 +13,8 @@ namespace Bielu.BetterSearch.OpenSearch.Services;
 /// Creates one long-lived client per distinct connection, so connections are reused. Clients are keyed on the
 /// settings an index connects with, not its name: indexes with the same nodes, pool type and authentication
 /// share a client, and a changed setting, such as a rotated password, gets a new client on the next call.
-/// The client for the old setting stays cached until the application restarts, which suits settings that rarely change.
+/// The client for the old setting is dropped from the cache once no index resolves to it, without being disposed, so
+/// requests already running on it finish.
 /// The request timeout and retry count are part of the key, so indexes that set different ones get different clients.
 /// The <c>configureClient</c> callbacks given to <c>AddOpenSearch</c> run on each client's settings once, when the
 /// client is created; two calls racing to create the same client can each run them, and only one client is kept.
@@ -32,22 +32,22 @@ internal sealed class OpenSearchClientFactory(
     {
     }
 
-    private readonly ConcurrentDictionary<ClientKey, Lazy<IOpenSearchClient>> _clients = new();
+    private readonly ClientCache<ClientKey, IOpenSearchClient> _clients = new();
 
     public Task<IOpenSearchClient> GetOrCreateClientAsync(string indexName)
     {
         var settings = settingsManager.GetConnectionSettings(indexName);
-        // PublicationOnly does not cache an exception, so invalid settings fail each call until they are fixed.
-        var client = _clients.GetOrAdd(ClientKey.From(settings), _ => new Lazy<IOpenSearchClient>(
-            () =>
-            {
-                var connectionSettings = settingsManager.CreateClientSettings(settings, createConnection?.Invoke());
-                ClientConfiguration<ConnectionSettings>.Apply(_clientConfigurations, connectionSettings);
-                return new OpenSearchClient(connectionSettings);
-            },
-            LazyThreadSafetyMode.PublicationOnly));
-        return Task.FromResult(client.Value);
+        var client = _clients.GetOrCreate(indexName, ClientKey.From(settings), _ =>
+        {
+            var connectionSettings = settingsManager.CreateClientSettings(settings, createConnection?.Invoke());
+            ClientConfiguration<ConnectionSettings>.Apply(_clientConfigurations, connectionSettings);
+            return new OpenSearchClient(connectionSettings);
+        });
+        return Task.FromResult(client);
     }
+
+    /// <summary>The number of clients cached, for tests.</summary>
+    internal int CachedClientCount => _clients.Count;
 
     internal readonly record struct ClientKey(
         string ConnectionString,

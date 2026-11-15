@@ -47,7 +47,7 @@ public class PostgreSqlOptions
     public string TextSearchConfiguration { get; set; } = "simple";
 }
 
-public class PostgreSqlIndexSettings : IndexSettings
+public class PostgreSqlIndexSettings
 {
     /// <summary>
     /// The Npgsql connection string, for example <c>Host=localhost;Database=search;Username=app;Password=...</c>.

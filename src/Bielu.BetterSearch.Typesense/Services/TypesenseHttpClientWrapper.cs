@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace Bielu.BetterSearch.Typesense.Services;
 
 /// <summary>An answer from Typesense: its status code and body.</summary>
-public sealed record TypesenseResponse(HttpStatusCode StatusCode, string Body)
+internal sealed record TypesenseResponse(HttpStatusCode StatusCode, string Body)
 {
     public bool IsSuccess => (int)StatusCode is >= 200 and < 300;
 
@@ -36,7 +36,7 @@ public sealed record TypesenseResponse(HttpStatusCode StatusCode, string Body)
 /// on only when it could not connect: a node that timed out or answered 5xx may have applied it, and a replay on another
 /// node would report only what was left to delete.
 /// </summary>
-public sealed class TypesenseHttpClientWrapper
+internal sealed class TypesenseHttpClientWrapper
 {
     private const string ApiKeyHeader = "X-TYPESENSE-API-KEY";
 

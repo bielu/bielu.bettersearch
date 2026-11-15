@@ -12,7 +12,7 @@ namespace Bielu.BetterSearch.Lifti.Services.Queries;
 /// a finite number, as every provider does, and otherwise one saying the query is not supported.
 /// See the feature matrix for details on supported features.
 /// </summary>
-public class NumericRangeSubQueryTranslator : ISubQueryTranslator<IQuery>
+internal sealed class NumericRangeSubQueryTranslator : ISubQueryTranslator<IQuery>
 {
     public bool CanTranslate(ISearchSubQuery query) => query is NumericRange;
 

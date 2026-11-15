@@ -11,7 +11,7 @@ using Shouldly;
 namespace Bielu.BetterSearch.OpenSearch.Tests;
 
 public class OpenSearchDepedenyInjectionTests(IServiceProvider collection)
-    : DepedenyInjectionTestBase<IIndexingProviderAsync, IOpenSearchClient, QueryContainer>(collection)
+    : DepedenyInjectionTestBase(collection, typeof(IOpenSearchClient), typeof(QueryContainer))
 {
     protected override void AddProvider(Configurator search) => search.AddOpenSearch();
 

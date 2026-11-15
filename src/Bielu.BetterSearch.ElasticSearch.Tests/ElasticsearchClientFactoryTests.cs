@@ -49,7 +49,7 @@ public class ElasticsearchClientFactoryTests
             SharedIndexSettings = new ElasticSearchIndexSettings { ConnectionString = "http://shared:9200" },
             Indexes = new Dictionary<string, ElasticSearchIndexSettings>
             {
-                ["people"] = new() { IndexName = "people" },
+                ["people"] = new(),
             },
         };
         var factory = CreateFactory(options);
@@ -165,10 +165,78 @@ public class ElasticsearchClientFactoryTests
     }
 
     [Fact]
+    public async Task GetOrCreateClientAsync_PasswordRotatedManyTimes_KeepsOnlyTheCurrentClient()
+    {
+        var monitor = new TestOptionsMonitor<ElasticSearchOptions>(SharedOptions("http://shared:9200", password: "password-0"));
+        var factory = CreateFactory(monitor);
+        var first = await factory.GetOrCreateClientAsync("people");
+
+        var current = first;
+        for (var rotation = 1; rotation <= 20; rotation++)
+        {
+            monitor.CurrentValue = SharedOptions("http://shared:9200", password: $"password-{rotation}");
+            current = await factory.GetOrCreateClientAsync("people");
+        }
+
+        factory.CachedClientCount.ShouldBe(1);
+        AuthorizationParameters(current).ShouldBe(Basic("elastic", "password-20"));
+        // A caller still holding a superseded client keeps its settings; the cache only stops handing it out.
+        AuthorizationParameters(first).ShouldBe(Basic("elastic", "password-0"));
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_PasswordRotatedAndBack_CreatesNewClientForOldPassword()
+    {
+        var monitor = new TestOptionsMonitor<ElasticSearchOptions>(SharedOptions("http://shared:9200", password: "old"));
+        var factory = CreateFactory(monitor);
+        var before = await factory.GetOrCreateClientAsync("people");
+
+        monitor.CurrentValue = SharedOptions("http://shared:9200", password: "new");
+        await factory.GetOrCreateClientAsync("people");
+        monitor.CurrentValue = SharedOptions("http://shared:9200", password: "old");
+        var back = await factory.GetOrCreateClientAsync("people");
+
+        back.ShouldNotBeSameAs(before);
+        AuthorizationParameters(back).ShouldBe(Basic("elastic", "old"));
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_OneOfTwoIndexesSharingClientMovesAway_OtherKeepsTheClient()
+    {
+        var monitor = new TestOptionsMonitor<ElasticSearchOptions>(SharedOptions("http://shared:9200"));
+        var factory = CreateFactory(monitor);
+        var people = await factory.GetOrCreateClientAsync("people");
+        var places = await factory.GetOrCreateClientAsync("places");
+        places.ShouldBeSameAs(people);
+
+        var moved = SharedOptions("http://shared:9200");
+        moved.Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() { ConnectionString = "http://people:9200" } };
+        monitor.CurrentValue = moved;
+        var peopleAfter = await factory.GetOrCreateClientAsync("people");
+
+        factory.CachedClientCount.ShouldBe(2);
+        (await factory.GetOrCreateClientAsync("places")).ShouldBeSameAs(people);
+        NodeUri(peopleAfter).ShouldBe(new Uri("http://people:9200"));
+    }
+
+    [Fact]
+    public async Task GetOrCreateClientAsync_IndexNameCasingDiffersAfterRotation_KeepsOneClient()
+    {
+        var monitor = new TestOptionsMonitor<ElasticSearchOptions>(SharedOptions("http://shared:9200", password: "old"));
+        var factory = CreateFactory(monitor);
+        await factory.GetOrCreateClientAsync("people");
+
+        monitor.CurrentValue = SharedOptions("http://shared:9200", password: "new");
+        await factory.GetOrCreateClientAsync("People");
+
+        factory.CachedClientCount.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task GetOrCreateClientAsync_IndexWithoutConnectionStringUnderSharedPassword_UsesSharedAuthentication()
     {
         var options = SharedOptions("http://shared:9200", password: "secret");
-        options.Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() { IndexName = "people" } };
+        options.Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() };
 
         var people = await CreateFactory(options).GetOrCreateClientAsync("people");
 
@@ -186,7 +254,7 @@ public class ElasticsearchClientFactoryTests
                 AuthenticationType = AuthenticationType.CLOUDAPI,
                 AuthenticationDetails = new AuthenticationDetails { Id = CloudId, ApiKey = "shared-key" },
             },
-            Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() { IndexName = "people" } },
+            Indexes = new Dictionary<string, ElasticSearchIndexSettings> { ["people"] = new() },
         };
 
         var people = await CreateFactory(options).GetOrCreateClientAsync("people");

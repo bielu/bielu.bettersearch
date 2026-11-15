@@ -41,11 +41,6 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
             // The index has its own server but takes the shared request timeout.
             return new MeilisearchIndexSettings
             {
-                IndexName = indexSpecific.IndexName,
-                AliasName = indexSpecific.AliasName,
-                TypeName = indexSpecific.TypeName,
-                IndexingEnabled = indexSpecific.IndexingEnabled,
-                DevMode = indexSpecific.DevMode,
                 ConnectionString = indexSpecific.ConnectionString,
                 ApiKey = indexSpecific.ApiKey,
                 BulkBatchSize = indexSpecific.BulkBatchSize,
@@ -57,11 +52,6 @@ internal sealed class MeilisearchClientSettingsManager(IOptionsMonitor<Meilisear
         // lookup see the inherited URL before the inherited key.
         return new MeilisearchIndexSettings
         {
-            IndexName = indexSpecific.IndexName,
-            AliasName = indexSpecific.AliasName,
-            TypeName = indexSpecific.TypeName,
-            IndexingEnabled = indexSpecific.IndexingEnabled,
-            DevMode = indexSpecific.DevMode,
             ConnectionString = shared.ConnectionString,
             ApiKey = indexSpecific.ApiKey ?? shared.ApiKey,
             BulkBatchSize = indexSpecific.BulkBatchSize ?? shared.BulkBatchSize,

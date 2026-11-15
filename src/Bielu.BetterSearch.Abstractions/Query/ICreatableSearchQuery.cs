@@ -1,6 +1,6 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Query;
 
-public interface ICreatableSearchQuery<TKey, TValue>
+public interface ICreatableSearchQuery
 {
-    void Add(TKey key, TValue value);
+    void Add(Occurance key, ISearchSubQuery value);
 }

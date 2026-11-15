@@ -104,6 +104,15 @@ and `MaxRetries`, so two indexes with different timeouts get two clients. The ca
 it is created, not on every request; two calls racing to create the same client can each run it, and only one of the
 clients is kept. It runs for every client the provider creates, whichever `Indexes` entry the client is for.
 
+A changed connection setting, such as a password or API key rotated through `IOptionsMonitor`, gets the client for
+the new setting on the next call for the index, which is a new client unless another index name already uses that
+setting. The provider then drops the client for the old setting once no index name resolves to it any more, so the
+number of cached clients stays at one per connection that is in use, however often a credential rotates. An index name
+that has not been used for an hour is forgotten, so short-lived index names do not accumulate and an abandoned name does
+not keep an old client cached. A dropped client is not disposed, so a request already running on it finishes. Switching
+back to an earlier setting after its client was dropped creates a new client, and the `configureClient` callbacks run
+again.
+
 ### Amazon OpenSearch Service and Serverless (AWS SigV4)
 
 Amazon OpenSearch Service with IAM authentication and Amazon OpenSearch Serverless need each request signed with
@@ -151,7 +160,8 @@ and only one client and its connection are kept.
 client's requests through the `IConnection` its callback returns. The callback runs when a client is created, with the
 same race as `configureClient`: two calls creating the same client can each run it, and the connection of the client
 that isn't kept is dropped without being disposed. `configureClient` can't
-do this, as the client takes its connection when it is created.
+do this, as the client takes its connection when it is created. A client the provider creates again, after a changed
+setting dropped it, runs the callback again.
 
 ## How queries behave
 

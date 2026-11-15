@@ -11,7 +11,7 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 /// Translates the main query into one Elasticsearch <c>bool</c> query, each sub-query a clause under
 /// the occurrence it was added with. A query with no clauses matches every document.
 /// </summary>
-public class ElasticSearchQueryTranslateService(IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
+internal sealed class ElasticSearchQueryTranslateService(IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
     : IQueryTranslateServiceAsync<EsQuery>, IPostFilterTranslateServiceAsync<EsQuery>
 {
     public Task<Result<EsQuery>> TranslateMainQueryAsync(ISearchQuery query) =>

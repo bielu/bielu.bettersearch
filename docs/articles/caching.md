@@ -98,8 +98,8 @@ the library ships no adapter for it.
 
 - Only successful results. A failed `Result` is never cached, and neither is a cancelled search.
 - The key is built from the provider key, the application's `KeyPart` and the whole query: the index, every
-  sub-query with its occurrence, boost and values, paging, sorting, post filters, highlighting, `Properties` and
-  `PreviewAt`. Values are written the same way on every machine, whatever its culture, and a string `"1"` and a
+  sub-query with its occurrence, boost and values, paging, sorting, post filters, highlighting and `Properties`.
+  Values are written the same way on every machine, whatever its culture, and a string `"1"` and a
   number `1` give different keys. A `JsonElement` or `JsonNode` value is keyed by its JSON text. A query holding
   something with no stable text is not cached: a delegate, or a value of any other type that is not a scalar, a
   string, an enum, a collection, a tuple or part of the query model (a type in Abstractions, or one that implements

@@ -7,7 +7,7 @@ using Lifti.Querying.QueryParts;
 
 namespace Bielu.BetterSearch.Lifti.Services.Queries;
 
-public class FuzzySubQueryTranslator : ISubQueryTranslator<IQuery>
+internal sealed class FuzzySubQueryTranslator : ISubQueryTranslator<IQuery>
 {
     public bool CanTranslate(ISearchSubQuery query) => query is FuzzyQuery;
 

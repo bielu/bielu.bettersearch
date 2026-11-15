@@ -7,7 +7,7 @@ using Lifti;
 
 namespace Bielu.BetterSearch.Lifti.Services;
 
-public class LiftiIndexManager : ILiftiIndexManager
+internal sealed class LiftiIndexManager : ILiftiIndexManager
 {
     private readonly ConcurrentDictionary<string, IFullTextIndex<string>> _indices = new();
 

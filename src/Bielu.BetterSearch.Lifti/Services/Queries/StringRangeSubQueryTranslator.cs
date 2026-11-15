@@ -12,7 +12,7 @@ namespace Bielu.BetterSearch.Lifti.Services.Queries;
 /// every provider does, and otherwise one saying the query is not supported.
 /// See the feature matrix for details on supported features.
 /// </summary>
-public class StringRangeSubQueryTranslator : ISubQueryTranslator<IQuery>
+internal sealed class StringRangeSubQueryTranslator : ISubQueryTranslator<IQuery>
 {
     public bool CanTranslate(ISearchSubQuery query) => query is StringRange;
 
