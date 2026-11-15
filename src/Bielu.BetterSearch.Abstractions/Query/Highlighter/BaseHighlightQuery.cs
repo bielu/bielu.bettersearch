@@ -5,7 +5,13 @@
         public string Field { get; set; }
         public bool IsAllField { get; set; }
 
-        public Dictionary<Occurrence, ISearchSubQuery> Queries { get; set; } =
-            new Dictionary<Occurrence, ISearchSubQuery>();
+        public IList<ISearchSubQuery> Queries { get; set; } = [];
+
+        /// <inheritdoc />
+        public void Add(Occurrence key, ISearchSubQuery value)
+        {
+            value.Occurrence = key;
+            Queries.Add(value);
+        }
     }
 }

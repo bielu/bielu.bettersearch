@@ -4,8 +4,9 @@
     {
         public Occurrence Occurrence { get; set; } = Occurrence.Must;
         public string? Field { get; set; }
-        public int BoostValue { get; set; } = 1;
-        public string? UnitOfDistance { get; set; }
+        public double BoostValue { get; set; } = 1;
+        /// <summary>The unit of <see cref="Distance"/>, kilometres by default.</summary>
+        public DistanceUnit UnitOfDistance { get; set; } = DistanceUnit.Kilometers;
         public double Distance { get; set; }
         public double Lat { get; set; }
         public double Lng { get; set; }

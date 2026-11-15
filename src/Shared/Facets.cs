@@ -110,7 +110,7 @@ internal static class Facets
     }
 
     private static Result ValidateFilter(string name, FilterAggregationQuery filter) =>
-        filter.Queries?.Values.Any(subQuery => subQuery == null) == true
+        filter.Queries?.Any(subQuery => subQuery == null) == true
             ? Result.Fail($"The Queries of facet {name} hold a null query.")
             : Result.Ok();
 

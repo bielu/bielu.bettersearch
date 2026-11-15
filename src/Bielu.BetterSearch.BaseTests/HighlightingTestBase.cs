@@ -154,7 +154,7 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
             query.HighlightQueries.Add(new BaseHighlightQuery
             {
                 Field = "Name",
-                Queries = { [Occurrence.Must] = new TermSubQuery { Field = "Name", Value = "jane" } }
+                Queries = { new TermSubQuery { Field = "Name", Value = "jane" } }
             });
 
             if (await HighlightAsync(query) is not { } hits)
@@ -236,9 +236,9 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
     public async Task SearchAsync_NullClauseInOwnHighlightQuery_ReturnsFailure()
     {
         var query = new SearchQuery { Index = $"highlight-{Guid.NewGuid():N}" };
-        query.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name", Queries = { [Occurrence.Must] = null! } });
+        query.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name", Queries = { null! } });
 
-        await ShouldFailAsync(query, "The highlight query for field Name holds a null Must clause");
+        await ShouldFailAsync(query, "The highlight query for field Name holds a null clause");
     }
 
     [Fact]

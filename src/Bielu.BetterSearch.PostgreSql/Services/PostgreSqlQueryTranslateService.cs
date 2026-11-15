@@ -22,14 +22,12 @@ internal sealed class PostgreSqlQueryTranslateService(IEnumerable<ISubQueryTrans
     private async Task<Result<PostgreSqlFilter>> TranslateFilterAsync(ISearchQuery query)
     {
         var main = await TranslateAsync(query.Query).ConfigureAwait(false);
-        if (main.IsFailed || query.PostFilterQuery == null || query.PostFilterQuery.Values.All(clauses => clauses == null || clauses.Count == 0))
+        if (main.IsFailed || query.PostFilterQuery == null || query.PostFilterQuery.Count == 0)
         {
             return main;
         }
 
-        var postFilter = await TranslateAsync(query.PostFilterQuery.ToDictionary(
-            group => group.Key,
-            group => group.Value?.Cast<ISearchSubQuery>().ToList() ?? [])).ConfigureAwait(false);
+        var postFilter = await TranslateAsync(query.PostFilterQuery).ConfigureAwait(false);
         if (postFilter.IsFailed)
         {
             return postFilter;
@@ -39,15 +37,15 @@ internal sealed class PostgreSqlQueryTranslateService(IEnumerable<ISubQueryTrans
             .WithSuccesses(main.Successes).WithSuccesses(postFilter.Successes);
     }
 
-    private Task<Result<PostgreSqlFilter>> TranslateAsync(IDictionary<Occurrence, List<ISearchSubQuery>>? clauses)
+    private Task<Result<PostgreSqlFilter>> TranslateAsync(IList<ISearchSubQuery>? clauses)
     {
-        if (clauses == null || clauses.Values.All(group => group == null || group.Count == 0))
+        if (clauses == null || clauses.Count == 0)
         {
             return Task.FromResult(Result.Ok(PostgreSqlFilter.MatchAll));
         }
 
         return PostgreSqlBoolFilterBuilder.BuildAsync(
-            clauses.Where(group => group.Value != null).SelectMany(group => group.Value.Select(subQuery => (group.Key, subQuery))),
+            clauses.Select(subQuery => (subQuery?.Occurrence ?? Occurrence.Must, subQuery!)),
             subQueryTranslators);
     }
 }

@@ -33,5 +33,5 @@ internal static class ElasticSearchFieldNames
             : Result.Ok(Resolve(field));
 
     /// <summary>The model's default boost is 1, and 0 means unset, so only other values are sent.</summary>
-    public static float? Boost(int boostValue) => boostValue is > 0 and not 1 ? boostValue : null;
+    public static float? Boost(double boostValue) => boostValue is > 0 and not 1 && double.IsFinite(boostValue) ? (float)boostValue : null;
 }

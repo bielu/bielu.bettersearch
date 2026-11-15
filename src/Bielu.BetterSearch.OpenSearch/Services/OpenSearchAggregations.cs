@@ -66,11 +66,7 @@ internal static class OpenSearchAggregations
                     };
                     break;
                 case FilterAggregationQuery filter:
-                    var filterQuery = new SearchQuery { Index = index };
-                    foreach (var (occurrence, subQuery) in filter.Queries ?? [])
-                    {
-                        filterQuery.Add(occurrence, subQuery);
-                    }
+                    var filterQuery = new SearchQuery { Index = index, Query = filter.Queries ?? [] };
 
                     var translated = await queryTranslateService.TranslateMainQueryAsync(filterQuery).ConfigureAwait(false);
                     if (translated.IsFailed)

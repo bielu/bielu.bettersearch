@@ -128,7 +128,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [Fact]
     public async Task SpatialSearchQuery_InvalidUnit_ReturnsFailedResult()
     {
-        var subQuery = new SpatialSearchSubQuery { Field = "Location", Distance = 10, UnitOfDistance = "parsecs" };
+        var subQuery = new SpatialSearchSubQuery { Field = "Location", Distance = 10, UnitOfDistance = (Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit)99 };
 
         var result = await translators.First(t => t.CanTranslate(subQuery)).TranslateAsync(subQuery, translators);
 
@@ -164,7 +164,7 @@ public class OpenSearchQueryTranslateServiceTests(
         result.IsSuccess.ShouldBeTrue();
         var geoDistance = ((IQueryContainer)result.Value).GeoDistance.Distance;
         geoDistance.Precision.ShouldBe(distance);
-        geoDistance.Unit.ShouldBe(DistanceUnit.Kilometers);
+        geoDistance.Unit.ShouldBe(global::OpenSearch.Client.DistanceUnit.Kilometers);
     }
 
     [Fact]

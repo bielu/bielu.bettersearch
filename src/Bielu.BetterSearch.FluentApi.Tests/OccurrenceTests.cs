@@ -146,11 +146,11 @@ public class OccurrenceTests
             .CreateTermsQuery(t => t.WithField("City").WithValue("Warsaw").Should())
             .CreateTermsQuery(t => t.WithField("City").WithValue("Krakow")));
 
-        query.Query.Keys.ShouldBe([Occurrence.Should, Occurrence.Must], ignoreOrder: true);
-        var should = query.Query[Occurrence.Should].ShouldHaveSingleItem().ShouldBeOfType<TermsSubQuery>();
+        query.Query.Select(clause => clause.Occurrence).Distinct().ShouldBe([Occurrence.Should, Occurrence.Must], ignoreOrder: true);
+        var should = query.Query.Where(clause => clause.Occurrence == Occurrence.Should).ToList().ShouldHaveSingleItem().ShouldBeOfType<TermsSubQuery>();
         should.Value.ShouldBe(["Warsaw"]);
         should.Occurrence.ShouldBe(Occurrence.Should);
-        var must = query.Query[Occurrence.Must].ShouldHaveSingleItem().ShouldBeOfType<TermsSubQuery>();
+        var must = query.Query.Where(clause => clause.Occurrence == Occurrence.Must).ToList().ShouldHaveSingleItem().ShouldBeOfType<TermsSubQuery>();
         must.Value.ShouldBe(["Krakow"]);
         must.Occurrence.ShouldBe(Occurrence.Must);
     }
@@ -194,8 +194,8 @@ public class OccurrenceTests
         var nested = BuildNested(outer => outer.CreateBoolQuery(b => b.Should()
             .CreateTermQuery(t => t.WithField("City").WithValue("Warsaw"))));
 
-        topLevel.Query.Keys.ShouldBe([Occurrence.Must]);
-        var topLevelBool = topLevel.Query[Occurrence.Must].ShouldHaveSingleItem().ShouldBeOfType<BoolSearchSubQuery>();
+        topLevel.Query.Select(clause => clause.Occurrence).Distinct().ShouldBe([Occurrence.Must]);
+        var topLevelBool = topLevel.Query.Where(clause => clause.Occurrence == Occurrence.Must).ToList().ShouldHaveSingleItem().ShouldBeOfType<BoolSearchSubQuery>();
         topLevelBool.Occurrence.ShouldBe(Occurrence.Must);
         topLevelBool.NestedQueries.ShouldHaveSingleItem().Occurrence.ShouldBe(Occurrence.Should);
         var nestedBool = nested.NestedQueries.ShouldHaveSingleItem().ShouldBeOfType<BoolSearchSubQuery>();
@@ -216,8 +216,8 @@ public class OccurrenceTests
             q.CreateBoolQuery(b => b.CreateTermQuery(t => t.WithField("City").WithValue("Warsaw")));
         });
 
-        query.Query.Keys.ShouldBe([Occurrence.Should]);
-        query.Query[Occurrence.Should].ShouldHaveSingleItem().Occurrence.ShouldBe(Occurrence.Should);
+        query.Query.Select(clause => clause.Occurrence).Distinct().ShouldBe([Occurrence.Should]);
+        query.Query.Where(clause => clause.Occurrence == Occurrence.Should).ToList().ShouldHaveSingleItem().Occurrence.ShouldBe(Occurrence.Should);
     }
 
     [Fact]
@@ -248,16 +248,16 @@ public class OccurrenceTests
     {
         var query = Build(q => q.CreateBoolQuery(configure));
 
-        return query.Query[Occurrence.Must].ShouldHaveSingleItem().ShouldBeOfType<BoolSearchSubQuery>();
+        return query.Query.Where(clause => clause.Occurrence == Occurrence.Must).ToList().ShouldHaveSingleItem().ShouldBeOfType<BoolSearchSubQuery>();
     }
 
     private static void AssertTopLevel(ISearchQuery query, string shouldValue, string mustValue)
     {
-        query.Query.Keys.ShouldBe([Occurrence.Should, Occurrence.Must], ignoreOrder: true);
-        var should = query.Query[Occurrence.Should].ShouldHaveSingleItem().ShouldBeOfType<TermSubQuery>();
+        query.Query.Select(clause => clause.Occurrence).Distinct().ShouldBe([Occurrence.Should, Occurrence.Must], ignoreOrder: true);
+        var should = query.Query.Where(clause => clause.Occurrence == Occurrence.Should).ToList().ShouldHaveSingleItem().ShouldBeOfType<TermSubQuery>();
         should.Value.ShouldBe(shouldValue);
         should.Occurrence.ShouldBe(Occurrence.Should);
-        var must = query.Query[Occurrence.Must].ShouldHaveSingleItem().ShouldBeOfType<TermSubQuery>();
+        var must = query.Query.Where(clause => clause.Occurrence == Occurrence.Must).ToList().ShouldHaveSingleItem().ShouldBeOfType<TermSubQuery>();
         must.Value.ShouldBe(mustValue);
         must.Occurrence.ShouldBe(Occurrence.Must);
     }
@@ -267,9 +267,9 @@ public class OccurrenceTests
     {
         var query = Build(configure);
 
-        query.Query.Keys.ShouldBe([Occurrence.Should, Occurrence.Must], ignoreOrder: true);
-        query.Query[Occurrence.Should].ShouldHaveSingleItem().ShouldBeOfType<T>().Occurrence.ShouldBe(Occurrence.Should);
-        query.Query[Occurrence.Must].ShouldHaveSingleItem().ShouldBeOfType<T>().Occurrence.ShouldBe(Occurrence.Must);
+        query.Query.Select(clause => clause.Occurrence).Distinct().ShouldBe([Occurrence.Should, Occurrence.Must], ignoreOrder: true);
+        query.Query.Where(clause => clause.Occurrence == Occurrence.Should).ToList().ShouldHaveSingleItem().ShouldBeOfType<T>().Occurrence.ShouldBe(Occurrence.Should);
+        query.Query.Where(clause => clause.Occurrence == Occurrence.Must).ToList().ShouldHaveSingleItem().ShouldBeOfType<T>().Occurrence.ShouldBe(Occurrence.Must);
     }
 
     private static ISearchQuery Build(Action<IBaseQueryConfigurator> configure) =>

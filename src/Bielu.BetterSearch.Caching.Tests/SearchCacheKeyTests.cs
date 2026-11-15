@@ -27,12 +27,12 @@ public class SearchCacheKeyTests
         { "sort direction", Queries.Term("products", desc: true) },
         { "sort field", With(q => q.SortOrder[0].FieldName = "Born") },
         { "value", Queries.Term("products", value: "john") },
-        { "value type", With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = 1) },
-        { "occurrence", With(q => q.Query[Occurrence.Must][0].Occurrence = Occurrence.Should) },
-        { "occurrence key", With(q => (q.Query[Occurrence.Should], q.Query[Occurrence.Must]) = (q.Query[Occurrence.Must], [])) },
+        { "value type", With(q => ((TermSubQuery)q.Query[0]).Value = 1) },
+        { "occurrence", With(q => q.Query[0].Occurrence = Occurrence.Should) },
+        { "fractional boost", With(q => q.Query[0].BoostValue = 1.5) },
         { "index", Queries.Term("articles") },
         { "properties", With(q => q.Properties = ["Name"]) },
-        { "post filter", With(q => q.PostFilterQuery[Occurrence.Filter] = [new BoolSearchSubQuery()]) },
+        { "post filter", With(q => q.PostFilterQuery.Add(new BoolSearchSubQuery { Occurrence = Occurrence.Filter })) },
         { "highlight", With(q => q.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name" })) },
         { "nested", With(q => q.Add(Occurrence.Must, new BoolSearchSubQuery())) }
     };
@@ -63,15 +63,15 @@ public class SearchCacheKeyTests
     [Fact]
     public void Build_StringAndNumberWithSameText_DifferentKeys()
     {
-        var text = With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = "3");
-        var number = With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = 3);
+        var text = With(q => ((TermSubQuery)q.Query[0]).Value = "3");
+        var number = With(q => ((TermSubQuery)q.Query[0]).Value = 3);
         Key(text).ShouldNotBe(Key(number));
     }
 
     [Fact]
     public void Build_CommaDecimalCulture_SameKeyAsInvariant()
     {
-        var query = With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = 3.5);
+        var query = With(q => ((TermSubQuery)q.Query[0]).Value = 3.5);
         var invariant = SearchCacheKey.Canonical(query);
 
         using var culture = CultureScope.CommaDecimal();
@@ -83,34 +83,32 @@ public class SearchCacheKeyTests
     [Fact]
     public void Build_DictionaryInsertionOrderDiffers_SameKey()
     {
-        var first = Queries.Term("products");
-        first.Add(Occurrence.Should, new TermSubQuery { Field = "City", Value = "Warsaw" });
-        var second = new SearchQuery { Index = "products", Page = 1, PageSize = 10, SortOrder = first.SortOrder };
-        second.Add(Occurrence.Should, new TermSubQuery { Field = "City", Value = "Warsaw" });
-        second.Add(Occurrence.Must, new TermSubQuery { Field = "Name", Value = "jane", BoostValue = 1 });
+        var first = new Dictionary<string, int> { ["a"] = 1, ["b"] = 2 };
+        var second = new Dictionary<string, int> { ["b"] = 2, ["a"] = 1 };
 
-        Key(second).ShouldBe(Key(first));
+        SearchCacheKey.Canonical(second).ShouldBe(SearchCacheKey.Canonical(first));
+        SearchCacheKey.Canonical(second).ShouldNotBe(SearchCacheKey.Canonical(new Dictionary<string, int> { ["a"] = 2, ["b"] = 1 }));
     }
 
     [Fact]
     public void Build_JsonElementValuesDiffer_DifferentKeys()
     {
-        var jane = With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = JsonSerializer.SerializeToElement("jane"));
-        var john = With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = JsonSerializer.SerializeToElement("john"));
-        var janeAgain = With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = JsonSerializer.SerializeToElement("jane"));
+        var jane = With(q => ((TermSubQuery)q.Query[0]).Value = JsonSerializer.SerializeToElement("jane"));
+        var john = With(q => ((TermSubQuery)q.Query[0]).Value = JsonSerializer.SerializeToElement("john"));
+        var janeAgain = With(q => ((TermSubQuery)q.Query[0]).Value = JsonSerializer.SerializeToElement("jane"));
 
         Key(jane).ShouldNotBe(Key(john));
         Key(jane).ShouldBe(Key(janeAgain));
-        Key(jane).ShouldNotBe(Key(With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = "jane")));
+        Key(jane).ShouldNotBe(Key(With(q => ((TermSubQuery)q.Query[0]).Value = "jane")));
     }
 
     [Fact]
     public void Build_JsonNodeValuesDiffer_DifferentKeys()
     {
-        var jane = With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = JsonValue.Create("jane"));
-        var john = With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = JsonValue.Create("john"));
-        var array = With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = new JsonArray("jane"));
-        var otherArray = With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = new JsonArray("john"));
+        var jane = With(q => ((TermSubQuery)q.Query[0]).Value = JsonValue.Create("jane"));
+        var john = With(q => ((TermSubQuery)q.Query[0]).Value = JsonValue.Create("john"));
+        var array = With(q => ((TermSubQuery)q.Query[0]).Value = new JsonArray("jane"));
+        var otherArray = With(q => ((TermSubQuery)q.Query[0]).Value = new JsonArray("john"));
 
         Key(jane).ShouldNotBe(Key(john));
         Key(array).ShouldNotBe(Key(otherArray));
@@ -119,7 +117,7 @@ public class SearchCacheKeyTests
     [Fact]
     public void TryBuild_QueryHoldsTypeOutsideQueryModel_ReturnsNull()
     {
-        var query = With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = new Uri("https://example.com/a"));
+        var query = With(q => ((TermSubQuery)q.Query[0]).Value = new Uri("https://example.com/a"));
         SearchCacheKey.TryBuild(query, "provider", null).ShouldBeNull();
     }
 
@@ -127,7 +125,7 @@ public class SearchCacheKeyTests
     public void Build_MaxEditsDiffers_DifferentKeys()
     {
         static SearchQuery Fuzzy(int? maxEdits) =>
-            With(q => q.Query[Occurrence.Must] = [new FuzzySubQuery { Field = "Name", Value = "jane", MaxEdits = maxEdits }]);
+            With(q => q.Query = [new FuzzySubQuery { Field = "Name", Value = "jane", MaxEdits = maxEdits }]);
 
         Key(Fuzzy(1)).ShouldNotBe(Key(Fuzzy(2)));
         Key(Fuzzy(1)).ShouldNotBe(Key(Fuzzy(null)));
@@ -137,8 +135,8 @@ public class SearchCacheKeyTests
     [Fact]
     public void Build_CustomSubQueryType_HasKeyFromItsProperties()
     {
-        var jane = With(q => q.Query[Occurrence.Must] = [new CustomSubQuery { Text = "jane" }]);
-        var john = With(q => q.Query[Occurrence.Must] = [new CustomSubQuery { Text = "john" }]);
+        var jane = With(q => q.Query = [new CustomSubQuery { Text = "jane" }]);
+        var john = With(q => q.Query = [new CustomSubQuery { Text = "john" }]);
 
         Key(jane).ShouldNotBe(Key(john));
     }
@@ -147,13 +145,13 @@ public class SearchCacheKeyTests
     {
         public string Text { get; set; } = string.Empty;
         public Occurrence Occurrence { get; set; } = Occurrence.Must;
-        public int BoostValue { get; set; } = 1;
+        public double BoostValue { get; set; } = 1;
     }
 
     [Fact]
     public void TryBuild_QueryHoldsDelegate_ReturnsNull()
     {
-        var query = With(q => ((TermSubQuery)q.Query[Occurrence.Must][0]).Value = new Func<int>(() => 1));
+        var query = With(q => ((TermSubQuery)q.Query[0]).Value = new Func<int>(() => 1));
         SearchCacheKey.TryBuild(query, "provider", null).ShouldBeNull();
     }
 }

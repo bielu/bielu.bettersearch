@@ -22,11 +22,9 @@ internal sealed class TypesenseQueryTranslateService(IEnumerable<ISubQueryTransl
 
         var successes = main.Successes.ToList();
         var filter = main.Value;
-        if (query.PostFilterQuery != null && query.PostFilterQuery.Values.Any(clauses => clauses.Count > 0))
+        if (query.PostFilterQuery != null && query.PostFilterQuery.Count > 0)
         {
-            var postFilter = await TranslateAsync(query.PostFilterQuery.ToDictionary(
-                group => group.Key,
-                group => group.Value.Cast<ISearchSubQuery>().ToList())).ConfigureAwait(false);
+            var postFilter = await TranslateAsync(query.PostFilterQuery).ConfigureAwait(false);
             if (postFilter.IsFailed)
             {
                 return postFilter.ToResult<TypesenseSearchRequest>();
@@ -39,15 +37,15 @@ internal sealed class TypesenseQueryTranslateService(IEnumerable<ISubQueryTransl
         return Result.Ok(new TypesenseSearchRequest(filter)).WithSuccesses(successes);
     }
 
-    private Task<Result<TypesenseFilter>> TranslateAsync(IDictionary<Occurrence, List<ISearchSubQuery>>? clauses)
+    private Task<Result<TypesenseFilter>> TranslateAsync(IList<ISearchSubQuery>? clauses)
     {
-        if (clauses == null || clauses.Values.All(group => group == null || group.Count == 0))
+        if (clauses == null || clauses.Count == 0)
         {
             return Task.FromResult(Result.Ok(TypesenseFilter.MatchAll));
         }
 
         return TypesenseBoolFilterBuilder.BuildAsync(
-            clauses.Where(group => group.Value != null).SelectMany(group => group.Value.Select(subQuery => (group.Key, subQuery))),
+            clauses.Select(subQuery => (subQuery?.Occurrence ?? Occurrence.Must, subQuery!)),
             subQueryTranslators);
     }
 }

@@ -26,10 +26,15 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
             return this;
         }
         /// <summary>Sets the <see cref="ISearchSubQuery.BoostValue"/> of the bool query.</summary>
-        /// <exception cref="ArgumentOutOfRangeException"><paramref name="boost"/> is 0 or less.</exception>
-        public BooleanQueryConfigurator WithBoost(int boost)
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="boost"/> is 0 or less, or not a finite number.</exception>
+        public BooleanQueryConfigurator WithBoost(double boost)
         {
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(boost);
+            if (!double.IsFinite(boost))
+            {
+                throw new ArgumentOutOfRangeException(nameof(boost), boost, "The boost must be a finite number.");
+            }
+
             Query.BoostValue = boost;
             return this;
         }

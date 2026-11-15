@@ -13,9 +13,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         private static void Add(this ICreatableSearchQuery target, Occurrence parent,
             Occurrence? own, ISearchSubQuery subQuery)
         {
-            var occurrence = own ?? parent;
-            subQuery.Occurrence = occurrence;
-            target.Add(occurrence, subQuery);
+            target.Add(own ?? parent, subQuery);
         }
 
         /// <summary>
@@ -148,14 +146,8 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
             booleanQuery.Occurrence = configurator.Occurrence;
             query.Invoke(booleanQuery);
             booleanQuery.Query.Occurrence = configurator.Occurrence;
-            configurator.Query.PostFilterQuery ??= new Dictionary<Occurrence, List<INestableQuery>>();
-            if (!configurator.Query.PostFilterQuery.TryGetValue(configurator.Occurrence, out var clauses))
-            {
-                clauses = [];
-                configurator.Query.PostFilterQuery.Add(configurator.Occurrence, clauses);
-            }
-
-            clauses.Add(booleanQuery.Query);
+            configurator.Query.PostFilterQuery ??= [];
+            configurator.Query.PostFilterQuery.Add(booleanQuery.Query);
             return configurator;
         }
     }

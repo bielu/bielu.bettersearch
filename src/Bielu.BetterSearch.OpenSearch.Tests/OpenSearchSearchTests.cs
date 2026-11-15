@@ -639,7 +639,7 @@ public sealed class OpenSearchSearchTests(
     {
         var index = await CreatePeopleAsync();
         var query = Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "john" });
-        query.PostFilterQuery[Occurrence.Must] = [Nested(new TermSubQuery { Field = "City", Value = "krakow" })];
+        query.PostFilterQuery.Add(Nested(new TermSubQuery { Field = "City", Value = "krakow" }));
 
         var ids = await SearchIdsAsync(query);
 

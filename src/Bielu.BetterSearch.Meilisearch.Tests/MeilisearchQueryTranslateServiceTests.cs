@@ -224,7 +224,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
         var query = Query(Occurrence.Must, new TermSubQuery { Field = "Name", Value = "john" });
         var nested = new BoolSearchSubQuery();
         nested.Add(Occurrence.Must, new TermSubQuery { Field = "City", Value = "krakow" });
-        query.PostFilterQuery[Occurrence.Must] = [nested];
+        query.PostFilterQuery.Add(nested);
 
         (await FilterAsync(query)).ShouldBe("((tokens.Name = \"john\")) AND (((tokens.City = \"krakow\")))");
     }
@@ -251,7 +251,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
         new SpatialSearchSubQuery { Field = "Location", Distance = 10, Lat = 91 },
         new SpatialSearchSubQuery { Field = "Location", Distance = 10, Lng = -181 },
         new SpatialSearchSubQuery { Field = "Location", Distance = 10, Lat = double.NaN },
-        new SpatialSearchSubQuery { Field = "Location", Distance = 10, UnitOfDistance = "parsecs" },
+        new SpatialSearchSubQuery { Field = "Location", Distance = 10, UnitOfDistance = (DistanceUnit)99 },
     ];
 
     [Theory]
@@ -281,10 +281,10 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     }
 
     [Theory]
-    [InlineData(null, "_geoRadius(52.23, 21.01, 10000)")]
-    [InlineData("m", "_geoRadius(52.23, 21.01, 10)")]
-    [InlineData("mi", "_geoRadius(52.23, 21.01, 16093.44)")]
-    public async Task TranslateMainQueryAsync_SpatialQuery_FiltersOnGeoRadiusInMetres(string? unit, string expected)
+    [InlineData(DistanceUnit.Kilometers, "_geoRadius(52.23, 21.01, 10000)")]
+    [InlineData(DistanceUnit.Meters, "_geoRadius(52.23, 21.01, 10)")]
+    [InlineData(DistanceUnit.Miles, "_geoRadius(52.23, 21.01, 16093.44)")]
+    public async Task TranslateMainQueryAsync_SpatialQuery_FiltersOnGeoRadiusInMetres(DistanceUnit unit, string expected)
     {
         var filter = await FilterAsync(Query(Occurrence.Must, new SpatialSearchSubQuery
         {
@@ -315,7 +315,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
         var query = new SearchQuery();
         var nested = new BoolSearchSubQuery();
         nested.Add(Occurrence.Must, new LuceneSubQuery { LuceneQuery = "x" });
-        query.PostFilterQuery[Occurrence.Must] = [nested];
+        query.PostFilterQuery.Add(nested);
 
         var result = await translateService.TranslateMainQueryAsync(query);
 

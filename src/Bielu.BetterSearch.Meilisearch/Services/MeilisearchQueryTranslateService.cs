@@ -24,11 +24,9 @@ internal sealed class MeilisearchQueryTranslateService(IEnumerable<ISubQueryTran
 
         var filters = new List<string> { main.Value.Expression };
         var successes = main.Successes.ToList();
-        if (query.PostFilterQuery != null && query.PostFilterQuery.Values.Any(clauses => clauses.Count > 0))
+        if (query.PostFilterQuery != null && query.PostFilterQuery.Count > 0)
         {
-            var postFilter = await TranslateAsync(query.PostFilterQuery.ToDictionary(
-                group => group.Key,
-                group => group.Value.Cast<ISearchSubQuery>().ToList())).ConfigureAwait(false);
+            var postFilter = await TranslateAsync(query.PostFilterQuery).ConfigureAwait(false);
             if (postFilter.IsFailed)
             {
                 return postFilter.ToResult<MeilisearchQuery>();
@@ -44,15 +42,15 @@ internal sealed class MeilisearchQueryTranslateService(IEnumerable<ISubQueryTran
         }).WithSuccesses(successes);
     }
 
-    private Task<Result<MeilisearchFilter>> TranslateAsync(IDictionary<Occurrence, List<ISearchSubQuery>>? clauses)
+    private Task<Result<MeilisearchFilter>> TranslateAsync(IList<ISearchSubQuery>? clauses)
     {
-        if (clauses == null || clauses.Values.All(group => group.Count == 0))
+        if (clauses == null || clauses.Count == 0)
         {
             return Task.FromResult(Result.Ok(new MeilisearchFilter(MeilisearchFieldNames.MatchAll)));
         }
 
         return MeilisearchBoolFilterBuilder.BuildAsync(
-            clauses.SelectMany(group => group.Value.Select(subQuery => (group.Key, subQuery))),
+            clauses.Select(subQuery => (subQuery?.Occurrence ?? Occurrence.Must, subQuery!)),
             subQueryTranslators);
     }
 }
