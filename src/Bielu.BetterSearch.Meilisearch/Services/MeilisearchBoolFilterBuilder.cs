@@ -13,7 +13,7 @@ namespace Bielu.BetterSearch.Meilisearch.Services;
 internal static class MeilisearchBoolFilterBuilder
 {
     public static async Task<Result<MeilisearchFilter>> BuildAsync(
-        IEnumerable<(Occurrence Occurrence, ISearchSubQuery Query)> clauses,
+        IEnumerable<ISearchSubQuery> clauses,
         IEnumerable<ISubQueryTranslator<MeilisearchFilter>> subQueryTranslators)
     {
         var required = new List<string>();
@@ -21,7 +21,7 @@ internal static class MeilisearchBoolFilterBuilder
         var mustNot = new List<string>();
         var successes = new List<ISuccess>();
 
-        foreach (var (occurrence, subQuery) in clauses)
+        foreach (var subQuery in clauses)
         {
             var translator = subQueryTranslators.FirstOrDefault(t => t.CanTranslate(subQuery));
             if (translator == null)
@@ -35,7 +35,7 @@ internal static class MeilisearchBoolFilterBuilder
                 return translated;
             }
 
-            var target = occurrence switch
+            var target = subQuery.Occurrence switch
             {
                 Occurrence.Should => should,
                 Occurrence.MustNot => mustNot,

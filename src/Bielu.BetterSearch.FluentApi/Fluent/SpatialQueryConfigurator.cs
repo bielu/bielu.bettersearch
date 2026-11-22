@@ -26,7 +26,8 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
             _query.Lng = lng;
             return this;
         }
-        public SpatialQueryConfigurator WithUnitOfDistance(string value)
+        /// <summary>Sets the unit of the distance, kilometres by default.</summary>
+        public SpatialQueryConfigurator WithUnitOfDistance(DistanceUnit value)
         {
             _query.UnitOfDistance = value;
             return this;

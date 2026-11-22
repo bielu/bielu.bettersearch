@@ -95,7 +95,7 @@ public class MeilisearchLuceneSubQueryTests(IQueryTranslateServiceAsync<Meilisea
         var query = new SearchQuery();
         var nested = new BoolSearchSubQuery();
         nested.Add(Occurrence.Must, new LuceneSubQuery { LuceneQuery = "Name:jnae~" });
-        query.PostFilterQuery[Occurrence.Must] = [nested];
+        query.PostFilterQuery.Add(nested);
 
         var result = await translateService.TranslateMainQueryAsync(query);
 

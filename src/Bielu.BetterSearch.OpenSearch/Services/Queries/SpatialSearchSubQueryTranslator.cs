@@ -1,5 +1,6 @@
 ﻿using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using FluentResults;
 using OpenSearch.Client;
 using Result = FluentResults.Result;
@@ -12,8 +13,6 @@ namespace Bielu.BetterSearch.OpenSearch.Services.Queries;
 /// </summary>
 internal sealed class SpatialSearchSubQueryTranslator : OpenSearchSubQueryTranslator<SpatialSearchSubQuery>
 {
-    private const string DefaultUnit = "km";
-
     protected override Task<Result<QueryContainer>> TranslateAsync(SpatialSearchSubQuery query, IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators)
     {
         var field = OpenSearchFieldNames.Require(query.Field, nameof(SpatialSearchSubQuery));
@@ -38,16 +37,21 @@ internal sealed class SpatialSearchSubQueryTranslator : OpenSearchSubQueryTransl
             return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchSubQuery)} has an invalid Lng {query.Lng}: it must be between -180 and 180."));
         }
 
-        var unit = string.IsNullOrWhiteSpace(query.UnitOfDistance) ? DefaultUnit : query.UnitOfDistance;
+        var unit = DistanceUnits.Resolve(query.UnitOfDistance);
+        if (unit.IsFailed)
+        {
+            return Task.FromResult(unit.ToResult<QueryContainer>());
+        }
+
         Distance distance;
         try
         {
             // Fixed-point, because a value such as 0.00001 would otherwise format as "1E-05".
-            distance = new Distance(query.Distance.ToString("0.###############", System.Globalization.CultureInfo.InvariantCulture) + unit);
+            distance = new Distance(query.Distance.ToString("0.###############", System.Globalization.CultureInfo.InvariantCulture) + unit.Value.Name);
         }
         catch (Exception e) when (e is ArgumentException or InvalidCastException)
         {
-            return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchSubQuery)} has an invalid UnitOfDistance {unit}: {e.Message}"));
+            return Task.FromResult(Result.Fail<QueryContainer>($"{nameof(SpatialSearchSubQuery)} has an invalid Distance {query.Distance}: {e.Message}"));
         }
 
         return Task.FromResult(Result.Ok<QueryContainer>(new GeoDistanceQuery

@@ -19,7 +19,7 @@ internal sealed class LiftiQueryTranslatorService(
         }
 
         var combined = await LiftiBoolQueryBuilder.BuildAsync(
-            query.Query.SelectMany(group => group.Value.Select(subQuery => (group.Key, subQuery))),
+            query.Query,
             subQueryTranslators).ConfigureAwait(false);
         if (combined.IsFailed)
         {

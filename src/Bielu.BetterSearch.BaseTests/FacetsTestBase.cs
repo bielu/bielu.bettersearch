@@ -176,7 +176,7 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
         var query = new SearchQuery { Index = index, FacetQueries = [new TermAggregation { AggregationName = "colors", TermFieldName = Color }] };
         var acme = new BoolSearchSubQuery();
         acme.Add(Occurrence.Must, BrandIs("acme"));
-        query.PostFilterQuery[Occurrence.Must] = [acme];
+        query.PostFilterQuery.Add(acme);
 
         var result = await SearchAsync(query);
 
@@ -267,7 +267,7 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
         var filter = new FilterAggregationQuery
         {
             AggregationName = "globex",
-            Queries = { [Occurrence.Must] = BrandIs("globex") },
+            Queries = { BrandIs("globex") },
             NestedAggregations = [new TermAggregation { AggregationName = "colors", TermFieldName = Color }]
         };
         var query = new SearchQuery { Index = index, FacetQueries = [filter] };
@@ -285,6 +285,31 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
             CountsByKey(aggregation.NestedAggregation.RetrieveBucketAggregation("colors"))
                 .ShouldBe(new Dictionary<string, long?> { ["Red"] = 1, ["Dark Blue"] = 1 }, ignoreOrder: true);
             bucket.SubBuckets.Count.ShouldBe(2);
+        }
+    });
+
+    // Read as the default Must, two brands would match no document.
+    [Fact]
+    public async Task SearchAsync_FilterFacetWithShouldClausesAddedThroughAdd_CountsDocumentsMatchingEither() => await RunAsync(async index =>
+    {
+        var filter = new FilterAggregationQuery
+        {
+            AggregationName = "globexOrInitech",
+            NestedAggregations = [new TermAggregation { AggregationName = "colors", TermFieldName = Color }]
+        };
+        filter.Add(Occurrence.Should, BrandIs("globex"));
+        filter.Add(Occurrence.Should, BrandIs("initech"));
+        var query = new SearchQuery { Index = index, FacetQueries = [filter] };
+
+        var result = await SearchAsync(query);
+
+        if (RanComplex(result))
+        {
+            var aggregation = result.Value.RetrieveSingleAggregation("globexOrInitech");
+            aggregation.ShouldNotBeNull();
+            aggregation.Buckets.ShouldHaveSingleItem().TotalOfDocuments.ShouldBe(3);
+            CountsByKey(aggregation.NestedAggregation.RetrieveBucketAggregation("colors"))
+                .ShouldBe(new Dictionary<string, long?> { ["Red"] = 1, ["Dark Blue"] = 1, ["Green"] = 1 }, ignoreOrder: true);
         }
     });
 

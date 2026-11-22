@@ -13,7 +13,7 @@ namespace Bielu.BetterSearch.PostgreSql.Services;
 internal static class PostgreSqlBoolFilterBuilder
 {
     public static async Task<Result<PostgreSqlFilter>> BuildAsync(
-        IEnumerable<(Occurrence Occurrence, ISearchSubQuery Query)> clauses,
+        IEnumerable<ISearchSubQuery> clauses,
         IEnumerable<ISubQueryTranslator<PostgreSqlFilter>> subQueryTranslators)
     {
         var required = new List<PostgreSqlFilter>();
@@ -21,7 +21,7 @@ internal static class PostgreSqlBoolFilterBuilder
         var mustNot = new List<PostgreSqlFilter>();
         var successes = new List<ISuccess>();
 
-        foreach (var (occurrence, subQuery) in clauses)
+        foreach (var subQuery in clauses)
         {
             if (subQuery == null)
             {
@@ -40,7 +40,7 @@ internal static class PostgreSqlBoolFilterBuilder
                 return translated;
             }
 
-            var target = occurrence switch
+            var target = subQuery.Occurrence switch
             {
                 Occurrence.Should => should,
                 Occurrence.MustNot => mustNot,

@@ -14,14 +14,14 @@ public sealed class FluentQueryBuilderTests
     public void CreateGeoDistanceQuery_WithCenter_SetsLatAndLng()
     {
         var query = Build(q => q.CreateGeoDistanceQuery(s => s
-            .WithField("Location").WithCenter(52.23, 21.01).WithDistance(5).WithUnitOfDistance("km")));
+            .WithField("Location").WithCenter(52.23, 21.01).WithDistance(5).WithUnitOfDistance(DistanceUnit.Miles)));
 
-        var spatial = query.Query[Occurrence.Must].ShouldHaveSingleItem().ShouldBeOfType<SpatialSearchSubQuery>();
+        var spatial = query.Query.Where(clause => clause.Occurrence == Occurrence.Must).ToList().ShouldHaveSingleItem().ShouldBeOfType<SpatialSearchSubQuery>();
         spatial.Field.ShouldBe("Location");
         spatial.Lat.ShouldBe(52.23);
         spatial.Lng.ShouldBe(21.01);
         spatial.Distance.ShouldBe(5);
-        spatial.UnitOfDistance.ShouldBe("km");
+        spatial.UnitOfDistance.ShouldBe(DistanceUnit.Miles);
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public sealed class FluentQueryBuilderTests
             .WithField("Name").WithValue("nowek").WithMaxEdits(1).WithPrefixLength(3).WithMaxExpansions(40)
             .WithTranspositions()));
 
-        var fuzzy = query.Query[Occurrence.Must].ShouldHaveSingleItem().ShouldBeOfType<FuzzySubQuery>();
+        var fuzzy = query.Query.Where(clause => clause.Occurrence == Occurrence.Must).ToList().ShouldHaveSingleItem().ShouldBeOfType<FuzzySubQuery>();
         fuzzy.MaxEdits.ShouldBe(1);
         fuzzy.PrefixLength.ShouldBe(3);
         fuzzy.MaxExpansions.ShouldBe(40);
@@ -62,7 +62,7 @@ public sealed class FluentQueryBuilderTests
             .CreateLuceneQuery(l => l.WithQuery("City:Warsaw"))
             .CreateBoolQuery(b => b.CreateLuceneQuery(l => l.WithQuery("City:Krakow"))));
 
-        var clauses = query.Query[Occurrence.Must];
+        var clauses = query.Query.Where(clause => clause.Occurrence == Occurrence.Must).ToList();
         clauses.Count.ShouldBe(2);
         clauses[0].ShouldBeOfType<LuceneSubQuery>().LuceneQuery.ShouldBe("City:Warsaw");
         var nested = clauses[1].ShouldBeOfType<BoolSearchSubQuery>().NestedQueries.ShouldHaveSingleItem();
@@ -76,7 +76,7 @@ public sealed class FluentQueryBuilderTests
             .CreateTermQuery(t => t.WithField("City").WithValue("Warsaw").WithBoost(3))
             .CreateBoolQuery(b => b.WithBoost(5).CreatePrefixQuery(p => p.WithField("City").WithValue("Kra").WithBoost(7))));
 
-        var clauses = query.Query[Occurrence.Must];
+        var clauses = query.Query.Where(clause => clause.Occurrence == Occurrence.Must).ToList();
         clauses[0].ShouldBeOfType<TermSubQuery>().BoostValue.ShouldBe(3);
         var boolQuery = clauses[1].ShouldBeOfType<BoolSearchSubQuery>();
         boolQuery.BoostValue.ShouldBe(5);
@@ -124,7 +124,7 @@ public sealed class FluentQueryBuilderTests
         query.ShouldBeSameAs(baseQuery);
         query.Index.ShouldBe("pages");
         query.Page.ShouldBe(2);
-        query.Query[Occurrence.Must].ShouldHaveSingleItem().ShouldBeOfType<TermSubQuery>().Value.ShouldBe("Warsaw");
+        query.Query.Where(clause => clause.Occurrence == Occurrence.Must).ToList().ShouldHaveSingleItem().ShouldBeOfType<TermSubQuery>().Value.ShouldBe("Warsaw");
     }
 
     [Fact]
@@ -152,9 +152,9 @@ public sealed class FluentQueryBuilderTests
                 .CreateTermQuery(t => t.WithField("City").WithValue("Krakow"))
                 .CreateTermQuery(t => t.WithField("City").WithValue("Gdansk"))));
 
-        query.Query[Occurrence.Must].ShouldHaveSingleItem().ShouldBeOfType<TermSubQuery>().Value.ShouldBe("person");
-        query.PostFilterQuery.Keys.ShouldBe([Occurrence.Must]);
-        var filters = query.PostFilterQuery[Occurrence.Must];
+        query.Query.Where(clause => clause.Occurrence == Occurrence.Must).ToList().ShouldHaveSingleItem().ShouldBeOfType<TermSubQuery>().Value.ShouldBe("person");
+        query.PostFilterQuery.Select(clause => clause.Occurrence).Distinct().ShouldBe([Occurrence.Must]);
+        var filters = query.PostFilterQuery.Cast<BoolSearchSubQuery>().ToList();
         filters.Count.ShouldBe(2);
         filters.ShouldAllBe(filter => filter.Occurrence == Occurrence.Must);
         filters[0].NestedQueries.ShouldHaveSingleItem().ShouldBeOfType<TermSubQuery>().Value.ShouldBe("Warsaw");
@@ -171,8 +171,8 @@ public sealed class FluentQueryBuilderTests
             q.CreatePostFilterQuery(b => b.CreateTermQuery(t => t.WithField("City").WithValue("Warsaw")));
         });
 
-        query.PostFilterQuery.Keys.ShouldBe([Occurrence.Should]);
-        var filter = query.PostFilterQuery[Occurrence.Should].ShouldHaveSingleItem();
+        query.PostFilterQuery.Select(clause => clause.Occurrence).Distinct().ShouldBe([Occurrence.Should]);
+        var filter = query.PostFilterQuery.ShouldHaveSingleItem().ShouldBeOfType<BoolSearchSubQuery>();
         filter.Occurrence.ShouldBe(Occurrence.Should);
         filter.NestedQueries.ShouldHaveSingleItem().Occurrence.ShouldBe(Occurrence.Should);
     }
@@ -183,7 +183,7 @@ public sealed class FluentQueryBuilderTests
         var query = new FluentApiSearchQueryCreator(new SearchQuery { PostFilterQuery = null! })
             .CreateSearchQuery(q => q.CreatePostFilterQuery(b => b.CreateTermQuery(t => t.WithField("City").WithValue("Warsaw"))));
 
-        query.PostFilterQuery[Occurrence.Must].ShouldHaveSingleItem();
+        query.PostFilterQuery.Where(clause => clause.Occurrence == Occurrence.Must).ToList().ShouldHaveSingleItem();
     }
 
     [Fact]
@@ -209,8 +209,9 @@ public sealed class FluentQueryBuilderTests
             .WithQuery(b => b.CreateTermQuery(t => t.WithField("Title").WithValue("welcome")))));
 
         var request = query.HighlightQueries.ShouldHaveSingleItem();
-        request.Queries.Keys.ShouldBe([Occurrence.Must]);
-        var own = request.Queries[Occurrence.Must].ShouldBeOfType<BoolSearchSubQuery>();
+        request.Queries.Select(clause => clause.Occurrence).Distinct().ShouldBe([Occurrence.Must]);
+        var own = request.Queries.ShouldHaveSingleItem().ShouldBeOfType<BoolSearchSubQuery>();
+        own.Occurrence.ShouldBe(Occurrence.Must);
         own.NestedQueries.ShouldHaveSingleItem().ShouldBeOfType<TermSubQuery>().Value.ShouldBe("welcome");
     }
 

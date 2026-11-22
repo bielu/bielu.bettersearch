@@ -154,7 +154,7 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
             query.HighlightQueries.Add(new BaseHighlightQuery
             {
                 Field = "Name",
-                Queries = { [Occurrence.Must] = new TermSubQuery { Field = "Name", Value = "jane" } }
+                Queries = { new TermSubQuery { Field = "Name", Value = "jane" } }
             });
 
             if (await HighlightAsync(query) is not { } hits)
@@ -164,6 +164,30 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
 
             hits.Keys.ShouldBe(["jane"]);
             hits["jane"].Highlights["Name"].ShouldBe(["<em>Jane</em> Doe"]);
+        });
+    }
+
+    // Highlighters mark the terms of positive clauses only, so Doe stays unmarked unless the MustNot is read as Must.
+    [Fact]
+    public async Task SearchAsync_OwnHighlightQueryClausesAddedThroughAdd_KeepTheirOccurrence()
+    {
+        await WithPeopleAsync(async index =>
+        {
+            var query = DoeOrWarsaw(index);
+            var highlight = new BaseHighlightQuery { Field = "Name" };
+            highlight.Add(Occurrence.Should, new TermSubQuery { Field = "Name", Value = "jane" });
+            highlight.Add(Occurrence.Should, new TermSubQuery { Field = "Name", Value = "john" });
+            highlight.Add(Occurrence.MustNot, new TermSubQuery { Field = "Name", Value = "doe" });
+            query.HighlightQueries.Add(highlight);
+
+            if (await HighlightAsync(query) is not { } hits)
+            {
+                return;
+            }
+
+            hits.Keys.Order(StringComparer.Ordinal).ShouldBe(["jane", "john"]);
+            hits["jane"].Highlights["Name"].ShouldBe(["<em>Jane</em> Doe"]);
+            hits["john"].Highlights["Name"].ShouldBe(["<em>John</em> Smith"]);
         });
     }
 
@@ -236,9 +260,9 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
     public async Task SearchAsync_NullClauseInOwnHighlightQuery_ReturnsFailure()
     {
         var query = new SearchQuery { Index = $"highlight-{Guid.NewGuid():N}" };
-        query.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name", Queries = { [Occurrence.Must] = null! } });
+        query.HighlightQueries.Add(new BaseHighlightQuery { Field = "Name", Queries = { null! } });
 
-        await ShouldFailAsync(query, "The highlight query for field Name holds a null Must clause");
+        await ShouldFailAsync(query, "The highlight query for field Name holds a null clause");
     }
 
     [Fact]

@@ -34,10 +34,15 @@
         public TSelf Filter() => With(Abstractions.Query.Occurrence.Filter);
 
         /// <summary>Sets the <see cref="ISearchSubQuery.BoostValue"/> of the sub-query.</summary>
-        /// <exception cref="ArgumentOutOfRangeException"><paramref name="boost"/> is 0 or less.</exception>
-        public TSelf WithBoost(int boost)
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="boost"/> is 0 or less, or not a finite number.</exception>
+        public TSelf WithBoost(double boost)
         {
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(boost);
+            if (!double.IsFinite(boost))
+            {
+                throw new ArgumentOutOfRangeException(nameof(boost), boost, "The boost must be a finite number.");
+            }
+
             SubQuery.BoostValue = boost;
             return (TSelf)this;
         }

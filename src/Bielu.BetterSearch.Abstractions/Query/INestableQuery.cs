@@ -1,8 +1,7 @@
-﻿namespace Bielu.BetterSearch.Abstractions.Query
-{
-    public interface INestableQuery : ISearchSubQuery, ICreatableSearchQuery
-    {
+﻿namespace Bielu.BetterSearch.Abstractions.Query;
 
-        List<ISearchSubQuery> NestedQueries { get; set; }
-    }
+public interface INestableQuery : ISearchSubQuery, ICreatableSearchQuery
+{
+    /// <summary>The nested clauses, each combined by its own <see cref="ISearchSubQuery.Occurrence"/>.</summary>
+    IList<ISearchSubQuery> NestedQueries { get; set; }
 }

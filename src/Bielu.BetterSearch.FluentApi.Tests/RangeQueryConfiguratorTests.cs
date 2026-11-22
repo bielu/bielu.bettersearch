@@ -15,7 +15,7 @@ public sealed class RangeQueryConfiguratorTests
         var query = (SearchQuery)FluentApiSearchQueryCreator.Create()
             .CreateSearchQuery(search => search.CreateBoolQuery(boolQuery => range(boolQuery)));
 
-        var boolQuery = query.Query[Occurrence.Must].ShouldHaveSingleItem().ShouldBeOfType<BoolSearchSubQuery>();
+        var boolQuery = query.Query.Where(clause => clause.Occurrence == Occurrence.Must).ToList().ShouldHaveSingleItem().ShouldBeOfType<BoolSearchSubQuery>();
         return boolQuery.NestedQueries.ShouldHaveSingleItem().ShouldBeOfType<T>();
     }
 

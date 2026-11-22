@@ -13,7 +13,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     private sealed class UnknownSubQuery : ISearchSubQuery
     {
         public Occurrence Occurrence { get; set; }
-        public int BoostValue { get; set; }
+        public double BoostValue { get; set; }
     }
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
@@ -66,7 +66,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
     {
         var index = await CreatePeopleAsync();
         var query = new SearchQuery { Index = index };
-        query.Query[Occurrence.Must] = [];
+        query.Query = [];
 
         var ids = await SearchIdsAsync(query);
 
@@ -452,7 +452,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
         var query = Query(index, Occurrence.Must, new TermSubQuery { Field = "Name", Value = "doe" });
         var krakow = new BoolSearchSubQuery();
         krakow.Add(Occurrence.Must, new TermSubQuery { Field = "City", Value = "krakow" });
-        query.PostFilterQuery[Occurrence.Must] = [krakow];
+        query.PostFilterQuery.Add(krakow);
 
         var result = await searchService.SearchAsync(query, Token);
 

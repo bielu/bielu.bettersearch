@@ -145,7 +145,7 @@ creates its collection.
   so `LongRangeSubQuery` and a `long` term keep their precision past 2^53. A fractional range bound compares integers from
   the closest whole number inside the range, so at least 4.5 matches 5 and not 4.
 - **`PrefixPhraseQuery`** matches at most 16 words.
-- **`SpatialSearchSubQuery`** takes any Elasticsearch distance unit and sends the distance in kilometres.
+- **`SpatialSearchSubQuery`** takes any `DistanceUnit` and sends the distance in kilometres.
 - **A filter value** holding a backtick returns a failed `Result`, as a Typesense filter value can't contain one.
 - **Total hit count** is exact.
 

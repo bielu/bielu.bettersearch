@@ -11,7 +11,7 @@ internal sealed class BooleanSubQueryTranslator : OpenSearchSubQueryTranslator<B
 {
     protected override Task<Result<QueryContainer>> TranslateAsync(BoolSearchSubQuery query, IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators) =>
         OpenSearchBoolQueryBuilder.BuildAsync(
-            query.NestedQueries.Select(nested => (nested.Occurrence, nested)),
+            query.NestedQueries,
             subQueryTranslators,
             query.BoostValue);
 }

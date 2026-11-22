@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
+using Bielu.BetterSearch.Services;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using FluentResults;
@@ -15,8 +16,6 @@ namespace Bielu.BetterSearch.ElasticSearch.Services.Queries;
 /// </summary>
 internal sealed class SpatialSearchSubQueryTranslator : ElasticSearchSubQueryTranslator<SpatialSearchSubQuery>
 {
-    private const string DefaultUnit = "km";
-
     protected override Task<Result<EsQuery>> TranslateAsync(SpatialSearchSubQuery query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators)
     {
         var field = ElasticSearchFieldNames.Require(query.Field, nameof(SpatialSearchSubQuery));
@@ -30,11 +29,16 @@ internal sealed class SpatialSearchSubQueryTranslator : ElasticSearchSubQueryTra
             return Task.FromResult(Result.Fail<EsQuery>($"{nameof(SpatialSearchSubQuery)} needs a Distance greater than 0."));
         }
 
-        var unit = string.IsNullOrWhiteSpace(query.UnitOfDistance) ? DefaultUnit : query.UnitOfDistance;
+        var unit = DistanceUnits.Resolve(query.UnitOfDistance);
+        if (unit.IsFailed)
+        {
+            return Task.FromResult(unit.ToResult<EsQuery>());
+        }
+
         return Task.FromResult(Result.Ok<EsQuery>(new GeoDistanceQuery
         {
             Field = field.Value,
-            Distance = query.Distance.ToString(CultureInfo.InvariantCulture) + unit,
+            Distance = query.Distance.ToString(CultureInfo.InvariantCulture) + unit.Value.Name,
             Location = GeoLocation.LatitudeLongitude(new LatLonGeoLocation { Lat = query.Lat, Lon = query.Lng }),
             Boost = ElasticSearchFieldNames.Boost(query.BoostValue)
         }));
