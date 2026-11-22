@@ -14,21 +14,11 @@ namespace Bielu.BetterSearch.ElasticSearch.Services;
 /// </summary>
 internal sealed class ElasticSearchResultMapper : IResultMapper<SearchResponse<SearchDocument>>
 {
-    public ISearchResult MapResult(SearchResponse<SearchDocument> searchEngineResult, ISearchQuery query)
+    public ISearchResult MapResult(SearchResponse<SearchDocument> searchEngineResult, ISearchQuery query) => new BaseSearchResults
     {
-        var pageSize = ElasticSearchSearchProviderAsync.PageSizeOf(query);
-        return new BaseSearchResults
-        {
-            Items = searchEngineResult.Hits.Select(hit => MapHit(hit, query.Index)).ToList(),
-            Pagination = new Pagination
-            {
-                TotalCount = searchEngineResult.Total,
-                Page = ElasticSearchSearchProviderAsync.PageOf(query),
-                PageSize = pageSize,
-                TotalPages = (int)Math.Ceiling(searchEngineResult.Total / (double)pageSize)
-            }
-        };
-    }
+        Items = searchEngineResult.Hits.Select(hit => MapHit(hit, query.Index)).ToList(),
+        Pagination = Paging.Of(searchEngineResult.Total, query, ElasticSearchSearchProviderAsync.DefaultPageSize)
+    };
 
     private static ISearchHit MapHit(Hit<SearchDocument> hit, string index) => new SearchHit(
         StoredFields.ToDocument(hit.Id ?? hit.Source?.Id ?? string.Empty, hit.Source?.Type, index, hit.Source?.Fields),

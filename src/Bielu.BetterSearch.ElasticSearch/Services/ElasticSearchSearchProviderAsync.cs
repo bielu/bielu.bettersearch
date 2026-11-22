@@ -256,11 +256,9 @@ internal sealed class ElasticSearchSearchProviderAsync(
         });
     }
 
-    /// <summary><c>Page</c> counts from 1; 0, the default, is the first page.</summary>
-    internal static int PageOf(ISearchQuery query) => Math.Max(query.Page, 1);
+    private static int PageOf(ISearchQuery query) => Paging.PageOf(query);
 
-    internal static int PageSizeOf(ISearchQuery query) =>
-        query.PageSize > 0 ? query.PageSize : DefaultPageSize;
+    private static int PageSizeOf(ISearchQuery query) => Paging.PageSizeOf(query, DefaultPageSize);
 
     /// <summary>The position of the page's last result, in <c>long</c> so a large page can't overflow.</summary>
     private static long LastResultOf(ISearchQuery query) => (long)PageOf(query) * PageSizeOf(query);

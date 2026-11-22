@@ -495,7 +495,7 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
         hit.Score.ShouldNotBeNull();
         hit.Score.Value.ShouldBeGreaterThan(0);
         hit.Document.Index.ShouldBe(index);
-        hit.Document.Type.ShouldBeNull();
+        hit.Document.Type.ShouldBe(string.Empty);
         hit.Document.Fields.ShouldBeEmpty();
     }
 

@@ -49,8 +49,8 @@ internal sealed class MeilisearchSearchProviderAsync(
             return Result.Fail<ISearchResult>(UnsupportedHighlighting);
         }
 
-        var page = Math.Max(query.Page, 1);
-        var pageSize = query.PageSize > 0 ? query.PageSize : DefaultPageSize;
+        var page = Paging.PageOf(query);
+        var pageSize = Paging.PageSizeOf(query, DefaultPageSize);
         var options = optionsMonitor.TryCurrentValue();
         if (options.IsFailed)
         {
@@ -154,18 +154,11 @@ internal sealed class MeilisearchSearchProviderAsync(
                 return aggregations.ToResult<ISearchResult>();
             }
 
-            var totalPages = (int)Math.Ceiling(paginated.TotalHits / (double)pageSize);
             return Result.Ok<ISearchResult>(new BaseSearchResults
             {
                 Items = paginated.Hits.Select(hit => MapHit(hit, query.Index)).ToList(),
                 Aggregations = aggregations.Value,
-                Pagination = new Pagination
-                {
-                    TotalCount = paginated.TotalHits,
-                    Page = page,
-                    PageSize = pageSize,
-                    TotalPages = totalPages
-                }
+                Pagination = Paging.Of(paginated.TotalHits, query, DefaultPageSize)
             }).WithSuccesses(request.Successes);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

@@ -24,7 +24,8 @@ and small data sets. It is due to be replaced by a Lucene.NET provider (see the
 > - **A value with no words**, such as `null`, `""` or `-`, returns a failed `Result` from a term, fuzzy, prefix or
 >   phrase prefix query, as it could never match. A terms query fails when one of its values has no words; a terms
 >   query whose list is `null` or empty succeeds with no hits.
-> - **Hits** only carry the document id and `Score`; no stored fields.
+> - **Hits** only carry the document id, the query's `Index` and `Score`; no stored fields, and `Type` is `""`.
+>   Writing a hit back through `IndexDocumentAsync` replaces the indexed document with an empty one.
 > - **Persistence**: the index is lost on restart, and creating an index that exists replaces it, losing its
 >   documents.
 > - **Missing index**: searching an index that does not exist creates it and returns no hits, where the other

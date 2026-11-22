@@ -6,7 +6,9 @@ public interface ISearchHit
     /// <summary>
     /// The document that matched, in the shape <c>GetDocumentAsync</c> returns and <c>IndexDocumentAsync</c> takes,
     /// with the query's <c>Index</c>. When the query's <c>Properties</c> limit the fields, it holds only those, so
-    /// writing it back replaces the stored document with one that lacks the others.
+    /// writing it back replaces the stored document with one that lacks the others. On a provider that stores no fields
+    /// (Lifti), it holds only the id, an empty type and the index, so it can't be written back without losing the
+    /// document's content.
     /// </summary>
     SearchDocument Document { get; }
 

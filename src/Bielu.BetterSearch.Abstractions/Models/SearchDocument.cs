@@ -3,7 +3,9 @@
 /// <summary>
 /// One document, in the one shape used to write it (<c>IndexDocumentAsync</c>), to read it by id
 /// (<c>GetDocumentAsync</c>) and to read it from a search hit (<see cref="ISearchHit.Document"/>), so a document read
-/// either way can be written back as it is.
+/// either way can be written back as it is. A hit holds the whole document only when the provider stores fields and the
+/// query's <c>Properties</c> don't limit them: on Lifti, which stores no fields, a hit holds only the id and the index,
+/// so writing it back replaces the indexed document with an empty one.
 /// </summary>
 public class SearchDocument
 {

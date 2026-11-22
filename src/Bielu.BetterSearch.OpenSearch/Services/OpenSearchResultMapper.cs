@@ -13,21 +13,11 @@ namespace Bielu.BetterSearch.OpenSearch.Services;
 /// </summary>
 internal sealed class OpenSearchResultMapper : IResultMapper<ISearchResponse<SearchDocument>>
 {
-    public ISearchResult MapResult(ISearchResponse<SearchDocument> searchEngineResult, ISearchQuery query)
+    public ISearchResult MapResult(ISearchResponse<SearchDocument> searchEngineResult, ISearchQuery query) => new BaseSearchResults
     {
-        var pageSize = OpenSearchSearchProviderAsync.PageSizeOf(query);
-        return new BaseSearchResults
-        {
-            Items = searchEngineResult.Hits.Select(hit => MapHit(hit, query.Index)).ToList(),
-            Pagination = new Pagination
-            {
-                TotalCount = searchEngineResult.Total,
-                Page = OpenSearchSearchProviderAsync.PageOf(query),
-                PageSize = pageSize,
-                TotalPages = (int)Math.Ceiling(searchEngineResult.Total / (double)pageSize)
-            }
-        };
-    }
+        Items = searchEngineResult.Hits.Select(hit => MapHit(hit, query.Index)).ToList(),
+        Pagination = Paging.Of(searchEngineResult.Total, query, OpenSearchSearchProviderAsync.DefaultPageSize)
+    };
 
     private static ISearchHit MapHit(IHit<SearchDocument> hit, string index) => new SearchHit(
         StoredFields.ToDocument(hit.Id ?? hit.Source?.Id ?? string.Empty, hit.Source?.Type, index, hit.Source?.Fields),

@@ -50,8 +50,8 @@ internal sealed class PostgreSqlSearchProviderAsync(
         }
 
         var (table, filter, options) = prepared.Value;
-        var page = Math.Max(query.Page, 1);
-        var pageSize = query.PageSize > 0 ? query.PageSize : DefaultPageSize;
+        var page = Paging.PageOf(query);
+        var pageSize = Paging.PageSizeOf(query, DefaultPageSize);
         var sortOrder = SortOrders.Ordered(query);
         if (sortOrder.IsFailed)
         {
@@ -86,13 +86,7 @@ internal sealed class PostgreSqlSearchProviderAsync(
             return Result.Ok<ISearchResult>(new BaseSearchResults
             {
                 Items = hits,
-                Pagination = new Pagination
-                {
-                    TotalCount = total,
-                    Page = page,
-                    PageSize = pageSize,
-                    TotalPages = (int)Math.Ceiling(total / (double)pageSize)
-                }
+                Pagination = Paging.Of(total, query, DefaultPageSize)
             });
         }
         catch (Exception e) when (e is not OperationCanceledException)

@@ -67,8 +67,8 @@ internal sealed class TypesenseSearchProviderAsync(
             return Result.Fail<ISearchResult>(UnsupportedHighlighting);
         }
 
-        var page = Math.Max(query.Page, 1);
-        var pageSize = query.PageSize > 0 ? query.PageSize : DefaultPageSize;
+        var page = Paging.PageOf(query);
+        var pageSize = Paging.PageSizeOf(query, DefaultPageSize);
         if (pageSize > MaxPageSize)
         {
             return Result.Fail<ISearchResult>($"PageSize {pageSize} is above {MaxPageSize}, the most hits Typesense returns in one page.");
@@ -111,8 +111,8 @@ internal sealed class TypesenseSearchProviderAsync(
                 search["include_fields"] = $"id,{N.Type},{N.Source}";
             },
             result => Results(result.GetProperty("hits").EnumerateArray().Select(hit => MapHit(hit, query.Index, properties)).ToList(),
-                result.GetProperty("found").GetInt64(), page, pageSize),
-            Results([], 0, page, pageSize), cancellationToken).ConfigureAwait(false);
+                result.GetProperty("found").GetInt64(), query),
+            Results([], 0, query), cancellationToken).ConfigureAwait(false);
         return results.IsSuccess ? results.WithSuccesses(request.Successes) : results;
     }
 
@@ -364,16 +364,10 @@ internal sealed class TypesenseSearchProviderAsync(
         return Result.Ok<string?>(sortBy.Count > 0 ? string.Join(',', sortBy) : null);
     }
 
-    private static ISearchResult Results(List<ISearchHit> hits, long found, int page, int pageSize) => new BaseSearchResults
+    private static ISearchResult Results(List<ISearchHit> hits, long found, ISearchQuery query) => new BaseSearchResults
     {
         Items = hits,
-        Pagination = new Pagination
-        {
-            TotalCount = found,
-            Page = page,
-            PageSize = pageSize,
-            TotalPages = (int)Math.Ceiling(found / (double)pageSize)
-        }
+        Pagination = Paging.Of(found, query, DefaultPageSize)
     };
 
     private static ISearchHit MapHit(JsonElement hit, string index, HashSet<string>? properties)
