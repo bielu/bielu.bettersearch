@@ -33,10 +33,8 @@ public interface IIndexingProviderAsync
     /// atomic: a provider that reads and rewrites the whole document (Meilisearch) can overwrite a change another
     /// caller made in between, or store again a document removed in between, and a provider that checks the index
     /// first (Elasticsearch, OpenSearch) lets the engine create again an index deleted between the check and the
-    /// update. A provider that does not support it returns a failed <see cref="Result"/>, which is also what this
-    /// default implementation does.
+    /// update. A provider that does not support it (Lifti) returns a failed <see cref="Result"/> saying so.
     /// </summary>
     Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult(Result.Fail<bool>($"{GetType().Name} does not support UpdateDocumentAsync."));
+        CancellationToken cancellationToken = default);
 }

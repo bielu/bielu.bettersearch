@@ -645,6 +645,12 @@ public class SearchServiceCachingTests
             Calls++;
             return inner.SearchAsync(query, cancellationToken);
         }
+
+        public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default) =>
+            inner.GetDocumentAsync(index, id, cancellationToken);
+
+        public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
+            inner.CountAsync(query, cancellationToken);
     }
 
     /// <summary>Runs the factory, then fails to store what it returned.</summary>
@@ -674,6 +680,12 @@ public class SearchServiceCachingTests
             };
             return Task.FromResult(FluentResults.Result.Ok(result));
         }
+
+        public Task<FluentResults.Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<FluentResults.Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class ThrowingCache : ISearchResultCache

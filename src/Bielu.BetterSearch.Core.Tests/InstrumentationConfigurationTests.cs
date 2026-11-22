@@ -83,6 +83,9 @@ public class InstrumentationConfigurationTests
         public Task<FluentResults.Result<Abstractions.Models.ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
             Task.FromResult(FluentResults.Result.Ok<Abstractions.Models.ISearchResult>(FakeSearchProvider.Results(0, 0)));
 
+        public Task<FluentResults.Result<Abstractions.Models.SearchDocument?>> GetDocumentAsync(string index, string id,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public Task<FluentResults.Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
             Task.FromResult(FluentResults.Result.Fail<long>("count rejected"));
     }

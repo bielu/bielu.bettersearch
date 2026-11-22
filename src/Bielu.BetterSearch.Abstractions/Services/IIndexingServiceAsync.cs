@@ -37,6 +37,5 @@ public interface IIndexingServiceAsync
     /// is not run, as it checks whole documents.
     /// </summary>
     Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult(Result.Fail<bool>($"{GetType().Name} does not support UpdateDocumentAsync."));
+        CancellationToken cancellationToken = default);
 }
