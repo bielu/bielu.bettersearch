@@ -2,6 +2,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Services;
 using Bielu.BetterSearch.Typesense.Configuration;

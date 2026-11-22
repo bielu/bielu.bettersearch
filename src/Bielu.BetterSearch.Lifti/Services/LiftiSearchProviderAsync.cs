@@ -63,7 +63,7 @@ internal sealed class LiftiSearchProviderAsync(
 
         cancellationToken.ThrowIfCancellationRequested();
         var mainResult = index.Search(translateMainQuery.Value);
-        var result = resultMapper.MapResult(mainResult);
+        var result = resultMapper.MapResult(mainResult, query);
         return Result.Ok(result);
     }
 

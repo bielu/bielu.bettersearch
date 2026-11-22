@@ -1,9 +1,10 @@
 ﻿using System.Text.Json;
+using Bielu.BetterSearch.Abstractions.Models;
 
 namespace Bielu.BetterSearch.Services;
 
 /// <summary>
-/// Maps a hit's stored fields to <c>CustomProperties</c> the same way on every provider: a field stored as
+/// Maps a stored document, from a hit or a get, to a <see cref="SearchDocument"/> the same way on every provider: a field stored as
 /// <c>null</c> becomes an empty list, <c>null</c> values are left out and <see cref="JsonElement"/> values become
 /// plain values.
 /// </summary>
@@ -29,10 +30,22 @@ internal static class StoredFields
         Fields = WithDatesAsText(document.Fields)
     };
 
-    public static IDictionary<string, List<object>> ToCustomProperties(IDictionary<string, IList<object>>? fields) =>
+    /// <summary>
+    /// The document a hit or a get read: <paramref name="id"/> unchanged, a <c>null</c> type as an empty one, the
+    /// caller's <paramref name="index"/> and the stored <paramref name="fields"/> as <see cref="ToFields"/> maps them.
+    /// </summary>
+    public static SearchDocument ToDocument(string id, string? type, string index, IDictionary<string, IList<object>>? fields) => new()
+    {
+        Id = id,
+        Type = type ?? string.Empty,
+        Index = index,
+        Fields = ToFields(fields)
+    };
+
+    public static IDictionary<string, IList<object>> ToFields(IDictionary<string, IList<object>>? fields) =>
         fields?.ToDictionary(
             field => field.Key,
-            field => field.Value?.Select(ToClrValue).OfType<object>().ToList() ?? []) ?? [];
+            field => (IList<object>)(field.Value?.Select(ToClrValue).OfType<object>().ToList() ?? [])) ?? new Dictionary<string, IList<object>>();
 
     /// <summary>
     /// A number written without a fraction becomes a <see cref="long"/>, any other number a <see cref="double"/>;

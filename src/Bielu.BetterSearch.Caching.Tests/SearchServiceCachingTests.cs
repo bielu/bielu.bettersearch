@@ -57,7 +57,7 @@ public class SearchServiceCachingTests
         //Assert
         _search.Calls.ShouldBe(1);
         second.Items.Single().Document.Id.ShouldBe("products-1");
-        second.Items.Single().Document.CustomProperties["call"].ShouldBe([1L]);
+        second.Items.Single().Document.Fields["call"].ShouldBe([1L]);
         first.Items.Single().Document.Id.ShouldBe("products-1");
         second.Items.Single().Score.ShouldBe(1.5);
     }
@@ -383,7 +383,7 @@ public class SearchServiceCachingTests
 
         //Assert
         provider.Calls.ShouldBe(2);
-        first.Items.Single().Document.CustomProperties["link"].Single().ShouldBe(new Uri("https://example.com"));
+        first.Items.Single().Document.Fields["link"].Single().ShouldBe(new Uri("https://example.com"));
     }
 
     [Fact]
@@ -418,7 +418,7 @@ public class SearchServiceCachingTests
         //Assert
         _search.Calls.ShouldBe(1);
         result.Items.Single().Document.Id.ShouldBe("products-1");
-        result.Items.Single().Document.CustomProperties["call"].ShouldBe([1L]);
+        result.Items.Single().Document.Fields["call"].ShouldBe([1L]);
     }
 
     [Fact]
@@ -669,7 +669,7 @@ public class SearchServiceCachingTests
             Calls++;
             ISearchResult result = new BaseSearchResults
             {
-                Items = [new SearchHit(new BaseSearchModel { Id = "1", CustomProperties = { ["link"] = [value] } }, null)],
+                Items = [new SearchHit(new SearchDocument { Id = "1", Fields = { ["link"] = [value] } }, null)],
                 Pagination = new Pagination()
             };
             return Task.FromResult(FluentResults.Result.Ok(result));

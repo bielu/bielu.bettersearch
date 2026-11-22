@@ -18,8 +18,7 @@ dotnet add package Bielu.BetterSearch.Lifti --prerelease           # in-memory
 
 | Package | Purpose |
 |---------|---------|
-| `Bielu.BetterSearch.Abstractions` | Query model (`SearchQuery` and its sub-queries) and service interfaces |
-| `Bielu.BetterSearch.Models` | `SearchDocument` and the request models |
+| `Bielu.BetterSearch.Abstractions` | Query model (`SearchQuery` and its sub-queries), `SearchDocument` and the request models, and service interfaces |
 | `Bielu.BetterSearch.Core` | `AddBetterSearch` and the indexing and search services |
 | `Bielu.BetterSearch.FluentApi` | Fluent query builder |
 | `Bielu.BetterSearch.ElasticSearch` | [Elasticsearch provider](providers/elasticsearch.md) |
@@ -150,7 +149,7 @@ builder.Services.AddBetterSearch(builder.Configuration, search => search
 Inject `IIndexingServiceAsync` and `ISearchServiceAsync`:
 
 ```csharp
-using Bielu.BetterSearch;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
@@ -174,7 +173,7 @@ public class PeopleSearch(IIndexingServiceAsync indexing, ISearchServiceAsync se
         {
             foreach (var hit in result.Value.Items)
             {
-                // hit.Document.Id, hit.Document.CustomProperties, hit.Score, ...
+                // hit.Document.Id, hit.Document.Fields, hit.Score, ...
             }
         }
     }
@@ -182,7 +181,8 @@ public class PeopleSearch(IIndexingServiceAsync indexing, ISearchServiceAsync se
 ```
 
 `result` is a FluentResults `Result`: check `IsSuccess` before reading `Value`, and read `Errors` when a
-provider can't run the query. Each item is an `ISearchHit`: the stored `Document`, with its id unchanged, and
+provider can't run the query. Each item is an `ISearchHit`: the stored `Document`, a `SearchDocument` as
+`GetDocumentAsync` returns it and `IndexDocumentAsync` takes it, with its id unchanged and the query's `Index`, and
 the `Score` the engine gave it, and the `Highlights` that `HighlightQueries` asked for, on providers that
 highlight. `Page` counts from 1. A cancelled search throws `OperationCanceledException`
 rather than returning a failed `Result`. The [feature matrix](feature-matrix.md) compares every provider side

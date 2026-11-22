@@ -277,8 +277,8 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
     [Fact]
     public void Highlights_HitWithoutHighlights_CannotBeChangedForOtherHits()
     {
-        var hit = new SearchHit(new BaseSearchModel(), null);
-        var other = new SearchHit(new BaseSearchModel(), null);
+        var hit = new SearchHit(new SearchDocument(), null);
+        var other = new SearchHit(new SearchDocument(), null);
 
         Should.Throw<NotSupportedException>(() =>
             ((IDictionary<string, IReadOnlyList<string>>)hit.Highlights).Add("Name", ["<em>x</em>"]));

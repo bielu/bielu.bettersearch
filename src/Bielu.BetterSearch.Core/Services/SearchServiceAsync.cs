@@ -35,7 +35,7 @@ public class SearchServiceAsync(
             },
             (activity, result) =>
             {
-                activity.SetTag(BetterSearchTelemetry.HitCountTag, result.Value.Items.Count());
+                activity.SetTag(BetterSearchTelemetry.HitCountTag, result.Value.Items.Count);
                 activity.SetTag(BetterSearchTelemetry.TotalCountTag, result.Value.Pagination?.TotalCount);
             });
 

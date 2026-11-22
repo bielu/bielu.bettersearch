@@ -1,9 +1,9 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Models
 {
+    /// <summary>The result of a term or multi-term facet: one <see cref="KeyBucket"/> per value or combination of values.</summary>
     public class BucketAggregation : IAggregation
     {
-        public List<IBucket> Buckets { get; set; } = new List<IBucket>();
-        public string AggregationName { get; set; }
-        public IEnumerable<IAggregation> NestedAggregation { get; set; } = new List<IAggregation>();
+        public IReadOnlyList<IBucket> Buckets { get; init; } = [];
+        public string AggregationName { get; init; }
     }
 }

@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Meilisearch.Configuration;
 using Bielu.BetterSearch.Services;

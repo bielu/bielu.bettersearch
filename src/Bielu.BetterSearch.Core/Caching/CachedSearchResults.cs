@@ -28,7 +28,7 @@ internal static class CachedSearchResults
         foreach (var hit in search.Items ?? [])
         {
             var fields = new Dictionary<string, List<CachedValue>>();
-            foreach (var (name, values) in hit.Document?.CustomProperties ?? new Dictionary<string, List<object>>())
+            foreach (var (name, values) in hit.Document?.Fields ?? new Dictionary<string, IList<object>>())
             {
                 var cachedValues = new List<CachedValue>();
                 foreach (var value in values ?? [])
@@ -48,7 +48,8 @@ internal static class CachedSearchResults
             cached.Items.Add(new CachedSearchHit
             {
                 Id = hit.Document?.Id,
-                ContentType = hit.Document?.ContentType,
+                ContentType = hit.Document?.Type,
+                Index = hit.Document?.Index,
                 Score = hit.Score?.ToString("R", CultureInfo.InvariantCulture),
                 Fields = fields,
                 Highlights = hit.Highlights.ToDictionary(highlight => highlight.Key, highlight => highlight.Value.ToList())
@@ -58,18 +59,22 @@ internal static class CachedSearchResults
         return cached;
     }
 
-    /// <summary>The search result <paramref name="cached"/> holds, with its warnings.</summary>
-    public static Result<ISearchResult> ToResult(CachedSearchResult cached)
+    /// <summary>
+    /// The search result <paramref name="cached"/> holds, with its warnings. A hit cached without an index, by an
+    /// earlier version, gets <paramref name="index"/>, the index of the query it was cached for.
+    /// </summary>
+    public static Result<ISearchResult> ToResult(CachedSearchResult cached, string index)
     {
         var hits = cached.Items.Select(hit => (ISearchHit)new SearchHit(
-            new BaseSearchModel
+            new SearchDocument
             {
                 Id = hit.Id!,
-                ContentType = hit.ContentType!,
-                CustomProperties = hit.Fields.ToDictionary(
+                Type = hit.ContentType!,
+                Index = hit.Index ?? index,
+                Fields = hit.Fields.ToDictionary(
                     field => field.Key,
                     // A cached null stays null, as it was in the hit the cache was filled from.
-                    field => field.Value.Select(value => FromCachedValue(value)!).ToList())
+                    field => (IList<object>)field.Value.Select(value => FromCachedValue(value)!).ToList())
             },
             hit.Score is null ? null : double.Parse(hit.Score, NumberStyles.Float, CultureInfo.InvariantCulture),
             hit.Highlights.Count == 0

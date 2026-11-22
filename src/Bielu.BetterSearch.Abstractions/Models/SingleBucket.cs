@@ -1,10 +1,8 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Models;
 
+/// <summary>The one bucket of a filter facet.</summary>
 public class SingleBucket : IBucket
 {
-    public long? TotalOfDocuments { get; set; }
-    public IEnumerable<string> Keys { get; set; }
-    public List<IBucket> SubBuckets { get; set; } = new List<IBucket>();
-    public bool IsComplex { get; set; }
-    public IReadOnlyList<IAggregation> Aggregations { get; set; } = [];
+    public long? TotalOfDocuments { get; init; }
+    public IReadOnlyList<IAggregation> Aggregations { get; init; } = [];
 }

@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Services;
+﻿using Bielu.BetterSearch.Abstractions.Models;
+using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Tests;
 using MeilisearchClient = Meilisearch.MeilisearchClient;
 

@@ -1,4 +1,6 @@
-﻿namespace Bielu.BetterSearch.Services;
+﻿using Bielu.BetterSearch.Abstractions.Models;
+
+namespace Bielu.BetterSearch.Services;
 
 /// <summary>
 /// How a provider names indexes on the engine: the configured prefix and the index name, and the new indexes a rebuild

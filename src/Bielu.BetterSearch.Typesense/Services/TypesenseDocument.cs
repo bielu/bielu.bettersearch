@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Services;
 using FluentResults;
 

@@ -248,7 +248,6 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
             var aggregation = result.Value.RetrieveBucketAggregation("colorBrands");
             aggregation.ShouldNotBeNull();
             var buckets = aggregation.Buckets.Cast<KeyBucket>().ToList();
-            buckets.ShouldAllBe(bucket => bucket.IsComplex);
             buckets.ToDictionary(bucket => string.Join("+", bucket.Keys), bucket => bucket.TotalOfDocuments).ShouldBe(new Dictionary<string, long?>
             {
                 ["Red+acme"] = 2,
@@ -282,9 +281,6 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
             bucket.TotalOfDocuments.ShouldBe(2);
             CountsByKey(bucket.Aggregations.RetrieveBucketAggregation("colors"))
                 .ShouldBe(new Dictionary<string, long?> { ["Red"] = 1, ["Dark Blue"] = 1 }, ignoreOrder: true);
-            CountsByKey(aggregation.NestedAggregation.RetrieveBucketAggregation("colors"))
-                .ShouldBe(new Dictionary<string, long?> { ["Red"] = 1, ["Dark Blue"] = 1 }, ignoreOrder: true);
-            bucket.SubBuckets.Count.ShouldBe(2);
         }
     });
 
@@ -307,14 +303,15 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
         {
             var aggregation = result.Value.RetrieveSingleAggregation("globexOrInitech");
             aggregation.ShouldNotBeNull();
-            aggregation.Buckets.ShouldHaveSingleItem().TotalOfDocuments.ShouldBe(3);
-            CountsByKey(aggregation.NestedAggregation.RetrieveBucketAggregation("colors"))
+            var bucket = aggregation.Buckets.ShouldHaveSingleItem();
+            bucket.TotalOfDocuments.ShouldBe(3);
+            CountsByKey(bucket.Aggregations.RetrieveBucketAggregation("colors"))
                 .ShouldBe(new Dictionary<string, long?> { ["Red"] = 1, ["Dark Blue"] = 1, ["Green"] = 1 }, ignoreOrder: true);
         }
     });
 
     [Fact]
-    public async Task SearchAsync_NestedTermFacet_ReturnsSubBucketsOfEachBucket() => await RunAsync(async index =>
+    public async Task SearchAsync_NestedTermFacet_ReturnsNestedResultsOfEachBucket() => await RunAsync(async index =>
     {
         var query = new SearchQuery
         {

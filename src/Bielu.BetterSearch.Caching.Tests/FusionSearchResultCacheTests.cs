@@ -98,7 +98,7 @@ public sealed class FusionSearchResultCacheTests : IDisposable
 
         //Assert
         search.Calls.ShouldBe(1);
-        second.Items.Single().Document.CustomProperties["call"].ShouldBe([1L]);
+        second.Items.Single().Document.Fields["call"].ShouldBe([1L]);
     }
 
     [Fact]

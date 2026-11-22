@@ -2,7 +2,7 @@
 
 public class BaseSearchResults : ISearchResult
 {
-    public IEnumerable<ISearchHit> Items { get; set; }
-    public IPagination Pagination { get; set; }
-    public IReadOnlyList<IAggregation> Aggregations { get; set; } = [];
+    public IReadOnlyList<ISearchHit> Items { get; init; } = [];
+    public IPagination Pagination { get; init; } = new Pagination();
+    public IReadOnlyList<IAggregation> Aggregations { get; init; } = [];
 }

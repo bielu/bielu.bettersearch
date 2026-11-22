@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Abstractions.Fields;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
@@ -61,7 +62,7 @@ public abstract class QueryResultBaseTests(
     /// <summary>Called once the example documents are indexed, for engines that must refresh before they can be searched.</summary>
     protected virtual Task DocumentsIndexedAsync(string index) => Task.CompletedTask;
 
-    /// <summary>Whether hits carry the document's stored fields in <c>CustomProperties</c>.</summary>
+    /// <summary>Whether hits carry the document's stored fields in <c>Fields</c>.</summary>
     protected virtual bool ReturnsStoredFields => true;
 
     /// <summary>
@@ -250,14 +251,14 @@ public abstract class QueryResultBaseTests(
         hit.Document.Id.ShouldBe("null-1");
         if (ReturnsStoredFields)
         {
-            hit.Document.CustomProperties.ShouldContainKey("Tags");
-            hit.Document.CustomProperties["Tags"].ShouldBeEmpty();
-            hit.Document.CustomProperties["Labels"].ShouldBe(["a"]);
+            hit.Document.Fields.ShouldContainKey("Tags");
+            hit.Document.Fields["Tags"].ShouldBeEmpty();
+            hit.Document.Fields["Labels"].ShouldBe(["a"]);
         }
         else
         {
             // Hits hold only the id, so the document is found by its other fields and carries none.
-            hit.Document.CustomProperties.ShouldBeEmpty();
+            hit.Document.Fields.ShouldBeEmpty();
         }
     }
 
@@ -282,7 +283,7 @@ public abstract class QueryResultBaseTests(
         {
             var hit = result.Value.Items.ShouldHaveSingleItem();
             hit.Document.Id.ShouldBe("null-fields-1");
-            hit.Document.CustomProperties.ShouldBeEmpty();
+            hit.Document.Fields.ShouldBeEmpty();
         }
     }
 
@@ -315,7 +316,7 @@ public abstract class QueryResultBaseTests(
         hit.Document.Id.ShouldBe("types-1");
         if (ReturnsStoredFields)
         {
-            var fields = hit.Document.CustomProperties;
+            var fields = hit.Document.Fields;
             fields["Name"].ShouldHaveSingleItem().ShouldBeOfType<string>().ShouldBe("Typed Values");
             fields["Age"].ShouldHaveSingleItem().ShouldBeOfType<long>().ShouldBe(25L);
             fields["Views"].ShouldHaveSingleItem().ShouldBeOfType<long>().ShouldBe(5_000_000_000L);
@@ -357,7 +358,7 @@ public abstract class QueryResultBaseTests(
         hit.Document.Id.ShouldBe("dates-1");
         if (ReturnsStoredFields)
         {
-            var fields = hit.Document.CustomProperties;
+            var fields = hit.Document.Fields;
             fields["Unspecified"].ShouldHaveSingleItem().ShouldBe("2026-11-08T13:05:00.123Z");
             fields["Utc"].ShouldHaveSingleItem().ShouldBe("2026-11-08T13:05:00Z");
             fields["Offset"].ShouldHaveSingleItem().ShouldBe("2026-11-07T23:00:00Z");

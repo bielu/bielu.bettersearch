@@ -50,8 +50,8 @@ internal sealed class PostgreSqlSearchProviderAsync(
         }
 
         var (table, filter, options) = prepared.Value;
-        var page = Math.Max(query.Page, 1);
-        var pageSize = query.PageSize > 0 ? query.PageSize : DefaultPageSize;
+        var page = Paging.PageOf(query);
+        var pageSize = Paging.PageSizeOf(query, DefaultPageSize);
         var sortOrder = SortOrders.Ordered(query);
         if (sortOrder.IsFailed)
         {
@@ -77,7 +77,7 @@ internal sealed class PostgreSqlSearchProviderAsync(
             {
                 while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    hits.Add(MapHit(reader.GetString(0), reader.GetString(1), reader.GetString(2), properties));
+                    hits.Add(MapHit(reader.GetString(0), reader.GetString(1), query.Index, reader.GetString(2), properties));
                 }
             }
 
@@ -86,13 +86,7 @@ internal sealed class PostgreSqlSearchProviderAsync(
             return Result.Ok<ISearchResult>(new BaseSearchResults
             {
                 Items = hits,
-                Pagination = new Pagination
-                {
-                    TotalCount = total,
-                    Page = page,
-                    PageSize = pageSize,
-                    TotalPages = (int)Math.Ceiling(total / (double)pageSize)
-                }
+                Pagination = Paging.Of(total, query, DefaultPageSize)
             });
         }
         catch (Exception e) when (e is not OperationCanceledException)
@@ -164,13 +158,7 @@ internal sealed class PostgreSqlSearchProviderAsync(
                 return Result.Ok<SearchDocument?>(null);
             }
 
-            return Result.Ok<SearchDocument?>(new SearchDocument
-            {
-                Id = id,
-                Type = reader.GetString(0),
-                Index = index,
-                Fields = PostgreSqlDocument.ReadFields(reader.GetString(1))
-            });
+            return Result.Ok<SearchDocument?>(StoredFields.ToDocument(id, reader.GetString(0), index, PostgreSqlDocument.ReadFields(reader.GetString(1))));
         }
         catch (Exception e) when (PostgreSqlCommands.IsMissingTable(e))
         {
@@ -268,7 +256,7 @@ internal sealed class PostgreSqlSearchProviderAsync(
             Key("(e #>> '{}') COLLATE \"C\"", "jsonb_typeof(e) = 'string'"));
     }
 
-    private static SearchHit MapHit(string id, string type, string fieldsJson, HashSet<string>? properties)
+    private static SearchHit MapHit(string id, string type, string index, string fieldsJson, HashSet<string>? properties)
     {
         var fields = PostgreSqlDocument.ReadFields(fieldsJson);
         if (properties is { Count: > 0 })
@@ -276,11 +264,6 @@ internal sealed class PostgreSqlSearchProviderAsync(
             fields = fields.Where(field => properties.Contains(field.Key)).ToDictionary();
         }
 
-        return new SearchHit(new BaseSearchModel
-        {
-            Id = id,
-            ContentType = type,
-            CustomProperties = StoredFields.ToCustomProperties(fields)
-        }, FilterScore);
+        return new SearchHit(StoredFields.ToDocument(id, type, index, fields), FilterScore);
     }
 }

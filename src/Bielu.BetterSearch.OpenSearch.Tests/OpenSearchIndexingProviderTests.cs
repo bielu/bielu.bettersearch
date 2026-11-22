@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+﻿using Bielu.BetterSearch.Abstractions.Models;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Services;
 using OpenSearch.Client;
 using Shouldly;

@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Diagnostics;
 using Bielu.BetterSearch.Services;
 using FluentResults;

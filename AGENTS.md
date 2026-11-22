@@ -12,8 +12,7 @@ The solution is `src/Bielu.BetterSearch.slnx`. Everything, tests included, lives
 
 | Project | Purpose |
 |---------|---------|
-| `Bielu.BetterSearch.Abstractions` | Query model (`SearchQuery`, sub-queries) and service interfaces |
-| `Bielu.BetterSearch.Models` | `SearchDocument` and request models |
+| `Bielu.BetterSearch.Abstractions` | Query model (`SearchQuery`, sub-queries), `SearchDocument` and request models, result types and service interfaces |
 | `Bielu.BetterSearch.Core` | `AddBetterSearch`, `IndexingServiceAsync`, `SearchServiceAsync`, routing, the in-memory search result cache, telemetry sources |
 | `Bielu.BetterSearch.FluentApi` | Fluent query builder |
 | `Bielu.BetterSearch.ElasticSearch` | Elasticsearch provider |

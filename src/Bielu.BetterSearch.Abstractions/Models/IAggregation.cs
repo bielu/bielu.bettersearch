@@ -2,7 +2,6 @@
 {
     public interface IAggregation
     {
-        public string AggregationName { get; set; }
-        IEnumerable<IAggregation> NestedAggregation { get; set; }
+        public string AggregationName { get; }
     }
 }

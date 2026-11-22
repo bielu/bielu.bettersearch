@@ -1,4 +1,5 @@
-﻿using FluentResults;
+﻿using Bielu.BetterSearch.Abstractions.Models;
+using FluentResults;
 
 namespace Bielu.BetterSearch.Services;
 

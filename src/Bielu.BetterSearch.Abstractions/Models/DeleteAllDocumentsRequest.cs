@@ -1,4 +1,4 @@
-﻿namespace Bielu.BetterSearch;
+﻿namespace Bielu.BetterSearch.Abstractions.Models;
 
 public class DeleteAllDocumentsRequest
 {

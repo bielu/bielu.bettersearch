@@ -136,8 +136,7 @@ internal static class Facets
         Key = key,
         Keys = [key],
         TotalOfDocuments = count,
-        Aggregations = nested,
-        SubBuckets = SubBuckets(nested)
+        Aggregations = nested
     };
 
     /// <summary>The bucket of one combination of a multi-term facet's values, keyed by the engine's joined key.</summary>
@@ -146,36 +145,22 @@ internal static class Facets
         Key = key,
         Keys = keys,
         TotalOfDocuments = count,
-        IsComplex = true,
-        Aggregations = nested,
-        SubBuckets = SubBuckets(nested)
+        Aggregations = nested
     };
 
     /// <summary>
-    /// A filter facet's result: one bucket holding the number of matching documents, whose nested aggregations are
-    /// both on the bucket and on the aggregation.
+    /// A filter facet's result: one bucket holding the number of matching documents and the facet's nested results.
     /// </summary>
     public static SingleAggregation Filter(string name, long count, IReadOnlyList<IAggregation> nested) => new()
     {
         AggregationName = name,
-        NestedAggregation = nested,
         Buckets =
         [
             new SingleBucket
             {
-                Keys = [name],
                 TotalOfDocuments = count,
-                Aggregations = nested,
-                SubBuckets = SubBuckets(nested)
+                Aggregations = nested
             }
         ]
     };
-
-    private static List<IBucket> SubBuckets(IReadOnlyList<IAggregation> nested) =>
-        nested.SelectMany(aggregation => aggregation switch
-        {
-            BucketAggregation bucketAggregation => bucketAggregation.Buckets,
-            SingleAggregation singleAggregation => singleAggregation.Buckets,
-            _ => []
-        }).ToList();
 }

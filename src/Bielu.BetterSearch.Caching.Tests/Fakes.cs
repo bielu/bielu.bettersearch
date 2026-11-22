@@ -33,11 +33,11 @@ internal class CountingSearchProvider : ISearchProviderAsync
             return Result.Fail<ISearchResult>(FailWith);
         }
 
-        var document = new BaseSearchModel
+        var document = new SearchDocument
         {
             Id = $"{query.Index}-{call}",
-            ContentType = "page",
-            CustomProperties = new Dictionary<string, List<object>> { ["call"] = [(long)call] }
+            Type = "page",
+            Fields = new Dictionary<string, IList<object>> { ["call"] = [(long)call] }
         };
         ISearchResult result = new BaseSearchResults
         {

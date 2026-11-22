@@ -21,7 +21,12 @@ internal sealed class CachedSearchResult
 internal sealed class CachedSearchHit
 {
     public string? Id { get; set; }
+
+    /// <summary>The document's <c>Type</c>, under the name entries cached by earlier versions use.</summary>
     public string? ContentType { get; set; }
+
+    /// <summary>The document's <c>Index</c>; <c>null</c> in an entry cached by an earlier version.</summary>
+    public string? Index { get; set; }
 
     /// <summary>The score as round-trip text, so <c>NaN</c> survives serializers that reject it as a number.</summary>
     public string? Score { get; set; }

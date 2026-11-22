@@ -82,13 +82,16 @@ internal static class MeilisearchFacets
                     $"Facet {facet.AggregationName} has {maxValuesPerFacet} or more values, the index's maxValuesPerFacet, past which Meilisearch returns them in alphabetical order, so the values with the most documents may be missing. Narrow the query, facet a field with fewer values, or raise maxValuesPerFacet.");
             }
 
-            var aggregation = new BucketAggregation { AggregationName = facet.AggregationName };
-            aggregation.Buckets.AddRange(counts
-                .OrderByDescending(count => count.Value)
-                .ThenBy(count => count.Key, StringComparer.Ordinal)
-                .Take(Facets.SizeOf(facet.Size))
-                .Select(count => Facets.TermBucket(count.Key, count.Value, [])));
-            results.Add(aggregation);
+            results.Add(new BucketAggregation
+            {
+                AggregationName = facet.AggregationName,
+                Buckets = counts
+                    .OrderByDescending(count => count.Value)
+                    .ThenBy(count => count.Key, StringComparer.Ordinal)
+                    .Take(Facets.SizeOf(facet.Size))
+                    .Select(count => (IBucket)Facets.TermBucket(count.Key, count.Value, []))
+                    .ToList()
+            });
         }
 
         return Result.Ok<IReadOnlyList<IAggregation>>(results);

@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Services;
 
 using FluentResults;

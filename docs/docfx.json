@@ -6,7 +6,6 @@
           "src": "..",
           "files": [
             "src/Bielu.BetterSearch.Abstractions/*.csproj",
-            "src/Bielu.BetterSearch.Models/*.csproj",
             "src/Bielu.BetterSearch.Core/*.csproj",
             "src/Bielu.BetterSearch.FluentApi/*.csproj",
             "src/Bielu.BetterSearch.ElasticSearch/*.csproj",

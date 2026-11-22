@@ -67,8 +67,8 @@ internal sealed class TypesenseSearchProviderAsync(
             return Result.Fail<ISearchResult>(UnsupportedHighlighting);
         }
 
-        var page = Math.Max(query.Page, 1);
-        var pageSize = query.PageSize > 0 ? query.PageSize : DefaultPageSize;
+        var page = Paging.PageOf(query);
+        var pageSize = Paging.PageSizeOf(query, DefaultPageSize);
         if (pageSize > MaxPageSize)
         {
             return Result.Fail<ISearchResult>($"PageSize {pageSize} is above {MaxPageSize}, the most hits Typesense returns in one page.");
@@ -110,9 +110,9 @@ internal sealed class TypesenseSearchProviderAsync(
                 search["per_page"] = pageSize;
                 search["include_fields"] = $"id,{N.Type},{N.Source}";
             },
-            result => Results(result.GetProperty("hits").EnumerateArray().Select(hit => MapHit(hit, properties)).ToList(),
-                result.GetProperty("found").GetInt64(), page, pageSize),
-            Results([], 0, page, pageSize), cancellationToken).ConfigureAwait(false);
+            result => Results(result.GetProperty("hits").EnumerateArray().Select(hit => MapHit(hit, query.Index, properties)).ToList(),
+                result.GetProperty("found").GetInt64(), query),
+            Results([], 0, query), cancellationToken).ConfigureAwait(false);
         return results.IsSuccess ? results.WithSuccesses(request.Successes) : results;
     }
 
@@ -174,13 +174,8 @@ internal sealed class TypesenseSearchProviderAsync(
                 return Result.Ok<SearchDocument?>(null);
             }
 
-            return Result.Ok<SearchDocument?>(new SearchDocument
-            {
-                Id = document["id"]?.GetValue<string>() ?? id,
-                Type = document[N.Type]?.GetValue<string>() ?? string.Empty,
-                Index = index,
-                Fields = DocumentLookups.ToFields(StoredFields.ToCustomProperties(TypesenseDocument.ReadSource(document[N.Source]?.GetValue<string>())))
-            });
+            return Result.Ok<SearchDocument?>(StoredFields.ToDocument(document["id"]?.GetValue<string>() ?? id, document[N.Type]?.GetValue<string>(), index,
+                TypesenseDocument.ReadSource(document[N.Source]?.GetValue<string>())));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -369,19 +364,13 @@ internal sealed class TypesenseSearchProviderAsync(
         return Result.Ok<string?>(sortBy.Count > 0 ? string.Join(',', sortBy) : null);
     }
 
-    private static ISearchResult Results(List<ISearchHit> hits, long found, int page, int pageSize) => new BaseSearchResults
+    private static ISearchResult Results(List<ISearchHit> hits, long found, ISearchQuery query) => new BaseSearchResults
     {
         Items = hits,
-        Pagination = new Pagination
-        {
-            TotalCount = found,
-            Page = page,
-            PageSize = pageSize,
-            TotalPages = (int)Math.Ceiling(found / (double)pageSize)
-        }
+        Pagination = Paging.Of(found, query, DefaultPageSize)
     };
 
-    private static ISearchHit MapHit(JsonElement hit, HashSet<string>? properties)
+    private static ISearchHit MapHit(JsonElement hit, string index, HashSet<string>? properties)
     {
         var document = hit.GetProperty("document");
         var source = TypesenseDocument.ReadSource(document.TryGetProperty(N.Source, out var stored) ? stored.GetString() : null);
@@ -390,11 +379,7 @@ internal sealed class TypesenseSearchProviderAsync(
             source = source.Where(field => properties.Contains(field.Key)).ToDictionary();
         }
 
-        return new SearchHit(new BaseSearchModel
-        {
-            Id = document.GetProperty("id").GetString() ?? string.Empty,
-            ContentType = document.TryGetProperty(N.Type, out var type) ? type.GetString() ?? string.Empty : string.Empty,
-            CustomProperties = StoredFields.ToCustomProperties(source)
-        }, FilterScore);
+        return new SearchHit(StoredFields.ToDocument(document.GetProperty("id").GetString() ?? string.Empty,
+            document.TryGetProperty(N.Type, out var type) ? type.GetString() : null, index, source), FilterScore);
     }
 }
