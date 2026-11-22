@@ -57,4 +57,30 @@ public sealed class OpenSearchQueryTranslationTests(IEnumerable<ISubQueryTransla
         result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
         Render(result.Value).ShouldContain("\"boost\":3.4028");
     }
+
+    // NaN and infinity pass the "greater than 0" check, and OpenSearch.Client's Distance rejects them.
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public async Task TranslateAsync_NonFiniteDistance_ReturnsFailedResult(double distance)
+    {
+        var result = await TranslateAsync(new SpatialSearchSubQuery { Field = "Location", Lat = 50, Lng = 19, Distance = distance });
+
+        result.IsFailed.ShouldBeTrue();
+        result.Errors.ShouldHaveSingleItem().Message.ShouldStartWith("SpatialSearchSubQuery has an invalid Distance");
+    }
+
+    [Fact]
+    public async Task TranslateAsync_FractionalBoost_IsSentAsGiven()
+    {
+        var nested = new BoolSearchSubQuery { BoostValue = 1.5 };
+        nested.Add(Occurrence.Must, new TermSubQuery { Field = "Name", Value = "jane", BoostValue = 0.5 });
+
+        var result = await TranslateAsync(nested);
+
+        result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
+        var rendered = Render(result.Value);
+        rendered.ShouldContain("\"boost\":0.5");
+        rendered.ShouldContain("\"boost\":1.5");
+    }
 }

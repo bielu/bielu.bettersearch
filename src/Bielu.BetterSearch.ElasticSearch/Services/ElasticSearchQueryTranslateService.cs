@@ -37,7 +37,7 @@ internal sealed class ElasticSearchQueryTranslateService(IEnumerable<ISubQueryTr
         }
 
         return ElasticSearchBoolQueryBuilder.BuildAsync(
-            clauses.Select(subQuery => (subQuery?.Occurrence ?? Occurrence.Must, subQuery!)),
+            clauses,
             subQueryTranslators);
     }
 }

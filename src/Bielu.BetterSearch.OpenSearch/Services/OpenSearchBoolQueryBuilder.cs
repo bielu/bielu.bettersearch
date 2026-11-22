@@ -13,7 +13,7 @@ namespace Bielu.BetterSearch.OpenSearch.Services;
 internal static class OpenSearchBoolQueryBuilder
 {
     public static async Task<Result<QueryContainer>> BuildAsync(
-        IEnumerable<(Occurrence Occurrence, ISearchSubQuery Query)> clauses,
+        IEnumerable<ISearchSubQuery> clauses,
         IEnumerable<ISubQueryTranslator<QueryContainer>> subQueryTranslators,
         double boostValue = 1)
     {
@@ -22,7 +22,7 @@ internal static class OpenSearchBoolQueryBuilder
         var mustNot = new List<QueryContainer>();
         var filter = new List<QueryContainer>();
 
-        foreach (var (occurrence, subQuery) in clauses)
+        foreach (var subQuery in clauses)
         {
             var translator = subQueryTranslators.FirstOrDefault(t => t.CanTranslate(subQuery));
             if (translator == null)
@@ -36,7 +36,7 @@ internal static class OpenSearchBoolQueryBuilder
                 return translated;
             }
 
-            var target = occurrence switch
+            var target = subQuery.Occurrence switch
             {
                 Occurrence.Should => should,
                 Occurrence.MustNot => mustNot,

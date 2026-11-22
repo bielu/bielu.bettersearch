@@ -45,7 +45,7 @@ internal sealed class TypesenseQueryTranslateService(IEnumerable<ISubQueryTransl
         }
 
         return TypesenseBoolFilterBuilder.BuildAsync(
-            clauses.Select(subQuery => (subQuery?.Occurrence ?? Occurrence.Must, subQuery!)),
+            clauses,
             subQueryTranslators);
     }
 }

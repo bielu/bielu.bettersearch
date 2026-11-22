@@ -10,6 +10,7 @@
         /// <inheritdoc />
         public void Add(Occurrence key, ISearchSubQuery value)
         {
+            ArgumentNullException.ThrowIfNull(value);
             value.Occurrence = key;
             Queries.Add(value);
         }

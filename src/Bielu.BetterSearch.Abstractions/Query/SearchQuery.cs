@@ -22,6 +22,7 @@ namespace Bielu.BetterSearch.Abstractions.Query
         /// <inheritdoc />
         public void Add(Occurrence key, ISearchSubQuery value)
         {
+            ArgumentNullException.ThrowIfNull(value);
             value.Occurrence = key;
             Query.Add(value);
         }

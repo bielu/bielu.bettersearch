@@ -1,5 +1,6 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Query.Aggregations
 {
+    /// <summary>A facet counting the documents its <see cref="Queries"/> match, with <see cref="NestedAggregations"/> over them.</summary>
     public class FilterAggregationQuery : IAggregationQuery, ICreatableSearchQuery
     {
         public string AggregationName { get; set; }
@@ -11,6 +12,7 @@
         /// <inheritdoc />
         public void Add(Occurrence key, ISearchSubQuery value)
         {
+            ArgumentNullException.ThrowIfNull(value);
             value.Occurrence = key;
             Queries.Add(value);
         }

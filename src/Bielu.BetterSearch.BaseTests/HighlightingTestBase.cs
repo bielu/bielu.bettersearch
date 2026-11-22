@@ -167,6 +167,30 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
         });
     }
 
+    // Highlighters mark the terms of positive clauses only, so Doe stays unmarked unless the MustNot is read as Must.
+    [Fact]
+    public async Task SearchAsync_OwnHighlightQueryClausesAddedThroughAdd_KeepTheirOccurrence()
+    {
+        await WithPeopleAsync(async index =>
+        {
+            var query = DoeOrWarsaw(index);
+            var highlight = new BaseHighlightQuery { Field = "Name" };
+            highlight.Add(Occurrence.Should, new TermSubQuery { Field = "Name", Value = "jane" });
+            highlight.Add(Occurrence.Should, new TermSubQuery { Field = "Name", Value = "john" });
+            highlight.Add(Occurrence.MustNot, new TermSubQuery { Field = "Name", Value = "doe" });
+            query.HighlightQueries.Add(highlight);
+
+            if (await HighlightAsync(query) is not { } hits)
+            {
+                return;
+            }
+
+            hits.Keys.Order(StringComparer.Ordinal).ShouldBe(["jane", "john"]);
+            hits["jane"].Highlights["Name"].ShouldBe(["<em>Jane</em> Doe"]);
+            hits["john"].Highlights["Name"].ShouldBe(["<em>John</em> Smith"]);
+        });
+    }
+
     [Fact]
     public async Task SearchAsync_MultiValuedField_ReturnsOnlyTheValuesThatMatched()
     {

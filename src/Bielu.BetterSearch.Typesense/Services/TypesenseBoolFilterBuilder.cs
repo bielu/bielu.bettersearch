@@ -13,7 +13,7 @@ namespace Bielu.BetterSearch.Typesense.Services;
 internal static class TypesenseBoolFilterBuilder
 {
     public static async Task<Result<TypesenseFilter>> BuildAsync(
-        IEnumerable<(Occurrence Occurrence, ISearchSubQuery Query)> clauses,
+        IEnumerable<ISearchSubQuery> clauses,
         IEnumerable<ISubQueryTranslator<TypesenseFilter>> subQueryTranslators)
     {
         var required = new List<TypesenseFilter>();
@@ -21,7 +21,7 @@ internal static class TypesenseBoolFilterBuilder
         var mustNot = new List<TypesenseFilter>();
         var successes = new List<ISuccess>();
 
-        foreach (var (occurrence, subQuery) in clauses)
+        foreach (var subQuery in clauses)
         {
             if (subQuery == null)
             {
@@ -40,7 +40,7 @@ internal static class TypesenseBoolFilterBuilder
                 return translated;
             }
 
-            var target = occurrence switch
+            var target = subQuery.Occurrence switch
             {
                 Occurrence.Should => should,
                 Occurrence.MustNot => mustNot,

@@ -81,13 +81,29 @@ public class SearchCacheKeyTests
     }
 
     [Fact]
-    public void Build_DictionaryInsertionOrderDiffers_SameKey()
+    public void Canonical_DictionaryInsertionOrderDiffers_SameText()
     {
         var first = new Dictionary<string, int> { ["a"] = 1, ["b"] = 2 };
         var second = new Dictionary<string, int> { ["b"] = 2, ["a"] = 1 };
 
         SearchCacheKey.Canonical(second).ShouldBe(SearchCacheKey.Canonical(first));
         SearchCacheKey.Canonical(second).ShouldNotBe(SearchCacheKey.Canonical(new Dictionary<string, int> { ["a"] = 2, ["b"] = 1 }));
+    }
+
+    // Clauses are a list, so their order is part of the key even where it doesn't change the matches.
+    [Fact]
+    public void Build_ClauseOrderDiffers_DifferentKeys()
+    {
+        var jane = new TermSubQuery { Field = "Name", Value = "jane" };
+        var john = new TermSubQuery { Field = "Name", Value = "john" };
+        var janeFirst = new SearchQuery { Index = "products" };
+        janeFirst.Add(Occurrence.Should, jane);
+        janeFirst.Add(Occurrence.Should, john);
+        var johnFirst = new SearchQuery { Index = "products" };
+        johnFirst.Add(Occurrence.Should, john);
+        johnFirst.Add(Occurrence.Should, jane);
+
+        Key(johnFirst).ShouldNotBe(Key(janeFirst));
     }
 
     [Fact]

@@ -50,7 +50,7 @@ internal sealed class MeilisearchQueryTranslateService(IEnumerable<ISubQueryTran
         }
 
         return MeilisearchBoolFilterBuilder.BuildAsync(
-            clauses.Select(subQuery => (subQuery?.Occurrence ?? Occurrence.Must, subQuery!)),
+            clauses,
             subQueryTranslators);
     }
 }

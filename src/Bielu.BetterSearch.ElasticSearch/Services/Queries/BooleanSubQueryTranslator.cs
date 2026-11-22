@@ -10,7 +10,7 @@ internal sealed class BooleanSubQueryTranslator : ElasticSearchSubQueryTranslato
 {
     protected override Task<Result<EsQuery>> TranslateAsync(BoolSearchSubQuery query, IEnumerable<ISubQueryTranslator<EsQuery>> subQueryTranslators) =>
         ElasticSearchBoolQueryBuilder.BuildAsync(
-            query.NestedQueries.Select(nested => (nested.Occurrence, nested)),
+            query.NestedQueries,
             subQueryTranslators,
             query.BoostValue);
 }

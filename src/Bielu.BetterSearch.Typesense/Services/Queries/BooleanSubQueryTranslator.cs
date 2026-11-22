@@ -12,6 +12,6 @@ internal sealed class BooleanSubQueryTranslator : ISubQueryTranslator<TypesenseF
 
     public Task<Result<TypesenseFilter>> TranslateAsync(ISearchSubQuery query, IEnumerable<ISubQueryTranslator<TypesenseFilter>> subQueryTranslators) =>
         query is BoolSearchSubQuery boolQuery
-            ? TypesenseBoolFilterBuilder.BuildAsync(boolQuery.NestedQueries.Select(nested => (nested.Occurrence, nested)), subQueryTranslators)
+            ? TypesenseBoolFilterBuilder.BuildAsync(boolQuery.NestedQueries, subQueryTranslators)
             : Task.FromResult(Result.Fail<TypesenseFilter>($"Query is not a {nameof(BoolSearchSubQuery)}"));
 }

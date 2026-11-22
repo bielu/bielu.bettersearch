@@ -288,6 +288,31 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
         }
     });
 
+    // Read as the default Must, two brands would match no document.
+    [Fact]
+    public async Task SearchAsync_FilterFacetWithShouldClausesAddedThroughAdd_CountsDocumentsMatchingEither() => await RunAsync(async index =>
+    {
+        var filter = new FilterAggregationQuery
+        {
+            AggregationName = "globexOrInitech",
+            NestedAggregations = [new TermAggregation { AggregationName = "colors", TermFieldName = Color }]
+        };
+        filter.Add(Occurrence.Should, BrandIs("globex"));
+        filter.Add(Occurrence.Should, BrandIs("initech"));
+        var query = new SearchQuery { Index = index, FacetQueries = [filter] };
+
+        var result = await SearchAsync(query);
+
+        if (RanComplex(result))
+        {
+            var aggregation = result.Value.RetrieveSingleAggregation("globexOrInitech");
+            aggregation.ShouldNotBeNull();
+            aggregation.Buckets.ShouldHaveSingleItem().TotalOfDocuments.ShouldBe(3);
+            CountsByKey(aggregation.NestedAggregation.RetrieveBucketAggregation("colors"))
+                .ShouldBe(new Dictionary<string, long?> { ["Red"] = 1, ["Dark Blue"] = 1, ["Green"] = 1 }, ignoreOrder: true);
+        }
+    });
+
     [Fact]
     public async Task SearchAsync_NestedTermFacet_ReturnsSubBucketsOfEachBucket() => await RunAsync(async index =>
     {

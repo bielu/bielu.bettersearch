@@ -45,7 +45,7 @@ internal sealed class PostgreSqlQueryTranslateService(IEnumerable<ISubQueryTrans
         }
 
         return PostgreSqlBoolFilterBuilder.BuildAsync(
-            clauses.Select(subQuery => (subQuery?.Occurrence ?? Occurrence.Must, subQuery!)),
+            clauses,
             subQueryTranslators);
     }
 }

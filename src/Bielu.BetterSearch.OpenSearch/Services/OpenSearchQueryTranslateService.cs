@@ -37,7 +37,7 @@ internal sealed class OpenSearchQueryTranslateService(IEnumerable<ISubQueryTrans
         }
 
         return OpenSearchBoolQueryBuilder.BuildAsync(
-            clauses.Select(subQuery => (subQuery?.Occurrence ?? Occurrence.Must, subQuery!)),
+            clauses,
             subQueryTranslators);
     }
 }
