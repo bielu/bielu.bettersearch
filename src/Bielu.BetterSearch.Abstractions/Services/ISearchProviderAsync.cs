@@ -16,7 +16,8 @@ public interface ISearchProviderAsync
     /// <summary>
     /// Gets the document with <paramref name="id"/> from <paramref name="index"/>, with its fields as search results
     /// return them. <c>null</c> when the engine answers that the document, or the whole index, is not there; a failed
-    /// <see cref="Result"/> when the engine could not answer, such as on a 401 or 5xx.
+    /// <see cref="Result"/> when the engine could not answer, such as on a 401 or 5xx. A provider that keeps no stored
+    /// fields (Lifti) returns a failed <see cref="Result"/> saying so.
     /// </summary>
     Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default);
 
