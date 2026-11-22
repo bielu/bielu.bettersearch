@@ -3,7 +3,11 @@
 /// <summary>One document a search found, with what the engine says about the match.</summary>
 public interface ISearchHit
 {
-    /// <summary>The document that matched, in the shape <c>GetDocumentAsync</c> returns and <c>IndexDocumentAsync</c> takes.</summary>
+    /// <summary>
+    /// The document that matched, in the shape <c>GetDocumentAsync</c> returns and <c>IndexDocumentAsync</c> takes,
+    /// with the query's <c>Index</c>. When the query's <c>Properties</c> limit the fields, it holds only those, so
+    /// writing it back replaces the stored document with one that lacks the others.
+    /// </summary>
     SearchDocument Document { get; }
 
     /// <summary>The relevance score the engine gave the hit, when it scores hits.</summary>
