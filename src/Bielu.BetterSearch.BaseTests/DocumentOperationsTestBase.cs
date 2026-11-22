@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+﻿using Bielu.BetterSearch.Abstractions.Models;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Shouldly;
@@ -92,6 +93,52 @@ public abstract class DocumentOperationsTestBase(
             document.Index.ShouldBe(index);
             document.Fields["Category"].ShouldBe(["blog"]);
             document.Fields["Rank"].ShouldBe([7L]);
+        }
+        finally
+        {
+            await DeleteIndexAsync(index);
+        }
+    }
+
+    [Fact]
+    public async Task SearchAsync_Hit_HoldsTheDocumentGetDocumentAsyncReturnsAndCanBeWrittenBack()
+    {
+        var index = $"get-{Guid.NewGuid():N}";
+        try
+        {
+            await IndexAsync(index, Item(index, "a", "news", 3), Item(index, "b", "blog", 7));
+
+            var search = await searchService.SearchAsync(CategoryQuery(index, "blog"), Token);
+
+            search.IsSuccess.ShouldBeTrue(string.Join("; ", search.Errors.Select(error => error.Message)));
+            var hit = search.Value.Items.ShouldHaveSingleItem().Document;
+            hit.Id.ShouldBe("b");
+            hit.Index.ShouldBe(index);
+            if (!StoresFields)
+            {
+                return;
+            }
+
+            var get = await searchService.GetDocumentAsync(index, "b", Token);
+            get.IsSuccess.ShouldBeTrue(string.Join("; ", get.Errors.Select(error => error.Message)));
+            var stored = get.Value.ShouldNotBeNull();
+            hit.Type.ShouldBe(stored.Type);
+            hit.Type.ShouldBe("Item");
+            hit.Index.ShouldBe(stored.Index);
+            hit.Fields.Keys.ShouldBe(stored.Fields.Keys, ignoreOrder: true);
+            foreach (var (name, values) in stored.Fields)
+            {
+                hit.Fields[name].ShouldBe(values, $"field {name}");
+            }
+
+            // The hit's document goes back to IndexDocumentAsync as it is, with no copy.
+            hit.Fields["Category"] = ["news"];
+            var written = await indexingService.IndexDocumentAsync(hit, Token);
+            written.IsSuccess.ShouldBeTrue(string.Join("; ", written.Errors.Select(error => error.Message)));
+            await RefreshAsync(index);
+            var count = await searchService.CountAsync(CategoryQuery(index, "news"), Token);
+            count.IsSuccess.ShouldBeTrue(string.Join("; ", count.Errors.Select(error => error.Message)));
+            count.Value.ShouldBe(2);
         }
         finally
         {

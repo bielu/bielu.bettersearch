@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Lifti.Services.Queries;
 using Bielu.BetterSearch.Services;

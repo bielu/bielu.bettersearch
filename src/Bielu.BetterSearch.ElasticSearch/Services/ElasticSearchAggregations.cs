@@ -153,7 +153,7 @@ internal static class ElasticSearchAggregations
     private static Result<IAggregation> Buckets(IAggregationQuery facet, IEnumerable<(string Key, long DocCount, AggregateDictionary? Aggregations)> buckets,
         IReadOnlyCollection<IAggregationQuery> nestedFacets)
     {
-        var aggregation = new BucketAggregation { AggregationName = facet.AggregationName };
+        var mapped = new List<IBucket>();
         foreach (var (key, docCount, subAggregations) in buckets)
         {
             var nested = Map(nestedFacets, subAggregations);
@@ -162,15 +162,15 @@ internal static class ElasticSearchAggregations
                 return nested.ToResult<IAggregation>();
             }
 
-            aggregation.Buckets.Add(Facets.TermBucket(key, docCount, nested.Value));
+            mapped.Add(Facets.TermBucket(key, docCount, nested.Value));
         }
 
-        return Result.Ok<IAggregation>(aggregation);
+        return Result.Ok<IAggregation>(new BucketAggregation { AggregationName = facet.AggregationName, Buckets = mapped });
     }
 
     private static Result<IAggregation> MultiTermBuckets(IAggregationQuery facet, MultiTermsAggregate multiTerms, IReadOnlyCollection<IAggregationQuery> nestedFacets)
     {
-        var aggregation = new BucketAggregation { AggregationName = facet.AggregationName };
+        var mapped = new List<IBucket>();
         foreach (var bucket in multiTerms.Buckets)
         {
             var nested = Map(nestedFacets, bucket.Aggregations);
@@ -180,10 +180,10 @@ internal static class ElasticSearchAggregations
             }
 
             var keys = bucket.Key.Select(Key).ToList();
-            aggregation.Buckets.Add(Facets.MultiTermBucket(bucket.KeyAsString ?? string.Join('|', keys), keys, bucket.DocCount, nested.Value));
+            mapped.Add(Facets.MultiTermBucket(bucket.KeyAsString ?? string.Join('|', keys), keys, bucket.DocCount, nested.Value));
         }
 
-        return Result.Ok<IAggregation>(aggregation);
+        return Result.Ok<IAggregation>(new BucketAggregation { AggregationName = facet.AggregationName, Buckets = mapped });
     }
 
     private static string Key(FieldValue key) => key.Value switch

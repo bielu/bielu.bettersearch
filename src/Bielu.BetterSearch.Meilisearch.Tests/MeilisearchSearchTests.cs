@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Abstractions.Fields;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.Aggregations;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
@@ -568,12 +569,12 @@ public sealed class MeilisearchSearchTests(
         var jane = hit.Document;
         hit.Score.ShouldNotBeNull();
         hit.Score.Value.ShouldBeGreaterThan(0);
-        jane.ContentType.ShouldBe("Person");
-        jane.CustomProperties.Keys.OrderBy(key => key).ShouldBe(["Age", "Born", "City", "Name", "Views"]);
-        jane.CustomProperties["Name"].ShouldBe(["Jane Doe"]);
-        jane.CustomProperties["Age"].ShouldBe([25L]);
-        jane.CustomProperties["Views"].ShouldBe([5_000_000_000L]);
-        jane.CustomProperties["City"].ShouldBe(["Warsaw"]);
+        jane.Type.ShouldBe("Person");
+        jane.Fields.Keys.OrderBy(key => key).ShouldBe(["Age", "Born", "City", "Name", "Views"]);
+        jane.Fields["Name"].ShouldBe(["Jane Doe"]);
+        jane.Fields["Age"].ShouldBe([25L]);
+        jane.Fields["Views"].ShouldBe([5_000_000_000L]);
+        jane.Fields["City"].ShouldBe(["Warsaw"]);
     }
 
     [Fact]
@@ -598,7 +599,7 @@ public sealed class MeilisearchSearchTests(
         var result = await searchService.SearchAsync(new SearchQuery { Index = index }, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        var fields = result.Value.Items.Single().Document.CustomProperties;
+        var fields = result.Value.Items.Single().Document.Fields;
         fields["Integer"].Single().ShouldBeOfType<long>().ShouldBe(3L);
         fields["Fraction"].Single().ShouldBeOfType<double>().ShouldBe(3.5d);
         fields["Born"].Single().ShouldBeOfType<string>().ShouldBe("1999-05-01T00:00:00Z");
@@ -618,8 +619,8 @@ public sealed class MeilisearchSearchTests(
         result.IsSuccess.ShouldBeTrue();
         var anna = result.Value.Items.Single().Document;
         anna.Id.ShouldBe("4");
-        anna.ContentType.ShouldBe("Person");
-        anna.CustomProperties.Keys.ShouldBe(["Name"]);
+        anna.Type.ShouldBe("Person");
+        anna.Fields.Keys.ShouldBe(["Name"]);
     }
 
     /// <summary>Warsaw, Krakow and Gdansk, the first two as strings and the last as a dictionary.</summary>
@@ -677,7 +678,7 @@ public sealed class MeilisearchSearchTests(
 
         var result = await searchService.SearchAsync(Query(index, Occurrence.Must, new TermSubQuery { Field = "fields.Location", Value = "52.2297,21.0122" }), TestContext.Current.CancellationToken);
 
-        result.Value.Items.Single().Document.CustomProperties["Location"].ShouldBe(["52.2297,21.0122"]);
+        result.Value.Items.Single().Document.Fields["Location"].ShouldBe(["52.2297,21.0122"]);
     }
 
     [Fact]

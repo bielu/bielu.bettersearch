@@ -1,4 +1,6 @@
-﻿namespace Bielu.BetterSearch.Tests;
+﻿using Bielu.BetterSearch.Abstractions.Models;
+
+namespace Bielu.BetterSearch.Tests;
 
 /// <summary>
 /// Lucene ranges over dates written without a time, with what Elasticsearch's <c>query_string</c> returns for them, so

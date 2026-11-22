@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Abstractions.Configuration;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.Services;

@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Abstractions.Fields;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
@@ -481,9 +482,9 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
         result.Value.Items.First().Score!.Value.ShouldBeGreaterThan(result.Value.Items.Last().Score!.Value);
     }
 
-    /// <summary>Lifti keeps only the id, so a hit has no type and no fields.</summary>
+    /// <summary>Lifti keeps only the id, so a hit has the id, the query's index and a score, but no type and no fields.</summary>
     [Fact]
-    public async Task SearchAsync_Hit_CarriesOnlyTheIdAndScore()
+    public async Task SearchAsync_Hit_CarriesOnlyTheIdIndexAndScore()
     {
         var index = await CreatePeopleAsync();
 
@@ -493,8 +494,9 @@ public sealed class LiftiSearchTests(ISearchServiceAsync searchService, IIndexin
         var hit = result.Value.Items.Single(item => item.Document.Id == "Up-1");
         hit.Score.ShouldNotBeNull();
         hit.Score.Value.ShouldBeGreaterThan(0);
-        hit.Document.ContentType.ShouldBeNull();
-        hit.Document.CustomProperties.ShouldBeEmpty();
+        hit.Document.Index.ShouldBe(index);
+        hit.Document.Type.ShouldBeNull();
+        hit.Document.Fields.ShouldBeEmpty();
     }
 
     [Fact]

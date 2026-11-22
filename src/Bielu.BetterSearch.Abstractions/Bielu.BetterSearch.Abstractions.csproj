@@ -1,10 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <ItemGroup>
-      <ProjectReference Include="..\Bielu.BetterSearch.Models\Bielu.BetterSearch.Models.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
       <PackageReference Include="FluentResults" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     </ItemGroup>

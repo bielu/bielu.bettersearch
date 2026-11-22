@@ -3,8 +3,7 @@
 namespace Bielu.BetterSearch.Services;
 
 /// <summary>
-/// Checks the arguments of a get, an update and a count the same way in the services and every provider, and copies
-/// a stored document's fields into the shape <see cref="SearchDocument.Fields"/> holds.
+/// Checks the arguments of a get, an update and a count the same way in the services and every provider.
 /// </summary>
 internal static class DocumentLookups
 {
@@ -53,8 +52,4 @@ internal static class DocumentLookups
 
     public static Result CheckCount(string? index) =>
         string.IsNullOrWhiteSpace(index) ? Result.Fail("The query needs an Index.") : Result.Ok();
-
-    /// <summary>A copy of <paramref name="fields"/>, a <c>null</c> map giving an empty one.</summary>
-    public static IDictionary<string, IList<object>> ToFields(IDictionary<string, List<object>>? fields) =>
-        fields?.ToDictionary(field => field.Key, field => (IList<object>)field.Value) ?? new Dictionary<string, IList<object>>();
 }

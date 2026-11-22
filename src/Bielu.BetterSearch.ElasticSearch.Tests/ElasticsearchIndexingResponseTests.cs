@@ -2,6 +2,7 @@
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.ElasticSearch.Configuration;
 using Bielu.BetterSearch.ElasticSearch.Services;

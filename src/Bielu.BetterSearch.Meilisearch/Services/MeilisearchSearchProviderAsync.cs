@@ -157,7 +157,7 @@ internal sealed class MeilisearchSearchProviderAsync(
             var totalPages = (int)Math.Ceiling(paginated.TotalHits / (double)pageSize);
             return Result.Ok<ISearchResult>(new BaseSearchResults
             {
-                Items = paginated.Hits.Select(MapHit).ToList(),
+                Items = paginated.Hits.Select(hit => MapHit(hit, query.Index)).ToList(),
                 Aggregations = aggregations.Value,
                 Pagination = new Pagination
                 {
@@ -197,13 +197,7 @@ internal sealed class MeilisearchSearchProviderAsync(
         {
             var client = await clientFactory.GetOrCreateClientAsync(index).ConfigureAwait(false);
             var stored = await client.Index(Name(index)).GetDocumentAsync<MeilisearchDocument>(id, ["id", "type", MeilisearchFieldNames.Fields], cancellationToken).ConfigureAwait(false);
-            return Result.Ok<SearchDocument?>(new SearchDocument
-            {
-                Id = stored.Id,
-                Type = stored.Type ?? string.Empty,
-                Index = index,
-                Fields = DocumentLookups.ToFields(StoredFields.ToCustomProperties(stored.Fields))
-            });
+            return Result.Ok<SearchDocument?>(StoredFields.ToDocument(stored.Id, stored.Type, index, stored.Fields));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -322,10 +316,6 @@ internal sealed class MeilisearchSearchProviderAsync(
         return Result.Ok<IEnumerable<string>?>(sort);
     }
 
-    private static ISearchHit MapHit(MeilisearchDocument hit) => new SearchHit(new BaseSearchModel
-    {
-        Id = hit.Id,
-        ContentType = hit.Type ?? string.Empty,
-        CustomProperties = StoredFields.ToCustomProperties(hit.Fields)
-    }, hit.RankingScore);
+    private static ISearchHit MapHit(MeilisearchDocument hit, string index) =>
+        new SearchHit(StoredFields.ToDocument(hit.Id, hit.Type, index, hit.Fields), hit.RankingScore);
 }

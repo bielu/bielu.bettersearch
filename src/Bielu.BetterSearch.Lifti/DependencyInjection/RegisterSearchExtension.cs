@@ -25,7 +25,7 @@ public static class RegisterSearchExtension
         configurator.Services.AddScoped(typeof(IClientFactoryAsync<IFullTextIndex<string>>),
             typeof(LiftiClientFactoryAsync));
         configurator.Services.AddScoped<IQueryTranslateServiceAsync<IQuery>, LiftiQueryTranslatorService>();
-        configurator.Services.AddScoped<IResultMapper<ISearchResults<string>>, LiftiBaseSearchModelMapper>();
+        configurator.Services.AddScoped<IResultMapper<ISearchResults<string>>, LiftiResultMapper>();
 
         // Register sub-query translators (supported)
         configurator.Services.AddScoped<ISubQueryTranslator<IQuery>, BooleanSubQueryTranslator>();

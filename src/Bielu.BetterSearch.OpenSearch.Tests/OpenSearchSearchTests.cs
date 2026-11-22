@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Abstractions.Fields;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.Aggregations;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
@@ -458,12 +459,12 @@ public sealed class OpenSearchSearchTests(
         var jane = hit.Document;
         hit.Score.ShouldNotBeNull();
         hit.Score.Value.ShouldBeGreaterThan(0);
-        jane.ContentType.ShouldBe("Person");
-        jane.CustomProperties["Name"].ShouldBe(["Jane Doe"]);
-        jane.CustomProperties["Age"].ShouldBe([25L]);
-        jane.CustomProperties["Views"].ShouldBe([5_000_000_000L]);
-        jane.CustomProperties["Age"].Single().ShouldBeOfType<long>();
-        jane.CustomProperties["City"].ShouldBe(["Warsaw"]);
+        jane.Type.ShouldBe("Person");
+        jane.Fields["Name"].ShouldBe(["Jane Doe"]);
+        jane.Fields["Age"].ShouldBe([25L]);
+        jane.Fields["Views"].ShouldBe([5_000_000_000L]);
+        jane.Fields["Age"].Single().ShouldBeOfType<long>();
+        jane.Fields["City"].ShouldBe(["Warsaw"]);
     }
 
     /// <summary>
@@ -494,7 +495,7 @@ public sealed class OpenSearchSearchTests(
         var result = await searchService.SearchAsync(new SearchQuery { Index = index }, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
-        var fields = result.Value.Items.Single().Document.CustomProperties;
+        var fields = result.Value.Items.Single().Document.Fields;
         fields["Integer"].Single().ShouldBeOfType<long>().ShouldBe(3L);
         fields["Whole"].Single().ShouldBeOfType<double>().ShouldBe(3.0d);
         fields["Fraction"].Single().ShouldBeOfType<double>().ShouldBe(3.5d);
@@ -538,7 +539,7 @@ public sealed class OpenSearchSearchTests(
         var result = await searchService.SearchAsync(new SearchQuery { Index = index, PageSize = 10 }, TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(e => e.Message)));
-        result.Value.Items.ToDictionary(item => item.Document.Id, item => item.Document.CustomProperties["Born"].ShouldHaveSingleItem())
+        result.Value.Items.ToDictionary(item => item.Document.Id, item => item.Document.Fields["Born"].ShouldHaveSingleItem())
             .ShouldBe(new Dictionary<string, object>
             {
                 { "milliseconds", "2026-11-08T13:05:00.123Z" },
@@ -630,8 +631,8 @@ public sealed class OpenSearchSearchTests(
         result.IsSuccess.ShouldBeTrue();
         var anna = result.Value.Items.Single().Document;
         anna.Id.ShouldBe("4");
-        anna.ContentType.ShouldBe("Person");
-        anna.CustomProperties.Keys.ShouldBe(["Name"]);
+        anna.Type.ShouldBe("Person");
+        anna.Fields.Keys.ShouldBe(["Name"]);
     }
 
     [Fact]

@@ -2,8 +2,10 @@
 
 public interface ISearchResult
 {
-    IEnumerable<ISearchHit> Items { get; set; }
-    IPagination Pagination { get; set; }
+    /// <summary>The hits of the requested page, in the order the engine ranked them.</summary>
+    IReadOnlyList<ISearchHit> Items { get; }
+
+    IPagination Pagination { get; }
 
     /// <summary>
     /// The results of the query's <c>FacetQueries</c>, one per facet in the same order, counted over the main query's

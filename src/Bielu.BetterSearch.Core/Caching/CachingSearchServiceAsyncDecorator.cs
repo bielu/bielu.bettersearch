@@ -64,7 +64,7 @@ internal sealed class CachingSearchServiceAsyncDecorator(
                 searched = CachedSearchResults.From(result) ?? throw new SearchNotCachedException(result);
                 return searched;
             }, entryOptions, cancellationToken).ConfigureAwait(false);
-            return CachedSearchResults.ToResult(cached);
+            return CachedSearchResults.ToResult(cached, query.Index);
         }
         catch (Exception e) when (SearchNotCachedException.Find(e) is { } notCached)
         {
@@ -74,7 +74,7 @@ internal sealed class CachingSearchServiceAsyncDecorator(
         {
             // The search succeeded and only storing it failed, so return it rather than search again or fail.
             logger?.LogWarning(e, "The search cache failed to store a search of {Index}, so it was not cached.", query.Index);
-            return CachedSearchResults.ToResult(searched);
+            return CachedSearchResults.ToResult(searched, query.Index);
         }
         catch (Exception e) when (e is not OperationCanceledException && !factoryRan)
         {

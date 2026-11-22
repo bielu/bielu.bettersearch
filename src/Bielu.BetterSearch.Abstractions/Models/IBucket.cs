@@ -2,12 +2,11 @@
 
 public interface IBucket
 {
-    public long? TotalOfDocuments { get; set; }
-    public IEnumerable<string> Keys { get; set; }
+    public long? TotalOfDocuments { get; }
 
-    /// <summary>The buckets of every nested aggregation, in the order of <c>NestedAggregations</c>.</summary>
-    public List<IBucket> SubBuckets { get; set; }
-
-    /// <summary>The results of the facet's <c>NestedAggregations</c>, counted over this bucket's documents.</summary>
+    /// <summary>
+    /// The results of the facet's <c>NestedAggregations</c>, counted over this bucket's documents. This is the one
+    /// place nested facet results are read from.
+    /// </summary>
     IReadOnlyList<IAggregation> Aggregations => [];
 }

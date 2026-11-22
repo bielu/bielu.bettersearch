@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+﻿using Bielu.BetterSearch.Abstractions.Models;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Lifti.Services;
@@ -213,7 +214,7 @@ public sealed class LiftiIndexingProviderTests(IIndexingProviderAsync indexingPr
         var provider = new LiftiSearchProviderAsync(
             new LiftiQueryTranslatorService([]),
             manager,
-            new LiftiBaseSearchModelMapper());
+            new LiftiResultMapper());
 
         var result = await provider.SearchAsync(new SearchQuery { Index = "any" }, Token);
 

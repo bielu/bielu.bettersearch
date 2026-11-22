@@ -107,7 +107,7 @@ internal sealed class OpenSearchSearchProviderAsync(
                 $"OpenSearch returned incomplete results: timed out {response.TimedOut}, {response.Shards.Failed} of {response.Shards.Total} shards failed.");
         }
 
-        var result = resultMapper.MapResult(response);
+        var result = resultMapper.MapResult(response, query);
         if (aggregations.Value != null)
         {
             var facets = OpenSearchAggregations.Map(query.FacetQueries, response.Aggregations);
@@ -118,10 +118,6 @@ internal sealed class OpenSearchSearchProviderAsync(
 
             result = new BaseSearchResults { Items = result.Items, Pagination = result.Pagination, Aggregations = facets.Value };
         }
-
-        result.Pagination.Page = PageOf(query);
-        result.Pagination.PageSize = PageSizeOf(query);
-        result.Pagination.TotalPages = (int)Math.Ceiling(result.Pagination.TotalCount / (double)result.Pagination.PageSize);
         return Result.Ok(result);
     }
 
@@ -158,13 +154,7 @@ internal sealed class OpenSearchSearchProviderAsync(
             }
 
             return Result.Ok<SearchDocument?>(response.Found
-                ? new SearchDocument
-                {
-                    Id = response.Id,
-                    Type = response.Source?.Type ?? string.Empty,
-                    Index = index,
-                    Fields = DocumentLookups.ToFields(StoredFields.ToCustomProperties(response.Source?.Fields))
-                }
+                ? StoredFields.ToDocument(response.Id, response.Source?.Type, index, response.Source?.Fields)
                 : null);
         }, cancellationToken).ConfigureAwait(false);
     }
@@ -268,9 +258,9 @@ internal sealed class OpenSearchSearchProviderAsync(
     }
 
     /// <summary><c>Page</c> counts from 1; 0, the default, is the first page.</summary>
-    private static int PageOf(ISearchQuery query) => Math.Max(query.Page, 1);
+    internal static int PageOf(ISearchQuery query) => Math.Max(query.Page, 1);
 
-    private static int PageSizeOf(ISearchQuery query) =>
+    internal static int PageSizeOf(ISearchQuery query) =>
         query.PageSize > 0 ? query.PageSize : DefaultPageSize;
 
     /// <summary>The position of the page's last result, in <c>long</c> so a large page can't overflow.</summary>

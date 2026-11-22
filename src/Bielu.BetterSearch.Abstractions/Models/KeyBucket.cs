@@ -1,12 +1,15 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Models
 {
+    /// <summary>The bucket of one value of a term facet, or of one combination of a multi-term facet's values.</summary>
     public class KeyBucket : IBucket
     {
-        public string Key { get; set; }
-        public long? TotalOfDocuments { get; set; }
-        public IEnumerable<string> Keys { get; set; }
-        public List<IBucket> SubBuckets { get; set; } = new List<IBucket>();
-        public bool IsComplex { get; set; }
-        public IReadOnlyList<IAggregation> Aggregations { get; set; } = [];
+        /// <summary>The bucket's key: the value, or for a multi-term facet the engine's joined key.</summary>
+        public string Key { get; init; }
+
+        /// <summary>The value of each field: one for a term facet, one per term, in order, for a multi-term facet.</summary>
+        public IReadOnlyList<string> Keys { get; init; } = [];
+
+        public long? TotalOfDocuments { get; init; }
+        public IReadOnlyList<IAggregation> Aggregations { get; init; } = [];
     }
 }

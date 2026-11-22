@@ -33,7 +33,7 @@ internal sealed class FakeSearchProvider : ISearchProviderAsync
     public static BaseSearchResults Results(int hits, long totalCount) => new()
     {
         Items = Enumerable.Range(0, hits)
-            .Select(i => (ISearchHit)new SearchHit(new BaseSearchModel { Id = i.ToString(System.Globalization.CultureInfo.InvariantCulture) }, 1))
+            .Select(i => (ISearchHit)new SearchHit(new SearchDocument { Id = i.ToString(System.Globalization.CultureInfo.InvariantCulture) }, 1))
             .ToList(),
         Pagination = new Pagination { TotalCount = totalCount },
     };

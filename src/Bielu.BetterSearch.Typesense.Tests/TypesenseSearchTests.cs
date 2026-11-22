@@ -1,4 +1,5 @@
 ﻿using Bielu.BetterSearch.Abstractions.Fields;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
@@ -142,7 +143,7 @@ public sealed class TypesenseSearchTests(ISearchServiceAsync searchService, IInd
         var result = await searchService.SearchAsync(new SearchQuery { Index = index }, Token);
 
         result.IsSuccess.ShouldBeTrue(string.Join("; ", result.Errors.Select(error => error.Message)));
-        var fields = result.Value.Items.ShouldHaveSingleItem().Document.CustomProperties;
+        var fields = result.Value.Items.ShouldHaveSingleItem().Document.Fields;
         fields["Big"].ShouldBe([9007199254740993L]);
         fields["Whole"].ShouldBe([3.0]);
         fields["Flag"].ShouldBe([true]);

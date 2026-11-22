@@ -1,4 +1,5 @@
-﻿using Bielu.BetterSearch.Abstractions.Query;
+﻿using Bielu.BetterSearch.Abstractions.Models;
+using Bielu.BetterSearch.Abstractions.Query;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.PostgreSql.Services;
@@ -430,7 +431,7 @@ public sealed class PostgreSqlSearchTests(
             var result = await searchService.SearchAsync(new SearchQuery { Index = index, Properties = ["Name"] }, Token);
 
             result.IsSuccess.ShouldBeTrue();
-            result.Value.Items.ShouldHaveSingleItem().Document.CustomProperties.Keys.ShouldBe(["Name"]);
+            result.Value.Items.ShouldHaveSingleItem().Document.Fields.Keys.ShouldBe(["Name"]);
         });
     }
 

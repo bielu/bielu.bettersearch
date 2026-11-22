@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using Bielu.BetterSearch.Abstractions.Models;
 using Bielu.BetterSearch.Abstractions.Services;
 using Bielu.BetterSearch.Tests;
 using Bielu.BetterSearch.Typesense.Configuration;

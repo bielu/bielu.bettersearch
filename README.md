@@ -264,8 +264,7 @@ top-level term facets, and Lifti none. Only Elasticsearch and OpenSearch highlig
 
 | Package | Description |
 | --- | --- |
-| [`Bielu.BetterSearch.Abstractions`](https://www.nuget.org/packages/Bielu.BetterSearch.Abstractions/) | Query model (`SearchQuery` and its sub-queries) and service interfaces |
-| [`Bielu.BetterSearch.Models`](https://www.nuget.org/packages/Bielu.BetterSearch.Models/) | `SearchDocument` and the request models |
+| [`Bielu.BetterSearch.Abstractions`](https://www.nuget.org/packages/Bielu.BetterSearch.Abstractions/) | Query model (`SearchQuery` and its sub-queries), `SearchDocument` and the request models, and service interfaces |
 | [`Bielu.BetterSearch.Core`](https://www.nuget.org/packages/Bielu.BetterSearch.Core/) | `AddBetterSearch` and the indexing and search services |
 | [`Bielu.BetterSearch.FluentApi`](https://www.nuget.org/packages/Bielu.BetterSearch.FluentApi/) | Fluent query builder |
 | [`Bielu.BetterSearch.Caching.FusionCache`](https://www.nuget.org/packages/Bielu.BetterSearch.Caching.FusionCache/) | Search result cache over [FusionCache](https://github.com/ZiggyCreatures/FusionCache) |
