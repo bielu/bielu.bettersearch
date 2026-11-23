@@ -4,7 +4,7 @@
     public class FilterAggregationQuery : IAggregationQuery, ICreatableSearchQuery
     {
         /// <inheritdoc />
-        public required string AggregationName { get; set; }
+        public string AggregationName { get; set; } = string.Empty;
         /// <inheritdoc />
         public List<IAggregationQuery> NestedAggregations { get; set; } = new List<IAggregationQuery>();
 

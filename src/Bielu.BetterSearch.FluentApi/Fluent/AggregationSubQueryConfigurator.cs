@@ -12,7 +12,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
         /// <returns>This configurator, for chaining.</returns>
         public AggregationSubQueryConfigurator CreateFilterQuery(Action<FilterAggregationQueryConfigurator> query)
         {
-            var configurator = new FilterAggregationQueryConfigurator(new FilterAggregationQuery { AggregationName = string.Empty });
+            var configurator = new FilterAggregationQueryConfigurator(new FilterAggregationQuery());
             query.Invoke(configurator);
             configuratorQuery.NestedAggregations.Add(configurator.FilterAggregationQuery);
             return this;

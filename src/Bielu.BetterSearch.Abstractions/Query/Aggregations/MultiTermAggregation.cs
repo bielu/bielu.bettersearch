@@ -4,7 +4,7 @@
     public class MultiTermAggregation : IAggregationQuery
     {
         /// <inheritdoc />
-        public required string AggregationName { get; set; }
+        public string AggregationName { get; set; } = string.Empty;
         /// <summary>The fields whose values are combined, in the order of each bucket's <see cref="Models.KeyBucket.Keys"/>.</summary>
         public List<SimpleTerm> Terms { get; set; } = [];
 

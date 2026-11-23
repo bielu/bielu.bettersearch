@@ -2,6 +2,7 @@
 using Bielu.BetterSearch.Abstractions.Query.Aggregations;
 using Bielu.BetterSearch.Abstractions.Query.SubQueries;
 using Bielu.BetterSearch.FluentApi.Fluent;
+using Bielu.BetterSearch.FluentApi.Fluent.Aggregations;
 using Bielu.BetterSearch.FluentApi.Fluent.Extensions;
 using Shouldly;
 
@@ -140,6 +141,23 @@ public sealed class FluentQueryBuilderTests
         var multiTerm = query.FacetQueries[1].ShouldBeOfType<MultiTermAggregation>();
         multiTerm.Size.ShouldBe(3);
         multiTerm.Terms.Select(t => t.TermFieldName).ShouldBe(["City", "Type"]);
+    }
+
+    [Fact]
+    public void CreateAggregationQueryOfT_BuiltInFacets_AddsTheConfiguredFacets()
+    {
+        var query = Build(q => q
+            .CreateAggregationQuery<TermAggregation>(t => { t.AggregationName = "cities"; t.TermFieldName = "City"; })
+            .CreateAggregationQuery<FilterAggregationQuery>(f => f.AggregationName = "warsaw"));
+        new FilterAggregationQueryConfigurator((FilterAggregationQuery)query.FacetQueries[1])
+            .CreateSubAggregationQuery<MultiTermAggregation>(m => m.AggregationName = "pairs");
+
+        query.FacetQueries.Count.ShouldBe(2);
+        var term = query.FacetQueries[0].ShouldBeOfType<TermAggregation>();
+        (term.AggregationName, term.TermFieldName).ShouldBe(("cities", "City"));
+        var filter = query.FacetQueries[1].ShouldBeOfType<FilterAggregationQuery>();
+        filter.AggregationName.ShouldBe("warsaw");
+        filter.NestedAggregations.ShouldHaveSingleItem().ShouldBeOfType<MultiTermAggregation>().AggregationName.ShouldBe("pairs");
     }
 
     [Fact]

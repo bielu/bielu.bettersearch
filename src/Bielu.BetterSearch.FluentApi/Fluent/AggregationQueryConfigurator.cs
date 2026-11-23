@@ -13,7 +13,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
         /// <returns>This configurator, for chaining.</returns>
         public AggregationQueryConfigurator CreateFilterQuery(Action<FilterAggregationQueryConfigurator> query)
         {
-            var configurator = new FilterAggregationQueryConfigurator(new FilterAggregationQuery { AggregationName = string.Empty });
+            var configurator = new FilterAggregationQueryConfigurator(new FilterAggregationQuery());
             query.Invoke(configurator);
             configuratorQuery.FacetQueries.Add(configurator.FilterAggregationQuery);
             return this;
@@ -23,7 +23,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
         /// <returns>This configurator, for chaining.</returns>
         public AggregationQueryConfigurator CreateTermQuery(Action<TermAggregationQueryConfigurator> query)
         {
-            var termAggregation = new TermAggregation { AggregationName = string.Empty, TermFieldName = string.Empty };
+            var termAggregation = new TermAggregation();
             var configurator = new TermAggregationQueryConfigurator(termAggregation);
             query.Invoke(configurator);
             configuratorQuery.FacetQueries.Add(termAggregation);
@@ -34,7 +34,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
         /// <returns>This configurator, for chaining.</returns>
         public AggregationQueryConfigurator CreateMultiTermQuery(Action<MultiTermAggregationQueryConfigurator> query)
         {
-            var termAggregation = new MultiTermAggregation { AggregationName = string.Empty };
+            var termAggregation = new MultiTermAggregation();
             var configurator = new MultiTermAggregationQueryConfigurator(termAggregation);
             query.Invoke(configurator);
             configuratorQuery.FacetQueries.Add(termAggregation);
