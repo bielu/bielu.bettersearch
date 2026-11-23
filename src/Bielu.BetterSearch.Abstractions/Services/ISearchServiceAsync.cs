@@ -15,12 +15,10 @@ public interface ISearchServiceAsync
     /// <summary>
     /// Gets one document by id; see <see cref="ISearchProviderAsync.GetDocumentAsync"/>.
     /// </summary>
-    public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Result.Fail<SearchDocument?>($"{GetType().Name} does not support GetDocumentAsync."));
+    public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Counts the documents a query matches; see <see cref="ISearchProviderAsync.CountAsync"/>.
     /// </summary>
-    public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Result.Fail<long>($"{GetType().Name} does not support CountAsync."));
+    public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default);
 }

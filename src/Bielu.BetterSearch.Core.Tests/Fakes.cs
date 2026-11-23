@@ -44,6 +44,12 @@ internal sealed class SearchOnlyProvider : ISearchProviderAsync
 {
     public Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
         Task.FromResult(Result.Ok<ISearchResult>(FakeSearchProvider.Results(0, 0)));
+
+    public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
+    public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
 }
 
 internal class FakeIndexingProvider : IIndexingProviderAsync
@@ -117,6 +123,12 @@ internal sealed class OtherSearchProvider : ISearchProviderAsync
 {
     public Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
         Task.FromResult(Result.Ok<ISearchResult>(FakeSearchProvider.Results(2, 2)));
+
+    public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
+    public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
 }
 
 /// <summary>A second indexing provider type, as a provider type can be added under one key only.</summary>
