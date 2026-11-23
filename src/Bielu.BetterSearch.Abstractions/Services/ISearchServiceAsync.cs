@@ -10,6 +10,9 @@ namespace Bielu.BetterSearch.Abstractions.Services;
 /// </summary>
 public interface ISearchServiceAsync
 {
+    /// <summary>Runs <paramref name="query"/> through <see cref="ISearchProviderAsync.SearchAsync"/>.</summary>
+    /// <param name="query">The query to run.</param>
+    /// <param name="cancellationToken">Cancels the search.</param>
     public Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>

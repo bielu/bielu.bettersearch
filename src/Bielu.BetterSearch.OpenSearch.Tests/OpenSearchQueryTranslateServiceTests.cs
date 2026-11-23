@@ -17,7 +17,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [Fact]
     public async Task TranslateMainQueryAsync_NoClauses_ReturnsMatchAll()
     {
-        var result = await translateService.TranslateMainQueryAsync(new SearchQuery());
+        var result = await translateService.TranslateMainQueryAsync(new SearchQuery { Index = "index" });
 
         result.IsSuccess.ShouldBeTrue();
         ((IQueryContainer)result.Value).MatchAll.ShouldNotBeNull();
@@ -26,7 +26,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [Fact]
     public async Task TranslateMainQueryAsync_Clauses_ReturnsBoolQueryWithEachOccurrence()
     {
-        var query = new SearchQuery();
+        var query = new SearchQuery { Index = "index" };
         query.Add(Occurrence.Must, new TermSubQuery { Field = "Name", Value = "jane" });
         query.Add(Occurrence.Should, new TermSubQuery { Field = "City", Value = "warsaw" });
         query.Add(Occurrence.MustNot, new TermSubQuery { Field = "Age", Value = 30 });
@@ -53,7 +53,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [MemberData(nameof(ConditionlessSubQueries))]
     public async Task TranslateMainQueryAsync_ConditionlessClause_IsStillSent(ISearchSubQuery subQuery)
     {
-        var query = new SearchQuery();
+        var query = new SearchQuery { Index = "index" };
         query.Add(Occurrence.Must, subQuery);
 
         var result = await translateService.TranslateMainQueryAsync(query);
@@ -66,7 +66,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [Fact]
     public async Task TranslateMainQueryAsync_SubQueryWithoutField_ReturnsFailedResult()
     {
-        var query = new SearchQuery();
+        var query = new SearchQuery { Index = "index" };
         query.Add(Occurrence.Must, new TermSubQuery { Value = "jane" });
 
         var result = await translateService.TranslateMainQueryAsync(query);
@@ -78,7 +78,7 @@ public class OpenSearchQueryTranslateServiceTests(
     [Fact]
     public async Task TranslatePostFilterAsync_NoPostFilter_ReturnsNull()
     {
-        var result = await postFilterTranslateService.TranslatePostFilterAsync(new SearchQuery());
+        var result = await postFilterTranslateService.TranslatePostFilterAsync(new SearchQuery { Index = "index" });
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBeNull();

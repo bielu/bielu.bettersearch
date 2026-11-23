@@ -1,0 +1,76 @@
+#nullable enable
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationDetails
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationDetails.ApiKey.get -> string!
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationDetails.ApiKey.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationDetails.OpenSearchAuthenticationDetails() -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationDetails.Password.get -> string!
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationDetails.Password.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationDetails.Username.get -> string!
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationDetails.Username.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationType.ApiKey = 2 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationType.None = 0 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationType.Password = 1 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldMapping
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldMapping.Analyzer.get -> string?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldMapping.Analyzer.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldMapping.Field.get -> string?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldMapping.Field.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldMapping.Format.get -> string?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldMapping.Format.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldMapping.OpenSearchFieldMapping() -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldMapping.Type.get -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldMapping.Type.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType.Boolean = 9 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType.Byte = 6 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType.Date = 2 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType.Double = 7 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType.Float = 8 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType.GeoPoint = 10 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType.Integer = 4 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType.Keyword = 1 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType.Long = 3 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType.Short = 5 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType.Text = 0 -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldType
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.AdditionalNodes.get -> System.Collections.Generic.IList<string!>?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.AdditionalNodes.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.AuthenticationDetails.get -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationDetails?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.AuthenticationDetails.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.AuthenticationType.get -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchAuthenticationType?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.AuthenticationType.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.BulkBatchSize.get -> int?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.BulkBatchSize.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.CertificateFingerprint.get -> string?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.CertificateFingerprint.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.ConnectionString.get -> string!
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.ConnectionString.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.DevelopmentOnlySkipCertificateValidation.get -> bool?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.DevelopmentOnlySkipCertificateValidation.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.Mappings.get -> System.Collections.Generic.List<Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchFieldMapping!>?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.Mappings.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.MaxRetries.get -> int?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.MaxRetries.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.OpenSearchIndexSettings() -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.PoolType.get -> Bielu.BetterSearch.Abstractions.Configuration.NodePoolType?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.PoolType.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.RequestTimeout.get -> System.TimeSpan?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.RequestTimeout.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.WriteVisibility.get -> Bielu.BetterSearch.Abstractions.Configuration.WriteVisibility?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings.WriteVisibility.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchOptions
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchOptions.Indexes.get -> System.Collections.Generic.Dictionary<string!, Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings!>?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchOptions.Indexes.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchOptions.IndexPrefix.get -> string?
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchOptions.IndexPrefix.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchOptions.MaxResultWindow.get -> int
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchOptions.MaxResultWindow.set -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchOptions.OpenSearchOptions() -> void
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchOptions.SharedIndexSettings.get -> Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchIndexSettings!
+Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchOptions.SharedIndexSettings.set -> void
+Bielu.BetterSearch.OpenSearch.DependencyInjection.RegisterSearchExtension
+const Bielu.BetterSearch.OpenSearch.DependencyInjection.RegisterSearchExtension.DefaultKey = "OpenSearch" -> string!
+static Bielu.BetterSearch.OpenSearch.Configuration.OpenSearchOptions.OpenSearchOptionsKey.get -> string!
+static Bielu.BetterSearch.OpenSearch.DependencyInjection.RegisterSearchExtension.AddOpenSearch(this Bielu.BetterSearch.Configuration.Configurator! configurator, string! key = "OpenSearch", System.Action<OpenSearch.Client.ConnectionSettings!>? configureClient = null) -> Bielu.BetterSearch.Configuration.Configurator!
+static Bielu.BetterSearch.OpenSearch.DependencyInjection.RegisterSearchExtension.UseOpenSearchConnection(this Bielu.BetterSearch.Configuration.Configurator! configurator, System.Func<System.IServiceProvider!, OpenSearch.Net.IConnection!>! createConnection) -> Bielu.BetterSearch.Configuration.Configurator!

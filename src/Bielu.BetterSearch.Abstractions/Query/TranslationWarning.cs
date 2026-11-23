@@ -8,6 +8,8 @@ namespace Bielu.BetterSearch.Abstractions.Query;
 /// </summary>
 public sealed class TranslationWarning : Success
 {
+    /// <summary>Creates a warning with <paramref name="message"/>.</summary>
+    /// <param name="message">What was translated only approximately, and how.</param>
     public TranslationWarning(string message) : base(message)
     {
     }

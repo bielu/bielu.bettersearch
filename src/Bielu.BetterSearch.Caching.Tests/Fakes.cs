@@ -36,6 +36,7 @@ internal class CountingSearchProvider : ISearchProviderAsync
         var document = new SearchDocument
         {
             Id = $"{query.Index}-{call}",
+            Index = query.Index,
             Type = "page",
             Fields = new Dictionary<string, IList<object>> { ["call"] = [(long)call] }
         };

@@ -1,0 +1,19 @@
+#nullable enable
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlIndexSettings
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlIndexSettings.ConnectionString.get -> string!
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlIndexSettings.ConnectionString.set -> void
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlIndexSettings.PostgreSqlIndexSettings() -> void
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlOptions
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlOptions.Indexes.get -> System.Collections.Generic.Dictionary<string!, Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlIndexSettings!>?
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlOptions.Indexes.set -> void
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlOptions.PostgreSqlOptions() -> void
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlOptions.Schema.get -> string!
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlOptions.Schema.set -> void
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlOptions.SharedIndexSettings.get -> Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlIndexSettings!
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlOptions.SharedIndexSettings.set -> void
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlOptions.TextSearchConfiguration.get -> string!
+Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlOptions.TextSearchConfiguration.set -> void
+Bielu.BetterSearch.PostgreSql.DependencyInjection.RegisterSearchExtension
+const Bielu.BetterSearch.PostgreSql.DependencyInjection.RegisterSearchExtension.DefaultKey = "PostgreSql" -> string!
+static Bielu.BetterSearch.PostgreSql.Configuration.PostgreSqlOptions.PostgreSqlOptionsKey.get -> string!
+static Bielu.BetterSearch.PostgreSql.DependencyInjection.RegisterSearchExtension.AddPostgreSql(this Bielu.BetterSearch.Configuration.Configurator! configurator, string! key = "PostgreSql") -> Bielu.BetterSearch.Configuration.Configurator!

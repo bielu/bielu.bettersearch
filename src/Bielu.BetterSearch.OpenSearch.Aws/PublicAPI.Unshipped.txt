@@ -1,0 +1,14 @@
+#nullable enable
+Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4ConfiguratorExtensions
+Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4Options
+Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4Options.Credentials.get -> Amazon.Runtime.AWSCredentials?
+Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4Options.Credentials.set -> void
+Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4Options.OpenSearchAwsSigV4Options() -> void
+Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4Options.Region.get -> string?
+Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4Options.Region.set -> void
+Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4Options.Service.get -> string!
+Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4Options.Service.set -> void
+const Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4Options.AwsSigV4OptionsKey = "Bielu:BetterSearch:OpenSearch:AwsSigV4" -> string!
+const Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4Options.OpenSearchServerlessService = "aoss" -> string!
+const Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4Options.OpenSearchService = "es" -> string!
+static Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4ConfiguratorExtensions.AddOpenSearchAwsSigV4(this Bielu.BetterSearch.Configuration.Configurator! configurator, System.Action<Bielu.BetterSearch.OpenSearch.Aws.OpenSearchAwsSigV4Options!>? configure = null) -> Bielu.BetterSearch.Configuration.Configurator!

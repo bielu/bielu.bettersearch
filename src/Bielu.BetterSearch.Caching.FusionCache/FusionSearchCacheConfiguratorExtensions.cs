@@ -6,6 +6,7 @@ using ZiggyCreatures.Caching.Fusion;
 
 namespace Bielu.BetterSearch.Caching.FusionCache;
 
+/// <summary>Extensions that register the FusionCache-backed search result cache on a <see cref="Configurator"/>.</summary>
 public static class FusionSearchCacheConfiguratorExtensions
 {
     /// <summary>

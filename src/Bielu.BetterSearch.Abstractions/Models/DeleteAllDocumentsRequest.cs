@@ -1,6 +1,8 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Models;
 
+/// <summary>A request to remove every document from one index.</summary>
 public class DeleteAllDocumentsRequest
 {
-    public string IndexName { get; set; }
+    /// <summary>The name of the index to remove every document from.</summary>
+    public required string IndexName { get; set; }
 }

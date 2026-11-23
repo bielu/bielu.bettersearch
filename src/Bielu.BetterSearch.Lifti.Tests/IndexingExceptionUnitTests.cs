@@ -88,7 +88,7 @@ public class IndexingExceptionUnitTests
     private sealed class ThrowingLiftiIndexManager(Exception exception) : ILiftiIndexManager
     {
         public Task<Result<IFullTextIndex<string>>> GetOrCreateIndexAsync(string key) => throw exception;
-        public Task<Result<IFullTextIndex<string>?>> CreateIndexAsync(string key) => throw exception;
+        public Task<Result<IFullTextIndex<string>>> CreateIndexAsync(string key) => throw exception;
         public Task<Result<IFullTextIndex<string>?>> GetIndexAsync(string key) => throw exception;
         public Task<Result<bool>> ExistsAsync(string name) => throw exception;
         public Task<Result<bool>> DeleteIndexAsync(string name) => throw exception;
@@ -97,7 +97,7 @@ public class IndexingExceptionUnitTests
     private sealed class FailingCreateLiftiIndexManager(IEnumerable<IError> errors) : ILiftiIndexManager
     {
         public Task<Result<IFullTextIndex<string>>> GetOrCreateIndexAsync(string key) => throw new NotSupportedException();
-        public Task<Result<IFullTextIndex<string>?>> CreateIndexAsync(string key) => Task.FromResult(Result.Fail<IFullTextIndex<string>?>(errors));
+        public Task<Result<IFullTextIndex<string>>> CreateIndexAsync(string key) => Task.FromResult(Result.Fail<IFullTextIndex<string>>(errors));
         public Task<Result<IFullTextIndex<string>?>> GetIndexAsync(string key) => throw new NotSupportedException();
         public Task<Result<bool>> ExistsAsync(string name) => throw new NotSupportedException();
         public Task<Result<bool>> DeleteIndexAsync(string name) => throw new NotSupportedException();

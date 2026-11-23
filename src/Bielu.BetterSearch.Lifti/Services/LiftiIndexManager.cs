@@ -21,7 +21,7 @@ internal sealed class LiftiIndexManager : ILiftiIndexManager
         return await CreateIndexAsync(key).ConfigureAwait(false);
     }
 
-    public Task<Result<IFullTextIndex<string>?>> CreateIndexAsync(string key)
+    public Task<Result<IFullTextIndex<string>>> CreateIndexAsync(string key)
     {
         var index = new FullTextIndexBuilder<string>().WithObjectTokenization<SearchDocument>(options =>
             options.WithKey(x => x.Id)
@@ -34,7 +34,7 @@ internal sealed class LiftiIndexManager : ILiftiIndexManager
         ).Build();
 
         _indices[key] = index;
-        return Task.FromResult(Result.Ok<IFullTextIndex<string>?>(index));
+        return Task.FromResult(Result.Ok<IFullTextIndex<string>>(index));
     }
 
     public Task<Result<IFullTextIndex<string>?>> GetIndexAsync(string key) =>

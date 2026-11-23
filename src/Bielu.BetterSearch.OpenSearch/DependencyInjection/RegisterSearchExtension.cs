@@ -11,6 +11,7 @@ using OpenSearch.Net;
 
 namespace Bielu.BetterSearch.OpenSearch.DependencyInjection;
 
+/// <summary>Extensions that add the OpenSearch provider to a <see cref="Configurator"/>.</summary>
 public static class RegisterSearchExtension
 {
     /// <summary>The key AddOpenSearch registers its provider under when no key is given.</summary>

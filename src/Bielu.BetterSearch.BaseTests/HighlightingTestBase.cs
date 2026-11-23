@@ -277,8 +277,8 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
     [Fact]
     public void Highlights_HitWithoutHighlights_CannotBeChangedForOtherHits()
     {
-        var hit = new SearchHit(new SearchDocument(), null);
-        var other = new SearchHit(new SearchDocument(), null);
+        var hit = new SearchHit(new SearchDocument { Id = "1", Index = "index" }, null);
+        var other = new SearchHit(new SearchDocument { Id = "2", Index = "index" }, null);
 
         Should.Throw<NotSupportedException>(() =>
             ((IDictionary<string, IReadOnlyList<string>>)hit.Highlights).Add("Name", ["<em>x</em>"]));
@@ -289,7 +289,7 @@ public abstract class HighlightingTestBase(ISearchServiceAsync searchService, II
     [Fact]
     public void HighlighterConfigurator_New_AddsTheRequestItConfigures()
     {
-        var query = new SearchQuery();
+        var query = new SearchQuery { Index = "index" };
 
         var configurator = new HighlighterConfigurator(query);
         configurator.Query.Field = "Name";

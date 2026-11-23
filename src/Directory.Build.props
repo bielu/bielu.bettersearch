@@ -27,10 +27,9 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <!-- Ship the XML docs that exist in source. CS1591 stays off until the public API settles:
-             documenting members the stabilization roadmap is about to rename would be wasted work. -->
+        <!-- Ship the XML docs. Every public member of a shipping package is documented (CS1591); the projects that
+             are not packed turn CS1591 off in Directory.Build.targets. -->
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <NoWarn>$(NoWarn);CS1591</NoWarn>
     </PropertyGroup>
 
     <PropertyGroup>

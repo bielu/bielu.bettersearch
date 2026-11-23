@@ -11,6 +11,7 @@ namespace Bielu.BetterSearch.Caching.FusionCache;
 /// </summary>
 public sealed class FusionSearchResultCache(IFusionCache cache) : ISearchResultCache
 {
+    /// <inheritdoc />
     public async ValueTask<T> GetOrCreateAsync<T>(string key, Func<CancellationToken, ValueTask<T>> factory,
         SearchCacheEntryOptions options, CancellationToken cancellationToken = default)
     {
@@ -22,6 +23,7 @@ public sealed class FusionSearchResultCache(IFusionCache cache) : ISearchResultC
             options: entryOptions, tags: options.Tags, token: cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default) =>
         await cache.RemoveByTagAsync(tag, token: cancellationToken).ConfigureAwait(false);
 }

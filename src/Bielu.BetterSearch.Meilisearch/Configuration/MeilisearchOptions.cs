@@ -2,9 +2,12 @@
 
 namespace Bielu.BetterSearch.Meilisearch.Configuration;
 
+/// <summary>The Meilisearch provider's options, bound from the <see cref="MeilisearchOptionsKey"/> configuration section.</summary>
 public class MeilisearchOptions
 {
+    /// <summary>The configuration section the options are bound from, <c>Bielu:BetterSearch:Meilisearch</c>.</summary>
     public static string MeilisearchOptionsKey { get; } = "Bielu:BetterSearch:Meilisearch";
+    /// <summary>The settings every index uses, unless its <see cref="Indexes"/> entry sets its own.</summary>
     public MeilisearchIndexSettings SharedIndexSettings { get; set; } = new();
 
     /// <summary>
@@ -86,6 +89,7 @@ public class MeilisearchOptions
     public IList<string>? PhraseFields { get; set; }
 }
 
+/// <summary>Connection and indexing settings, shared by every index or set for one index in <see cref="MeilisearchOptions.Indexes"/>.</summary>
 public class MeilisearchIndexSettings
 {
     /// <summary>The URL of the Meilisearch server, for example <c>http://localhost:7700</c>.</summary>

@@ -16,8 +16,12 @@ public readonly record struct DateRangeValue
     /// <summary>The instant as a <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</summary>
     public DateTime UtcDateTime => Instant.UtcDateTime;
 
+    /// <summary>The instant of <paramref name="value"/>, whatever its offset.</summary>
+    /// <param name="value">The bound.</param>
     public static implicit operator DateRangeValue(DateTimeOffset value) => new(value);
 
+    /// <summary>The instant of <paramref name="value"/>, read as UTC when its kind is <see cref="DateTimeKind.Unspecified"/>.</summary>
+    /// <param name="value">The bound.</param>
     public static implicit operator DateRangeValue(DateTime value) => new(value.Kind == DateTimeKind.Unspecified
         ? new DateTimeOffset(value, TimeSpan.Zero)
         : new DateTimeOffset(value.ToUniversalTime()));

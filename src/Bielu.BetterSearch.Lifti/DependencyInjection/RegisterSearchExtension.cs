@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Bielu.BetterSearch.DependencyInjection;
 
+/// <summary>Extensions that add the in-memory Lifti provider to a <see cref="Configurator"/>.</summary>
 public static class RegisterSearchExtension
 {
     /// <summary>The key AddLiftiSearch registers its provider under when no key is given.</summary>

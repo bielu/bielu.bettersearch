@@ -1,0 +1,30 @@
+<Project>
+
+    <!-- In a .targets file rather than Directory.Build.props, because IsPackable is set in each project file, which
+         Directory.Build.props is read before. -->
+
+    <PropertyGroup Condition="'$(IsPackable)' != 'false'">
+        <!-- Shipping packages build with no warnings. The NuGet audit warnings stay warnings: they follow the advisory
+             database, not the code, so a new advisory must not break a build of an unchanged commit. -->
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(IsPackable)' == 'false'">
+        <!-- Tests, test bases and the AppHost are not packed, so their public members need no XML docs. -->
+        <NoWarn>$(NoWarn);CS1591</NoWarn>
+    </PropertyGroup>
+
+    <!-- The public API of every shipping package is recorded in PublicAPI.Shipped.txt (released as stable) and
+         PublicAPI.Unshipped.txt (not yet), so a change to it shows in review. scripts/ship-public-api.mjs moves the
+         unshipped entries to the shipped file when a stable version is cut. -->
+    <ItemGroup Condition="'$(IsPackable)' != 'false'">
+        <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+        <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+    </ItemGroup>
+
+</Project>

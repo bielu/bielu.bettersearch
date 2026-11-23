@@ -35,6 +35,7 @@ public sealed class MemorySearchResultCache(IMemoryCache memoryCache) : ISearchR
         }
     }
 
+    /// <inheritdoc />
     public async ValueTask<T> GetOrCreateAsync<T>(string key, Func<CancellationToken, ValueTask<T>> factory,
         SearchCacheEntryOptions options, CancellationToken cancellationToken = default)
     {
@@ -81,6 +82,7 @@ public sealed class MemorySearchResultCache(IMemoryCache memoryCache) : ISearchR
         }
     }
 
+    /// <inheritdoc />
     public ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tag);

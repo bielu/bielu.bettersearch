@@ -256,7 +256,7 @@ public class RemoveDocumentUnitTests
 
         public Task<Result<IFullTextIndex<string>>> GetOrCreateIndexAsync(string key) => _inner.GetOrCreateIndexAsync(key);
 
-        public Task<Result<IFullTextIndex<string>?>> CreateIndexAsync(string key) => _inner.CreateIndexAsync(key);
+        public Task<Result<IFullTextIndex<string>>> CreateIndexAsync(string key) => _inner.CreateIndexAsync(key);
 
         public Task<Result<bool>> ExistsAsync(string name) => _inner.ExistsAsync(name);
 

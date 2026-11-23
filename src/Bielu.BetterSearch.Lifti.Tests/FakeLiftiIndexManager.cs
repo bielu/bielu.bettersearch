@@ -13,8 +13,8 @@ internal sealed class FakeLiftiIndexManager(string error, bool creationThrows = 
     public Task<Result<IFullTextIndex<string>>> GetOrCreateIndexAsync(string key) =>
         creationThrows ? throw new InvalidOperationException("The index must not be created.") : Task.FromResult(Result.Fail<IFullTextIndex<string>>(error));
 
-    public Task<Result<IFullTextIndex<string>?>> CreateIndexAsync(string key) =>
-        creationThrows ? throw new InvalidOperationException("The index must not be created.") : Task.FromResult(Result.Fail<IFullTextIndex<string>?>(error));
+    public Task<Result<IFullTextIndex<string>>> CreateIndexAsync(string key) =>
+        creationThrows ? throw new InvalidOperationException("The index must not be created.") : Task.FromResult(Result.Fail<IFullTextIndex<string>>(error));
 
     public Task<Result<IFullTextIndex<string>?>> GetIndexAsync(string key) =>
         Task.FromResult(Result.Fail<IFullTextIndex<string>?>(error));

@@ -99,7 +99,7 @@ public abstract class IndexPrefixTestBase(IServiceProvider services) : IDisposab
                     FacetQueries = [new TermAggregation { AggregationName = "names", TermFieldName = FacetField }]
                 }, Token);
                 ShouldSucceed(faceted);
-                faceted.Value.RetrieveBucketAggregation("names").Buckets.Cast<KeyBucket>().Select(bucket => bucket.Key).Order()
+                faceted.Value.RetrieveBucketAggregation("names")!.Buckets.Cast<KeyBucket>().Select(bucket => bucket.Key).Order()
                     .ShouldBe(["item a", "item b", "item c", "item d"]);
             }
 

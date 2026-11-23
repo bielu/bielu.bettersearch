@@ -52,7 +52,7 @@ internal sealed class ElasticSearchClientFactory : IClientFactoryAsync<Elasticse
     internal int CachedClientCount => _clients.Count;
 
     internal readonly record struct ClientKey(
-        string ConnectionString,
+        string? ConnectionString,
         string AdditionalNodes,
         NodePoolType? PoolType,
         AuthenticationType? AuthenticationType,

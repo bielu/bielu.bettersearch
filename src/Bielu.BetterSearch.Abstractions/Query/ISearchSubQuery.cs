@@ -1,5 +1,6 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Query;
 
+/// <summary>One clause of a query.</summary>
 public interface ISearchSubQuery
 {
     /// <summary>

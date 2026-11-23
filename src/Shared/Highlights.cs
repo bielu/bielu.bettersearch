@@ -38,7 +38,7 @@ internal static class Highlights
             }
 
             var name = request.IsAllField ? "all fields" : $"field {request.Field}";
-            var field = resolve(request.IsAllField ? AllFields : request.Field);
+            var field = resolve(request.IsAllField ? AllFields : request.Field!);
             if (!named.TryAdd(field, name))
             {
                 var first = named[field];

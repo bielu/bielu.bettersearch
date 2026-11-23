@@ -13,9 +13,9 @@ public class QueryModelAddTests
 
     private static ICreatableSearchQuery Create(string container) => container switch
     {
-        nameof(SearchQuery) => new SearchQuery(),
+        nameof(SearchQuery) => new SearchQuery { Index = "index" },
         nameof(BoolSearchSubQuery) => new BoolSearchSubQuery(),
-        nameof(FilterAggregationQuery) => new FilterAggregationQuery(),
+        nameof(FilterAggregationQuery) => new FilterAggregationQuery { AggregationName = "facet" },
         nameof(BaseHighlightQuery) => new BaseHighlightQuery(),
         _ => throw new ArgumentOutOfRangeException(nameof(container))
     };

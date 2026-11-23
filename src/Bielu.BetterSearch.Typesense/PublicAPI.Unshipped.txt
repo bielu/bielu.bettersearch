@@ -1,0 +1,27 @@
+#nullable enable
+Bielu.BetterSearch.Typesense.Configuration.TypesenseIndexSettings
+Bielu.BetterSearch.Typesense.Configuration.TypesenseIndexSettings.AdditionalNodes.get -> System.Collections.Generic.IList<string!>?
+Bielu.BetterSearch.Typesense.Configuration.TypesenseIndexSettings.AdditionalNodes.set -> void
+Bielu.BetterSearch.Typesense.Configuration.TypesenseIndexSettings.ApiKey.get -> string?
+Bielu.BetterSearch.Typesense.Configuration.TypesenseIndexSettings.ApiKey.set -> void
+Bielu.BetterSearch.Typesense.Configuration.TypesenseIndexSettings.ConnectionString.get -> string!
+Bielu.BetterSearch.Typesense.Configuration.TypesenseIndexSettings.ConnectionString.set -> void
+Bielu.BetterSearch.Typesense.Configuration.TypesenseIndexSettings.TypesenseIndexSettings() -> void
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.GeoField.get -> string?
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.GeoField.set -> void
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.Indexes.get -> System.Collections.Generic.Dictionary<string!, Bielu.BetterSearch.Typesense.Configuration.TypesenseIndexSettings!>?
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.Indexes.set -> void
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.IndexPrefix.get -> string?
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.IndexPrefix.set -> void
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.RequestTimeout.get -> System.TimeSpan
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.RequestTimeout.set -> void
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.SchemaCheckInterval.get -> System.TimeSpan
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.SchemaCheckInterval.set -> void
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.SharedIndexSettings.get -> Bielu.BetterSearch.Typesense.Configuration.TypesenseIndexSettings!
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.SharedIndexSettings.set -> void
+Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.TypesenseOptions() -> void
+Bielu.BetterSearch.Typesense.DependencyInjection.RegisterSearchExtension
+const Bielu.BetterSearch.Typesense.DependencyInjection.RegisterSearchExtension.DefaultKey = "Typesense" -> string!
+static Bielu.BetterSearch.Typesense.Configuration.TypesenseOptions.TypesenseOptionsKey.get -> string!
+static Bielu.BetterSearch.Typesense.DependencyInjection.RegisterSearchExtension.AddTypesense(this Bielu.BetterSearch.Configuration.Configurator! configurator, string! key = "Typesense", System.Action<System.Net.Http.HttpClient!>? configureClient = null) -> Bielu.BetterSearch.Configuration.Configurator!

@@ -8,6 +8,7 @@ namespace Bielu.BetterSearch.OpenSearch.Aws;
 /// </summary>
 public class OpenSearchAwsSigV4Options
 {
+    /// <summary>The configuration section the options are bound from, <c>Bielu:BetterSearch:OpenSearch:AwsSigV4</c>.</summary>
     public const string AwsSigV4OptionsKey = "Bielu:BetterSearch:OpenSearch:AwsSigV4";
 
     /// <summary>The service code for Amazon OpenSearch Service.</summary>

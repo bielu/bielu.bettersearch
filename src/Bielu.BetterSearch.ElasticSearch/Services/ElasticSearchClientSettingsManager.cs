@@ -158,11 +158,11 @@ internal sealed class ElasticSearchClientSettingsManager(IOptionsMonitor<Elastic
         var clientSettings = (settings.AuthenticationType ?? AuthenticationType.None) switch
         {
             AuthenticationType.Password => new ElasticsearchClientSettings(CreateNodePool(settings))
-                .Authentication(new BasicAuthentication(details.Username, details.Password)),
-            AuthenticationType.Cloud => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new BasicAuthentication(details.Username, details.Password))),
-            AuthenticationType.CloudApi => new ElasticsearchClientSettings(new CloudNodePool(details.Id, new ApiKey(details.ApiKey))),
+                .Authentication(new BasicAuthentication(details.Username!, details.Password!)),
+            AuthenticationType.Cloud => new ElasticsearchClientSettings(new CloudNodePool(details.Id!, new BasicAuthentication(details.Username!, details.Password!))),
+            AuthenticationType.CloudApi => new ElasticsearchClientSettings(new CloudNodePool(details.Id!, new ApiKey(details.ApiKey!))),
             AuthenticationType.ApiKey => new ElasticsearchClientSettings(CreateNodePool(settings))
-                .Authentication(new ApiKey(details.ApiKey)),
+                .Authentication(new ApiKey(details.ApiKey!)),
             AuthenticationType.Bearer => new ElasticsearchClientSettings(CreateNodePool(settings))
                 .Authentication(new BearerToken(details.Token!)),
             _ => new ElasticsearchClientSettings(CreateNodePool(settings)),
@@ -187,7 +187,7 @@ internal sealed class ElasticSearchClientSettingsManager(IOptionsMonitor<Elastic
     /// </summary>
     private static NodePool CreateNodePool(ElasticSearchIndexSettings settings)
     {
-        var nodes = ConnectionSettingsChecks.NodeUrls(settings.ConnectionString, settings.AdditionalNodes);
+        var nodes = ConnectionSettingsChecks.NodeUrls(settings.ConnectionString!, settings.AdditionalNodes);
         return settings.PoolType switch
         {
             null when nodes.Count == 1 => new SingleNodePool(nodes[0]),

@@ -8,6 +8,9 @@ namespace Bielu.BetterSearch.Abstractions.Services;
 /// </summary>
 public interface IIndexingServiceAsync
 {
+    /// <summary>Checks and validates <paramref name="document"/>, then indexes it through <see cref="IIndexingProviderAsync.IndexDocumentAsync"/>.</summary>
+    /// <param name="document">The document to index.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
     Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default);
     /// <summary>
     /// Checks and validates every document, then indexes them all with one call to
@@ -18,6 +21,9 @@ public interface IIndexingServiceAsync
     /// <c>ids</c> metadata.
     /// </summary>
     Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document, CancellationToken cancellationToken = default);
+    /// <summary>Removes the document <paramref name="document"/> names from its index.</summary>
+    /// <param name="document">The id and index of the document to remove.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
     Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document, CancellationToken cancellationToken = default);
     /// <summary>
     /// Removes the documents with <paramref name="ids"/> from <paramref name="index"/> and returns how many were

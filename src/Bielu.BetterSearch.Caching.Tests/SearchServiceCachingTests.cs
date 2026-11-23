@@ -675,7 +675,7 @@ public class SearchServiceCachingTests
             Calls++;
             ISearchResult result = new BaseSearchResults
             {
-                Items = [new SearchHit(new SearchDocument { Id = "1", Fields = { ["link"] = [value] } }, null)],
+                Items = [new SearchHit(new SearchDocument { Id = "1", Index = "index", Fields = { ["link"] = [value] } }, null)],
                 Pagination = new Pagination()
             };
             return Task.FromResult(FluentResults.Result.Ok(result));

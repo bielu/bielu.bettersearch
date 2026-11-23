@@ -10,6 +10,7 @@ using MeilisearchQuery = Meilisearch.SearchQuery;
 
 namespace Bielu.BetterSearch.Meilisearch.DependencyInjection;
 
+/// <summary>Extensions that add the Meilisearch provider to a <see cref="Configurator"/>.</summary>
 public static class RegisterSearchExtension
 {
     /// <summary>The key AddMeilisearch registers its provider under when no key is given.</summary>

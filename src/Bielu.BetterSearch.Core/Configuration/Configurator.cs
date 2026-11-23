@@ -7,12 +7,21 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Bielu.BetterSearch.Configuration;
 
+/// <summary>
+/// Configures BetterSearch inside <c>AddBetterSearch</c>: the providers, routes, service types and search cache to
+/// register. Provider packages add their own extension methods to it.
+/// </summary>
+/// <param name="services">The service collection <c>AddBetterSearch</c> registers into.</param>
+/// <param name="configuration">The application configuration, read for provider options and routes.</param>
 public class Configurator(IServiceCollection services, IConfiguration configuration)
 {
+    /// <summary>The service collection <c>AddBetterSearch</c> registers into.</summary>
     public IServiceCollection Services => services;
+    /// <summary>The application configuration passed to <c>AddBetterSearch</c>.</summary>
     public IConfiguration AppConfiguration => configuration;
 
     // Each AddBetterSearch call gets its own configuration, so two containers in one process don't share provider types.
+    /// <summary>The settings this <c>AddBetterSearch</c> call collects: providers, routes and service types.</summary>
     public SearchApplicationConfiguration Configuration { get; } = new();
 
     /// <summary>
@@ -72,18 +81,30 @@ public class Configurator(IServiceCollection services, IConfiguration configurat
         return this;
     }
 
+    /// <summary>
+    /// Sets the <see cref="IDocumentValidatorAsync"/> the indexing services validate documents with. The default accepts
+    /// every document.
+    /// </summary>
+    /// <typeparam name="T">The validator type, registered as a scoped service.</typeparam>
+    /// <returns>This configurator, for chaining.</returns>
     public Configurator SetDocumentValidatorType<T>() where T : class, IDocumentValidatorAsync
     {
         Configuration.DocumentValidatorType = typeof(T);
         return this;
     }
 
+    /// <summary>Sets the <see cref="ISearchServiceAsync"/> implementation, <see cref="Bielu.BetterSearch.Services.SearchServiceAsync"/> by default.</summary>
+    /// <typeparam name="T">The search service type, registered as a scoped service.</typeparam>
+    /// <returns>This configurator, for chaining.</returns>
     public Configurator SetSearchServiceType<T>() where T : class, ISearchServiceAsync
     {
         Configuration.SearchServiceType = typeof(T);
         return this;
     }
 
+    /// <summary>Sets the <see cref="IIndexingServiceAsync"/> implementation, <see cref="Bielu.BetterSearch.Services.IndexingServiceAsync"/> by default.</summary>
+    /// <typeparam name="T">The indexing service type, registered as a scoped service.</typeparam>
+    /// <returns>This configurator, for chaining.</returns>
     public Configurator SetIndexingServiceType<T>() where T : class, IIndexingServiceAsync
     {
         Configuration.IndexingServiceType = typeof(T);

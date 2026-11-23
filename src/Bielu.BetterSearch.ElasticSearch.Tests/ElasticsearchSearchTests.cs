@@ -725,7 +725,7 @@ public sealed class ElasticsearchSearchTests(
     [Fact]
     public async Task SearchAsync_NoIndex_ReturnsFailedResult()
     {
-        var result = await searchService.SearchAsync(new SearchQuery(), TestContext.Current.CancellationToken);
+        var result = await searchService.SearchAsync(new SearchQuery { Index = null! }, TestContext.Current.CancellationToken);
 
         result.IsFailed.ShouldBeTrue();
         result.Errors.Single().Message.ShouldContain("Index");

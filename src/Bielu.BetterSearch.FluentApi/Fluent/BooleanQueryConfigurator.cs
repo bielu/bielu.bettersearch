@@ -2,24 +2,33 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
+    /// <summary>Configures a <see cref="BoolSearchSubQuery"/>: sub-queries created on it are nested inside the bool query.</summary>
     public class BooleanQueryConfigurator : IQueryConfigurator
     {
+        /// <summary>Makes sub-queries created on this configurator default to <see cref="Abstractions.Query.Occurrence.Must"/>.</summary>
+        /// <returns>This configurator, for chaining.</returns>
         public BooleanQueryConfigurator Must()
         {
             Occurrence = Occurrence.Must;
             return this;
         }
+        /// <summary>Makes sub-queries created on this configurator default to <see cref="Abstractions.Query.Occurrence.MustNot"/>.</summary>
+        /// <returns>This configurator, for chaining.</returns>
         public BooleanQueryConfigurator MustNot()
         {
             Occurrence = Occurrence.MustNot;
             return this;
         }
+        /// <summary>Makes sub-queries created on this configurator default to <see cref="Abstractions.Query.Occurrence.Should"/>.</summary>
+        /// <returns>This configurator, for chaining.</returns>
         public BooleanQueryConfigurator Should()
         {
             Occurrence = Occurrence.Should;
             return this;
         }
 
+        /// <summary>Makes sub-queries created on this configurator default to <see cref="Abstractions.Query.Occurrence.Filter"/>.</summary>
+        /// <returns>This configurator, for chaining.</returns>
         public BooleanQueryConfigurator Filter()
         {
             Occurrence = Occurrence.Filter;
@@ -38,7 +47,9 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
             Query.BoostValue = boost;
             return this;
         }
+        /// <inheritdoc />
         public INestableQuery Query { get; set; } = new BoolSearchSubQuery();
+        /// <inheritdoc />
         public Occurrence Occurrence { get; set; } = Occurrence.Must;
     }
 }

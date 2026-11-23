@@ -11,8 +11,19 @@ using Scrutor;
 
 namespace Bielu.BetterSearch.DependencyInjection;
 
+/// <summary>Extensions that register BetterSearch on an <see cref="IServiceCollection"/>.</summary>
 public static class BetterSearchServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers BetterSearch: runs <paramref name="configure"/>, then registers the providers it added, keyed by their
+    /// keys, and the unkeyed search, indexing and index lifecycle services on the default provider, with the routes and
+    /// the search cache when configured.
+    /// </summary>
+    /// <param name="services">The service collection to register into.</param>
+    /// <param name="configuration">The application configuration, read for provider options, instrumentation options and the <see cref="SearchApplicationConfiguration.RoutesSectionKey"/> section.</param>
+    /// <param name="configure">Adds the providers and sets the other options on the <see cref="Configurator"/>.</param>
+    /// <returns>The service collection, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">A default provider or a route names a key no provider is registered under, or a configured route has no provider key.</exception>
     public static IServiceCollection AddBetterSearch(this IServiceCollection services, IConfiguration configuration, Action<Configurator> configure)
     {
         var configurator = new Configurator(services, configuration);
@@ -75,6 +86,10 @@ public static class BetterSearchServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>Registers BetterSearch as <see cref="AddBetterSearch(IServiceCollection, IConfiguration, Action{Configurator})"/> does, with an empty configuration.</summary>
+    /// <param name="services">The service collection to register into.</param>
+    /// <param name="configure">Adds the providers and sets the other options on the <see cref="Configurator"/>.</param>
+    /// <returns>The service collection, for chaining.</returns>
     public static IServiceCollection AddBetterSearch(this IServiceCollection services, Action<Configurator> configure)
     {
         var emptyConfiguration = new ConfigurationBuilder().Build();

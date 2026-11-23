@@ -2,9 +2,12 @@
 
 namespace Bielu.BetterSearch.PostgreSql.Configuration;
 
+/// <summary>The PostgreSQL provider's options, bound from the <see cref="PostgreSqlOptionsKey"/> configuration section.</summary>
 public class PostgreSqlOptions
 {
+    /// <summary>The configuration section the options are bound from, <c>Bielu:BetterSearch:PostgreSql</c>.</summary>
     public static string PostgreSqlOptionsKey { get; } = "Bielu:BetterSearch:PostgreSql";
+    /// <summary>The settings every index uses, unless its <see cref="Indexes"/> entry sets its own.</summary>
     public PostgreSqlIndexSettings SharedIndexSettings { get; set; } = new();
     private Dictionary<string, PostgreSqlIndexSettings>? _indexes = new(StringComparer.OrdinalIgnoreCase);
 
@@ -47,6 +50,7 @@ public class PostgreSqlOptions
     public string TextSearchConfiguration { get; set; } = "simple";
 }
 
+/// <summary>Connection settings, shared by every index or set for one index in <see cref="PostgreSqlOptions.Indexes"/>.</summary>
 public class PostgreSqlIndexSettings
 {
     /// <summary>

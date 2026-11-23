@@ -12,25 +12,35 @@ public class DummyIndexingProviderAsync : IIndexingProviderAsync
     private const string NoProviderMessage =
         "No indexing provider is registered. Call a provider extension such as AddElasticSearch, AddOpenSearch, AddMeilisearch or AddLiftiSearch inside AddBetterSearch.";
 
+    /// <inheritdoc />
     public Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail(NoProviderMessage));
 
+    /// <inheritdoc />
     public Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> documents, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<int>(NoProviderMessage));
 
+    /// <inheritdoc />
     public Task<Result> RemoveDocumentAsync(string id, string index, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail(NoProviderMessage));
 
+    /// <inheritdoc />
     public Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<int>(NoProviderMessage));
 
+    /// <inheritdoc />
     public Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest index,
         CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<long?>(NoProviderMessage));
 
+    /// <inheritdoc />
     public Task<Result<bool>> EnsureIndexExistsAsync(string index, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<bool>(NoProviderMessage));
 
+    /// <inheritdoc />
     public Task<Result<bool>> DeleteIndexAsync(string index, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<bool>(NoProviderMessage));
 
+    /// <inheritdoc />
     public Task<Result<bool>> IndexExistsAsync(string index, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<bool>(NoProviderMessage));
 
+    /// <inheritdoc />
     public Task<Result<bool>> CreateIndexAsync(string index, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<bool>(NoProviderMessage));
 
+    /// <inheritdoc />
     public Task<Result<bool>> UpdateDocumentAsync(string index, string id, IDictionary<string, IList<object>> fields,
         CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<bool>(NoProviderMessage));
 }

@@ -81,12 +81,12 @@ public sealed class OpenSearchMappingTests(
 
     private static SearchQuery Term(string field, object value)
     {
-        var query = new SearchQuery();
+        var query = new SearchQuery { Index = "index" };
         query.Add(Occurrence.Must, new TermSubQuery { Field = field, Value = value });
         return query;
     }
 
-    private static SearchQuery SortedBy(string field) => new() { SortOrder = [new SortOrderField { FieldName = field }] };
+    private static SearchQuery SortedBy(string field) => new() { Index = "index", SortOrder = [new SortOrderField { FieldName = field }] };
 
     private async Task DeleteAsync(Providers providers)
     {
@@ -308,7 +308,7 @@ public sealed class OpenSearchMappingTests(
                 Document(providers.Index, "warsaw", "Location", "52.2297,21.0122"),
                 Document(providers.Index, "krakow", "Location", new Dictionary<string, object> { ["lat"] = 50.0647, ["lon"] = 19.9450 }),
                 Document(providers.Index, "piaseczno", "Location", "52.0811,21.0238"));
-            var query = new SearchQuery();
+            var query = new SearchQuery { Index = "index" };
             query.Add(Occurrence.Must, new SpatialSearchSubQuery { Field = "Location", Lat = 52.2297, Lng = 21.0122, Distance = 20 });
 
             // Piaseczno is about 17 km from Warsaw, Krakow about 250 km.
@@ -322,7 +322,7 @@ public sealed class OpenSearchMappingTests(
 
     private static SearchQuery Between(string field, DateTime min, DateTime max)
     {
-        var query = new SearchQuery();
+        var query = new SearchQuery { Index = "index" };
         query.Add(Occurrence.Must, new Abstractions.Query.SubQueries.DateRangeSubQuery { Field = field, MinValue = min, MaxValue = max, IncludeMinEdge = true, IncludeMaxEdge = false });
         return query;
     }

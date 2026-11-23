@@ -9,6 +9,7 @@ using Npgsql;
 
 namespace Bielu.BetterSearch.PostgreSql.DependencyInjection;
 
+/// <summary>Extensions that add the PostgreSQL provider to a <see cref="Configurator"/>.</summary>
 public static class RegisterSearchExtension
 {
     /// <summary>The key AddPostgreSql registers its provider under when no key is given.</summary>

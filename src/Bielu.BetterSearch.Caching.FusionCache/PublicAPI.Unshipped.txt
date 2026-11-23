@@ -1,0 +1,7 @@
+#nullable enable
+Bielu.BetterSearch.Caching.FusionCache.FusionSearchCacheConfiguratorExtensions
+Bielu.BetterSearch.Caching.FusionCache.FusionSearchResultCache
+Bielu.BetterSearch.Caching.FusionCache.FusionSearchResultCache.FusionSearchResultCache(ZiggyCreatures.Caching.Fusion.IFusionCache! cache) -> void
+Bielu.BetterSearch.Caching.FusionCache.FusionSearchResultCache.GetOrCreateAsync<T>(string! key, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! factory, Bielu.BetterSearch.Abstractions.Caching.SearchCacheEntryOptions! options, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T>
+Bielu.BetterSearch.Caching.FusionCache.FusionSearchResultCache.RemoveByTagAsync(string! tag, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+static Bielu.BetterSearch.Caching.FusionCache.FusionSearchCacheConfiguratorExtensions.AddFusionSearchCache(this Bielu.BetterSearch.Configuration.Configurator! configurator, string? cacheName = null, System.Action<Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions!>? configure = null) -> Bielu.BetterSearch.Configuration.Configurator!

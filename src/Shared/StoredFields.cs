@@ -21,7 +21,7 @@ internal static class StoredFields
                 ? values.Select(value => QueryValueText.IsDate(value) ? QueryValueText.From(value) : value).ToList()
                 : field.Value);
 
-    /// <summary>A copy of <paramref name="document"/> with its fields <see cref="WithDatesAsText">as they are sent to the engine</see>.</summary>
+    /// <summary>A copy of <paramref name="document"/> with its fields <see cref="WithDatesAsText(IDictionary{string, IList{object}})">as they are sent to the engine</see>.</summary>
     public static SearchDocument WithDatesAsText(SearchDocument document) => new()
     {
         Id = document.Id,

@@ -3,9 +3,12 @@ using Bielu.BetterSearch.Services;
 
 namespace Bielu.BetterSearch.ElasticSearch.Configuration;
 
+/// <summary>The Elasticsearch provider's options, bound from the <see cref="ElasticSearchOptionsKey"/> configuration section.</summary>
 public class ElasticSearchOptions
 {
+    /// <summary>The configuration section the options are bound from, <c>Bielu:BetterSearch:ElasticSearch</c>.</summary>
     public static string ElasticSearchOptionsKey { get; } = "Bielu:BetterSearch:ElasticSearch";
+    /// <summary>The settings every index uses; an <see cref="Indexes"/> entry takes whatever it leaves unset from these.</summary>
     public ElasticSearchIndexSettings SharedIndexSettings { get; set; } = new();
 
     /// <summary>
@@ -50,9 +53,14 @@ public class ElasticSearchOptions
 
 }
 
+/// <summary>Connection and index settings, shared by every index or set for one index in <see cref="ElasticSearchOptions.Indexes"/>.</summary>
 public class ElasticSearchIndexSettings
 {
-    public string ConnectionString { get; set; }
+    /// <summary>
+    /// The cluster URL, an absolute <c>http</c> or <c>https</c> URL such as <c>http://localhost:9200</c>. Left unset on an
+    /// <c>Indexes</c> entry, the index takes the shared one. <c>Cloud</c> and <c>CloudApi</c> authentication connect by the cloud id and don't need it.
+    /// </summary>
+    public string? ConnectionString { get; set; }
 
     /// <summary>
     /// The URLs of the cluster's other nodes, beside <see cref="ConnectionString"/>. A request that cannot reach a node
@@ -74,6 +82,10 @@ public class ElasticSearchIndexSettings
     /// set it to <see cref="Configuration.AuthenticationType.None"/> there to turn the shared authentication off.
     /// </summary>
     public AuthenticationType? AuthenticationType { get; set; }
+    /// <summary>
+    /// The credentials <see cref="AuthenticationType"/> uses. An <c>Indexes</c> entry uses its own only together with its own
+    /// <see cref="AuthenticationType"/>, and otherwise takes the shared ones.
+    /// </summary>
     public AuthenticationDetails? AuthenticationDetails { get; set; }
 
     /// <summary>
@@ -139,6 +151,7 @@ public class ElasticSearchFieldMapping : IFieldMapping
     /// <summary>The field's name as queries use it, such as <c>City</c>, without the <c>fields.</c> prefix.</summary>
     public string? Field { get; set; }
 
+    /// <summary>The field's Elasticsearch type. Required: a mapping without it fails options validation.</summary>
     public ElasticSearchFieldType? Type { get; set; }
 
     /// <summary>The analyzer of a <see cref="ElasticSearchFieldType.Text"/> field, such as <c>english</c>.</summary>
@@ -160,21 +173,35 @@ public enum ElasticSearchFieldType
 
     /// <summary>The whole value, matched, sorted and aggregated as it is.</summary>
     Keyword,
+    /// <summary>A date, written by the provider as ISO 8601 text; <see cref="ElasticSearchFieldMapping.Format"/> can set its format.</summary>
     Date,
+    /// <summary>A signed 64-bit integer.</summary>
     Long,
+    /// <summary>A signed 32-bit integer.</summary>
     Integer,
+    /// <summary>A signed 16-bit integer.</summary>
     Short,
+    /// <summary>A signed 8-bit integer.</summary>
     Byte,
+    /// <summary>A double-precision floating point number.</summary>
     Double,
+    /// <summary>A single-precision floating point number.</summary>
     Float,
+    /// <summary><c>true</c> or <c>false</c>.</summary>
     Boolean,
+    /// <summary>A latitude and longitude, which <c>SpatialSearchSubQuery</c> needs: a <c>"lat,lon"</c> string or a dictionary with <c>lat</c> and <c>lon</c>.</summary>
     GeoPoint
 }
+/// <summary>How the Elasticsearch provider authenticates to the cluster.</summary>
 public enum AuthenticationType
 {
+    /// <summary>No authentication.</summary>
     None,
+    /// <summary>Elastic Cloud: connects by the cloud id in <see cref="AuthenticationDetails.Id"/>, with basic authentication from <see cref="AuthenticationDetails.Username"/> and <see cref="AuthenticationDetails.Password"/>.</summary>
     Cloud,
+    /// <summary>Elastic Cloud: connects by the cloud id in <see cref="AuthenticationDetails.Id"/>, with the API key in <see cref="AuthenticationDetails.ApiKey"/>.</summary>
     CloudApi,
+    /// <summary>Basic authentication to the cluster at <c>ConnectionString</c>, with <see cref="AuthenticationDetails.Username"/> and <see cref="AuthenticationDetails.Password"/>.</summary>
     Password,
 
     /// <summary>
@@ -189,12 +216,17 @@ public enum AuthenticationType
     /// </summary>
     Bearer
 }
+/// <summary>The credentials of an <see cref="AuthenticationType"/>; each type reads only the ones it needs.</summary>
 public class AuthenticationDetails
 {
-    public string Username { get; set; }
-    public string Password { get; set; }
-    public string ApiKey { get; set; }
-    public string Id { get; set; }
+    /// <summary>The user name of <see cref="AuthenticationType.Password"/> and <see cref="AuthenticationType.Cloud"/> authentication.</summary>
+    public string? Username { get; set; }
+    /// <summary>The password of <see cref="AuthenticationType.Password"/> and <see cref="AuthenticationType.Cloud"/> authentication.</summary>
+    public string? Password { get; set; }
+    /// <summary>The API key of <see cref="AuthenticationType.ApiKey"/> and <see cref="AuthenticationType.CloudApi"/> authentication, the <c>encoded</c> value that creating the key returns.</summary>
+    public string? ApiKey { get; set; }
+    /// <summary>The Elastic Cloud id of <see cref="AuthenticationType.Cloud"/> and <see cref="AuthenticationType.CloudApi"/> authentication.</summary>
+    public string? Id { get; set; }
 
     /// <summary>The token <see cref="AuthenticationType.Bearer"/> authentication sends.</summary>
     public string? Token { get; set; }

@@ -8,7 +8,10 @@
 /// </summary>
 public class SortOrderField : ISortOrderField
 {
+    /// <inheritdoc />
     public string FieldName { get; set; } = string.Empty;
+    /// <inheritdoc />
     public bool Desc { get; set; }
+    /// <inheritdoc />
     public int Order { get; set; }
 }
