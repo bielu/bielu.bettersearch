@@ -3,7 +3,9 @@
     /// <summary>A facet counting the documents its <see cref="Queries"/> match, with <see cref="NestedAggregations"/> over them.</summary>
     public class FilterAggregationQuery : IAggregationQuery, ICreatableSearchQuery
     {
-        public string AggregationName { get; set; }
+        /// <inheritdoc />
+        public required string AggregationName { get; set; }
+        /// <inheritdoc />
         public List<IAggregationQuery> NestedAggregations { get; set; } = new List<IAggregationQuery>();
 
         /// <summary>The filter's clauses, each combined by its own <see cref="ISearchSubQuery.Occurrence"/>.</summary>

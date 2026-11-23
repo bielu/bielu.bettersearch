@@ -7,7 +7,9 @@
     /// </summary>
     public class DateRangeSubQuery : BaseRangeSubQuery
     {
+        /// <summary>The earliest date that matches, or <c>null</c> for no lower bound.</summary>
         public DateRangeValue? MinValue { get; set; }
+        /// <summary>The latest date that matches, or <c>null</c> for no upper bound.</summary>
         public DateRangeValue? MaxValue { get; set; }
     }
 }

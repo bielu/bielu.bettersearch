@@ -3,9 +3,12 @@ using Bielu.BetterSearch.Services;
 
 namespace Bielu.BetterSearch.OpenSearch.Configuration;
 
+/// <summary>The OpenSearch provider's options, bound from the <see cref="OpenSearchOptionsKey"/> configuration section.</summary>
 public class OpenSearchOptions
 {
+    /// <summary>The configuration section the options are bound from, <c>Bielu:BetterSearch:OpenSearch</c>.</summary>
     public static string OpenSearchOptionsKey { get; } = "Bielu:BetterSearch:OpenSearch";
+    /// <summary>The settings every index uses; an <see cref="Indexes"/> entry takes whatever it leaves unset from these.</summary>
     public OpenSearchIndexSettings SharedIndexSettings { get; set; } = new();
 
     /// <summary>
@@ -49,8 +52,13 @@ public class OpenSearchOptions
     public int MaxResultWindow { get; set; } = 10_000;
 }
 
+/// <summary>Connection and index settings, shared by every index or set for one index in <see cref="OpenSearchOptions.Indexes"/>.</summary>
 public class OpenSearchIndexSettings
 {
+    /// <summary>
+    /// The cluster URL, an absolute <c>http</c> or <c>https</c> URL such as <c>http://localhost:9200</c>. Left unset on an
+    /// <c>Indexes</c> entry, the index takes the shared one.
+    /// </summary>
     public string ConnectionString { get; set; } = string.Empty;
 
     /// <summary>
@@ -72,6 +80,10 @@ public class OpenSearchIndexSettings
     /// <c>None</c> there turns it off for that index. Unset in <c>SharedIndexSettings</c> means <c>None</c>.
     /// </summary>
     public OpenSearchAuthenticationType? AuthenticationType { get; set; }
+    /// <summary>
+    /// The credentials <see cref="AuthenticationType"/> uses. An <c>Indexes</c> entry uses its own only together with its own
+    /// <see cref="AuthenticationType"/>, and otherwise takes the shared ones.
+    /// </summary>
     public OpenSearchAuthenticationDetails? AuthenticationDetails { get; set; }
 
     /// <summary>
@@ -135,6 +147,7 @@ public class OpenSearchFieldMapping : IFieldMapping
     /// <summary>The field's name as queries use it, such as <c>City</c>, without the <c>fields.</c> prefix.</summary>
     public string? Field { get; set; }
 
+    /// <summary>The field's OpenSearch type. Required: a mapping without it fails options validation.</summary>
     public OpenSearchFieldType? Type { get; set; }
 
     /// <summary>The analyzer of a <see cref="OpenSearchFieldType.Text"/> field, such as <c>english</c>.</summary>
@@ -156,27 +169,43 @@ public enum OpenSearchFieldType
 
     /// <summary>The whole value, matched, sorted and aggregated as it is.</summary>
     Keyword,
+    /// <summary>A date, written by the provider as ISO 8601 text; <see cref="OpenSearchFieldMapping.Format"/> can set its format.</summary>
     Date,
+    /// <summary>A signed 64-bit integer.</summary>
     Long,
+    /// <summary>A signed 32-bit integer.</summary>
     Integer,
+    /// <summary>A signed 16-bit integer.</summary>
     Short,
+    /// <summary>A signed 8-bit integer.</summary>
     Byte,
+    /// <summary>A double-precision floating point number.</summary>
     Double,
+    /// <summary>A single-precision floating point number.</summary>
     Float,
+    /// <summary><c>true</c> or <c>false</c>.</summary>
     Boolean,
+    /// <summary>A latitude and longitude, which <c>SpatialSearchSubQuery</c> needs.</summary>
     GeoPoint
 }
 
+/// <summary>How the OpenSearch provider authenticates to the cluster.</summary>
 public enum OpenSearchAuthenticationType
 {
+    /// <summary>No authentication.</summary>
     None = 0,
+    /// <summary>Basic authentication with <see cref="OpenSearchAuthenticationDetails.Username"/> and <see cref="OpenSearchAuthenticationDetails.Password"/>.</summary>
     Password = 1,
+    /// <summary>An OpenSearch 3.x API key from <see cref="OpenSearchAuthenticationDetails.ApiKey"/>, sent as <c>Authorization: ApiKey &lt;key&gt;</c>.</summary>
     ApiKey = 2
 }
 
+/// <summary>The credentials of an <see cref="OpenSearchAuthenticationType"/>; each type reads only the ones it needs.</summary>
 public class OpenSearchAuthenticationDetails
 {
+    /// <summary>The user name of <see cref="OpenSearchAuthenticationType.Password"/> authentication.</summary>
     public string Username { get; set; } = string.Empty;
+    /// <summary>The password of <see cref="OpenSearchAuthenticationType.Password"/> authentication.</summary>
     public string Password { get; set; } = string.Empty;
 
     /// <summary>An OpenSearch API key (3.x security plugin), sent as <c>Authorization: ApiKey &lt;key&gt;</c>.</summary>

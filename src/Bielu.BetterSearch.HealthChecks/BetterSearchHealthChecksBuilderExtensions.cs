@@ -5,6 +5,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Bielu.BetterSearch.HealthChecks;
 
+/// <summary>Extensions that add the BetterSearch health check to an <see cref="IHealthChecksBuilder"/>.</summary>
 public static class BetterSearchHealthChecksBuilderExtensions
 {
     /// <summary>The name <see cref="AddBetterSearchHealthCheck"/> registers the check under when none is given.</summary>

@@ -10,13 +10,13 @@
 public class SearchDocument
 {
     /// <summary>The document id, exactly as it was indexed.</summary>
-    public string Id { get; set; }
+    public required string Id { get; set; }
 
     /// <summary>The document's type.</summary>
-    public string Type { get; set; }
+    public string? Type { get; set; }
 
     /// <summary>The name of the index the document is in, as the caller names it, without the provider's index prefix.</summary>
-    public string Index { get; set; }
+    public required string Index { get; set; }
 
     /// <summary>The document's fields. Setting <c>null</c>, in code or by deserializing, gives an empty dictionary.</summary>
     public IDictionary<string, IList<object>> Fields

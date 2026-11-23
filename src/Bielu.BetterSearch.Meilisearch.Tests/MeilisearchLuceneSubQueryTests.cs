@@ -16,7 +16,7 @@ public class MeilisearchLuceneSubQueryTests(IQueryTranslateServiceAsync<Meilisea
 {
     private Task<Result<MeilisearchQuery>> TranslateAsync(string lucene, Occurrence occurrence = Occurrence.Must)
     {
-        var query = new SearchQuery();
+        var query = new SearchQuery { Index = "index" };
         query.Add(occurrence, new LuceneSubQuery { LuceneQuery = lucene });
         return translateService.TranslateMainQueryAsync(query);
     }
@@ -92,7 +92,7 @@ public class MeilisearchLuceneSubQueryTests(IQueryTranslateServiceAsync<Meilisea
     [Fact]
     public async Task TranslateMainQueryAsync_WarningInPostFilter_IsKept()
     {
-        var query = new SearchQuery();
+        var query = new SearchQuery { Index = "index" };
         var nested = new BoolSearchSubQuery();
         nested.Add(Occurrence.Must, new LuceneSubQuery { LuceneQuery = "Name:jnae~" });
         query.PostFilterQuery.Add(nested);

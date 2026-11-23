@@ -2,9 +2,12 @@
 
 namespace Bielu.BetterSearch.Typesense.Configuration;
 
+/// <summary>The Typesense provider's options, bound from the <see cref="TypesenseOptionsKey"/> configuration section.</summary>
 public class TypesenseOptions
 {
+    /// <summary>The configuration section the options are bound from, <c>Bielu:BetterSearch:Typesense</c>.</summary>
     public static string TypesenseOptionsKey { get; } = "Bielu:BetterSearch:Typesense";
+    /// <summary>The settings every index uses, unless its <see cref="Indexes"/> entry sets its own.</summary>
     public TypesenseIndexSettings SharedIndexSettings { get; set; } = new();
 
     /// <summary>
@@ -64,6 +67,7 @@ public class TypesenseOptions
     public string? GeoField { get; set; }
 }
 
+/// <summary>Connection settings, shared by every index or set for one index in <see cref="TypesenseOptions.Indexes"/>.</summary>
 public class TypesenseIndexSettings
 {
     /// <summary>The URL of the Typesense node, for example <c>http://localhost:8108</c>.</summary>

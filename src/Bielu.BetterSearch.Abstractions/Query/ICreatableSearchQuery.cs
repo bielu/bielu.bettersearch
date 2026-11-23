@@ -1,5 +1,6 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Query;
 
+/// <summary>A query that clauses can be added to, each with its own <see cref="Occurrence"/>.</summary>
 public interface ICreatableSearchQuery
 {
     /// <summary>Adds <paramref name="value"/> as a clause, setting its <see cref="ISearchSubQuery.Occurrence"/> to <paramref name="key"/>.</summary>

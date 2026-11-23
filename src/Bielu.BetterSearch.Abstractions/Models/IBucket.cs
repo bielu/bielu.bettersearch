@@ -1,7 +1,9 @@
 ﻿namespace Bielu.BetterSearch.Abstractions.Models;
 
+/// <summary>One bucket of a facet result.</summary>
 public interface IBucket
 {
+    /// <summary>The number of documents in the bucket, when the engine reports it.</summary>
     public long? TotalOfDocuments { get; }
 
     /// <summary>

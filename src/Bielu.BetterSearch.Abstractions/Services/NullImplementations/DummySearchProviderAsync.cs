@@ -13,11 +13,15 @@ public class DummySearchProviderAsync : ISearchProviderAsync
     private const string NoProviderMessage =
         "No search provider is registered. Call a provider extension such as AddElasticSearch, AddOpenSearch, AddMeilisearch or AddLiftiSearch inside AddBetterSearch.";
 
+    /// <inheritdoc />
     public Task<Result<ISearchResult>> SearchAsync(ISearchQuery query, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<ISearchResult>(NoProviderMessage));
 
+    /// <inheritdoc />
     public Task<Result<SearchDocument?>> GetDocumentAsync(string index, string id, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<SearchDocument?>(NoProviderMessage));
 
+    /// <inheritdoc />
     public Task<Result<long>> CountAsync(ISearchQuery query, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail<long>(NoProviderMessage));
 
+    /// <inheritdoc />
     public Task<Result> PingAsync(string? index = null, CancellationToken cancellationToken = default) => Task.FromResult(Result.Fail(NoProviderMessage));
 }

@@ -13,6 +13,7 @@ public class IndexLifecycleServiceAsync(IIndexingProviderAsync indexingProvider,
 {
     private readonly IIndexLifecycleProviderAsync? _lifecycleProvider = indexingProvider as IIndexLifecycleProviderAsync;
 
+    /// <inheritdoc />
     public Task<Result<IndexRebuild>> StartRebuildAsync(string index, CancellationToken cancellationToken = default)
     {
         if (_lifecycleProvider is null)
@@ -25,6 +26,7 @@ public class IndexLifecycleServiceAsync(IIndexingProviderAsync indexingProvider,
             : _lifecycleProvider.StartRebuildAsync(index, cancellationToken);
     }
 
+    /// <inheritdoc />
     public async Task<Result<int>> IndexRebuildDocumentsAsync(IndexRebuild rebuild, IEnumerable<SearchDocument> documents,
         CancellationToken cancellationToken = default)
     {
@@ -69,6 +71,7 @@ public class IndexLifecycleServiceAsync(IIndexingProviderAsync indexingProvider,
             : await _lifecycleProvider.IndexRebuildDocumentsAsync(rebuild, batch, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public Task<Result<IReadOnlyList<string>>> CompleteRebuildAsync(IndexRebuild rebuild, CancellationToken cancellationToken = default)
     {
         if (_lifecycleProvider is null)
@@ -81,6 +84,7 @@ public class IndexLifecycleServiceAsync(IIndexingProviderAsync indexingProvider,
             : _lifecycleProvider.CompleteRebuildAsync(rebuild, cancellationToken);
     }
 
+    /// <inheritdoc />
     public Task<Result<bool>> AbortRebuildAsync(IndexRebuild rebuild, CancellationToken cancellationToken = default)
     {
         if (_lifecycleProvider is null)

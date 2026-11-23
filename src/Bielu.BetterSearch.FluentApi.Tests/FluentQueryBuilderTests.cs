@@ -180,7 +180,7 @@ public sealed class FluentQueryBuilderTests
     [Fact]
     public void CreatePostFilterQuery_PostFilterQueryIsNull_CreatesIt()
     {
-        var query = new FluentApiSearchQueryCreator(new SearchQuery { PostFilterQuery = null! })
+        var query = new FluentApiSearchQueryCreator(new SearchQuery { Index = "index", PostFilterQuery = null! })
             .CreateSearchQuery(q => q.CreatePostFilterQuery(b => b.CreateTermQuery(t => t.WithField("City").WithValue("Warsaw"))));
 
         query.PostFilterQuery.Where(clause => clause.Occurrence == Occurrence.Must).ToList().ShouldHaveSingleItem();

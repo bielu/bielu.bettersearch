@@ -3,6 +3,8 @@ using Bielu.BetterSearch.Abstractions.Query;
 
 namespace Bielu.BetterSearch.Abstractions.Services;
 
+/// <summary>Maps an engine's search response to an <see cref="ISearchResult"/>.</summary>
+/// <typeparam name="T">The engine's search response type.</typeparam>
 public interface IResultMapper<T>
 {
     /// <summary>

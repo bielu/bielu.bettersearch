@@ -1,0 +1,512 @@
+#nullable enable
+Bielu.BetterSearch.Abstractions.Caching.ISearchResultCache
+Bielu.BetterSearch.Abstractions.Caching.ISearchResultCache.GetOrCreateAsync<T>(string! key, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! factory, Bielu.BetterSearch.Abstractions.Caching.SearchCacheEntryOptions! options, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T>
+Bielu.BetterSearch.Abstractions.Caching.ISearchResultCache.RemoveByTagAsync(string! tag, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheEntryOptions
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheEntryOptions.Duration.get -> System.TimeSpan
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheEntryOptions.Duration.init -> void
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheEntryOptions.SearchCacheEntryOptions() -> void
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheEntryOptions.Tags.get -> System.Collections.Generic.IReadOnlyCollection<string!>!
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheEntryOptions.Tags.init -> void
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheIndexOptions
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheIndexOptions.Duration.get -> System.TimeSpan?
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheIndexOptions.Duration.set -> void
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheIndexOptions.Enabled.get -> bool?
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheIndexOptions.Enabled.set -> void
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheIndexOptions.SearchCacheIndexOptions() -> void
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheIndexOptions.Tags.get -> System.Collections.Generic.IList<string!>!
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheIndexOptions.Tags.set -> void
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions.Duration.get -> System.TimeSpan
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions.Duration.set -> void
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions.Enabled.get -> bool
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions.Enabled.set -> void
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions.ForIndex(string? index) -> Bielu.BetterSearch.Abstractions.Caching.SearchCacheIndexOptions?
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions.Indexes.get -> System.Collections.Generic.IDictionary<string!, Bielu.BetterSearch.Abstractions.Caching.SearchCacheIndexOptions!>!
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions.Indexes.set -> void
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions.KeyPart.get -> System.Func<Bielu.BetterSearch.Abstractions.Query.ISearchQuery!, string?>?
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions.KeyPart.set -> void
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions.SearchCacheOptions() -> void
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions.Skip.get -> System.Func<Bielu.BetterSearch.Abstractions.Query.ISearchQuery!, bool>?
+Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions.Skip.set -> void
+Bielu.BetterSearch.Abstractions.Configuration.NodePoolType
+Bielu.BetterSearch.Abstractions.Configuration.NodePoolType.Sniffing = 2 -> Bielu.BetterSearch.Abstractions.Configuration.NodePoolType
+Bielu.BetterSearch.Abstractions.Configuration.NodePoolType.Static = 0 -> Bielu.BetterSearch.Abstractions.Configuration.NodePoolType
+Bielu.BetterSearch.Abstractions.Configuration.NodePoolType.Sticky = 1 -> Bielu.BetterSearch.Abstractions.Configuration.NodePoolType
+Bielu.BetterSearch.Abstractions.Configuration.WriteVisibility
+Bielu.BetterSearch.Abstractions.Configuration.WriteVisibility.Default = 0 -> Bielu.BetterSearch.Abstractions.Configuration.WriteVisibility
+Bielu.BetterSearch.Abstractions.Configuration.WriteVisibility.WaitUntilSearchable = 1 -> Bielu.BetterSearch.Abstractions.Configuration.WriteVisibility
+Bielu.BetterSearch.Abstractions.Fields.CultureField
+Bielu.BetterSearch.Abstractions.Fields.IFacetField
+Bielu.BetterSearch.Abstractions.Fields.IFacetField.FacetGroupName.get -> string!
+Bielu.BetterSearch.Abstractions.Fields.IFacetField.FacetGroupName.set -> void
+Bielu.BetterSearch.Abstractions.Fields.IFacetField.FieldName.get -> string!
+Bielu.BetterSearch.Abstractions.Fields.IFacetField.FieldName.set -> void
+Bielu.BetterSearch.Abstractions.Fields.IFacetField.MaxSize.get -> int
+Bielu.BetterSearch.Abstractions.Fields.IFacetField.MaxSize.set -> void
+Bielu.BetterSearch.Abstractions.Fields.ISortOrderField
+Bielu.BetterSearch.Abstractions.Fields.ISortOrderField.Desc.get -> bool
+Bielu.BetterSearch.Abstractions.Fields.ISortOrderField.Desc.set -> void
+Bielu.BetterSearch.Abstractions.Fields.ISortOrderField.FieldName.get -> string!
+Bielu.BetterSearch.Abstractions.Fields.ISortOrderField.FieldName.set -> void
+Bielu.BetterSearch.Abstractions.Fields.ISortOrderField.Order.get -> int
+Bielu.BetterSearch.Abstractions.Fields.ISortOrderField.Order.set -> void
+Bielu.BetterSearch.Abstractions.Fields.SortOrderField
+Bielu.BetterSearch.Abstractions.Fields.SortOrderField.Desc.get -> bool
+Bielu.BetterSearch.Abstractions.Fields.SortOrderField.Desc.set -> void
+Bielu.BetterSearch.Abstractions.Fields.SortOrderField.FieldName.get -> string!
+Bielu.BetterSearch.Abstractions.Fields.SortOrderField.FieldName.set -> void
+Bielu.BetterSearch.Abstractions.Fields.SortOrderField.Order.get -> int
+Bielu.BetterSearch.Abstractions.Fields.SortOrderField.Order.set -> void
+Bielu.BetterSearch.Abstractions.Fields.SortOrderField.SortOrderField() -> void
+Bielu.BetterSearch.Abstractions.Models.AggregationExtensions
+Bielu.BetterSearch.Abstractions.Models.BaseSearchResults
+Bielu.BetterSearch.Abstractions.Models.BaseSearchResults.Aggregations.get -> System.Collections.Generic.IReadOnlyList<Bielu.BetterSearch.Abstractions.Models.IAggregation!>!
+Bielu.BetterSearch.Abstractions.Models.BaseSearchResults.Aggregations.init -> void
+Bielu.BetterSearch.Abstractions.Models.BaseSearchResults.BaseSearchResults() -> void
+Bielu.BetterSearch.Abstractions.Models.BaseSearchResults.Items.get -> System.Collections.Generic.IReadOnlyList<Bielu.BetterSearch.Abstractions.Models.ISearchHit!>!
+Bielu.BetterSearch.Abstractions.Models.BaseSearchResults.Items.init -> void
+Bielu.BetterSearch.Abstractions.Models.BaseSearchResults.Pagination.get -> Bielu.BetterSearch.Abstractions.Models.IPagination!
+Bielu.BetterSearch.Abstractions.Models.BaseSearchResults.Pagination.init -> void
+Bielu.BetterSearch.Abstractions.Models.BucketAggregation
+Bielu.BetterSearch.Abstractions.Models.BucketAggregation.AggregationName.get -> string!
+Bielu.BetterSearch.Abstractions.Models.BucketAggregation.AggregationName.init -> void
+Bielu.BetterSearch.Abstractions.Models.BucketAggregation.BucketAggregation() -> void
+Bielu.BetterSearch.Abstractions.Models.BucketAggregation.Buckets.get -> System.Collections.Generic.IReadOnlyList<Bielu.BetterSearch.Abstractions.Models.IBucket!>!
+Bielu.BetterSearch.Abstractions.Models.BucketAggregation.Buckets.init -> void
+Bielu.BetterSearch.Abstractions.Models.DeleteAllDocumentsRequest
+Bielu.BetterSearch.Abstractions.Models.DeleteAllDocumentsRequest.DeleteAllDocumentsRequest() -> void
+Bielu.BetterSearch.Abstractions.Models.DeleteAllDocumentsRequest.IndexName.get -> string!
+Bielu.BetterSearch.Abstractions.Models.DeleteAllDocumentsRequest.IndexName.set -> void
+Bielu.BetterSearch.Abstractions.Models.DeleteDocumentRequest
+Bielu.BetterSearch.Abstractions.Models.DeleteDocumentRequest.DeleteDocumentRequest() -> void
+Bielu.BetterSearch.Abstractions.Models.DeleteDocumentRequest.Id.get -> string!
+Bielu.BetterSearch.Abstractions.Models.DeleteDocumentRequest.Id.set -> void
+Bielu.BetterSearch.Abstractions.Models.DeleteDocumentRequest.Index.get -> string!
+Bielu.BetterSearch.Abstractions.Models.DeleteDocumentRequest.Index.set -> void
+Bielu.BetterSearch.Abstractions.Models.IAggregation
+Bielu.BetterSearch.Abstractions.Models.IAggregation.AggregationName.get -> string!
+Bielu.BetterSearch.Abstractions.Models.IBucket
+Bielu.BetterSearch.Abstractions.Models.IBucket.Aggregations.get -> System.Collections.Generic.IReadOnlyList<Bielu.BetterSearch.Abstractions.Models.IAggregation!>!
+Bielu.BetterSearch.Abstractions.Models.IBucket.TotalOfDocuments.get -> long?
+Bielu.BetterSearch.Abstractions.Models.IndexRebuild
+Bielu.BetterSearch.Abstractions.Models.IndexRebuild.<Clone>$() -> Bielu.BetterSearch.Abstractions.Models.IndexRebuild!
+Bielu.BetterSearch.Abstractions.Models.IndexRebuild.Deconstruct(out string! Index, out string! TargetIndex) -> void
+Bielu.BetterSearch.Abstractions.Models.IndexRebuild.Equals(Bielu.BetterSearch.Abstractions.Models.IndexRebuild? other) -> bool
+Bielu.BetterSearch.Abstractions.Models.IndexRebuild.Index.get -> string!
+Bielu.BetterSearch.Abstractions.Models.IndexRebuild.Index.init -> void
+Bielu.BetterSearch.Abstractions.Models.IndexRebuild.IndexRebuild(string! Index, string! TargetIndex) -> void
+Bielu.BetterSearch.Abstractions.Models.IndexRebuild.TargetIndex.get -> string!
+Bielu.BetterSearch.Abstractions.Models.IndexRebuild.TargetIndex.init -> void
+Bielu.BetterSearch.Abstractions.Models.IPagination
+Bielu.BetterSearch.Abstractions.Models.IPagination.Page.get -> int
+Bielu.BetterSearch.Abstractions.Models.IPagination.PageSize.get -> int
+Bielu.BetterSearch.Abstractions.Models.IPagination.TotalCount.get -> long
+Bielu.BetterSearch.Abstractions.Models.IPagination.TotalPages.get -> int
+Bielu.BetterSearch.Abstractions.Models.ISearchHit
+Bielu.BetterSearch.Abstractions.Models.ISearchHit.Document.get -> Bielu.BetterSearch.Abstractions.Models.SearchDocument!
+Bielu.BetterSearch.Abstractions.Models.ISearchHit.Highlights.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>!
+Bielu.BetterSearch.Abstractions.Models.ISearchHit.Score.get -> double?
+Bielu.BetterSearch.Abstractions.Models.ISearchResult
+Bielu.BetterSearch.Abstractions.Models.ISearchResult.Aggregations.get -> System.Collections.Generic.IReadOnlyList<Bielu.BetterSearch.Abstractions.Models.IAggregation!>!
+Bielu.BetterSearch.Abstractions.Models.ISearchResult.Items.get -> System.Collections.Generic.IReadOnlyList<Bielu.BetterSearch.Abstractions.Models.ISearchHit!>!
+Bielu.BetterSearch.Abstractions.Models.ISearchResult.Pagination.get -> Bielu.BetterSearch.Abstractions.Models.IPagination!
+Bielu.BetterSearch.Abstractions.Models.KeyBucket
+Bielu.BetterSearch.Abstractions.Models.KeyBucket.Aggregations.get -> System.Collections.Generic.IReadOnlyList<Bielu.BetterSearch.Abstractions.Models.IAggregation!>!
+Bielu.BetterSearch.Abstractions.Models.KeyBucket.Aggregations.init -> void
+Bielu.BetterSearch.Abstractions.Models.KeyBucket.Key.get -> string!
+Bielu.BetterSearch.Abstractions.Models.KeyBucket.Key.init -> void
+Bielu.BetterSearch.Abstractions.Models.KeyBucket.KeyBucket() -> void
+Bielu.BetterSearch.Abstractions.Models.KeyBucket.Keys.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Bielu.BetterSearch.Abstractions.Models.KeyBucket.Keys.init -> void
+Bielu.BetterSearch.Abstractions.Models.KeyBucket.TotalOfDocuments.get -> long?
+Bielu.BetterSearch.Abstractions.Models.KeyBucket.TotalOfDocuments.init -> void
+Bielu.BetterSearch.Abstractions.Models.Pagination
+Bielu.BetterSearch.Abstractions.Models.Pagination.Page.get -> int
+Bielu.BetterSearch.Abstractions.Models.Pagination.Page.init -> void
+Bielu.BetterSearch.Abstractions.Models.Pagination.PageSize.get -> int
+Bielu.BetterSearch.Abstractions.Models.Pagination.PageSize.init -> void
+Bielu.BetterSearch.Abstractions.Models.Pagination.Pagination() -> void
+Bielu.BetterSearch.Abstractions.Models.Pagination.TotalCount.get -> long
+Bielu.BetterSearch.Abstractions.Models.Pagination.TotalCount.init -> void
+Bielu.BetterSearch.Abstractions.Models.Pagination.TotalPages.get -> int
+Bielu.BetterSearch.Abstractions.Models.Pagination.TotalPages.init -> void
+Bielu.BetterSearch.Abstractions.Models.SearchDocument
+Bielu.BetterSearch.Abstractions.Models.SearchDocument.Fields.get -> System.Collections.Generic.IDictionary<string!, System.Collections.Generic.IList<object!>!>!
+Bielu.BetterSearch.Abstractions.Models.SearchDocument.Fields.set -> void
+Bielu.BetterSearch.Abstractions.Models.SearchDocument.Id.get -> string!
+Bielu.BetterSearch.Abstractions.Models.SearchDocument.Id.set -> void
+Bielu.BetterSearch.Abstractions.Models.SearchDocument.Index.get -> string!
+Bielu.BetterSearch.Abstractions.Models.SearchDocument.Index.set -> void
+Bielu.BetterSearch.Abstractions.Models.SearchDocument.SearchDocument() -> void
+Bielu.BetterSearch.Abstractions.Models.SearchDocument.Type.get -> string?
+Bielu.BetterSearch.Abstractions.Models.SearchDocument.Type.set -> void
+Bielu.BetterSearch.Abstractions.Models.SearchHit
+Bielu.BetterSearch.Abstractions.Models.SearchHit.Document.get -> Bielu.BetterSearch.Abstractions.Models.SearchDocument!
+Bielu.BetterSearch.Abstractions.Models.SearchHit.Highlights.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>!
+Bielu.BetterSearch.Abstractions.Models.SearchHit.Score.get -> double?
+Bielu.BetterSearch.Abstractions.Models.SearchHit.SearchHit(Bielu.BetterSearch.Abstractions.Models.SearchDocument! document, double? score, System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>? highlights = null) -> void
+Bielu.BetterSearch.Abstractions.Models.SingleAggregation
+Bielu.BetterSearch.Abstractions.Models.SingleAggregation.AggregationName.get -> string!
+Bielu.BetterSearch.Abstractions.Models.SingleAggregation.AggregationName.init -> void
+Bielu.BetterSearch.Abstractions.Models.SingleAggregation.Buckets.get -> System.Collections.Generic.IReadOnlyList<Bielu.BetterSearch.Abstractions.Models.IBucket!>!
+Bielu.BetterSearch.Abstractions.Models.SingleAggregation.Buckets.init -> void
+Bielu.BetterSearch.Abstractions.Models.SingleAggregation.SingleAggregation() -> void
+Bielu.BetterSearch.Abstractions.Models.SingleBucket
+Bielu.BetterSearch.Abstractions.Models.SingleBucket.Aggregations.get -> System.Collections.Generic.IReadOnlyList<Bielu.BetterSearch.Abstractions.Models.IAggregation!>!
+Bielu.BetterSearch.Abstractions.Models.SingleBucket.Aggregations.init -> void
+Bielu.BetterSearch.Abstractions.Models.SingleBucket.SingleBucket() -> void
+Bielu.BetterSearch.Abstractions.Models.SingleBucket.TotalOfDocuments.get -> long?
+Bielu.BetterSearch.Abstractions.Models.SingleBucket.TotalOfDocuments.init -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.FilterAggregationQuery
+Bielu.BetterSearch.Abstractions.Query.Aggregations.FilterAggregationQuery.Add(Bielu.BetterSearch.Abstractions.Query.Occurrence key, Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery! value) -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.FilterAggregationQuery.AggregationName.get -> string!
+Bielu.BetterSearch.Abstractions.Query.Aggregations.FilterAggregationQuery.AggregationName.set -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.FilterAggregationQuery.FilterAggregationQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.FilterAggregationQuery.NestedAggregations.get -> System.Collections.Generic.List<Bielu.BetterSearch.Abstractions.Query.Aggregations.IAggregationQuery!>!
+Bielu.BetterSearch.Abstractions.Query.Aggregations.FilterAggregationQuery.NestedAggregations.set -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.FilterAggregationQuery.Queries.get -> System.Collections.Generic.IList<Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!>!
+Bielu.BetterSearch.Abstractions.Query.Aggregations.FilterAggregationQuery.Queries.set -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.IAggregationQuery
+Bielu.BetterSearch.Abstractions.Query.Aggregations.IAggregationQuery.AggregationName.get -> string!
+Bielu.BetterSearch.Abstractions.Query.Aggregations.IAggregationQuery.AggregationName.set -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.IAggregationQuery.NestedAggregations.get -> System.Collections.Generic.List<Bielu.BetterSearch.Abstractions.Query.Aggregations.IAggregationQuery!>!
+Bielu.BetterSearch.Abstractions.Query.Aggregations.IAggregationQuery.NestedAggregations.set -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.MultiTermAggregation
+Bielu.BetterSearch.Abstractions.Query.Aggregations.MultiTermAggregation.AggregationName.get -> string!
+Bielu.BetterSearch.Abstractions.Query.Aggregations.MultiTermAggregation.AggregationName.set -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.MultiTermAggregation.MultiTermAggregation() -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.MultiTermAggregation.NestedAggregations.get -> System.Collections.Generic.List<Bielu.BetterSearch.Abstractions.Query.Aggregations.IAggregationQuery!>!
+Bielu.BetterSearch.Abstractions.Query.Aggregations.MultiTermAggregation.NestedAggregations.set -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.MultiTermAggregation.Size.get -> int
+Bielu.BetterSearch.Abstractions.Query.Aggregations.MultiTermAggregation.Size.set -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.MultiTermAggregation.Terms.get -> System.Collections.Generic.List<Bielu.BetterSearch.Abstractions.Query.Aggregations.SimpleTerm!>!
+Bielu.BetterSearch.Abstractions.Query.Aggregations.MultiTermAggregation.Terms.set -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.SimpleTerm
+Bielu.BetterSearch.Abstractions.Query.Aggregations.SimpleTerm.SimpleTerm() -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.SimpleTerm.TermFieldName.get -> string!
+Bielu.BetterSearch.Abstractions.Query.Aggregations.SimpleTerm.TermFieldName.set -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.TermAggregation
+Bielu.BetterSearch.Abstractions.Query.Aggregations.TermAggregation.AggregationName.get -> string!
+Bielu.BetterSearch.Abstractions.Query.Aggregations.TermAggregation.AggregationName.set -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.TermAggregation.NestedAggregations.get -> System.Collections.Generic.List<Bielu.BetterSearch.Abstractions.Query.Aggregations.IAggregationQuery!>!
+Bielu.BetterSearch.Abstractions.Query.Aggregations.TermAggregation.NestedAggregations.set -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.TermAggregation.Size.get -> int
+Bielu.BetterSearch.Abstractions.Query.Aggregations.TermAggregation.Size.set -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.TermAggregation.TermAggregation() -> void
+Bielu.BetterSearch.Abstractions.Query.Aggregations.TermAggregation.TermFieldName.get -> string!
+Bielu.BetterSearch.Abstractions.Query.Aggregations.TermAggregation.TermFieldName.set -> void
+Bielu.BetterSearch.Abstractions.Query.Highlighter.BaseHighlightQuery
+Bielu.BetterSearch.Abstractions.Query.Highlighter.BaseHighlightQuery.Add(Bielu.BetterSearch.Abstractions.Query.Occurrence key, Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery! value) -> void
+Bielu.BetterSearch.Abstractions.Query.Highlighter.BaseHighlightQuery.BaseHighlightQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.Highlighter.BaseHighlightQuery.Field.get -> string?
+Bielu.BetterSearch.Abstractions.Query.Highlighter.BaseHighlightQuery.Field.set -> void
+Bielu.BetterSearch.Abstractions.Query.Highlighter.BaseHighlightQuery.IsAllField.get -> bool
+Bielu.BetterSearch.Abstractions.Query.Highlighter.BaseHighlightQuery.IsAllField.set -> void
+Bielu.BetterSearch.Abstractions.Query.Highlighter.BaseHighlightQuery.Queries.get -> System.Collections.Generic.IList<Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!>!
+Bielu.BetterSearch.Abstractions.Query.Highlighter.BaseHighlightQuery.Queries.set -> void
+Bielu.BetterSearch.Abstractions.Query.Highlighter.IHighlightQuery
+Bielu.BetterSearch.Abstractions.Query.Highlighter.IHighlightQuery.Field.get -> string?
+Bielu.BetterSearch.Abstractions.Query.Highlighter.IHighlightQuery.Field.set -> void
+Bielu.BetterSearch.Abstractions.Query.Highlighter.IHighlightQuery.IsAllField.get -> bool
+Bielu.BetterSearch.Abstractions.Query.Highlighter.IHighlightQuery.IsAllField.set -> void
+Bielu.BetterSearch.Abstractions.Query.Highlighter.IHighlightQuery.Queries.get -> System.Collections.Generic.IList<Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!>!
+Bielu.BetterSearch.Abstractions.Query.Highlighter.IHighlightQuery.Queries.set -> void
+Bielu.BetterSearch.Abstractions.Query.ICreatableSearchQuery
+Bielu.BetterSearch.Abstractions.Query.ICreatableSearchQuery.Add(Bielu.BetterSearch.Abstractions.Query.Occurrence key, Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery! value) -> void
+Bielu.BetterSearch.Abstractions.Query.INestableQuery
+Bielu.BetterSearch.Abstractions.Query.INestableQuery.NestedQueries.get -> System.Collections.Generic.IList<Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!>!
+Bielu.BetterSearch.Abstractions.Query.INestableQuery.NestedQueries.set -> void
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.FacetQueries.get -> System.Collections.Generic.List<Bielu.BetterSearch.Abstractions.Query.Aggregations.IAggregationQuery!>!
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.FacetQueries.set -> void
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.HighlightQueries.get -> System.Collections.Generic.List<Bielu.BetterSearch.Abstractions.Query.Highlighter.IHighlightQuery!>!
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.HighlightQueries.set -> void
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.Index.get -> string!
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.Index.set -> void
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.Page.get -> int
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.Page.set -> void
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.PageSize.get -> int
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.PageSize.set -> void
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.PostFilterQuery.get -> System.Collections.Generic.IList<Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!>!
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.PostFilterQuery.set -> void
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.Properties.get -> System.Collections.Generic.IEnumerable<string!>!
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.Properties.set -> void
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.Query.get -> System.Collections.Generic.IList<Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!>!
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.Query.set -> void
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.SortOrder.get -> System.Collections.Generic.List<Bielu.BetterSearch.Abstractions.Fields.ISortOrderField!>!
+Bielu.BetterSearch.Abstractions.Query.ISearchQuery.SortOrder.set -> void
+Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery
+Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery.BoostValue.get -> double
+Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery.BoostValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery.Occurrence.set -> void
+Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.Occurrence.Filter = 4 -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.Occurrence.Must = 1 -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.Occurrence.MustNot = 3 -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.Occurrence.Should = 2 -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.SearchQuery
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.Add(Bielu.BetterSearch.Abstractions.Query.Occurrence key, Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery! value) -> void
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.FacetQueries.get -> System.Collections.Generic.List<Bielu.BetterSearch.Abstractions.Query.Aggregations.IAggregationQuery!>!
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.FacetQueries.set -> void
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.HighlightQueries.get -> System.Collections.Generic.List<Bielu.BetterSearch.Abstractions.Query.Highlighter.IHighlightQuery!>!
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.HighlightQueries.set -> void
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.Index.get -> string!
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.Index.set -> void
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.Page.get -> int
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.Page.set -> void
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.PageSize.get -> int
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.PageSize.set -> void
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.PostFilterQuery.get -> System.Collections.Generic.IList<Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!>!
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.PostFilterQuery.set -> void
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.Properties.get -> System.Collections.Generic.IEnumerable<string!>!
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.Properties.set -> void
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.Query.get -> System.Collections.Generic.IList<Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!>!
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.Query.set -> void
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.SearchQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.SortOrder.get -> System.Collections.Generic.List<Bielu.BetterSearch.Abstractions.Fields.ISortOrderField!>!
+Bielu.BetterSearch.Abstractions.Query.SearchQuery.SortOrder.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BaseRangeSubQuery
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BaseRangeSubQuery.BaseRangeSubQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BaseRangeSubQuery.BoostValue.get -> double
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BaseRangeSubQuery.BoostValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BaseRangeSubQuery.Field.get -> string?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BaseRangeSubQuery.Field.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BaseRangeSubQuery.IncludeMaxEdge.get -> bool
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BaseRangeSubQuery.IncludeMaxEdge.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BaseRangeSubQuery.IncludeMinEdge.get -> bool
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BaseRangeSubQuery.IncludeMinEdge.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BaseRangeSubQuery.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BaseRangeSubQuery.Occurrence.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BoolSearchSubQuery
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BoolSearchSubQuery.Add(Bielu.BetterSearch.Abstractions.Query.Occurrence key, Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery! value) -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BoolSearchSubQuery.BoolSearchSubQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BoolSearchSubQuery.BoostValue.get -> double
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BoolSearchSubQuery.BoostValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BoolSearchSubQuery.Field.get -> string?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BoolSearchSubQuery.Field.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BoolSearchSubQuery.NestedQueries.get -> System.Collections.Generic.IList<Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!>!
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BoolSearchSubQuery.NestedQueries.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BoolSearchSubQuery.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.SubQueries.BoolSearchSubQuery.Occurrence.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeSubQuery
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeSubQuery.DateRangeSubQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeSubQuery.MaxValue.get -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeSubQuery.MaxValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeSubQuery.MinValue.get -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeSubQuery.MinValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue.DateRangeValue() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue.Equals(Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue other) -> bool
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue.Instant.get -> System.DateTimeOffset
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue.UtcDateTime.get -> System.DateTime
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit.Centimeters = 2 -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit.Feet = 6 -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit.Inches = 7 -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit.Kilometers = 0 -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit.Meters = 1 -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit.Miles = 4 -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit.Millimeters = 3 -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit.NauticalMiles = 8 -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit
+Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit.Yards = 5 -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.BoostValue.get -> double
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.BoostValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.Field.get -> string?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.Field.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.FuzzySubQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.MaxEdits.get -> int?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.MaxEdits.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.MaxExpansions.get -> int
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.MaxExpansions.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.Occurrence.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.PrefixLength.get -> int
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.PrefixLength.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.Transposition.get -> bool
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.Transposition.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.Value.get -> object?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.FuzzySubQuery.Value.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LongRangeSubQuery
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LongRangeSubQuery.LongRangeSubQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LongRangeSubQuery.MaxValue.get -> long?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LongRangeSubQuery.MaxValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LongRangeSubQuery.MinValue.get -> long?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LongRangeSubQuery.MinValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LuceneSubQuery
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LuceneSubQuery.BoostValue.get -> double
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LuceneSubQuery.BoostValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LuceneSubQuery.LuceneQuery.get -> string?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LuceneSubQuery.LuceneQuery.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LuceneSubQuery.LuceneSubQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LuceneSubQuery.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.SubQueries.LuceneSubQuery.Occurrence.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.NumericRangeSubQuery
+Bielu.BetterSearch.Abstractions.Query.SubQueries.NumericRangeSubQuery.MaxValue.get -> double?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.NumericRangeSubQuery.MaxValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.NumericRangeSubQuery.MinValue.get -> double?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.NumericRangeSubQuery.MinValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.NumericRangeSubQuery.NumericRangeSubQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixPhraseSubQuery
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixPhraseSubQuery.BoostValue.get -> double
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixPhraseSubQuery.BoostValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixPhraseSubQuery.Field.get -> string?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixPhraseSubQuery.Field.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixPhraseSubQuery.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixPhraseSubQuery.Occurrence.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixPhraseSubQuery.PrefixPhraseSubQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixPhraseSubQuery.Value.get -> object?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixPhraseSubQuery.Value.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixSubQuery
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixSubQuery.BoostValue.get -> double
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixSubQuery.BoostValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixSubQuery.Field.get -> string?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixSubQuery.Field.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixSubQuery.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixSubQuery.Occurrence.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixSubQuery.PrefixSubQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixSubQuery.Value.get -> object?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.PrefixSubQuery.Value.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.BoostValue.get -> double
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.BoostValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.Distance.get -> double
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.Distance.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.Field.get -> string?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.Field.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.Lat.get -> double
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.Lat.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.Lng.get -> double
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.Lng.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.Occurrence.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.SpatialSearchSubQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.UnitOfDistance.get -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit
+Bielu.BetterSearch.Abstractions.Query.SubQueries.SpatialSearchSubQuery.UnitOfDistance.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.StringRangeSubQuery
+Bielu.BetterSearch.Abstractions.Query.SubQueries.StringRangeSubQuery.MaxValue.get -> string?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.StringRangeSubQuery.MaxValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.StringRangeSubQuery.MinValue.get -> string?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.StringRangeSubQuery.MinValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.StringRangeSubQuery.StringRangeSubQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermsSubQuery
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermsSubQuery.BoostValue.get -> double
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermsSubQuery.BoostValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermsSubQuery.Field.get -> string?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermsSubQuery.Field.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermsSubQuery.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermsSubQuery.Occurrence.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermsSubQuery.TermsSubQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermsSubQuery.Value.get -> System.Collections.Generic.List<object!>?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermsSubQuery.Value.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermSubQuery
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermSubQuery.BoostValue.get -> double
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermSubQuery.BoostValue.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermSubQuery.Field.get -> string?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermSubQuery.Field.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermSubQuery.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermSubQuery.Occurrence.set -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermSubQuery.TermSubQuery() -> void
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermSubQuery.Value.get -> object?
+Bielu.BetterSearch.Abstractions.Query.SubQueries.TermSubQuery.Value.set -> void
+Bielu.BetterSearch.Abstractions.Query.TranslationWarning
+Bielu.BetterSearch.Abstractions.Query.TranslationWarning.TranslationWarning(string! message) -> void
+Bielu.BetterSearch.Abstractions.Services.IClientFactoryAsync<TClient>
+Bielu.BetterSearch.Abstractions.Services.IClientFactoryAsync<TClient>.GetOrCreateClientAsync(string! indexName) -> System.Threading.Tasks.Task<TClient>!
+Bielu.BetterSearch.Abstractions.Services.IDocumentValidatorAsync
+Bielu.BetterSearch.Abstractions.Services.IDocumentValidatorAsync.ValidateDocumentAsync(Bielu.BetterSearch.Abstractions.Models.SearchDocument! document, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingProviderAsync
+Bielu.BetterSearch.Abstractions.Services.IIndexingProviderAsync.CreateIndexAsync(string! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingProviderAsync.DeleteIndexAsync(string! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingProviderAsync.EnsureIndexExistsAsync(string! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingProviderAsync.IndexDocumentAsync(Bielu.BetterSearch.Abstractions.Models.SearchDocument! document, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingProviderAsync.IndexExistsAsync(string! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingProviderAsync.IndexMultipleDocumentsAsync(System.Collections.Generic.IEnumerable<Bielu.BetterSearch.Abstractions.Models.SearchDocument!>! documents, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<int>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingProviderAsync.RemoveAllDocumentsAsync(Bielu.BetterSearch.Abstractions.Models.DeleteAllDocumentsRequest! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<long?>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingProviderAsync.RemoveDocumentAsync(string! id, string! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingProviderAsync.RemoveDocumentsAsync(string! index, System.Collections.Generic.IEnumerable<string!>! ids, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<int>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingProviderAsync.UpdateDocumentAsync(string! index, string! id, System.Collections.Generic.IDictionary<string!, System.Collections.Generic.IList<object!>!>! fields, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingServiceAsync
+Bielu.BetterSearch.Abstractions.Services.IIndexingServiceAsync.IndexDocumentAsync(Bielu.BetterSearch.Abstractions.Models.SearchDocument! document, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingServiceAsync.IndexMultipleDocumentsAsync(System.Collections.Generic.IEnumerable<Bielu.BetterSearch.Abstractions.Models.SearchDocument!>! document, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<int>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingServiceAsync.RemoveAllDocumentsAsync(Bielu.BetterSearch.Abstractions.Models.DeleteAllDocumentsRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<long?>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingServiceAsync.RemoveDocumentAsync(Bielu.BetterSearch.Abstractions.Models.DeleteDocumentRequest! document, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingServiceAsync.RemoveDocumentsAsync(string! index, System.Collections.Generic.IEnumerable<string!>! ids, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<int>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexingServiceAsync.UpdateDocumentAsync(string! index, string! id, System.Collections.Generic.IDictionary<string!, System.Collections.Generic.IList<object!>!>! fields, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexLifecycleProviderAsync
+Bielu.BetterSearch.Abstractions.Services.IIndexLifecycleProviderAsync.AbortRebuildAsync(Bielu.BetterSearch.Abstractions.Models.IndexRebuild! rebuild, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexLifecycleProviderAsync.CompleteRebuildAsync(Bielu.BetterSearch.Abstractions.Models.IndexRebuild! rebuild, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<System.Collections.Generic.IReadOnlyList<string!>!>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexLifecycleProviderAsync.IndexRebuildDocumentsAsync(Bielu.BetterSearch.Abstractions.Models.IndexRebuild! rebuild, System.Collections.Generic.IEnumerable<Bielu.BetterSearch.Abstractions.Models.SearchDocument!>! documents, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<int>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexLifecycleProviderAsync.StartRebuildAsync(string! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<Bielu.BetterSearch.Abstractions.Models.IndexRebuild!>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexLifecycleServiceAsync
+Bielu.BetterSearch.Abstractions.Services.IIndexLifecycleServiceAsync.AbortRebuildAsync(Bielu.BetterSearch.Abstractions.Models.IndexRebuild! rebuild, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexLifecycleServiceAsync.CompleteRebuildAsync(Bielu.BetterSearch.Abstractions.Models.IndexRebuild! rebuild, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<System.Collections.Generic.IReadOnlyList<string!>!>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexLifecycleServiceAsync.IndexRebuildDocumentsAsync(Bielu.BetterSearch.Abstractions.Models.IndexRebuild! rebuild, System.Collections.Generic.IEnumerable<Bielu.BetterSearch.Abstractions.Models.SearchDocument!>! documents, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<int>!>!
+Bielu.BetterSearch.Abstractions.Services.IIndexLifecycleServiceAsync.StartRebuildAsync(string! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<Bielu.BetterSearch.Abstractions.Models.IndexRebuild!>!>!
+Bielu.BetterSearch.Abstractions.Services.IPostFilterTranslateServiceAsync<T>
+Bielu.BetterSearch.Abstractions.Services.IPostFilterTranslateServiceAsync<T>.TranslatePostFilterAsync(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! query) -> System.Threading.Tasks.Task<FluentResults.Result<T?>!>!
+Bielu.BetterSearch.Abstractions.Services.IQueryTranslateServiceAsync<T>
+Bielu.BetterSearch.Abstractions.Services.IQueryTranslateServiceAsync<T>.TranslateMainQueryAsync(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! query) -> System.Threading.Tasks.Task<FluentResults.Result<T>!>!
+Bielu.BetterSearch.Abstractions.Services.IResultMapper<T>
+Bielu.BetterSearch.Abstractions.Services.IResultMapper<T>.MapResult(T searchEngineResult, Bielu.BetterSearch.Abstractions.Query.ISearchQuery! query) -> Bielu.BetterSearch.Abstractions.Models.ISearchResult!
+Bielu.BetterSearch.Abstractions.Services.ISearchProviderAsync
+Bielu.BetterSearch.Abstractions.Services.ISearchProviderAsync.CountAsync(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<long>!>!
+Bielu.BetterSearch.Abstractions.Services.ISearchProviderAsync.GetDocumentAsync(string! index, string! id, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<Bielu.BetterSearch.Abstractions.Models.SearchDocument?>!>!
+Bielu.BetterSearch.Abstractions.Services.ISearchProviderAsync.PingAsync(string? index = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result!>!
+Bielu.BetterSearch.Abstractions.Services.ISearchProviderAsync.SearchAsync(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<Bielu.BetterSearch.Abstractions.Models.ISearchResult!>!>!
+Bielu.BetterSearch.Abstractions.Services.ISearchServiceAsync
+Bielu.BetterSearch.Abstractions.Services.ISearchServiceAsync.CountAsync(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<long>!>!
+Bielu.BetterSearch.Abstractions.Services.ISearchServiceAsync.GetDocumentAsync(string! index, string! id, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<Bielu.BetterSearch.Abstractions.Models.SearchDocument?>!>!
+Bielu.BetterSearch.Abstractions.Services.ISearchServiceAsync.SearchAsync(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<Bielu.BetterSearch.Abstractions.Models.ISearchResult!>!>!
+Bielu.BetterSearch.Abstractions.Services.ISubQueryTranslator<TQuery>
+Bielu.BetterSearch.Abstractions.Services.ISubQueryTranslator<TQuery>.CanTranslate(Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery! query) -> bool
+Bielu.BetterSearch.Abstractions.Services.ISubQueryTranslator<TQuery>.TranslateAsync(Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery! query, System.Collections.Generic.IEnumerable<Bielu.BetterSearch.Abstractions.Services.ISubQueryTranslator<TQuery>!>! subQueryTranslators) -> System.Threading.Tasks.Task<FluentResults.Result<TQuery>!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyClientFactoryAsync<TClient>
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyClientFactoryAsync<TClient>.DummyClientFactoryAsync() -> void
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyClientFactoryAsync<TClient>.GetOrCreateClientAsync(string! indexName) -> System.Threading.Tasks.Task<TClient>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyDocumentValidatorAsync
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyDocumentValidatorAsync.DummyDocumentValidatorAsync() -> void
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyDocumentValidatorAsync.ValidateDocumentAsync(Bielu.BetterSearch.Abstractions.Models.SearchDocument! document, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyIndexingProviderAsync
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyIndexingProviderAsync.CreateIndexAsync(string! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyIndexingProviderAsync.DeleteIndexAsync(string! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyIndexingProviderAsync.DummyIndexingProviderAsync() -> void
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyIndexingProviderAsync.EnsureIndexExistsAsync(string! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyIndexingProviderAsync.IndexDocumentAsync(Bielu.BetterSearch.Abstractions.Models.SearchDocument! document, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyIndexingProviderAsync.IndexExistsAsync(string! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyIndexingProviderAsync.IndexMultipleDocumentsAsync(System.Collections.Generic.IEnumerable<Bielu.BetterSearch.Abstractions.Models.SearchDocument!>! documents, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<int>!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyIndexingProviderAsync.RemoveAllDocumentsAsync(Bielu.BetterSearch.Abstractions.Models.DeleteAllDocumentsRequest! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<long?>!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyIndexingProviderAsync.RemoveDocumentAsync(string! id, string! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyIndexingProviderAsync.RemoveDocumentsAsync(string! index, System.Collections.Generic.IEnumerable<string!>! ids, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<int>!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummyIndexingProviderAsync.UpdateDocumentAsync(string! index, string! id, System.Collections.Generic.IDictionary<string!, System.Collections.Generic.IList<object!>!>! fields, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummySearchProviderAsync
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummySearchProviderAsync.CountAsync(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<long>!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummySearchProviderAsync.DummySearchProviderAsync() -> void
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummySearchProviderAsync.GetDocumentAsync(string! index, string! id, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<Bielu.BetterSearch.Abstractions.Models.SearchDocument?>!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummySearchProviderAsync.PingAsync(string? index = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result!>!
+Bielu.BetterSearch.Abstractions.Services.NullImplementations.DummySearchProviderAsync.SearchAsync(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<Bielu.BetterSearch.Abstractions.Models.ISearchResult!>!>!
+const Bielu.BetterSearch.Abstractions.Fields.CultureField.Name = "Culture" -> string!
+const Bielu.BetterSearch.Abstractions.Models.SearchHit.HighlightPostTag = "</em>" -> string!
+const Bielu.BetterSearch.Abstractions.Models.SearchHit.HighlightPreTag = "<em>" -> string!
+const Bielu.BetterSearch.Abstractions.Query.Aggregations.TermAggregation.DefaultSize = 10 -> int
+const Bielu.BetterSearch.Abstractions.Query.Aggregations.TermAggregation.MaxSize = 65536 -> int
+override Bielu.BetterSearch.Abstractions.Models.IndexRebuild.Equals(object? obj) -> bool
+override Bielu.BetterSearch.Abstractions.Models.IndexRebuild.GetHashCode() -> int
+override Bielu.BetterSearch.Abstractions.Models.IndexRebuild.ToString() -> string!
+override Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue.GetHashCode() -> int
+static Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions.IndexTag(string? index) -> string!
+static Bielu.BetterSearch.Abstractions.Fields.CultureField.Value(string! culture) -> string!
+static Bielu.BetterSearch.Abstractions.Models.AggregationExtensions.RetrieveBucketAggregation(this Bielu.BetterSearch.Abstractions.Models.ISearchResult! result, string! name) -> Bielu.BetterSearch.Abstractions.Models.BucketAggregation?
+static Bielu.BetterSearch.Abstractions.Models.AggregationExtensions.RetrieveBucketAggregation(this System.Collections.Generic.IEnumerable<Bielu.BetterSearch.Abstractions.Models.IAggregation!>! aggregations, string! name) -> Bielu.BetterSearch.Abstractions.Models.BucketAggregation?
+static Bielu.BetterSearch.Abstractions.Models.AggregationExtensions.RetrieveSingleAggregation(this Bielu.BetterSearch.Abstractions.Models.ISearchResult! result, string! name) -> Bielu.BetterSearch.Abstractions.Models.SingleAggregation?
+static Bielu.BetterSearch.Abstractions.Models.AggregationExtensions.RetrieveSingleAggregation(this System.Collections.Generic.IEnumerable<Bielu.BetterSearch.Abstractions.Models.IAggregation!>! aggregations, string! name) -> Bielu.BetterSearch.Abstractions.Models.SingleAggregation?
+static Bielu.BetterSearch.Abstractions.Models.IndexRebuild.operator !=(Bielu.BetterSearch.Abstractions.Models.IndexRebuild? left, Bielu.BetterSearch.Abstractions.Models.IndexRebuild? right) -> bool
+static Bielu.BetterSearch.Abstractions.Models.IndexRebuild.operator ==(Bielu.BetterSearch.Abstractions.Models.IndexRebuild? left, Bielu.BetterSearch.Abstractions.Models.IndexRebuild? right) -> bool
+static Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue.implicit operator Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue(System.DateTime value) -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue
+static Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue.implicit operator Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue(System.DateTimeOffset value) -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue
+static Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue.operator !=(Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue left, Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue right) -> bool
+static Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue.operator ==(Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue left, Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue right) -> bool
+~override Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue.Equals(object obj) -> bool
+~override Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue.ToString() -> string

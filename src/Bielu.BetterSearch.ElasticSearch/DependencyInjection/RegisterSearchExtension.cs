@@ -10,6 +10,7 @@ using Elastic.Clients.Elasticsearch.QueryDsl;
 using Microsoft.Extensions.DependencyInjection;
 namespace Bielu.BetterSearch.ElasticSearch.DependencyInjection;
 
+/// <summary>Extensions that add the Elasticsearch provider to a <see cref="Configurator"/>.</summary>
 public static class RegisterSearchExtension
 {
     /// <summary>The key AddElasticSearch registers its provider under when no key is given.</summary>

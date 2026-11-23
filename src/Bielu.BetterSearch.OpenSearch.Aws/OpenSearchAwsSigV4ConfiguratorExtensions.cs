@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace Bielu.BetterSearch.OpenSearch.Aws;
 
+/// <summary>Extensions that add AWS SigV4 request signing to the OpenSearch provider.</summary>
 public static class OpenSearchAwsSigV4ConfiguratorExtensions
 {
     /// <summary>

@@ -1,0 +1,205 @@
+#nullable enable
+abstract Bielu.BetterSearch.FluentApi.Fluent.SubQueryConfigurator<TSelf>.SubQuery.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+Bielu.BetterSearch.FluentApi.Fluent.AggregationQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.AggregationQueryConfigurator.AggregationQueryConfigurator(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! configuratorQuery) -> void
+Bielu.BetterSearch.FluentApi.Fluent.AggregationQueryConfigurator.CreateFilterQuery(System.Action<Bielu.BetterSearch.FluentApi.Fluent.Aggregations.FilterAggregationQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.AggregationQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.AggregationQueryConfigurator.CreateMultiTermQuery(System.Action<Bielu.BetterSearch.FluentApi.Fluent.Aggregations.MultiTermAggregationQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.AggregationQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.AggregationQueryConfigurator.CreateTermQuery(System.Action<Bielu.BetterSearch.FluentApi.Fluent.Aggregations.TermAggregationQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.AggregationQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.FilterAggregationQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.FilterAggregationQueryConfigurator.FilterAggregationQuery.get -> Bielu.BetterSearch.Abstractions.Query.Aggregations.FilterAggregationQuery!
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.FilterAggregationQueryConfigurator.FilterAggregationQueryConfigurator(Bielu.BetterSearch.Abstractions.Query.Aggregations.FilterAggregationQuery! filterAggregationQuery) -> void
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.FilterAggregationQueryConfigurator.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.FilterAggregationQueryConfigurator.Occurrence.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.FilterAggregationQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.INestableQuery!
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.FilterAggregationQueryConfigurator.Query.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.MultiTermAggregationQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.MultiTermAggregationQueryConfigurator.MultiTermAggregationQueryConfigurator(Bielu.BetterSearch.Abstractions.Query.Aggregations.MultiTermAggregation! query) -> void
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.MultiTermAggregationQueryConfigurator.WithName(string! name) -> Bielu.BetterSearch.FluentApi.Fluent.Aggregations.MultiTermAggregationQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.MultiTermAggregationQueryConfigurator.WithSize(int size) -> Bielu.BetterSearch.FluentApi.Fluent.Aggregations.MultiTermAggregationQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.MultiTermAggregationQueryConfigurator.WithTerms(params Bielu.BetterSearch.Abstractions.Query.Aggregations.SimpleTerm![]! terms) -> Bielu.BetterSearch.FluentApi.Fluent.Aggregations.MultiTermAggregationQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.MultiTermAggregationQueryConfigurator.WithTerms(params string![]! fieldsNames) -> Bielu.BetterSearch.FluentApi.Fluent.Aggregations.MultiTermAggregationQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.TermAggregationQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.TermAggregationQueryConfigurator.TermAggregationQueryConfigurator(Bielu.BetterSearch.Abstractions.Query.Aggregations.TermAggregation! query) -> void
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.TermAggregationQueryConfigurator.WithField(string! name) -> Bielu.BetterSearch.FluentApi.Fluent.Aggregations.TermAggregationQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.TermAggregationQueryConfigurator.WithName(string! name) -> Bielu.BetterSearch.FluentApi.Fluent.Aggregations.TermAggregationQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.Aggregations.TermAggregationQueryConfigurator.WithSize(int size) -> Bielu.BetterSearch.FluentApi.Fluent.Aggregations.TermAggregationQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.AggregationSubQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.AggregationSubQueryConfigurator.AggregationSubQueryConfigurator(Bielu.BetterSearch.Abstractions.Query.Aggregations.IAggregationQuery! configuratorQuery) -> void
+Bielu.BetterSearch.FluentApi.Fluent.AggregationSubQueryConfigurator.CreateFilterQuery(System.Action<Bielu.BetterSearch.FluentApi.Fluent.Aggregations.FilterAggregationQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.AggregationSubQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator.BooleanQueryConfigurator() -> void
+Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator.Filter() -> Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator.Must() -> Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator.MustNot() -> Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator.Occurrence.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.INestableQuery!
+Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator.Query.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator.Should() -> Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator.WithBoost(double boost) -> Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateAggregationQueryHelper
+Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateHighlighterQueryHelper
+Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper
+Bielu.BetterSearch.FluentApi.Fluent.FluentQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.FluentQueryConfigurator.FluentQueryConfigurator(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! baseQuery) -> void
+Bielu.BetterSearch.FluentApi.Fluent.FluentQueryConfigurator.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.FluentApi.Fluent.FluentQueryConfigurator.Occurrence.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.FluentQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.ISearchQuery!
+Bielu.BetterSearch.FluentApi.Fluent.FluentQueryConfigurator.Query.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator.FuzzyQueryConfigurator() -> void
+Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator.WithField(string! fieldName) -> Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator.WithMaxEdits(int maxEdits) -> Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator.WithMaxExpansions(int maxExpansions) -> Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator.WithPrefixLength(int prefixLength) -> Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator.WithTranspositions(bool transpositions = true) -> Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator.WithValue(object! value) -> Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.HighlighterConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.HighlighterConfigurator.ForAllFields() -> Bielu.BetterSearch.FluentApi.Fluent.HighlighterConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.HighlighterConfigurator.HighlighterConfigurator(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! searchSubQueries) -> void
+Bielu.BetterSearch.FluentApi.Fluent.HighlighterConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.Highlighter.IHighlightQuery!
+Bielu.BetterSearch.FluentApi.Fluent.HighlighterConfigurator.Query.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.HighlighterConfigurator.WithField(string! fieldName) -> Bielu.BetterSearch.FluentApi.Fluent.HighlighterConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.HighlighterConfigurator.WithQuery(System.Action<Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.HighlighterConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.IAggregationConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.IAggregationConfigurator.FilterAggregationQuery.get -> Bielu.BetterSearch.Abstractions.Query.Aggregations.FilterAggregationQuery!
+Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator.Occurrence.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.ISearchQuery!
+Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator.Query.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence
+Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator.Occurrence.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.INestableQuery!
+Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator.Query.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.LuceneQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.LuceneQueryConfigurator.LuceneQueryConfigurator() -> void
+Bielu.BetterSearch.FluentApi.Fluent.LuceneQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+Bielu.BetterSearch.FluentApi.Fluent.LuceneQueryConfigurator.WithQuery(string! luceneQuery) -> Bielu.BetterSearch.FluentApi.Fluent.LuceneQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.PrefixPhraseQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.PrefixPhraseQueryConfigurator.PrefixPhraseQueryConfigurator() -> void
+Bielu.BetterSearch.FluentApi.Fluent.PrefixPhraseQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+Bielu.BetterSearch.FluentApi.Fluent.PrefixPhraseQueryConfigurator.WithField(string! fieldName) -> Bielu.BetterSearch.FluentApi.Fluent.PrefixPhraseQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.PrefixPhraseQueryConfigurator.WithValue(object! value) -> Bielu.BetterSearch.FluentApi.Fluent.PrefixPhraseQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.PrefixQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.PrefixQueryConfigurator.PrefixQueryConfigurator() -> void
+Bielu.BetterSearch.FluentApi.Fluent.PrefixQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+Bielu.BetterSearch.FluentApi.Fluent.PrefixQueryConfigurator.WithField(string! fieldName) -> Bielu.BetterSearch.FluentApi.Fluent.PrefixQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.PrefixQueryConfigurator.WithValue(object! value) -> Bielu.BetterSearch.FluentApi.Fluent.PrefixQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.ISearchQuery!
+Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator.Query.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator.QueryCreatorConfigurator(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! query) -> void
+Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator.SortBy(string! fieldName, bool descending = false) -> Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator.SortByDescending(string! fieldName) -> Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator.WithIndex(string! indexName) -> Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator.WithPage(int page) -> Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator.WithPageSize(int pageSize) -> Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator.WithProperties(params string![]! properties) -> Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.DateRangeQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.DateRangeQueryConfigurator.DateRangeQueryConfigurator() -> void
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.DateRangeQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeSubQuery!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.DateRangeQueryConfigurator.Query.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.DateRangeQueryConfigurator.WithField(string! fieldName) -> Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.DateRangeQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.DateRangeQueryConfigurator.WithMaxValue(Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue value, bool includeEdge = true) -> Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.DateRangeQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.DateRangeQueryConfigurator.WithMinValue(Bielu.BetterSearch.Abstractions.Query.SubQueries.DateRangeValue value, bool includeEdge = true) -> Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.DateRangeQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.LongRangeQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.LongRangeQueryConfigurator.LongRangeQueryConfigurator() -> void
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.LongRangeQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.SubQueries.LongRangeSubQuery!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.LongRangeQueryConfigurator.Query.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.LongRangeQueryConfigurator.WithField(string! fieldName) -> Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.LongRangeQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.LongRangeQueryConfigurator.WithMaxValue(long value, bool includeEdge = true) -> Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.LongRangeQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.LongRangeQueryConfigurator.WithMinValue(long value, bool includeEdge = true) -> Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.LongRangeQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.NumericRangeQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.NumericRangeQueryConfigurator.NumericRangeQueryConfigurator() -> void
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.NumericRangeQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.SubQueries.NumericRangeSubQuery!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.NumericRangeQueryConfigurator.Query.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.NumericRangeQueryConfigurator.WithField(string! fieldName) -> Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.NumericRangeQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.NumericRangeQueryConfigurator.WithMaxValue(double value, bool includeEdge = true) -> Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.NumericRangeQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.NumericRangeQueryConfigurator.WithMinValue(double value, bool includeEdge = true) -> Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.NumericRangeQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.StringRangeQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.StringRangeQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.SubQueries.StringRangeSubQuery!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.StringRangeQueryConfigurator.Query.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.StringRangeQueryConfigurator.StringRangeQueryConfigurator() -> void
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.StringRangeQueryConfigurator.WithField(string! fieldName) -> Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.StringRangeQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.StringRangeQueryConfigurator.WithMaxValue(string! value, bool includeEdge = true) -> Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.StringRangeQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.StringRangeQueryConfigurator.WithMinValue(string! value, bool includeEdge = true) -> Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.StringRangeQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator.SpatialQueryConfigurator() -> void
+Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator.WithCenter(double lat, double lng) -> Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator.WithDistance(double value) -> Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator.WithField(string! fieldName) -> Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator.WithUnitOfDistance(Bielu.BetterSearch.Abstractions.Query.SubQueries.DistanceUnit value) -> Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.SubQueryConfigurator<TSelf>
+Bielu.BetterSearch.FluentApi.Fluent.SubQueryConfigurator<TSelf>.Filter() -> TSelf!
+Bielu.BetterSearch.FluentApi.Fluent.SubQueryConfigurator<TSelf>.Must() -> TSelf!
+Bielu.BetterSearch.FluentApi.Fluent.SubQueryConfigurator<TSelf>.MustNot() -> TSelf!
+Bielu.BetterSearch.FluentApi.Fluent.SubQueryConfigurator<TSelf>.Occurrence.get -> Bielu.BetterSearch.Abstractions.Query.Occurrence?
+Bielu.BetterSearch.FluentApi.Fluent.SubQueryConfigurator<TSelf>.Occurrence.set -> void
+Bielu.BetterSearch.FluentApi.Fluent.SubQueryConfigurator<TSelf>.Should() -> TSelf!
+Bielu.BetterSearch.FluentApi.Fluent.SubQueryConfigurator<TSelf>.SubQueryConfigurator() -> void
+Bielu.BetterSearch.FluentApi.Fluent.SubQueryConfigurator<TSelf>.WithBoost(double boost) -> TSelf!
+Bielu.BetterSearch.FluentApi.Fluent.TermQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.TermQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+Bielu.BetterSearch.FluentApi.Fluent.TermQueryConfigurator.TermQueryConfigurator() -> void
+Bielu.BetterSearch.FluentApi.Fluent.TermQueryConfigurator.WithField(string! fieldName) -> Bielu.BetterSearch.FluentApi.Fluent.TermQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.TermQueryConfigurator.WithValue(object! value) -> Bielu.BetterSearch.FluentApi.Fluent.TermQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.TermsQueryConfigurator
+Bielu.BetterSearch.FluentApi.Fluent.TermsQueryConfigurator.Query.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+Bielu.BetterSearch.FluentApi.Fluent.TermsQueryConfigurator.TermsQueryConfigurator() -> void
+Bielu.BetterSearch.FluentApi.Fluent.TermsQueryConfigurator.WithField(string! fieldName) -> Bielu.BetterSearch.FluentApi.Fluent.TermsQueryConfigurator!
+Bielu.BetterSearch.FluentApi.Fluent.TermsQueryConfigurator.WithValue(params object![]! value) -> Bielu.BetterSearch.FluentApi.Fluent.TermsQueryConfigurator!
+Bielu.BetterSearch.FluentApi.FluentApiSearchQueryCreator
+Bielu.BetterSearch.FluentApi.FluentApiSearchQueryCreator.CreateSearchQuery(System.Action<Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!>! configurator) -> Bielu.BetterSearch.Abstractions.Query.ISearchQuery!
+Bielu.BetterSearch.FluentApi.FluentApiSearchQueryCreator.FluentApiSearchQueryCreator(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! baseQuery) -> void
+Bielu.BetterSearch.FluentApi.FluentApiSearchQueryCreator.WithSearchQuery(System.Action<Bielu.BetterSearch.FluentApi.Fluent.QueryCreatorConfigurator!>! configurator) -> Bielu.BetterSearch.FluentApi.FluentApiSearchQueryCreator!
+Bielu.BetterSearch.FluentApi.IFluentApiSearchQueryCreator
+Bielu.BetterSearch.FluentApi.IFluentApiSearchQueryCreator.CreateSearchQuery(System.Action<Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!>! configurator) -> Bielu.BetterSearch.Abstractions.Query.ISearchQuery!
+override Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator.SubQuery.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+override Bielu.BetterSearch.FluentApi.Fluent.LuceneQueryConfigurator.SubQuery.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+override Bielu.BetterSearch.FluentApi.Fluent.PrefixPhraseQueryConfigurator.SubQuery.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+override Bielu.BetterSearch.FluentApi.Fluent.PrefixQueryConfigurator.SubQuery.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+override Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.DateRangeQueryConfigurator.SubQuery.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+override Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.LongRangeQueryConfigurator.SubQuery.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+override Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.NumericRangeQueryConfigurator.SubQuery.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+override Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.StringRangeQueryConfigurator.SubQuery.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+override Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator.SubQuery.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+override Bielu.BetterSearch.FluentApi.Fluent.TermQueryConfigurator.SubQuery.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+override Bielu.BetterSearch.FluentApi.Fluent.TermsQueryConfigurator.SubQuery.get -> Bielu.BetterSearch.Abstractions.Query.ISearchSubQuery!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateAggregationQueryHelper.CreateAggregationQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.AggregationQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateAggregationQueryHelper.CreateAggregationQuery<T>(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<T>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateAggregationQueryHelper.CreateSubAggregationQuery(this Bielu.BetterSearch.FluentApi.Fluent.IAggregationConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.AggregationSubQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IAggregationConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateAggregationQueryHelper.CreateSubAggregationQuery<T>(this Bielu.BetterSearch.FluentApi.Fluent.IAggregationConfigurator! configurator, System.Action<T>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IAggregationConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateHighlighterQueryHelper.CreateHighlighterQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.HighlighterConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateHighlighterQueryHelper.CreateHighlighterQuery<T>(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<T>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateBoolQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateBoolQuery(this Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateDateRangeQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.DateRangeQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateDateRangeQuery(this Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.DateRangeQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateFuzzyQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateFuzzyQuery(this Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.FuzzyQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateGeoDistanceQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateGeoDistanceQuery(this Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.SpatialQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateLongRangeQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.LongRangeQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateLongRangeQuery(this Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.LongRangeQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateLuceneQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.LuceneQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateLuceneQuery(this Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.LuceneQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateNumericRangeQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.NumericRangeQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateNumericRangeQuery(this Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.NumericRangeQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreatePostFilterQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.BooleanQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreatePrefixPhraseQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.PrefixPhraseQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreatePrefixPhraseQuery(this Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.PrefixPhraseQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreatePrefixQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.PrefixQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreatePrefixQuery(this Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.PrefixQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateStringRangeQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.StringRangeQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateStringRangeQuery(this Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.RangeQueries.StringRangeQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateTermQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.TermQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateTermQuery(this Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.TermQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateTermsQuery(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.TermsQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.CreateTermsQuery(this Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator! configurator, System.Action<Bielu.BetterSearch.FluentApi.Fluent.TermsQueryConfigurator!>! query) -> Bielu.BetterSearch.FluentApi.Fluent.IQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.FilterByCulture(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, string! culture) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.Fluent.Extensions.CreateQueryHelper.FilterByCulture(this Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator! configurator, System.Globalization.CultureInfo! culture) -> Bielu.BetterSearch.FluentApi.Fluent.IBaseQueryConfigurator!
+static Bielu.BetterSearch.FluentApi.FluentApiSearchQueryCreator.Create() -> Bielu.BetterSearch.FluentApi.FluentApiSearchQueryCreator!

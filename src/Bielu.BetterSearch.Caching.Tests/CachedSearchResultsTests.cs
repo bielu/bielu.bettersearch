@@ -45,7 +45,7 @@ public class CachedSearchResultsTests
         var highlights = new Dictionary<string, IReadOnlyList<string>> { ["Name"] = ["<em>Jane</em> Doe"] };
         ISearchResult search = new BaseSearchResults
         {
-            Items = [new SearchHit(document, double.NaN, highlights), new SearchHit(new SearchDocument { Id = "doc-2" }, null)],
+            Items = [new SearchHit(document, double.NaN, highlights), new SearchHit(new SearchDocument { Id = "doc-2", Index = null! }, null)],
             Pagination = new Pagination { TotalCount = 12, Page = 2, PageSize = 10, TotalPages = 2 }
         };
         return Result.Ok(search).WithSuccess(new TranslationWarning("approximate"));
@@ -107,7 +107,7 @@ public class CachedSearchResultsTests
     [Fact]
     public void From_ValueOfUnsupportedType_ReturnsNull()
     {
-        var document = new SearchDocument { Id = "1", Fields = { ["id"] = [Guid.Empty] } };
+        var document = new SearchDocument { Id = "1", Index = "index", Fields = { ["id"] = [Guid.Empty] } };
         ISearchResult search = new BaseSearchResults { Items = [new SearchHit(document, null)], Pagination = new Pagination() };
 
         CachedSearchResults.From(Result.Ok(search)).ShouldBeNull();

@@ -1,0 +1,82 @@
+#nullable enable
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationDetails
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationDetails.ApiKey.get -> string?
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationDetails.ApiKey.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationDetails.AuthenticationDetails() -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationDetails.Id.get -> string?
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationDetails.Id.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationDetails.Password.get -> string?
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationDetails.Password.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationDetails.Token.get -> string?
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationDetails.Token.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationDetails.Username.get -> string?
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationDetails.Username.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType.ApiKey = 4 -> Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType.Bearer = 5 -> Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType.Cloud = 1 -> Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType.CloudApi = 2 -> Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType.None = 0 -> Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType
+Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType.Password = 3 -> Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldMapping
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldMapping.Analyzer.get -> string?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldMapping.Analyzer.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldMapping.ElasticSearchFieldMapping() -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldMapping.Field.get -> string?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldMapping.Field.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldMapping.Format.get -> string?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldMapping.Format.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldMapping.Type.get -> Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldMapping.Type.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType.Boolean = 9 -> Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType.Byte = 6 -> Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType.Date = 2 -> Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType.Double = 7 -> Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType.Float = 8 -> Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType.GeoPoint = 10 -> Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType.Integer = 4 -> Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType.Keyword = 1 -> Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType.Long = 3 -> Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType.Short = 5 -> Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType.Text = 0 -> Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldType
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.AdditionalNodes.get -> System.Collections.Generic.IList<string!>?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.AdditionalNodes.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.AuthenticationDetails.get -> Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationDetails?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.AuthenticationDetails.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.AuthenticationType.get -> Bielu.BetterSearch.ElasticSearch.Configuration.AuthenticationType?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.AuthenticationType.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.BulkBatchSize.get -> int?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.BulkBatchSize.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.CertificateFingerprint.get -> string?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.CertificateFingerprint.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.ConnectionString.get -> string?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.ConnectionString.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.DevelopmentOnlySkipCertificateValidation.get -> bool?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.DevelopmentOnlySkipCertificateValidation.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.ElasticSearchIndexSettings() -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.Mappings.get -> System.Collections.Generic.List<Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchFieldMapping!>?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.Mappings.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.MaxRetries.get -> int?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.MaxRetries.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.PoolType.get -> Bielu.BetterSearch.Abstractions.Configuration.NodePoolType?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.PoolType.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.RequestTimeout.get -> System.TimeSpan?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.RequestTimeout.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.WriteVisibility.get -> Bielu.BetterSearch.Abstractions.Configuration.WriteVisibility?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings.WriteVisibility.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchOptions
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchOptions.ElasticSearchOptions() -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchOptions.Indexes.get -> System.Collections.Generic.Dictionary<string!, Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings!>?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchOptions.Indexes.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchOptions.IndexPrefix.get -> string?
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchOptions.IndexPrefix.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchOptions.MaxResultWindow.get -> int
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchOptions.MaxResultWindow.set -> void
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchOptions.SharedIndexSettings.get -> Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchIndexSettings!
+Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchOptions.SharedIndexSettings.set -> void
+Bielu.BetterSearch.ElasticSearch.DependencyInjection.RegisterSearchExtension
+const Bielu.BetterSearch.ElasticSearch.DependencyInjection.RegisterSearchExtension.DefaultKey = "ElasticSearch" -> string!
+static Bielu.BetterSearch.ElasticSearch.Configuration.ElasticSearchOptions.ElasticSearchOptionsKey.get -> string!
+static Bielu.BetterSearch.ElasticSearch.DependencyInjection.RegisterSearchExtension.AddElasticSearch(this Bielu.BetterSearch.Configuration.Configurator! configurator, string! key = "ElasticSearch", System.Action<Elastic.Clients.Elasticsearch.ElasticsearchClientSettings!>? configureClient = null) -> Bielu.BetterSearch.Configuration.Configurator!

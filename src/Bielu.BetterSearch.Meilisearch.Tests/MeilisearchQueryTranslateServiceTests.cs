@@ -21,7 +21,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
 
     private static SearchQuery Query(Occurrence occurrence, ISearchSubQuery subQuery)
     {
-        var query = new SearchQuery();
+        var query = new SearchQuery { Index = "index" };
         query.Add(occurrence, subQuery);
         return query;
     }
@@ -29,7 +29,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_NoClauses_MatchesEveryDocument()
     {
-        (await FilterAsync(new SearchQuery())).ShouldBe("id EXISTS");
+        (await FilterAsync(new SearchQuery { Index = "index" })).ShouldBe("id EXISTS");
     }
 
     [Fact]
@@ -312,7 +312,7 @@ public class MeilisearchQueryTranslateServiceTests(IQueryTranslateServiceAsync<M
     [Fact]
     public async Task TranslateMainQueryAsync_FailingPostFilter_ReturnsFailure()
     {
-        var query = new SearchQuery();
+        var query = new SearchQuery { Index = "index" };
         var nested = new BoolSearchSubQuery();
         nested.Add(Occurrence.Must, new LuceneSubQuery { LuceneQuery = "x" });
         query.PostFilterQuery.Add(nested);

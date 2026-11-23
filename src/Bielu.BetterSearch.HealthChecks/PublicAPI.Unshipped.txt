@@ -1,0 +1,4 @@
+#nullable enable
+Bielu.BetterSearch.HealthChecks.BetterSearchHealthChecksBuilderExtensions
+const Bielu.BetterSearch.HealthChecks.BetterSearchHealthChecksBuilderExtensions.DefaultName = "bettersearch" -> string!
+static Bielu.BetterSearch.HealthChecks.BetterSearchHealthChecksBuilderExtensions.AddBetterSearchHealthCheck(this Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder! builder, string! name = "bettersearch", string? providerKey = null, string? index = null, Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? failureStatus = null, System.Collections.Generic.IEnumerable<string!>? tags = null, System.TimeSpan? timeout = null) -> Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder!

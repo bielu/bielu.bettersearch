@@ -1,0 +1,12 @@
+---
+"bielu-bettersearch": minor
+---
+
+Make the nullable annotations honest, track the public API with `PublicApiAnalyzers`, and document it (#167). Breaking: code that constructs these types without setting a member that is now `required` stops compiling until it sets it.
+
+- These members are now `required`, so an object initializer must set them: `SearchQuery.Index`, `SearchDocument.Id` and `SearchDocument.Index`, `DeleteDocumentRequest.Id` and `DeleteDocumentRequest.Index`, `DeleteAllDocumentsRequest.IndexName`, `TermAggregation.AggregationName` and `TermAggregation.TermFieldName`, `MultiTermAggregation.AggregationName`, `FilterAggregationQuery.AggregationName`, `SimpleTerm.TermFieldName`, and on the result side `BucketAggregation.AggregationName`, `SingleAggregation.AggregationName` and `KeyBucket.Key`. System.Text.Json also requires them when it deserializes these types. The providers keep their failed `Result`s for a `null` or empty value, which a caller can still pass with `null!` or from another serializer. The fluent API still starts from an empty index and facet name, which `WithIndex` and the facet configurators set.
+- These members are now nullable, because they can be absent: `SearchDocument.Type`, `IHighlightQuery.Field` and `BaseHighlightQuery.Field` (unset when `IsAllField` is set), and on Elasticsearch `ElasticSearchIndexSettings.ConnectionString` (unset on an `Indexes` entry that takes the shared one) and `AuthenticationDetails.Username`, `Password`, `ApiKey` and `Id`. Their values and the validation are unchanged.
+- `MultiTermAggregation.Terms` starts as an empty list instead of `null`.
+- Lifti: `ILiftiIndexManager.CreateIndexAsync` now returns `Task<Result<IFullTextIndex<string>>>`, without the `?`, since it always returns the index it created.
+- Every public member of the shipping packages has an XML doc comment, and `CS1591` is no longer suppressed for them. The packages build with warnings as errors, except the NuGet audit warnings (`NU1901` to `NU1904`), which follow the advisory database rather than the code.
+- The public API of each package is recorded in its `PublicAPI.Shipped.txt` and `PublicAPI.Unshipped.txt`, so a change to it fails the build until the file records it, and shows in review. `npm run version` now runs `scripts/ship-public-api.mjs`, which moves the unshipped entries to the shipped file when it cuts a stable version, and does nothing for a prerelease.

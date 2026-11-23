@@ -4,6 +4,7 @@ using FluentResults;
 
 namespace Bielu.BetterSearch.Abstractions.Services;
 
+/// <summary>Searches, gets and counts documents on one engine. Implemented by each provider.</summary>
 public interface ISearchProviderAsync
 {
     /// <summary>

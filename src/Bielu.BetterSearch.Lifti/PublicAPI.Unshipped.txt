@@ -1,0 +1,10 @@
+#nullable enable
+Bielu.BetterSearch.DependencyInjection.RegisterSearchExtension
+Bielu.BetterSearch.Lifti.Services.ILiftiIndexManager
+Bielu.BetterSearch.Lifti.Services.ILiftiIndexManager.CreateIndexAsync(string! key) -> System.Threading.Tasks.Task<FluentResults.Result<Lifti.IFullTextIndex<string!>!>!>!
+Bielu.BetterSearch.Lifti.Services.ILiftiIndexManager.DeleteIndexAsync(string! name) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Lifti.Services.ILiftiIndexManager.ExistsAsync(string! name) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Lifti.Services.ILiftiIndexManager.GetIndexAsync(string! key) -> System.Threading.Tasks.Task<FluentResults.Result<Lifti.IFullTextIndex<string!>?>!>!
+Bielu.BetterSearch.Lifti.Services.ILiftiIndexManager.GetOrCreateIndexAsync(string! key) -> System.Threading.Tasks.Task<FluentResults.Result<Lifti.IFullTextIndex<string!>!>!>!
+const Bielu.BetterSearch.DependencyInjection.RegisterSearchExtension.DefaultKey = "Lifti" -> string!
+static Bielu.BetterSearch.DependencyInjection.RegisterSearchExtension.AddLiftiSearch(this Bielu.BetterSearch.Configuration.Configurator! configurator, string! key = "Lifti") -> Bielu.BetterSearch.Configuration.Configurator!

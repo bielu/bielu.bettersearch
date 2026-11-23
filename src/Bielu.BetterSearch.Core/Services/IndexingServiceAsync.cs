@@ -17,6 +17,7 @@ public class IndexingServiceAsync(
 {
     private bool RecordErrorMessages => BetterSearchTelemetry.RecordsErrorMessages(instrumentationOptions);
 
+    /// <inheritdoc />
     public async Task<Result> IndexDocumentAsync(SearchDocument document, CancellationToken cancellationToken = default)
     {
         var result = await BetterSearchTelemetry.RunAsync("index", document?.Index, indexingProvider, logger, RecordErrorMessages, null,
@@ -46,6 +47,7 @@ public class IndexingServiceAsync(
         return await indexingProvider.IndexDocumentAsync(document, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<Result<int>> IndexMultipleDocumentsAsync(IEnumerable<SearchDocument> document,
         CancellationToken cancellationToken = default)
     {
@@ -187,6 +189,7 @@ public class IndexingServiceAsync(
     }
 
     // Not counted in bettersearch.documents.removed: the provider does not say whether the document was there.
+    /// <inheritdoc />
     public Task<Result> RemoveDocumentAsync(DeleteDocumentRequest document,
         CancellationToken cancellationToken = default) =>
         BetterSearchTelemetry.RunAsync("remove", document?.Index, indexingProvider, logger, RecordErrorMessages, null,
@@ -213,6 +216,7 @@ public class IndexingServiceAsync(
         return await indexingProvider.RemoveDocumentAsync(document.Id, document.Index, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<Result<int>> RemoveDocumentsAsync(string index, IEnumerable<string> ids,
         CancellationToken cancellationToken = default)
     {
@@ -244,6 +248,7 @@ public class IndexingServiceAsync(
         return await indexingProvider.RemoveDocumentsAsync(index, distinctIds.Value, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<Result<long?>> RemoveAllDocumentsAsync(DeleteAllDocumentsRequest request, CancellationToken cancellationToken = default)
     {
         var result = await BetterSearchTelemetry.RunAsync("remove all", request?.IndexName, indexingProvider, logger, RecordErrorMessages, null,

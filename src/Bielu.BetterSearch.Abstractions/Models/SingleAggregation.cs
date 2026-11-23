@@ -6,6 +6,8 @@
 /// </summary>
 public class SingleAggregation : IAggregation
 {
+    /// <summary>The facet's one <see cref="SingleBucket"/>.</summary>
     public IReadOnlyList<IBucket> Buckets { get; init; } = [];
-    public string AggregationName { get; init; }
+    /// <inheritdoc />
+    public required string AggregationName { get; init; }
 }

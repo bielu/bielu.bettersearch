@@ -2,18 +2,26 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
+    /// <summary>Configures a <see cref="SpatialSearchSubQuery"/>.</summary>
     public class SpatialQueryConfigurator : SubQueryConfigurator<SpatialQueryConfigurator>
     {
+        /// <summary>Creates a configurator for a new <see cref="SpatialSearchSubQuery"/>.</summary>
         public SpatialQueryConfigurator()
         {
             _query = new SpatialSearchSubQuery();
         }
 
+        /// <summary>Sets the <see cref="SpatialSearchSubQuery.Field"/> the sub-query matches on.</summary>
+        /// <param name="fieldName">The field name.</param>
+        /// <returns>This configurator, for chaining.</returns>
         public SpatialQueryConfigurator WithField(string fieldName)
         {
             _query.Field = fieldName;
             return this;
         }
+        /// <summary>Sets the <see cref="SpatialSearchSubQuery.Distance"/> from the centre within which documents match.</summary>
+        /// <param name="value">The distance, in the unit set by <see cref="WithUnitOfDistance"/>.</param>
+        /// <returns>This configurator, for chaining.</returns>
         public SpatialQueryConfigurator WithDistance(double value)
         {
             _query.Distance = value;
@@ -34,7 +42,9 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
         }
 
         private SpatialSearchSubQuery _query;
+        /// <summary>The sub-query this configurator builds.</summary>
         public ISearchSubQuery Query => _query;
+        /// <inheritdoc />
         protected override ISearchSubQuery SubQuery => _query;
     }
 }

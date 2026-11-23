@@ -4,6 +4,7 @@ using OpenTelemetry.Trace;
 
 namespace Bielu.BetterSearch.OpenTelemetry;
 
+/// <summary>Extensions that add the BetterSearch spans and metrics to OpenTelemetry.</summary>
 public static class BetterSearchInstrumentationExtensions
 {
     /// <summary>Collects the spans of the BetterSearch services (<see cref="BetterSearchInstrumentation.ActivitySourceName"/>).</summary>

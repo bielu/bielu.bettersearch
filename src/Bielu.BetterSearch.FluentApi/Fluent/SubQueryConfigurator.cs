@@ -28,9 +28,17 @@
 
         internal ISearchSubQuery Built => SubQuery;
 
+        /// <summary>Adds the sub-query with <see cref="Abstractions.Query.Occurrence.Must"/>.</summary>
+        /// <returns>This configurator, for chaining.</returns>
         public TSelf Must() => With(Abstractions.Query.Occurrence.Must);
+        /// <summary>Adds the sub-query with <see cref="Abstractions.Query.Occurrence.MustNot"/>.</summary>
+        /// <returns>This configurator, for chaining.</returns>
         public TSelf MustNot() => With(Abstractions.Query.Occurrence.MustNot);
+        /// <summary>Adds the sub-query with <see cref="Abstractions.Query.Occurrence.Should"/>.</summary>
+        /// <returns>This configurator, for chaining.</returns>
         public TSelf Should() => With(Abstractions.Query.Occurrence.Should);
+        /// <summary>Adds the sub-query with <see cref="Abstractions.Query.Occurrence.Filter"/>.</summary>
+        /// <returns>This configurator, for chaining.</returns>
         public TSelf Filter() => With(Abstractions.Query.Occurrence.Filter);
 
         /// <summary>Sets the <see cref="ISearchSubQuery.BoostValue"/> of the sub-query.</summary>

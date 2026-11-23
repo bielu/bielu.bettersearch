@@ -7,8 +7,11 @@
     /// </summary>
     public class BaseRangeSubQuery : ISearchSubQuery
     {
+        /// <inheritdoc />
         public Occurrence Occurrence { get; set; } = Occurrence.Must;
+        /// <inheritdoc />
         public double BoostValue { get; set; } = 1;
+        /// <summary>The field the range is over.</summary>
         public string? Field { get; set; }
         /// <summary>Whether the minimum itself matches. <c>true</c> by default.</summary>
         public bool IncludeMinEdge { get; set; } = true;

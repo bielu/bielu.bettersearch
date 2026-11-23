@@ -2,6 +2,7 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
+    /// <summary>Configures a <see cref="LuceneSubQuery"/>.</summary>
     public class LuceneQueryConfigurator : SubQueryConfigurator<LuceneQueryConfigurator>
     {
         /// <summary>
@@ -15,7 +16,9 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
         }
 
         private LuceneSubQuery _query = new();
+        /// <summary>The sub-query this configurator builds.</summary>
         public ISearchSubQuery Query => _query;
+        /// <inheritdoc />
         protected override ISearchSubQuery SubQuery => _query;
     }
 }

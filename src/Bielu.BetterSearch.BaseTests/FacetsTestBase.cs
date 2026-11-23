@@ -351,8 +351,8 @@ public abstract class FacetsTestBase(ISearchServiceAsync searchService, IIndexin
     public static TheoryData<string, IAggregationQuery?[], string> InvalidFacets() => new()
     {
         { "null entry", [null], "FacetQueries holds a null entry." },
-        { "no name", [new TermAggregation { TermFieldName = Color }], "A facet needs an AggregationName." },
-        { "no field", [new TermAggregation { AggregationName = "colors" }], "Facet colors needs a TermFieldName." },
+        { "no name", [new TermAggregation { AggregationName = null!, TermFieldName = Color }], "A facet needs an AggregationName." },
+        { "no field", [new TermAggregation { AggregationName = "colors", TermFieldName = null! }], "Facet colors needs a TermFieldName." },
         { "negative size", [new TermAggregation { AggregationName = "colors", TermFieldName = Color, Size = -1 }], "Facet colors has Size -1" },
         { "size past limit", [new TermAggregation { AggregationName = "colors", TermFieldName = Color, Size = 65_537 }], "past the limit of 65536 buckets" },
         { "same name twice", [new TermAggregation { AggregationName = "x", TermFieldName = Color }, new TermAggregation { AggregationName = "x", TermFieldName = Brand }], "Facet name x is used more than once" },

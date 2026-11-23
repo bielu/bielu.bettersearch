@@ -3,20 +3,32 @@ using Bielu.BetterSearch.Abstractions.Models;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
+    /// <summary>Configures the paging, index, sorting and returned properties of a search query.</summary>
+    /// <param name="query">The search query to configure.</param>
     public class QueryCreatorConfigurator(ISearchQuery query)
     {
+        /// <summary>The search query this configurator changes.</summary>
         public ISearchQuery Query { get; set; } = query;
 
+        /// <summary>Sets the <see cref="ISearchQuery.PageSize"/>, the number of hits per page.</summary>
+        /// <param name="pageSize">The number of hits per page.</param>
+        /// <returns>This configurator, for chaining.</returns>
         public QueryCreatorConfigurator WithPageSize(int pageSize)
         {
             Query.PageSize = pageSize;
             return this;
         }
+        /// <summary>Sets the <see cref="ISearchQuery.Page"/> to return.</summary>
+        /// <param name="page">The page to return.</param>
+        /// <returns>This configurator, for chaining.</returns>
         public QueryCreatorConfigurator WithPage(int page)
         {
             Query.Page = page;
             return this;
         }
+        /// <summary>Sets the <see cref="ISearchQuery.Index"/> to search.</summary>
+        /// <param name="indexName">The name of the index.</param>
+        /// <returns>This configurator, for chaining.</returns>
         public QueryCreatorConfigurator WithIndex(string indexName)
         {
             Query.Index = indexName;

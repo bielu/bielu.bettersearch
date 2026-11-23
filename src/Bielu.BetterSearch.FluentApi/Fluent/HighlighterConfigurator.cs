@@ -3,8 +3,11 @@ using Bielu.BetterSearch.Abstractions.Query.Highlighter;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent
 {
+    /// <summary>Configures a highlight request (<see cref="BaseHighlightQuery"/>).</summary>
     public class HighlighterConfigurator
     {
+        /// <summary>Creates a new highlight request and adds it to the <see cref="ISearchQuery.HighlightQueries"/> of <paramref name="searchSubQueries"/>.</summary>
+        /// <param name="searchSubQueries">The search query that gets the highlight request.</param>
         public HighlighterConfigurator(ISearchQuery searchSubQueries)
         {
             this.Query = new BaseHighlightQuery();
@@ -39,6 +42,7 @@ namespace Bielu.BetterSearch.FluentApi.Fluent
             return this;
         }
 
+        /// <summary>The highlight request this configurator builds.</summary>
         public IHighlightQuery Query { get; set; }
     }
 }

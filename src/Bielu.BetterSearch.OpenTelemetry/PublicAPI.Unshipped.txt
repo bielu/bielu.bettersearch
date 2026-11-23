@@ -1,0 +1,4 @@
+#nullable enable
+Bielu.BetterSearch.OpenTelemetry.BetterSearchInstrumentationExtensions
+static Bielu.BetterSearch.OpenTelemetry.BetterSearchInstrumentationExtensions.AddBetterSearchInstrumentation(this OpenTelemetry.Metrics.MeterProviderBuilder! builder) -> OpenTelemetry.Metrics.MeterProviderBuilder!
+static Bielu.BetterSearch.OpenTelemetry.BetterSearchInstrumentationExtensions.AddBetterSearchInstrumentation(this OpenTelemetry.Trace.TracerProviderBuilder! builder) -> OpenTelemetry.Trace.TracerProviderBuilder!

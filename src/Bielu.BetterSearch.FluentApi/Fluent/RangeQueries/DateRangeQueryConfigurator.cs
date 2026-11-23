@@ -2,15 +2,22 @@
 
 namespace Bielu.BetterSearch.FluentApi.Fluent.RangeQueries;
 
+/// <summary>Configures a <see cref="DateRangeSubQuery"/>.</summary>
 public class DateRangeQueryConfigurator : SubQueryConfigurator<DateRangeQueryConfigurator>
 {
+    /// <summary>Creates a configurator for a new <see cref="DateRangeSubQuery"/>.</summary>
     public DateRangeQueryConfigurator()
     {
         Query = new DateRangeSubQuery();
     }
 
+    /// <summary>The range sub-query this configurator builds.</summary>
     public DateRangeSubQuery Query { get; set; }
+    /// <inheritdoc />
     protected override ISearchSubQuery SubQuery => Query;
+    /// <summary>Sets the <c>Field</c> the sub-query matches on.</summary>
+    /// <param name="fieldName">The field name.</param>
+    /// <returns>This configurator, for chaining.</returns>
     public DateRangeQueryConfigurator WithField(string fieldName)
     {
         Query.Field = fieldName;

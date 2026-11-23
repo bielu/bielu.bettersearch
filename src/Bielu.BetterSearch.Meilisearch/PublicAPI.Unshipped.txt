@@ -1,0 +1,33 @@
+#nullable enable
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchIndexSettings
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchIndexSettings.ApiKey.get -> string?
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchIndexSettings.ApiKey.set -> void
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchIndexSettings.BulkBatchSize.get -> int?
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchIndexSettings.BulkBatchSize.set -> void
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchIndexSettings.ConnectionString.get -> string!
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchIndexSettings.ConnectionString.set -> void
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchIndexSettings.MeilisearchIndexSettings() -> void
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchIndexSettings.RequestTimeout.get -> System.TimeSpan?
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchIndexSettings.RequestTimeout.set -> void
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.GeoField.get -> string?
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.GeoField.set -> void
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.Indexes.get -> System.Collections.Generic.Dictionary<string!, Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchIndexSettings!>?
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.Indexes.set -> void
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.IndexPrefix.get -> string?
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.IndexPrefix.set -> void
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.MaxTotalHits.get -> int
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.MaxTotalHits.set -> void
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.MeilisearchOptions() -> void
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.PhraseFields.get -> System.Collections.Generic.IList<string!>?
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.PhraseFields.set -> void
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.SettingsCheckInterval.get -> System.TimeSpan
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.SettingsCheckInterval.set -> void
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.SharedIndexSettings.get -> Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchIndexSettings!
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.SharedIndexSettings.set -> void
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.TaskTimeout.get -> System.TimeSpan
+Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.TaskTimeout.set -> void
+Bielu.BetterSearch.Meilisearch.DependencyInjection.RegisterSearchExtension
+const Bielu.BetterSearch.Meilisearch.DependencyInjection.RegisterSearchExtension.DefaultKey = "Meilisearch" -> string!
+static Bielu.BetterSearch.Meilisearch.Configuration.MeilisearchOptions.MeilisearchOptionsKey.get -> string!
+static Bielu.BetterSearch.Meilisearch.DependencyInjection.RegisterSearchExtension.AddMeilisearch(this Bielu.BetterSearch.Configuration.Configurator! configurator, string! key = "Meilisearch", System.Action<System.Net.Http.HttpClient!>? configureClient = null) -> Bielu.BetterSearch.Configuration.Configurator!

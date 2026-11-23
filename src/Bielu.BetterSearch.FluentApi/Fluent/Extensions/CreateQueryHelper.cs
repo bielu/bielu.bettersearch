@@ -5,6 +5,7 @@ using Bielu.BetterSearch.FluentApi.Fluent.RangeQueries;
 
 namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
 {
+    /// <summary>Extension methods that add sub-queries to a query configurator.</summary>
     public static class CreateQueryHelper
     {
         /// <summary>
@@ -30,74 +31,166 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
             return configurator;
         }
 
+        /// <summary>Adds a term query (<see cref="TermSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IQueryConfigurator CreateTermQuery(this IQueryConfigurator configurator,
             Action<TermQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a terms query (<see cref="TermsSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IQueryConfigurator CreateTermsQuery(this IQueryConfigurator configurator,
             Action<TermsQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a fuzzy query (<see cref="FuzzySubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IQueryConfigurator CreateFuzzyQuery(this IQueryConfigurator configurator,
             Action<FuzzyQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a prefix query (<see cref="PrefixSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IQueryConfigurator CreatePrefixQuery(this IQueryConfigurator configurator,
             Action<PrefixQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a prefix phrase query (<see cref="PrefixPhraseSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IQueryConfigurator CreatePrefixPhraseQuery(this IQueryConfigurator configurator,
             Action<PrefixPhraseQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a numeric range query (<see cref="NumericRangeSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IQueryConfigurator CreateNumericRangeQuery(this IQueryConfigurator configurator,
             Action<NumericRangeQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a long range query (<see cref="LongRangeSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IQueryConfigurator CreateLongRangeQuery(this IQueryConfigurator configurator,
             Action<LongRangeQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a string range query (<see cref="StringRangeSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IQueryConfigurator CreateStringRangeQuery(this IQueryConfigurator configurator,
             Action<StringRangeQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a date range query (<see cref="DateRangeSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IQueryConfigurator CreateDateRangeQuery(this IQueryConfigurator configurator,
             Action<DateRangeQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a geo distance query (<see cref="SpatialSearchSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IQueryConfigurator CreateGeoDistanceQuery(this IQueryConfigurator configurator,
             Action<SpatialQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a raw Lucene query (<see cref="LuceneSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IQueryConfigurator CreateLuceneQuery(this IQueryConfigurator configurator,
             Action<LuceneQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
 
+        /// <summary>Adds a term query (<see cref="TermSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IBaseQueryConfigurator CreateTermQuery(this IBaseQueryConfigurator configurator,
             Action<TermQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a terms query (<see cref="TermsSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IBaseQueryConfigurator CreateTermsQuery(this IBaseQueryConfigurator configurator,
             Action<TermsQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a fuzzy query (<see cref="FuzzySubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IBaseQueryConfigurator CreateFuzzyQuery(this IBaseQueryConfigurator configurator,
             Action<FuzzyQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a prefix query (<see cref="PrefixSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IBaseQueryConfigurator CreatePrefixQuery(this IBaseQueryConfigurator configurator,
             Action<PrefixQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a prefix phrase query (<see cref="PrefixPhraseSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IBaseQueryConfigurator CreatePrefixPhraseQuery(this IBaseQueryConfigurator configurator,
             Action<PrefixPhraseQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a numeric range query (<see cref="NumericRangeSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IBaseQueryConfigurator CreateNumericRangeQuery(this IBaseQueryConfigurator configurator,
             Action<NumericRangeQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a long range query (<see cref="LongRangeSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IBaseQueryConfigurator CreateLongRangeQuery(this IBaseQueryConfigurator configurator,
             Action<LongRangeQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a string range query (<see cref="StringRangeSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IBaseQueryConfigurator CreateStringRangeQuery(this IBaseQueryConfigurator configurator,
             Action<StringRangeQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a date range query (<see cref="DateRangeSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IBaseQueryConfigurator CreateDateRangeQuery(this IBaseQueryConfigurator configurator,
             Action<DateRangeQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a geo distance query (<see cref="SpatialSearchSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IBaseQueryConfigurator CreateGeoDistanceQuery(this IBaseQueryConfigurator configurator,
             Action<SpatialQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
+        /// <summary>Adds a raw Lucene query (<see cref="LuceneSubQuery"/>) that <paramref name="query"/> configures, with the occurrence it chooses or else the configurator's.</summary>
+        /// <param name="configurator">The configurator whose query gets the sub-query.</param>
+        /// <param name="query">Configures the sub-query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IBaseQueryConfigurator CreateLuceneQuery(this IBaseQueryConfigurator configurator,
             Action<LuceneQueryConfigurator> query) =>
             configurator.Create(configurator.Query, configurator.Occurrence, query);
 
+        /// <summary>Adds a nested bool query that <paramref name="query"/> configures, under the configurator's occurrence.</summary>
+        /// <param name="configurator">The configurator whose query gets the bool query.</param>
+        /// <param name="query">Configures the bool query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IQueryConfigurator CreateBoolQuery(this IQueryConfigurator configurator,
             Action<BooleanQueryConfigurator> query)
         {
@@ -125,6 +218,10 @@ namespace Bielu.BetterSearch.FluentApi.Fluent.Extensions
         public static IBaseQueryConfigurator FilterByCulture(this IBaseQueryConfigurator configurator, CultureInfo culture) =>
             configurator.FilterByCulture(culture.Name);
 
+        /// <summary>Adds a bool query that <paramref name="query"/> configures, under the configurator's occurrence, which its own sub-queries also default to.</summary>
+        /// <param name="configurator">The configurator whose query gets the bool query.</param>
+        /// <param name="query">Configures the bool query.</param>
+        /// <returns><paramref name="configurator"/>, for chaining.</returns>
         public static IBaseQueryConfigurator CreateBoolQuery(this IBaseQueryConfigurator configurator,
             Action<BooleanQueryConfigurator> query)
         {

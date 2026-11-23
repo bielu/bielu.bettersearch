@@ -69,7 +69,7 @@ internal static class CachedSearchResults
             new SearchDocument
             {
                 Id = hit.Id!,
-                Type = hit.ContentType!,
+                Type = hit.ContentType,
                 Index = hit.Index ?? index,
                 Fields = hit.Fields.ToDictionary(
                     field => field.Key,

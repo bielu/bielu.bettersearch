@@ -79,8 +79,7 @@ public abstract class QueryResultBaseTests(
         var index = $"query-results-{Guid.NewGuid():N}";
         await CreateExampleDocumentsAsync(index);
         //Arrange
-        var query = new SearchQuery();
-        query.Index = index;
+        var query = new SearchQuery { Index = index };
         query.Add(Occurrence.Must, new PrefixSubQuery()
         {
             Field = "Name",
@@ -190,7 +189,7 @@ public abstract class QueryResultBaseTests(
         await cancellation.CancelAsync();
 
         // The query has no Index, which every provider rejects; the cancellation still wins.
-        await Should.ThrowAsync<OperationCanceledException>(() => serviceAsync.SearchAsync(new SearchQuery(), cancellation.Token));
+        await Should.ThrowAsync<OperationCanceledException>(() => serviceAsync.SearchAsync(new SearchQuery { Index = null! }, cancellation.Token));
     }
 
     [Fact]

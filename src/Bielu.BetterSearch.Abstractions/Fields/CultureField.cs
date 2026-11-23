@@ -6,6 +6,7 @@
 /// </summary>
 public static class CultureField
 {
+    /// <summary>The name of the document field that holds the culture.</summary>
     public const string Name = "Culture";
 
     /// <summary>The culture as stored: lower-cased, without <c>-</c> or <c>_</c>.</summary>

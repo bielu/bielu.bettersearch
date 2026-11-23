@@ -121,6 +121,7 @@ When you find a scenario that breaks, write the failing test first and then fix 
 
 - Make new types `internal` unless a consumer needs them. That includes helpers shared between providers, which can be shared source or `InternalsVisibleTo`.
 - A new member on a public interface breaks every implementer. Give it a default implementation, or call the break out in the changeset.
+- The public API of each shipping package is tracked by `PublicApiAnalyzers` in `PublicAPI.Shipped.txt` and `PublicAPI.Unshipped.txt`, and every public member needs an XML doc comment. The shipping projects build with warnings as errors (`src/Directory.Build.targets`), so a new or changed public member fails the build until it is documented and recorded in `PublicAPI.Unshipped.txt`. Don't edit `PublicAPI.Shipped.txt` by hand: `scripts/ship-public-api.mjs` moves the entries when a stable version is cut.
 
 ### Tests that can actually fail
 

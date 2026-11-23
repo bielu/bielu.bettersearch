@@ -3,11 +3,18 @@ using Bielu.BetterSearch.Services;
 
 namespace Bielu.BetterSearch.Configuration;
 
+/// <summary>
+/// The settings an <c>AddBetterSearch</c> call collects through its <see cref="Configurator"/>, registered as a
+/// singleton: the service types, the providers and their keys, and the index routes.
+/// </summary>
 public class SearchApplicationConfiguration
 {
+    /// <summary>The <see cref="Abstractions.Services.IDocumentValidatorAsync"/> type, <see cref="DummyDocumentValidatorAsync"/> (accepts every document) by default.</summary>
     public Type DocumentValidatorType { get; set; } = typeof(DummyDocumentValidatorAsync);
+    /// <summary>The <see cref="Abstractions.Services.IIndexingServiceAsync"/> type, <see cref="IndexingServiceAsync"/> by default.</summary>
     public Type IndexingServiceType { get; set; } = typeof(IndexingServiceAsync);
 
+    /// <summary>The <see cref="Abstractions.Services.ISearchServiceAsync"/> type, <see cref="SearchServiceAsync"/> by default.</summary>
     public Type SearchServiceType { get; set; } = typeof(SearchServiceAsync);
     /// <summary>
     /// The indexing provider of the unkeyed services: the default provider's once <c>AddBetterSearch</c> has run, or

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 
 namespace Bielu.BetterSearch.Typesense.DependencyInjection;
 
+/// <summary>Extensions that add the Typesense provider to a <see cref="Configurator"/>.</summary>
 public static class RegisterSearchExtension
 {
     /// <summary>The key AddTypesense registers its provider under when no key is given.</summary>

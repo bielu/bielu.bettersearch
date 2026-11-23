@@ -35,6 +35,6 @@ internal sealed class TermsSubQueryTranslator : ISubQueryTranslator<IQuery>
             combined = combined == null ? part.Value : new OrQueryOperator(combined, part.Value);
         }
 
-        return Task.FromResult(Result.Ok<IQuery>(new Query(combined)));
+        return Task.FromResult(Result.Ok<IQuery>(new Query(combined ?? EmptyQueryPart.Instance)));
     }
 }

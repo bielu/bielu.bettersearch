@@ -1,0 +1,68 @@
+#nullable enable
+Bielu.BetterSearch.Caching.MemorySearchResultCache
+Bielu.BetterSearch.Caching.MemorySearchResultCache.GetOrCreateAsync<T>(string! key, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! factory, Bielu.BetterSearch.Abstractions.Caching.SearchCacheEntryOptions! options, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T>
+Bielu.BetterSearch.Caching.MemorySearchResultCache.MemorySearchResultCache(Microsoft.Extensions.Caching.Memory.IMemoryCache! memoryCache) -> void
+Bielu.BetterSearch.Caching.MemorySearchResultCache.RemoveByTagAsync(string! tag, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Bielu.BetterSearch.Configuration.Configurator
+Bielu.BetterSearch.Configuration.Configurator.AddMemorySearchCache(System.Action<Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions!>? configure = null) -> Bielu.BetterSearch.Configuration.Configurator!
+Bielu.BetterSearch.Configuration.Configurator.AddProvider<TSearchProvider, TIndexingProvider>(string! key) -> Bielu.BetterSearch.Configuration.Configurator!
+Bielu.BetterSearch.Configuration.Configurator.AddSearchCache<TCache>(System.Action<Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions!>? configure = null) -> Bielu.BetterSearch.Configuration.Configurator!
+Bielu.BetterSearch.Configuration.Configurator.AppConfiguration.get -> Microsoft.Extensions.Configuration.IConfiguration!
+Bielu.BetterSearch.Configuration.Configurator.Configuration.get -> Bielu.BetterSearch.Configuration.SearchApplicationConfiguration!
+Bielu.BetterSearch.Configuration.Configurator.Configurator(Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration) -> void
+Bielu.BetterSearch.Configuration.Configurator.ConfigureSearchCache(System.Action<Bielu.BetterSearch.Abstractions.Caching.SearchCacheOptions!>? configure = null) -> Bielu.BetterSearch.Configuration.Configurator!
+Bielu.BetterSearch.Configuration.Configurator.RouteIndex(string! index, string! key) -> Bielu.BetterSearch.Configuration.Configurator!
+Bielu.BetterSearch.Configuration.Configurator.Services.get -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+Bielu.BetterSearch.Configuration.Configurator.SetDefaultProvider(string! key) -> Bielu.BetterSearch.Configuration.Configurator!
+Bielu.BetterSearch.Configuration.Configurator.SetDocumentValidatorType<T>() -> Bielu.BetterSearch.Configuration.Configurator!
+Bielu.BetterSearch.Configuration.Configurator.SetIndexingProviderType<T>() -> Bielu.BetterSearch.Configuration.Configurator!
+Bielu.BetterSearch.Configuration.Configurator.SetIndexingServiceType<T>() -> Bielu.BetterSearch.Configuration.Configurator!
+Bielu.BetterSearch.Configuration.Configurator.SetSearchProviderType<T>() -> Bielu.BetterSearch.Configuration.Configurator!
+Bielu.BetterSearch.Configuration.Configurator.SetSearchServiceType<T>() -> Bielu.BetterSearch.Configuration.Configurator!
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.DefaultProviderKey.get -> string?
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.DefaultProviderKey.set -> void
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.DocumentValidatorType.get -> System.Type!
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.DocumentValidatorType.set -> void
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.IndexingProviderType.get -> System.Type!
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.IndexingProviderType.set -> void
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.IndexingServiceType.get -> System.Type!
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.IndexingServiceType.set -> void
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.ProviderKeys.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.Routes.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.SearchApplicationConfiguration() -> void
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.SearchProviderType.get -> System.Type!
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.SearchProviderType.set -> void
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.SearchServiceType.get -> System.Type!
+Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.SearchServiceType.set -> void
+Bielu.BetterSearch.DependencyInjection.BetterSearchServiceCollectionExtensions
+Bielu.BetterSearch.Diagnostics.BetterSearchInstrumentation
+Bielu.BetterSearch.Diagnostics.BetterSearchInstrumentationOptions
+Bielu.BetterSearch.Diagnostics.BetterSearchInstrumentationOptions.BetterSearchInstrumentationOptions() -> void
+Bielu.BetterSearch.Diagnostics.BetterSearchInstrumentationOptions.RecordErrorMessages.get -> bool
+Bielu.BetterSearch.Diagnostics.BetterSearchInstrumentationOptions.RecordErrorMessages.set -> void
+Bielu.BetterSearch.Services.IndexingServiceAsync
+Bielu.BetterSearch.Services.IndexingServiceAsync.IndexDocumentAsync(Bielu.BetterSearch.Abstractions.Models.SearchDocument! document, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result!>!
+Bielu.BetterSearch.Services.IndexingServiceAsync.IndexingServiceAsync(Bielu.BetterSearch.Abstractions.Services.IIndexingProviderAsync! indexingProvider, Bielu.BetterSearch.Abstractions.Services.IDocumentValidatorAsync! documentValidator, Microsoft.Extensions.Logging.ILogger<Bielu.BetterSearch.Services.IndexingServiceAsync!>? logger = null, Microsoft.Extensions.Options.IOptionsMonitor<Bielu.BetterSearch.Diagnostics.BetterSearchInstrumentationOptions!>? instrumentationOptions = null) -> void
+Bielu.BetterSearch.Services.IndexingServiceAsync.IndexMultipleDocumentsAsync(System.Collections.Generic.IEnumerable<Bielu.BetterSearch.Abstractions.Models.SearchDocument!>! document, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<int>!>!
+Bielu.BetterSearch.Services.IndexingServiceAsync.RemoveAllDocumentsAsync(Bielu.BetterSearch.Abstractions.Models.DeleteAllDocumentsRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<long?>!>!
+Bielu.BetterSearch.Services.IndexingServiceAsync.RemoveDocumentAsync(Bielu.BetterSearch.Abstractions.Models.DeleteDocumentRequest! document, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result!>!
+Bielu.BetterSearch.Services.IndexingServiceAsync.RemoveDocumentsAsync(string! index, System.Collections.Generic.IEnumerable<string!>! ids, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<int>!>!
+Bielu.BetterSearch.Services.IndexingServiceAsync.UpdateDocumentAsync(string! index, string! id, System.Collections.Generic.IDictionary<string!, System.Collections.Generic.IList<object!>!>! fields, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Services.IndexLifecycleServiceAsync
+Bielu.BetterSearch.Services.IndexLifecycleServiceAsync.AbortRebuildAsync(Bielu.BetterSearch.Abstractions.Models.IndexRebuild! rebuild, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<bool>!>!
+Bielu.BetterSearch.Services.IndexLifecycleServiceAsync.CompleteRebuildAsync(Bielu.BetterSearch.Abstractions.Models.IndexRebuild! rebuild, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<System.Collections.Generic.IReadOnlyList<string!>!>!>!
+Bielu.BetterSearch.Services.IndexLifecycleServiceAsync.IndexLifecycleServiceAsync(Bielu.BetterSearch.Abstractions.Services.IIndexingProviderAsync! indexingProvider, Bielu.BetterSearch.Abstractions.Services.IDocumentValidatorAsync! documentValidator) -> void
+Bielu.BetterSearch.Services.IndexLifecycleServiceAsync.IndexRebuildDocumentsAsync(Bielu.BetterSearch.Abstractions.Models.IndexRebuild! rebuild, System.Collections.Generic.IEnumerable<Bielu.BetterSearch.Abstractions.Models.SearchDocument!>! documents, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<int>!>!
+Bielu.BetterSearch.Services.IndexLifecycleServiceAsync.StartRebuildAsync(string! index, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<Bielu.BetterSearch.Abstractions.Models.IndexRebuild!>!>!
+Bielu.BetterSearch.Services.SearchServiceAsync
+Bielu.BetterSearch.Services.SearchServiceAsync.CountAsync(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<long>!>!
+Bielu.BetterSearch.Services.SearchServiceAsync.GetDocumentAsync(string! index, string! id, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<Bielu.BetterSearch.Abstractions.Models.SearchDocument?>!>!
+Bielu.BetterSearch.Services.SearchServiceAsync.SearchAsync(Bielu.BetterSearch.Abstractions.Query.ISearchQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<FluentResults.Result<Bielu.BetterSearch.Abstractions.Models.ISearchResult!>!>!
+Bielu.BetterSearch.Services.SearchServiceAsync.SearchServiceAsync(Bielu.BetterSearch.Abstractions.Services.ISearchProviderAsync! providerAsync, Microsoft.Extensions.Logging.ILogger<Bielu.BetterSearch.Services.SearchServiceAsync!>? logger = null, Microsoft.Extensions.Options.IOptionsMonitor<Bielu.BetterSearch.Diagnostics.BetterSearchInstrumentationOptions!>? instrumentationOptions = null) -> void
+const Bielu.BetterSearch.Configuration.SearchApplicationConfiguration.RoutesSectionKey = "Bielu:BetterSearch:Routes" -> string!
+const Bielu.BetterSearch.Diagnostics.BetterSearchInstrumentation.ActivitySourceName = "Bielu.BetterSearch" -> string!
+const Bielu.BetterSearch.Diagnostics.BetterSearchInstrumentation.MeterName = "Bielu.BetterSearch" -> string!
+const Bielu.BetterSearch.Diagnostics.BetterSearchInstrumentationOptions.SectionKey = "Bielu:BetterSearch:Instrumentation" -> string!
+static Bielu.BetterSearch.DependencyInjection.BetterSearchServiceCollectionExtensions.AddBetterSearch(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration, System.Action<Bielu.BetterSearch.Configuration.Configurator!>! configure) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static Bielu.BetterSearch.DependencyInjection.BetterSearchServiceCollectionExtensions.AddBetterSearch(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<Bielu.BetterSearch.Configuration.Configurator!>! configure) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
